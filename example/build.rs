@@ -79,12 +79,8 @@ fn transpile_file(crst_file: &Path, src_dir: &Path, out_dir: &Path) {
     println!("cargo:warning=Transpiling {} to {}", crst_file.display(), out_file.display());
     
     // Invoke crustyc to transpile
-    let status = Command::new("cargo")
+    let status = Command::new("crustyc")
         .args(&[
-            "run",
-            "--bin",
-            "crustyc",
-            "--",
             crst_file.to_str().unwrap(),
             "-o",
             out_file.to_str().unwrap(),
