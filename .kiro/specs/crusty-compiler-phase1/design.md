@@ -887,6 +887,110 @@ let complex = @Option(Inner[Type(T), std.io.Error])->None;
 - `@Type` → `Type` (no turbofish, rely on inference)
 - `@Type.method()` → `Type::method()` (type-scoped call, no turbofish)
 
+**Implementation Blocks with typedef Syntax**:
+
+Crusty uses C-style `typedef` syntax for defining structs and their implementations, providing a familiar syntax while mapping to Rust's `impl` blocks:
+
+**Basic Struct Definition:**
+```crusty
+// Define a struct type
+typedef struct {
+    int x;
+    int y;
+} Point;
+
+// Translates to Rust:
+struct Point {
+    x: i32,
+    y: i32,
+}
+```
+
+**Implementation Blocks (@Type):**
+```crusty
+// Add methods to an existing type
+typedef struct {
+    Point new(int x, int y) {
+        return Point { x: x, y: y };
+    }
+    
+    int distance_squared(&self) {
+        return self.x * self.x + self.y * self.y;
+    }
+} @Point;
+
+// Translates to Rust:
+impl Point {
+    pub fn new(x: i32, y: i32) -> Point {
+        return Point { x: x, y: y };
+    }
+    
+    pub fn distance_squared(&self) -> i32 {
+        return self.x * self.x + self.y * self.y;
+    }
+}
+```
+
+**Default Trait Implementation (typedef default):**
+```crusty
+// Implement Default trait
+typedef default {
+    Point default() {
+        return Point { x: 0, y: 0 };
+    }
+} @Point;
+
+// Translates to Rust:
+impl Default for Point {
+    fn default() -> Self {
+        return Point { x: 0, y: 0 };
+    }
+}
+```
+
+**Named Implementation Blocks (@Type->name):**
+```crusty
+// Named impl block for organization
+typedef struct {
+    void print(&self) {
+        __println__("Point({}, {})", self.x, self.y);
+    }
+} @Point->display;
+
+// Another named impl block
+typedef struct {
+    void debug(&self) {
+        __println__("Point {{ x: {}, y: {} }}", self.x, self.y);
+    }
+} @Point->debug;
+
+// Both translate to Rust (merged into single impl):
+impl Point {
+    pub fn print(&self) {
+        println!("Point({}, {})", self.x, self.y);
+    }
+    
+    pub fn debug(&self) {
+        println!("Point {{ x: {}, y: {} }}", self.x, self.y);
+    }
+}
+```
+
+**Syntax Rules**:
+- `typedef struct { ... } Type;` - Define a new struct type
+- `typedef struct { methods } @Type;` - Add impl block for existing type
+- `typedef default { fn default() { ... } } @Type;` - Implement Default trait
+- `typedef struct { methods } @Type->name;` - Named impl block (for organization)
+- The `@` prefix indicates the type already exists
+- The `->name` suffix is optional and used for organizing multiple impl blocks
+- All named impl blocks for the same type are merged in the generated Rust code
+
+**Translation Rules**:
+- `typedef struct @Type` → `impl Type`
+- `typedef default @Type` → `impl Default for Type`
+- `typedef struct @Type->name` → `impl Type` (name is for organization only)
+- Multiple `@Type->name` blocks are merged into a single `impl Type` block
+
 **Interface**:
 ```rust
 pub struct SemanticAnalyzer {

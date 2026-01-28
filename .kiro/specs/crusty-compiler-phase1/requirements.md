@@ -524,6 +524,112 @@ This phase serves as an experimental platform to determine which C language feat
 22. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust Type::method() to Crusty @Type->method() or @Type.method()
 23. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust nested type paths Foo::Bar.boo() to Crusty @Foo.Bar.boo()
 
+### Requirement 23A: Support Implementation Blocks with typedef Syntax
+
+**User Story:** As a Crusty programmer, I want to define struct types and their implementations using familiar C typedef syntax, so that I can organize methods separately from struct definitions while maintaining C-like syntax.
+
+#### Acceptance Criteria
+
+**Basic Struct Definition:**
+1. THE Parser SHALL support standard C typedef struct syntax for defining struct types (typedef struct { ... } Type;)
+2. WHEN a typedef struct defines a new type, THE Code_Generator SHALL generate both a Rust struct definition and the type name
+3. THE Semantic_Analyzer SHALL register the type name in the type environment
+
+**Implementation Blocks:**
+4. THE Parser SHALL support typedef struct with @ prefix for adding implementations to existing types (typedef struct { ... } @Type;)
+5. WHEN typedef struct uses @ prefix, THE Parser SHALL treat it as an impl block for the named type
+6. THE Parser SHALL support method definitions within typedef struct @Type blocks
+7. WHEN generating Rust code, THE Code_Generator SHALL translate typedef struct @Type { methods } to impl Type { methods }
+8. THE Semantic_Analyzer SHALL verify that @Type references an existing type when used in typedef struct @Type
+
+**Trait Implementation Syntax:**
+9. THE Parser SHALL support typedef default syntax for implementing the Default trait (typedef default { ... } @Type;)
+10. WHEN typedef default is used, THE Parser SHALL parse the block as a Default trait implementation
+11. THE Parser SHALL require exactly one method named 'default' with no parameters in typedef default blocks
+12. WHEN generating Rust code, THE Code_Generator SHALL translate typedef default { fn default() -> Self { ... } } @Type to impl Default for Type { fn default() -> Self { ... } }
+13. THE Semantic_Analyzer SHALL verify that typedef default blocks contain a valid default() method
+
+**Named Implementation Blocks:**
+14. THE Parser SHALL support typedef struct with @Type->name syntax for named impl blocks (typedef struct { ... } @Type->foo;)
+15. WHEN typedef struct uses @Type->name syntax, THE Parser SHALL treat it as a named impl block
+16. THE Parser SHALL allow multiple typedef struct @Type->name blocks with different names for the same type
+17. WHEN generating Rust code, THE Code_Generator SHALL translate typedef struct @Type->foo to impl Type (combining all methods from all impl blocks)
+18. THE Semantic_Analyzer SHALL track multiple impl blocks for the same type
+
+**Syntax Examples:**
+```crusty
+// Basic struct definition
+typedef struct {
+    int x;
+    int y;
+} Point;
+
+// Implementation block for Point
+typedef struct {
+    Point new(int x, int y) {
+        return Point { x: x, y: y };
+    }
+    
+    int distance_squared(&self) {
+        return self.x * self.x + self.y * self.y;
+    }
+} @Point;
+
+// Default trait implementation
+typedef default {
+    Point default() {
+        return Point { x: 0, y: 0 };
+    }
+} @Point;
+
+// Named implementation block
+typedef struct {
+    void print(&self) {
+        __println__("Point({}, {})", self.x, self.y);
+    }
+} @Point->display;
+```
+
+**Rust Translation:**
+```rust
+// Basic struct definition
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+// Implementation block
+impl Point {
+    pub fn new(x: i32, y: i32) -> Point {
+        return Point { x: x, y: y };
+    }
+    
+    pub fn distance_squared(&self) -> i32 {
+        return self.x * self.x + self.y * self.y;
+    }
+}
+
+// Default trait implementation
+impl Default for Point {
+    fn default() -> Self {
+        return Point { x: 0, y: 0 };
+    }
+}
+
+// Named implementation block (merged into impl)
+impl Point {
+    pub fn print(&self) {
+        println!("Point({}, {})", self.x, self.y);
+    }
+}
+```
+
+**Reverse Transpilation:**
+19. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust impl Type blocks to Crusty typedef struct { ... } @Type
+20. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust impl Default for Type to Crusty typedef default { ... } @Type
+21. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust impl Trait for Type to appropriate Crusty syntax
+22. THE Code_Generator MAY use named impl blocks (@Type->name) to organize multiple impl blocks in reverse transpilation
+
 ### Requirement 24: Support Traits as C-Style VTable Structs
 
 **User Story:** As a Crusty programmer, I want to define and implement traits using C-style vtable structs, so that I can define shared behavior across types with familiar C patterns.
