@@ -7,6 +7,7 @@ This section documents design decisions and rationale for the Crusty compiler.
 - [Philosophy](philosophy.md) - Design philosophy and goals
 - [C Compatibility](c-compatibility.md) - C features supported and excluded
 - [Rust Integration](rust-integration.md) - How Crusty integrates with Rust
+- [Build Integration](build-integration.md) - Cargo and build.rs integration
 
 ## Design Principles
 
