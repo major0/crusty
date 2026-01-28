@@ -204,11 +204,11 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Test error recovery
     - _Requirements: 1.1, 1.2_
 
-- [ ] 6. Checkpoint - Ensure lexer and parser tests pass
+- [x] 6. Checkpoint - Ensure lexer and parser tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 
-- [ ] 7. Implement symbol table and type environment
+- [x] 7. Implement symbol table and type environment
   - [ ]7.1 Create symbol table structure
     - Create SymbolTable struct with scopes stack
     - Create Scope struct with symbols HashMap
