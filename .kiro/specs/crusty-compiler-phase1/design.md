@@ -16,6 +16,7 @@ The design supports bidirectional transpilation, meaning the same AST representa
 ### Key Design Principles
 
 - **Shared AST**: Use a unified AST representation that can represent both Crusty and Rust constructs
+- **C-like Function Syntax**: Crusty uses C-style function declarations with return types before function names (e.g., `int main()`, `void foo()`), NOT Rust's `fn` keyword syntax
 - **Rust Standard Library**: Crusty programs use Rust's std library directly without wrappers
 - **Safety First**: Reject C features that violate Rust's safety guarantees
 - **Familiar Syntax**: Provide C-like syntax that maps cleanly to Rust semantics
@@ -331,6 +332,37 @@ indent_size = 2
 Crusty Source → Crusty Parser → AST → Semantic Analysis → Code Generator → Rust Source → rustc → Binary
 ```
 
+**Example Crusty Source:**
+```crusty
+// Crusty function syntax (C-style)
+int add(int a, int b) {
+    return a + b;
+}
+
+void print_message(char* msg) {
+    println!("{}", msg);
+}
+
+static int helper(int x) {
+    return x * 2;
+}
+```
+
+**Translates to Rust:**
+```rust
+pub fn add(a: i32, b: i32) -> i32 {
+    return a + b;
+}
+
+pub fn print_message(msg: &str) {
+    println!("{}", msg);
+}
+
+fn helper(x: i32) -> i32 {
+    return x * 2;
+}
+```
+
 **Rust → Crusty:**
 ```
 Rust Source → Rust Parser (syn) → AST → Semantic Analysis → Code Generator → Crusty Source
@@ -397,7 +429,7 @@ pub struct Position {
 
 pub enum TokenKind {
     // Keywords
-    Fn, Let, Var, Const, Static, If, Else, While, For, Return,
+    Let, Var, Const, Static, If, Else, While, For, Return,
     Break, Continue, Struct, Enum, Typedef, Namespace, Extern,
     
     // Types
