@@ -137,7 +137,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Commit with message: "test(task-5.3): add unit tests for AST construction"
     - _Requirements: 6.3_
 
-- [-] 6. Implement basic Crusty parser
+- [x] 6. Implement basic Crusty parser
   - [x]6.1 Create parser structure and initialization
     - Create Parser struct with lexer and current_token fields
     - Implement Parser::new() that initializes lexer
@@ -170,7 +170,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Commit with message: "feat(task-6.3): implement statement parsing"
     - _Requirements: 6.8, 6.9, 6.10, 6.11, 6.12, 6.13, 6.14, 6.15, 34.1-34.5, 43.1, 43.2_
   
-  - [ ]6.4 Implement expression parsing with precedence
+  - [x]6.4 Implement expression parsing with precedence
     - Implement parse_expression() with operator precedence climbing
     - Implement parsing for literals (int, float, string, char, bool)
     - Implement parsing for identifiers
@@ -183,7 +183,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Implement parsing for type-scoped static method calls (@Type.method())
     - _Requirements: 1.14, 13.5, 21.7, 21.8, 23.1-23.21_
   
-  - [ ]6.5 Implement type parsing
+  - [x]6.5 Implement type parsing
     - Implement parse_type() for type expressions
     - Implement parsing for primitive types (int, i32, i64, u32, u64, float, f32, f64, bool, char, void)
     - Implement parsing for pointer types
@@ -193,11 +193,11 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Implement parsing for generic types (Type<T>)
     - _Requirements: 13.1-13.8, 14.1-14.6, 30.1-30.4, 32.1-32.7_
   
-  - [ ]6.6 Write property test for valid parsing
+  - [x]6.6 Write property test for valid parsing
     - **Property 1: Valid Crusty programs parse successfully**
     - **Validates: Requirements 6.1**
   
-  - [ ]6.7 Write unit tests for parser
+  - [x]6.7 Write unit tests for parser
     - Test parsing of functions, structs, enums
     - Test parsing of statements and expressions
     - Test parsing of types
