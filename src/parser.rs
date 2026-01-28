@@ -52,6 +52,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Peek at the current token without consuming it
+    #[allow(dead_code)]
     fn peek(&self) -> &Token {
         &self.current_token
     }
@@ -497,6 +498,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a struct definition
+    #[allow(dead_code)]
     fn parse_struct(&mut self) -> Result<Item, ParseError> {
         self.expect(TokenKind::Struct)?;
 
@@ -527,7 +529,7 @@ impl<'a> Parser<'a> {
             // We need to look ahead to determine this
             
             // Save current position for potential backtracking
-            let saved_token = self.current_token.clone();
+            let _saved_token = self.current_token.clone();
             
             // Try to parse as a method first
             if self.is_method_definition()? {
@@ -772,6 +774,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse an enum definition
+    #[allow(dead_code)]
     fn parse_enum(&mut self) -> Result<Item, ParseError> {
         self.expect(TokenKind::Enum)?;
 

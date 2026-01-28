@@ -96,11 +96,7 @@ impl RustcError {
     fn parse_from_line(line: &str) -> Self {
         // Try to extract error code like "error[E0425]:"
         let error_code = if let Some(start) = line.find("error[") {
-            if let Some(end) = line[start..].find(']') {
-                Some(line[start + 6..start + end].to_string())
-            } else {
-                None
-            }
+            line[start..].find(']').map(|end| line[start + 6..start + end].to_string())
         } else {
             None
         };

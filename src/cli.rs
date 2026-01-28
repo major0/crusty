@@ -4,7 +4,7 @@
 //! Command-line interface module for crustyc compiler.
 
 use clap::{Parser, ValueEnum};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Crusty compiler - bidirectional transpiler between Crusty and Rust
 #[derive(Parser, Debug)]
@@ -159,9 +159,9 @@ pub fn ensure_output_dir(dir: &PathBuf) -> Result<(), std::io::Error> {
 /// Compute output path for a source file when using --out-dir
 /// Preserves the directory structure relative to the base directory
 pub fn compute_output_path(
-    source_file: &PathBuf,
-    base_dir: &PathBuf,
-    out_dir: &PathBuf,
+    source_file: &Path,
+    base_dir: &Path,
+    out_dir: &Path,
     extension: &str,
 ) -> Result<PathBuf, std::io::Error> {
     // Get the relative path from base_dir to source_file
@@ -169,7 +169,7 @@ pub fn compute_output_path(
         source_file.strip_prefix(base_dir).unwrap()
     } else {
         // If source is not under base_dir, just use the file name
-        source_file.file_name().map(|n| std::path::Path::new(n)).unwrap()
+        source_file.file_name().map(std::path::Path::new).unwrap()
     };
 
     // Change the extension
@@ -181,12 +181,6 @@ pub fn compute_output_path(
 
 /// Run the compiler with the given options
 pub fn run_compiler(options: &CompilerOptions) -> crate::error::Result<()> {
-    use crate::ast::File;
-    use crate::codegen::{CodeGenerator, TargetLanguage};
-    use crate::error::CompilerError;
-    use crate::parser::Parser;
-    use crate::semantic::SemanticAnalyzer;
-
     let source_lang = options.get_source_language();
     let emit_mode = options.get_emit_mode();
 
@@ -224,7 +218,7 @@ fn run_single_file_compilation(options: &CompilerOptions) -> crate::error::Resul
 
 /// Run compilation for a single source file with a specified base directory
 /// The base_dir is used to preserve directory structure when using --out-dir
-fn run_single_file_compilation_with_base(options: &CompilerOptions, base_dir: &PathBuf) -> crate::error::Result<()> {
+fn run_single_file_compilation_with_base(options: &CompilerOptions, base_dir: &Path) -> crate::error::Result<()> {
     use crate::ast::File;
     use crate::codegen::{CodeGenerator, TargetLanguage};
     use crate::error::CompilerError;
@@ -302,7 +296,7 @@ fn run_single_file_compilation_with_base(options: &CompilerOptions, base_dir: &P
     let output_path = if let Some(ref out_dir) = options.out_dir {
         // Using --out-dir: compute output path preserving directory structure
         ensure_output_dir(out_dir)?;
-        let extension = if emit_mode == EmitMode::Rust { "rs" } else { "rs" };
+        let extension = "rs"; // Always emit Rust for now
         compute_output_path(&options.input_file, base_dir, out_dir, extension)?
     } else {
         options.get_output_path()
@@ -332,7 +326,7 @@ fn run_single_file_compilation_with_base(options: &CompilerOptions, base_dir: &P
 
         use crate::rustc;
         let rustc_result = rustc::invoke_rustc(&rust_output_path, &output_path, options.verbose)
-            .map_err(|e| CompilerError::RustcInvocation(e))?;
+            .map_err(CompilerError::RustcInvocation)?;
 
         if !rustc_result.is_success() {
             return Err(CompilerError::RustcInvocation(
@@ -438,7 +432,7 @@ fn run_batch_compilation(options: &CompilerOptions) -> crate::error::Result<()> 
             eprintln!("  {:?}: {}", file, error);
         }
         return Err(CompilerError::CodeGen(crate::error::CodeGenError::new(
-            &format!("Batch compilation failed with {} errors", errors.len()),
+            format!("Batch compilation failed with {} errors", errors.len()),
         )));
     }
 
