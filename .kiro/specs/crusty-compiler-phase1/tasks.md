@@ -22,7 +22,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
 
 ## Tasks
 
-- [ ] 1. Set up development infrastructure
+- [x] 1. Set up development infrastructure
   - [ ]1.1 Create GitHub CI/CD pipeline
     - Create .github/workflows/ci.yml file
     - Configure workflow to trigger on push and pull requests to main branch
