@@ -14,17 +14,19 @@ pub struct CompilerOptions {
     /// Input source file path
     pub input_file: PathBuf,
 
-    /// Output file path
-    #[arg(short = 'o', long = "output")]
+    /// Output file path (like rustc -o)
+    #[arg(short = 'o', long = "out")]
     pub output_file: Option<PathBuf>,
 
-    /// Output mode: what to emit
-    #[arg(long = "emit", default_value = "binary")]
+    /// Output mode: what to emit (auto, rust, binary, ast)
+    /// Auto mode detects from output file extension or defaults to binary
+    #[arg(long = "emit", default_value = "auto")]
     pub emit: EmitMode,
 
-    /// Source language
-    #[arg(long = "from-lang", default_value = "crusty")]
-    pub from_lang: SourceLanguage,
+    /// Absorb/parse source language (auto-detected from file extension if not specified)
+    /// Use this to override auto-detection (e.g., --absorb=rust for .crst files)
+    #[arg(long = "absorb")]
+    pub absorb: Option<SourceLanguage>,
 
     /// Enable verbose output
     #[arg(short = 'v', long = "verbose")]
@@ -38,6 +40,8 @@ pub struct CompilerOptions {
 /// Output mode for the compiler
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum EmitMode {
+    /// Auto-detect from output file extension or default to binary
+    Auto,
     /// Generate Rust source code only
     Rust,
     /// Generate Rust source and compile to binary
@@ -61,6 +65,49 @@ impl CompilerOptions {
         Self::parse()
     }
 
+    /// Detect source language from input file extension
+    /// Returns the detected language or the explicitly specified one via --absorb
+    pub fn get_source_language(&self) -> SourceLanguage {
+        // If explicitly specified via --absorb, use that
+        if let Some(lang) = self.absorb {
+            return lang;
+        }
+
+        // Auto-detect from file extension
+        if let Some(ext) = self.input_file.extension().and_then(|e| e.to_str()) {
+            match ext {
+                "rs" => SourceLanguage::Rust,
+                "crst" => SourceLanguage::Crusty,
+                _ => SourceLanguage::Crusty, // Default to Crusty for unknown extensions
+            }
+        } else {
+            SourceLanguage::Crusty // Default to Crusty if no extension
+        }
+    }
+
+    /// Resolve the actual emit mode (convert Auto to concrete mode)
+    pub fn get_emit_mode(&self) -> EmitMode {
+        match self.emit {
+            EmitMode::Auto => {
+                // Auto-detect from output file extension if specified
+                if let Some(ref output) = self.output_file {
+                    if let Some(ext) = output.extension().and_then(|e| e.to_str()) {
+                        match ext {
+                            "rs" => EmitMode::Rust,
+                            "ast" => EmitMode::Ast,
+                            _ => EmitMode::Binary, // Default to binary for executables
+                        }
+                    } else {
+                        EmitMode::Binary // No extension = binary
+                    }
+                } else {
+                    EmitMode::Binary // No output specified = binary
+                }
+            }
+            other => other, // Use explicitly specified mode
+        }
+    }
+
     /// Get the output file path, using a default if not specified
     pub fn get_output_path(&self) -> PathBuf {
         if let Some(ref path) = self.output_file {
@@ -73,7 +120,8 @@ impl CompilerOptions {
                 .and_then(|s| s.to_str())
                 .unwrap_or("output");
 
-            match self.emit {
+            match self.get_emit_mode() {
+                EmitMode::Auto => PathBuf::from(input_stem), // Should not happen after get_emit_mode()
                 EmitMode::Rust => PathBuf::from(format!("{}.rs", input_stem)),
                 EmitMode::Binary => PathBuf::from(input_stem),
                 EmitMode::Ast => PathBuf::from(format!("{}.ast", input_stem)),
@@ -100,10 +148,19 @@ pub fn run_compiler(options: &CompilerOptions) -> crate::error::Result<()> {
     use crate::parser::Parser;
     use crate::semantic::SemanticAnalyzer;
 
+    let source_lang = options.get_source_language();
+    let emit_mode = options.get_emit_mode();
+
     if options.verbose {
         println!("Compiling: {:?}", options.input_file);
-        println!("Source language: {:?}", options.from_lang);
-        println!("Emit mode: {:?}", options.emit);
+        println!("Source language: {:?} ({})", 
+            source_lang,
+            if options.absorb.is_some() { "explicit" } else { "auto-detected" }
+        );
+        println!("Emit mode: {:?} ({})",
+            emit_mode,
+            if options.emit == EmitMode::Auto { "auto-detected" } else { "explicit" }
+        );
     }
 
     // Step 1: Read source file
@@ -113,8 +170,8 @@ pub fn run_compiler(options: &CompilerOptions) -> crate::error::Result<()> {
         println!("Read {} bytes from source file", source.len());
     }
 
-    // Step 2: Parse source based on language
-    let ast: File = match options.from_lang {
+    // Step 2: Parse source based on detected/specified language
+    let ast: File = match source_lang {
         SourceLanguage::Crusty => {
             if options.verbose {
                 println!("Parsing Crusty source...");
@@ -135,7 +192,7 @@ pub fn run_compiler(options: &CompilerOptions) -> crate::error::Result<()> {
     }
 
     // Step 3: Handle AST emit mode
-    if options.emit == EmitMode::Ast {
+    if emit_mode == EmitMode::Ast {
         let ast_output = format!("{:#?}", ast);
         let output_path = options.get_output_path();
         write_output_file(&output_path, &ast_output)?;
@@ -172,7 +229,7 @@ pub fn run_compiler(options: &CompilerOptions) -> crate::error::Result<()> {
 
     // Step 6: Write output file
     let output_path = options.get_output_path();
-    let rust_output_path = if options.emit == EmitMode::Binary {
+    let rust_output_path = if emit_mode == EmitMode::Binary {
         // For binary mode, write to a temporary .rs file
         PathBuf::from(format!(
             "{}.rs",
@@ -189,7 +246,7 @@ pub fn run_compiler(options: &CompilerOptions) -> crate::error::Result<()> {
     }
 
     // Step 7: Optionally invoke rustc
-    if options.emit == EmitMode::Binary && !options.no_compile {
+    if emit_mode == EmitMode::Binary && !options.no_compile {
         if options.verbose {
             println!("Invoking rustc...");
         }
@@ -240,10 +297,12 @@ mod tests {
     #[test]
     fn test_emit_mode_values() {
         // Test that emit modes can be created
+        let auto = EmitMode::Auto;
         let rust = EmitMode::Rust;
         let binary = EmitMode::Binary;
         let ast = EmitMode::Ast;
 
+        assert_eq!(auto, EmitMode::Auto);
         assert_eq!(rust, EmitMode::Rust);
         assert_eq!(binary, EmitMode::Binary);
         assert_eq!(ast, EmitMode::Ast);
@@ -259,12 +318,110 @@ mod tests {
     }
 
     #[test]
+    fn test_auto_detect_source_language_crusty() {
+        let opts = CompilerOptions {
+            input_file: PathBuf::from("test.crst"),
+            output_file: None,
+            emit: EmitMode::Auto,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        assert_eq!(opts.get_source_language(), SourceLanguage::Crusty);
+    }
+
+    #[test]
+    fn test_auto_detect_source_language_rust() {
+        let opts = CompilerOptions {
+            input_file: PathBuf::from("test.rs"),
+            output_file: None,
+            emit: EmitMode::Auto,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        assert_eq!(opts.get_source_language(), SourceLanguage::Rust);
+    }
+
+    #[test]
+    fn test_explicit_absorb_overrides_detection() {
+        let opts = CompilerOptions {
+            input_file: PathBuf::from("test.crst"),
+            output_file: None,
+            emit: EmitMode::Auto,
+            absorb: Some(SourceLanguage::Rust),
+            verbose: false,
+            no_compile: false,
+        };
+
+        assert_eq!(opts.get_source_language(), SourceLanguage::Rust);
+    }
+
+    #[test]
+    fn test_auto_detect_emit_mode_from_rs_extension() {
+        let opts = CompilerOptions {
+            input_file: PathBuf::from("test.crst"),
+            output_file: Some(PathBuf::from("output.rs")),
+            emit: EmitMode::Auto,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        assert_eq!(opts.get_emit_mode(), EmitMode::Rust);
+    }
+
+    #[test]
+    fn test_auto_detect_emit_mode_from_ast_extension() {
+        let opts = CompilerOptions {
+            input_file: PathBuf::from("test.crst"),
+            output_file: Some(PathBuf::from("output.ast")),
+            emit: EmitMode::Auto,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        assert_eq!(opts.get_emit_mode(), EmitMode::Ast);
+    }
+
+    #[test]
+    fn test_auto_detect_emit_mode_defaults_to_binary() {
+        let opts = CompilerOptions {
+            input_file: PathBuf::from("test.crst"),
+            output_file: None,
+            emit: EmitMode::Auto,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        assert_eq!(opts.get_emit_mode(), EmitMode::Binary);
+    }
+
+    #[test]
+    fn test_explicit_emit_mode_overrides_auto() {
+        let opts = CompilerOptions {
+            input_file: PathBuf::from("test.crst"),
+            output_file: Some(PathBuf::from("output.rs")),
+            emit: EmitMode::Binary,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        assert_eq!(opts.get_emit_mode(), EmitMode::Binary);
+    }
+
+    #[test]
     fn test_get_output_path_with_explicit_output() {
         let opts = CompilerOptions {
             input_file: PathBuf::from("test.crst"),
             output_file: Some(PathBuf::from("custom_output.rs")),
-            emit: EmitMode::Rust,
-            from_lang: SourceLanguage::Crusty,
+            emit: EmitMode::Auto,
+            absorb: None,
             verbose: false,
             no_compile: false,
         };
@@ -278,7 +435,7 @@ mod tests {
             input_file: PathBuf::from("test.crst"),
             output_file: None,
             emit: EmitMode::Rust,
-            from_lang: SourceLanguage::Crusty,
+            absorb: None,
             verbose: false,
             no_compile: false,
         };
@@ -292,7 +449,7 @@ mod tests {
             input_file: PathBuf::from("test.crst"),
             output_file: None,
             emit: EmitMode::Binary,
-            from_lang: SourceLanguage::Crusty,
+            absorb: None,
             verbose: false,
             no_compile: false,
         };
@@ -306,7 +463,7 @@ mod tests {
             input_file: PathBuf::from("test.crst"),
             output_file: None,
             emit: EmitMode::Ast,
-            from_lang: SourceLanguage::Crusty,
+            absorb: None,
             verbose: false,
             no_compile: false,
         };
@@ -357,7 +514,7 @@ int add(int a, int b) {
             input_file: input_path.clone(),
             output_file: Some(PathBuf::from("test_add_12345.rs")),
             emit: EmitMode::Rust,
-            from_lang: SourceLanguage::Crusty,
+            absorb: None,
             verbose: false,
             no_compile: true,
         };
@@ -376,8 +533,8 @@ int add(int a, int b) {
         let options = CompilerOptions {
             input_file: PathBuf::from("nonexistent_file_99999.crst"),
             output_file: None,
-            emit: EmitMode::Rust,
-            from_lang: SourceLanguage::Crusty,
+            emit: EmitMode::Auto,
+            absorb: None,
             verbose: false,
             no_compile: true,
         };
@@ -402,7 +559,7 @@ int main() {
             input_file: input_path.clone(),
             output_file: Some(PathBuf::from("test_ast_12345.ast")),
             emit: EmitMode::Ast,
-            from_lang: SourceLanguage::Crusty,
+            absorb: None,
             verbose: false,
             no_compile: true,
         };
@@ -427,8 +584,8 @@ int main() {
         let options = CompilerOptions {
             input_file: input_path.clone(),
             output_file: None,
-            emit: EmitMode::Rust,
-            from_lang: SourceLanguage::Rust,
+            emit: EmitMode::Auto,
+            absorb: None, // Will auto-detect as Rust from .rs extension
             verbose: false,
             no_compile: true,
         };
@@ -440,5 +597,35 @@ int main() {
 
         // Should fail because Rust parsing is not yet implemented
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_auto_mode_with_crst_file() {
+        use std::fs;
+
+        let test_source = r#"
+int square(int x) {
+    return x * x;
+}
+"#;
+        let input_path = PathBuf::from("test_auto_12345.crst");
+        fs::write(&input_path, test_source).unwrap();
+
+        let options = CompilerOptions {
+            input_file: input_path.clone(),
+            output_file: Some(PathBuf::from("test_auto_12345.rs")),
+            emit: EmitMode::Auto, // Should auto-detect Rust from .rs output
+            absorb: None,         // Should auto-detect Crusty from .crst input
+            verbose: false,
+            no_compile: true,
+        };
+
+        let result = run_compiler(&options);
+
+        // Clean up
+        let _ = fs::remove_file(&input_path);
+        let _ = fs::remove_file("test_auto_12345.rs");
+
+        assert!(result.is_ok());
     }
 }
