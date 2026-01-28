@@ -701,24 +701,11 @@ impl<'a> Parser<'a> {
     fn parse_break_statement(&mut self) -> Result<Statement, ParseError> {
         self.expect(TokenKind::Break)?;
 
-        // Check for label (.label)
-        let label = if self.check(&TokenKind::Dot) {
+        // Check for label (just identifier, no dot)
+        let label = if let TokenKind::Ident(n) = &self.current_token.kind {
+            let ident = Ident::new(n.clone());
             self.advance()?;
-            match &self.current_token.kind {
-                TokenKind::Ident(n) => {
-                    let ident = Ident::new(n.clone());
-                    self.advance()?;
-                    Some(ident)
-                }
-                _ => {
-                    return Err(ParseError::new(
-                        self.current_token.span,
-                        "expected label name after '.'",
-                        vec!["identifier".to_string()],
-                        format!("{:?}", self.current_token.kind),
-                    ));
-                }
-            }
+            Some(ident)
         } else {
             None
         };
@@ -732,24 +719,11 @@ impl<'a> Parser<'a> {
     fn parse_continue_statement(&mut self) -> Result<Statement, ParseError> {
         self.expect(TokenKind::Continue)?;
 
-        // Check for label (.label)
-        let label = if self.check(&TokenKind::Dot) {
+        // Check for label (just identifier, no dot)
+        let label = if let TokenKind::Ident(n) = &self.current_token.kind {
+            let ident = Ident::new(n.clone());
             self.advance()?;
-            match &self.current_token.kind {
-                TokenKind::Ident(n) => {
-                    let ident = Ident::new(n.clone());
-                    self.advance()?;
-                    Some(ident)
-                }
-                _ => {
-                    return Err(ParseError::new(
-                        self.current_token.span,
-                        "expected label name after '.'",
-                        vec!["identifier".to_string()],
-                        format!("{:?}", self.current_token.kind),
-                    ));
-                }
-            }
+            Some(ident)
         } else {
             None
         };
@@ -1927,7 +1901,7 @@ mod tests {
 
     #[test]
     fn test_parse_break_with_label() {
-        let source = "int main() { break .outer; }";
+        let source = "int main() { break outer; }";
         let mut parser = Parser::new(source).unwrap();
         
         let file = parser.parse_file().unwrap();
@@ -1968,7 +1942,7 @@ mod tests {
 
     #[test]
     fn test_parse_continue_with_label() {
-        let source = "int main() { continue .inner; }";
+        let source = "int main() { continue inner; }";
         let mut parser = Parser::new(source).unwrap();
         
         let file = parser.parse_file().unwrap();
@@ -2352,7 +2326,7 @@ mod property_tests {
             "int main() { if (true) { return 1; } else { return 0; } }",
             "int main() { while (true) { break; } return 0; }",
             "int main() { for (i in items) { } return 0; }",
-            "int main() { .outer: loop { break .outer; } return 0; }",
+            "int main() { .outer: loop { break outer; } return 0; }",
             "int main() { return 1 + 2 * 3; }",
             "int main() { return foo(1, 2); }",
             "int main() { return obj.field; }",
