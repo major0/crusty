@@ -153,7 +153,7 @@ This phase serves as an experimental platform to determine which C language feat
 
 ### Requirement 6: Provide Example Directory with Crusty Sources
 
-**User Story:** As a Crusty developer, I want a comprehensive example directory with working Crusty code samples, so that I can learn the language and verify the compiler works correctly.
+**User Story:** As a Crusty developer, I want a comprehensive example directory with working Crusty code samples, so that I can learn the language and verify the transpiler works correctly.
 
 #### Acceptance Criteria
 
@@ -187,7 +187,7 @@ This phase serves as an experimental platform to determine which C language feat
 28. THE CI_Pipeline SHALL run cargo test in the example/ directory if tests are present
 29. THE CI_Pipeline SHALL run cargo run in the example/ directory to verify the binary executes
 30. WHEN the example/ directory fails to build, THE CI_Pipeline SHALL fail the build
-31. THE example/ directory SHALL serve as integration tests for the Crusty compiler
+31. THE example/ directory SHALL serve as integration tests for the Crusty transpiler
 32. THE example/ directory SHALL be kept up-to-date with new language features as they are added
 33. THE example .crst files SHALL include comments explaining the Crusty syntax being demonstrated
 34. THE example/ directory README SHALL explain how to build and run the examples
@@ -582,7 +582,7 @@ This phase serves as an experimental platform to determine which C language feat
 
 ### Requirement 27: Support Attributes
 
-**User Story:** As a Crusty programmer, I want to use attributes to add metadata to code elements, so that I can control compiler behavior and derive common traits.
+**User Story:** As a Crusty programmer, I want to use attributes to add metadata to code elements, so that I can control transpiler behavior and derive common traits.
 
 #### Acceptance Criteria
 

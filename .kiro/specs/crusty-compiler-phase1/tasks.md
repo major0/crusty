@@ -1,8 +1,8 @@
-# Implementation Plan: Crusty Compiler Phase 1
+# Implementation Plan: Crusty Transpiler Phase 1
 
 ## Overview
 
-This implementation plan breaks down the Crusty compiler (crustyc) development into discrete, incremental coding tasks. The compiler is a bidirectional transpiler between Crusty (C-like syntax) and Rust, following a traditional multi-phase architecture: lexical analysis, parsing, semantic analysis, code generation, and optional compilation via rustc.
+This implementation plan breaks down the Crusty transpiler (crustyc) development into discrete, incremental coding tasks. The transpiler is a bidirectional tool between Crusty (C-like syntax) and Rust, following a traditional multi-phase architecture: lexical analysis, parsing, semantic analysis, code generation, and optional compilation via rustc.
 
 The implementation follows a bottom-up approach, building core infrastructure first, then adding language features incrementally, and finally implementing bidirectional transpilation and advanced features.
 
@@ -428,8 +428,8 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Handle file write errors
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6_
   
-  - [x]12.3 Implement compiler orchestration
-    - Create run_compiler() function that coordinates compilation pipeline
+  - [x]12.3 Implement transpiler orchestration
+    - Create run_compiler() function that coordinates transpilation pipeline
     - Read source file
     - Parse source (Crusty or Rust based on --from-lang)
     - Run semantic analysis
@@ -1041,7 +1041,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - _Requirements: All_
 
 - [ ] 32. Performance optimization
-  - [ ]32.1 Profile compiler performance
+  - [ ]32.1 Profile transpiler performance
     - Identify performance bottlenecks
     - Measure parsing, semantic analysis, and code generation times
     - _Requirements: All (non-functional)_
@@ -1161,7 +1161,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
 - Unit tests validate specific examples and edge cases
 - The implementation follows a bottom-up approach: infrastructure → parsing → analysis → generation → advanced features
 - Bidirectional transpilation (Rust ↔ Crusty) is a key feature validated by round-trip properties
-- The compiler uses Rust's standard library directly without wrappers
+- The transpiler uses Rust's standard library directly without wrappers
 - All generated Rust code must be valid and compile with rustc
 - All tasks are required for comprehensive implementation
 

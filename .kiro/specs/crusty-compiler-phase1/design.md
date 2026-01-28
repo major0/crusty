@@ -1,10 +1,10 @@
-# Design Document: Crusty Compiler Phase 1
+# Design Document: Crusty Transpiler (Compiler) Phase 1
 
 ## Overview
 
-The Crusty compiler (crustyc) is a bidirectional transpiler that translates between Crusty (a C-like language) and Rust source code. This phase 1 implementation establishes the core compiler infrastructure and determines which C language features can be preserved while maintaining Rust compatibility.
+The Crusty transpiler (crustyc) is a bidirectional tool that translates between Crusty (a C-like language) and Rust source code. This phase 1 implementation establishes the core transpiler infrastructure and determines which C language features can be preserved while maintaining Rust compatibility.
 
-The compiler follows a traditional multi-phase architecture:
+The transpiler follows a traditional multi-phase architecture:
 1. **Lexical Analysis**: Tokenize source code
 2. **Parsing**: Build Abstract Syntax Tree (AST)
 3. **Semantic Analysis**: Validate types, scopes, and language rules
@@ -811,7 +811,7 @@ let complex = @Option(Inner[Type(T), std.io.Error])->None;
 // Vec.new()       is INVALID - missing @
 // Option.None     is INVALID - missing @
 
-// The parentheses and everything within can be dropped if compiler can infer:
+// The parentheses and everything within can be dropped if types can be inferred:
 // @Option(Result[String, std.io.Error]).None  can become  @Option.None
 // @Vec(i32).new()  can become  @Vec.new()
 
