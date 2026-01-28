@@ -76,7 +76,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
   - Commit with message: "feat(task-2): set up project structure and dependencies"
   - _Requirements: All (foundational)_
 
-- [ ] 3. Implement error handling infrastructure
+- [-] 3. Implement error handling infrastructure
   - [ ]3.1 Define error types and structures
     - Create CompilerError enum with variants for Lex, Parse, Semantic, CodeGen, Io, RustcInvocation
     - Create LexError, ParseError, SemanticError structs with span and message fields
