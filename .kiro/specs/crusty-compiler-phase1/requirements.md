@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Crusty is a C-like programming language that transpiles to Rust, enabling developers to write code with familiar C syntax while leveraging the safety and performance of the Rust ecosystem. Phase 1 focuses on building two tools: `crustyc` (a bidirectional transpiler that translates between Crusty and Rust source code) and `crustydoc` (a documentation generator that leverages the Linux kernel document object model for self-documented code).
+Crusty is a C-like programming language that transpiles to Rust, enabling developers to write code with familiar C syntax while leveraging the safety and performance of the Rust ecosystem. Phase 1 focuses on building two tools: `crustyc` (a bidirectional transpiler that translates between Crusty and Rust source code) and `crustydoc` (a documentation generator that leverages rustdoc for generating high-quality documentation).
 
 Crusty is designed for transparent integration with the Rust ecosystem:
 - **Use Rust crates**: Crusty code can import and use any existing Rust crate or module
@@ -24,8 +24,8 @@ This phase serves as an experimental platform to determine which C language feat
 - **Code_Generator**: The component that produces target code from parsed source
 - **AST**: Abstract Syntax Tree representing the parsed program structure
 - **Semantic_Analyzer**: The component that validates program semantics and type correctness
-- **Doc_Extractor**: The component that extracts documentation comments from Crusty source code
-- **Doc_Generator**: The component that generates documentation using the Linux kernel document object model
+- **Doc_Extractor**: The component that extracts documentation comments from Crusty source code (deprecated - now handled by Code_Generator preserving comments)
+- **Doc_Generator**: The component that invokes rustdoc to generate documentation from transpiled Rust code
 - **Rust_Parser**: The component that reads and validates Rust syntax for reverse transpilation
 - **CI_Pipeline**: The continuous integration pipeline that automatically builds and tests code
 - **Developer**: A programmer working on the Crusty transpiler or writing Crusty programs
