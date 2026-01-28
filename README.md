@@ -270,7 +270,6 @@ The hooks will automatically run:
 - [Requirements](/.kiro/specs/crusty-compiler-phase1/requirements.md) - Detailed requirements and acceptance criteria
 - [Design](/.kiro/specs/crusty-compiler-phase1/design.md) - Architecture and component design
 - [Implementation Tasks](/.kiro/specs/crusty-compiler-phase1/tasks.md) - Development task breakdown and progress
-- [Review Findings](/.kiro/specs/crusty-compiler-phase1/REVIEW_FINDINGS.md) - Comprehensive specification review
 
 ### Language Reference
 - Function declarations and definitions

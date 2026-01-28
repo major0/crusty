@@ -1,0 +1,29 @@
+name: Discord PR Notifications
+
+on:
+  pull_request:
+    types: [opened, closed]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set notification variables
+        id: vars
+        env:
+          GITHUB_EVENT_ACTION: ${{ github.event.action }}
+          PR_MERGED: ${{ github.event.pull_request.merged }}
+        run: sh .github/scripts/pr-notify-vars.sh
+
+      - name: Notify Discord
+        uses: appleboy/discord-action@v1.2.0
+        with:
+          webhook_url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          color: ${{ steps.vars.outputs.pr_color }}
+          username: "GitHub Bot"
+          message: |
+            🔀 Pull Request ${{ steps.vars.outputs.pr_state }}: ${{ github.event.pull_request.title }}
+            🔗 ${{ github.event.pull_request.html_url }}
