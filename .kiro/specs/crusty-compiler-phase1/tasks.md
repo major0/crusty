@@ -370,7 +370,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - **Property 5: Generated Rust code follows formatting conventions**
     - **Validates: Requirements 8.16**
 
-- [ ] 11. Checkpoint - Ensure code generation tests pass
+- [x] 11. Checkpoint - Ensure code generation tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 12. Implement CLI and file I/O

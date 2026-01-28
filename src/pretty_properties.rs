@@ -20,7 +20,9 @@ fn arb_simple_function() -> impl Strategy<Value = Function> {
                     | "break" | "continue" | "fn" | "struct" | "enum" | "type" | "impl" | "trait"
                     | "pub" | "use" | "mod" | "match" | "loop" | "as" | "mut" | "ref" | "self"
                     | "Self" | "super" | "crate" | "extern" | "unsafe" | "where" | "async" | "await"
-                    | "dyn" | "move" | "true" | "false"
+                    | "dyn" | "move" | "true" | "false" | "do" | "box" | "yield" | "become"
+                    | "abstract" | "final" | "override" | "macro" | "priv" | "typeof" | "unsized"
+                    | "virtual" | "try"
             )
         });
 
@@ -54,7 +56,9 @@ fn arb_simple_statement() -> impl Strategy<Value = Statement> {
                     | "break" | "continue" | "fn" | "struct" | "enum" | "type" | "impl" | "trait"
                     | "pub" | "use" | "mod" | "match" | "loop" | "as" | "mut" | "ref" | "self"
                     | "Self" | "super" | "crate" | "extern" | "unsafe" | "where" | "async" | "await"
-                    | "dyn" | "move" | "true" | "false"
+                    | "dyn" | "move" | "true" | "false" | "do" | "box" | "yield" | "become"
+                    | "abstract" | "final" | "override" | "macro" | "priv" | "typeof" | "unsized"
+                    | "virtual" | "try"
             )
         });
 
