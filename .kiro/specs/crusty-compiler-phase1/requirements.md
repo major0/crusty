@@ -587,7 +587,7 @@ typedef struct {
     void print(&self) {
         __println__("Point({}, {})", self.x, self.y);
     }
-} @Point->display;
+} @Point.display;
 ```
 
 **Rust Translation:**
@@ -867,11 +867,11 @@ impl Point {
 1. THE Parser SHALL support the NULL keyword for nullable pointer values
 2. THE Parser SHALL support nullable pointer type declarations
 3. WHEN NULL is used with non-pointer types, THE Semantic_Analyzer SHALL report an error
-4. WHEN generating Rust code, THE Code_Generator SHALL translate NULL to @Option->None
+4. WHEN generating Rust code, THE Code_Generator SHALL translate NULL to @Option.None
 5. WHEN generating Rust code, THE Code_Generator SHALL translate nullable pointer types to Option<&T> or Option<&mut T>
 6. WHEN generating Rust code, THE Code_Generator SHALL translate NULL comparisons (ptr == NULL) to Option is_none() checks
 7. WHEN generating Rust code, THE Code_Generator SHALL translate non-NULL comparisons (ptr != NULL) to Option is_some() checks
-8. WHEN generating Rust code, THE Code_Generator SHALL translate NULL assignments to @Option->None assignments
+8. WHEN generating Rust code, THE Code_Generator SHALL translate NULL assignments to @Option.None assignments
 9. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Option::None to NULL
 10. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Option<&T> types to nullable pointer types
 11. THE Semantic_Analyzer SHALL enforce that NULL is only used in contexts where Option types are valid
@@ -1017,21 +1017,21 @@ impl Point {
 26. WHEN reverse transpiling from Rust, THE Code_Generator SHALL preserve angle bracket generic type syntax in Crusty
 27. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust turbofish syntax (Type::<T>) to Crusty parentheses syntax (@Type(T))
 28. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate nested angle brackets to alternating parentheses and brackets
-29. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust Type::method() to Crusty @Type->method()
+29. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust Type::method() to Crusty @Type.method()
 
 **Syntax Examples:**
 
 ```crusty
-// Type-scoped calls always require @ prefix with -> notation
-let opt = @Option->None;          // Type inferred from context
-let v = @Vec->new();               // Type inferred from usage
+// Type-scoped calls always require @ prefix with dot notation
+let opt = @Option.None;          // Type inferred from context
+let v = @Vec.new();               // Type inferred from usage
 
 // Explicit type parameters with required @ prefix
-let opt = @Option(Result[String, std.io.Error])->None;
-let v = @Vec(i32)->new();
+let opt = @Option(Result[String, std.io.Error]).None;
+let v = @Vec(i32).new();
 
 // Deep nesting with alternating parentheses and brackets
-let complex = @Option(Inner[Type(T), std.io.Error])->None;
+let complex = @Option(Inner[Type(T), std.io.Error]).None;
 // Translates to: Option::<Inner<Type<T>, std::io::Error>>::None
 
 // Nested type paths work naturally with dot notation after @
@@ -1048,17 +1048,17 @@ let map = @std.collections.HashMap->new();  // Translates to: std::collections::
 // Type->method()    is INVALID - missing @
 
 // Angle bracket syntax for type declarations
-let map: HashMap<String, i32> = @HashMap->new();
+let map: HashMap<String, i32> = @HashMap.new();
 fn process<T>(value: T) -> Option<T> { ... }
 
 // Rust equivalent translations:
-// @Option(Result[String, std.io.Error])->None → Option::<Result<String, std::io::Error>>::None
-// @Vec(i32)->new() → Vec::<i32>::new()
-// @Option(Inner[Type(T), std.io.Error])->None → Option::<Inner<Type<T>, std::io::Error>>::None
-// @Option->None → Option::None (no turbofish, relies on inference)
-// @Vec->new() → Vec::new() (no turbofish, relies on inference)
-// @Type->new() → Type::new() (type-scoped call, no turbofish)
-// @Foo->Bar.boo() → Foo::Bar.boo() (nested type path)
+// @Option(Result[String, std.io.Error]).None → Option::<Result<String, std::io::Error>>::None
+// @Vec(i32).new() → Vec::<i32>::new()
+// @Option(Inner[Type(T), std.io.Error]).None → Option::<Inner<Type<T>, std::io::Error>>::None
+// @Option.None → Option::None (no turbofish, relies on inference)
+// @Vec.new() → Vec::new() (no turbofish, relies on inference)
+// @Type.new() → Type::new() (type-scoped call, no turbofish)
+// @Foo.Bar.boo() → Foo::Bar.boo() (nested type path)
 ```
 
 **Nesting Rules for Parentheses/Brackets:**

@@ -524,7 +524,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Parse C++-style method definitions within structs
     - Parse self, &self, &var self parameters
     - Parse static methods (no self parameter)
-    - Parse type-scoped static method calls with @ prefix and arrow or dot notation (@Type->method() or @Type.method())
+    - Parse type-scoped static method calls with @ prefix and dot notation (@Type.method())
     - Support nested type paths with @ prefix and dot notation (@Foo.Bar.boo() matching Rust's Foo::Bar.boo())
     - _Requirements: 16.1-16.7, 21.7, 21.8, 23.7, 23.8_
   
@@ -584,7 +584,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
 - [ ] 14.9 Update example directory with advanced features
   - [ ]14.9.1 Add struct method examples
     - Create example/src/methods.crst with struct method examples
-    - Include static method calls using @Type->method() syntax
+    - Include static method calls using @Type.method() syntax
     - Include instance method calls
     - _Requirements: 6.17, 6.18_
   
@@ -661,7 +661,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Translate struct methods to Rust impl blocks
     - Translate self parameters correctly
     - Translate static methods (associated functions)
-    - Translate @Type->method() calls to Rust Type::method()
+    - Translate @Type.method() calls to Rust Type::method()
     - _Requirements: 16.8, 16.9, 16.10, 16.11, 21.13_
   
   - [ ]16.2 Add explicit generic parameter code generation
@@ -678,7 +678,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - _Requirements: 25.9, 25.10_
   
   - [ ]16.4 Add NULL and Option code generation
-    - Translate NULL to @Option->None (which becomes Option::None in Rust)
+    - Translate NULL to @Option.None (which becomes Option::None in Rust)
     - Translate nullable pointer types to Option<&T>
     - Translate NULL comparisons to is_none()/is_some()
     - _Requirements: 28.4, 28.5, 28.6, 28.7, 28.8_
@@ -826,7 +826,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Translate Rust traits to VTable structs
     - Translate Rust Result<T,E> to Type!
     - Translate Rust ? operator to ! operator
-    - Translate Rust Type::method() to Crusty @Type->method()
+    - Translate Rust Type::method() to Crusty @Type.method()
     - Translate Rust macro_name! to Crusty __macro_name__ (adding double-underscores, removing !)
     - _Requirements: 47.5, 47.6, 47.7, 47.8, 47.9, 47.10, 47.11, 21.18_
   

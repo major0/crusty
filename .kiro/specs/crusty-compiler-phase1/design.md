@@ -850,16 +850,16 @@ Crusty uses dot-prefixed labels (`.label:`) for labeled loops, mimicking C/ASM i
 Crusty provides a C-like syntax for explicit generic type parameters using parentheses and brackets that alternate for nested generics. The `@` prefix is **required** for all type-scoped calls:
 
 ```crusty
-// Type-scoped calls ALWAYS require @ prefix with -> notation
-let opt = @Option->None;          // Type inferred from context
-let v = @Vec->new();               // Type inferred from usage
+// Type-scoped calls ALWAYS require @ prefix with dot notation
+let opt = @Option.None;          // Type inferred from context
+let v = @Vec.new();               // Type inferred from usage
 
 // Explicit type parameters with required @ prefix
-let opt = @Option(Result[String, std.io.Error])->None;
-let v = @Vec(i32)->new();
+let opt = @Option(Result[String, std.io.Error]).None;
+let v = @Vec(i32).new();
 
 // Deep nesting with alternating parentheses and brackets
-let complex = @Option(Inner[Type(T), std.io.Error])->None;
+let complex = @Option(Inner[Type(T), std.io.Error]).None;
 // Translates to: Option::<Inner<Type<T>, std::io::Error>>::None
 
 // @ is ALWAYS required for type-scoped calls
@@ -957,21 +957,21 @@ impl Default for Point {
 }
 ```
 
-**Named Implementation Blocks (@Type->name):**
+**Named Implementation Blocks (@Type.name):**
 ```crusty
 // Named impl block for organization
 typedef struct {
     void print(&self) {
         __println__("Point({}, {})", self.x, self.y);
     }
-} @Point->display;
+} @Point.display;
 
 // Another named impl block
 typedef struct {
     void debug(&self) {
         __println__("Point {{ x: {}, y: {} }}", self.x, self.y);
     }
-} @Point->debug;
+} @Point.debug;
 
 // Both translate to Rust (merged into single impl):
 impl Point {
@@ -989,16 +989,16 @@ impl Point {
 - `typedef struct { ... } Type;` - Define a new struct type
 - `typedef struct { methods } @Type;` - Add impl block for existing type
 - `typedef default { fn default() { ... } } @Type;` - Implement Default trait
-- `typedef struct { methods } @Type->name;` - Named impl block (for organization)
+- `typedef struct { methods } @Type.name;` - Named impl block (for organization)
 - The `@` prefix indicates the type already exists
-- The `->name` suffix is optional and used for organizing multiple impl blocks
+- The `.name` suffix is optional and used for organizing multiple impl blocks
 - All named impl blocks for the same type are merged in the generated Rust code
 
 **Translation Rules**:
 - `typedef struct @Type` → `impl Type`
 - `typedef default @Type` → `impl Default for Type`
-- `typedef struct @Type->name` → `impl Type` (name is for organization only)
-- Multiple `@Type->name` blocks are merged into a single `impl Type` block
+- `typedef struct @Type.name` → `impl Type` (name is for organization only)
+- Multiple `@Type.name` blocks are merged into a single `impl Type` block
 
 **Interface**:
 ```rust
@@ -1503,7 +1503,7 @@ struct User {
 
 void process_user(User* user) {
     // Use external crate functions
-    let json = @serde_json->to_string(user)!;
+    let json = @serde_json.to_string(user)!;
     __println__("{}", json);
 }
 ```
@@ -1702,7 +1702,7 @@ Property 13: C-style enums translate to Rust enums with discriminants
 **Validates: Requirements 32.8**
 
 Property 14: NULL translates to Option types
-*For any* NULL literal in the AST, the generated Rust code should use @Option->None (translating to Option::None); for any nullable pointer type, the generated Rust code should use Option<&T> or Option<&mut T>.
+*For any* NULL literal in the AST, the generated Rust code should use @Option.None (translating to Option::None); for any nullable pointer type, the generated Rust code should use Option<&T> or Option<&mut T>.
 **Validates: Requirements 34.4, 34.5**
 
 Property 15: Struct initializers translate to Rust struct literals
@@ -1710,7 +1710,7 @@ Property 15: Struct initializers translate to Rust struct literals
 **Validates: Requirements 39.6**
 
 Property 16: Struct methods translate to impl blocks
-*For any* struct with methods in the AST, the generated Rust code should create a corresponding impl block containing all methods. Static method calls using @Type->method() syntax should translate to Rust Type::method() syntax.
+*For any* struct with methods in the AST, the generated Rust code should create a corresponding impl block containing all methods. Static method calls using @Type.method() syntax should translate to Rust Type::method() syntax.
 **Validates: Requirements 21.9**
 
 Property 17: VTable structs translate to traits
