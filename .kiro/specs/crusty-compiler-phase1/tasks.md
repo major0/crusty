@@ -171,7 +171,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Commit with message: "feat(task-3.1): define error types and structures"
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
   
-  - [ ]3.2 Write property test for error reporting
+  - [x]3.2 Write property test for error reporting
     - **Property 2: Invalid syntax produces error reports with location**
     - **Validates: Requirements 6.2, 10.1**
     - Commit with message: "test(task-3.2): add property test for error reporting"
