@@ -621,7 +621,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Note: Completed as part of Task 2.7.5-2.7.7
 
 - [ ] 15. Implement #define macro support
-  - [ ]15.1 Add #define parsing
+  - [x]15.1 Add #define parsing
     - Parse #define directive with double-underscore macro names (__MACRO_NAME__)
     - Parse macro parameters
     - Parse macro body as token sequence
