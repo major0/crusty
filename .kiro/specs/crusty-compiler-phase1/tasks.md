@@ -509,8 +509,9 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Parse C++-style method definitions within structs
     - Parse self, &self, &var self parameters
     - Parse static methods (no self parameter)
-    - Parse type-scoped static method calls with @ prefix and arrow notation (@Type->method())
-    - _Requirements: 16.1-16.7, 21.7, 21.8_
+    - Parse type-scoped static method calls with @ prefix and arrow or dot notation (@Type->method() or @Type.method())
+    - Support nested type paths with @ prefix and dot notation (@Foo.Bar.boo() matching Rust's Foo::Bar.boo())
+    - _Requirements: 16.1-16.7, 21.7, 21.8, 23.7, 23.8_
   
   - [x]14.2 Add support for explicit generic type parameters
     - Parse explicit generic type parameters using parentheses syntax (@Type(T))

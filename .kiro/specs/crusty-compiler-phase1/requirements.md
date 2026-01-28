@@ -504,19 +504,23 @@ This phase serves as an experimental platform to determine which C language feat
 4. THE Parser SHALL support methods with &var self or &mut self parameter for mutable instance methods
 5. THE Parser SHALL support static methods (associated functions) without self parameter
 6. THE Parser SHALL support method calls with dot notation (obj.method())
-7. THE Parser SHALL support static method calls with @ prefix and arrow notation (@Type->method())
-8. THE Parser SHALL require @ prefix for all type-scoped static method calls
-9. WHEN generating Rust code, THE Code_Generator SHALL translate struct methods to Rust impl blocks
-10. WHEN generating Rust code, THE Code_Generator SHALL translate self to Rust self
-11. WHEN generating Rust code, THE Code_Generator SHALL translate &self to Rust &self
-12. WHEN generating Rust code, THE Code_Generator SHALL translate &var self and &mut self to Rust &mut self
-13. WHEN generating Rust code, THE Code_Generator SHALL translate @Type->method() to Rust Type::method()
-14. THE Semantic_Analyzer SHALL verify method calls are made on appropriate types
-15. THE Semantic_Analyzer SHALL verify self is only used in instance methods
-16. THE Semantic_Analyzer SHALL require @ prefix for type-scoped static method calls
-17. THE Semantic_Analyzer SHALL reject type-scoped calls without @ prefix
-18. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust impl blocks to Crusty struct methods
-19. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust Type::method() to Crusty @Type->method()
+7. THE Parser SHALL support static method calls with @ prefix and arrow or dot notation (@Type->method() or @Type.method())
+8. THE Parser SHALL support nested type paths with @ prefix and dot notation (@Foo.Bar.boo() matching Rust's Foo::Bar.boo())
+9. THE Parser SHALL require @ prefix for all type-scoped static method calls
+10. WHEN generating Rust code, THE Code_Generator SHALL translate struct methods to Rust impl blocks
+11. WHEN generating Rust code, THE Code_Generator SHALL translate self to Rust self
+12. WHEN generating Rust code, THE Code_Generator SHALL translate &self to Rust &self
+13. WHEN generating Rust code, THE Code_Generator SHALL translate &var self and &mut self to Rust &mut self
+14. WHEN generating Rust code, THE Code_Generator SHALL translate @Type->method() to Rust Type::method()
+15. WHEN generating Rust code, THE Code_Generator SHALL translate @Type.method() to Rust Type::method()
+16. WHEN generating Rust code, THE Code_Generator SHALL translate nested type paths @Foo.Bar.boo() to Rust Foo::Bar.boo()
+17. THE Semantic_Analyzer SHALL verify method calls are made on appropriate types
+18. THE Semantic_Analyzer SHALL verify self is only used in instance methods
+19. THE Semantic_Analyzer SHALL require @ prefix for type-scoped static method calls
+20. THE Semantic_Analyzer SHALL reject type-scoped calls without @ prefix
+21. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust impl blocks to Crusty struct methods
+22. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust Type::method() to Crusty @Type->method() or @Type.method()
+23. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust nested type paths Foo::Bar.boo() to Crusty @Foo.Bar.boo()
 
 ### Requirement 24: Support Traits as C-Style VTable Structs
 
@@ -922,8 +926,14 @@ let v = @Vec(i32)->new();
 let complex = @Option(Inner[Type(T), std.io.Error])->None;
 // Translates to: Option::<Inner<Type<T>, std::io::Error>>::None
 
-// Nested type paths work naturally with -> notation
-let result = @Foo->Bar.boo();  // Translates to: Foo::Bar.boo()
+// Nested type paths work naturally with dot notation after @
+let result = @Foo.Bar.boo();  // Translates to: Foo::Bar.boo()
+let map = @std.collections.HashMap->new();  // Translates to: std::collections::HashMap::new()
+
+// @ is ALWAYS required for type-scoped calls
+// Type(i32)->new()  is INVALID - missing @
+// Type->method()    is INVALID - missing @
+// Foo.Bar.boo()     is INVALID - missing @ (would be instance method call)
 
 // @ is ALWAYS required for type-scoped calls
 // Type(i32)->new()  is INVALID - missing @

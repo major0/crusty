@@ -658,7 +658,7 @@ pub enum Visibility {
 When calling static methods (associated functions) on types, Crusty requires the `@` prefix before the type name to distinguish type-scoped calls from instance method calls:
 
 ```crusty
-// Static method calls (type-scoped) - ALWAYS require @ prefix with -> notation
+// Static method calls (type-scoped) - ALWAYS require @ prefix
 let v = @Vector->new();
 let none = @Option->None;
 let s = @String->from("hello");
@@ -669,13 +669,27 @@ let item = v.get(0);
 ```
 
 This syntax makes it immediately clear whether a call is:
-- **Type-scoped** (`@Type->method()`): Calling a static method/associated function on the type itself
+- **Type-scoped** (`@Type->method()` or `@Type.method()`): Calling a static method/associated function on the type itself
 - **Instance-scoped** (`obj.method()`): Calling a method on an instance
 
-The `@` prefix with `->` is **required** for all type-scoped calls and translates to Rust's `::` syntax:
+**Arrow vs Dot Notation for Type-Scoped Calls**:
+
+The `@` prefix is **required** for all type-scoped calls. After the type name, you can use either:
+- **Arrow notation (`->`)**: For simple type-scoped calls
+- **Dot notation (`.`)**: For nested type paths (matching Rust's `::` followed by `.`)
+
+Both translate to Rust's `::` syntax:
 - `@Vector->new()` → `Vector::new()`
 - `@Option->None` → `Option::None`
 - `@String->from("hello")` → `String::from("hello")`
+
+**Nested Type Paths**:
+
+For nested type paths (like Rust's `Foo::Bar.boo()`), use dot notation after the `@` prefix:
+- `@Foo.Bar.boo()` → `Foo::Bar.boo()` (nested type path with method call)
+- `@std.collections.HashMap->new()` → `std::collections::HashMap::new()`
+
+The dot notation allows natural mapping to Rust's nested type paths while maintaining the `@` prefix to distinguish type-scoped from instance-scoped calls.
 
 **Macro Invocation Syntax**:
 
@@ -701,7 +715,7 @@ assert!(x > 0);
 **Distinguishing Type-Scoped Calls from Macros**:
 
 The parser distinguishes between type-scoped static method calls and macro invocations based on syntax:
-- **Type-scoped call**: `@Type->method()` - uses `@` prefix with `->` separator
+- **Type-scoped call**: `@Type->method()` or `@Type.method()` - uses `@` prefix with `->` or `.` separator
 - **Macro invocation**: `__macro_name__(...)` - uses double-underscore prefix/suffix, NO `!`
 
 Examples:
@@ -712,9 +726,20 @@ __vec__[1, 2, 3]         // Macro invocation → vec![1, 2, 3]
 __println__("hello")     // Macro invocation → println!("hello")
 @String->from("hi")      // Type-scoped call → String::from("hi")
 __format__("x={}", x)    // Macro invocation → format!("x={}", x)
+@Foo.Bar.boo()           // Nested type path → Foo::Bar.boo()
 ```
 
 The `@` prefix is exclusively for type-scoped calls, while double-underscores are exclusively for macros, eliminating any ambiguity.
+
+**Nested Type Paths**:
+
+For nested type paths (matching Rust's `Foo::Bar.boo()` pattern), use dot notation after the `@` prefix:
+```crusty
+@Foo.Bar.boo()                    // Nested type path → Foo::Bar.boo()
+@std.collections.HashMap->new()   // Nested with arrow → std::collections::HashMap::new()
+```
+
+This allows natural mapping to Rust's nested type paths while maintaining the `@` prefix to distinguish type-scoped from instance-scoped calls.
 
 **Defining Macros with #define**:
 
