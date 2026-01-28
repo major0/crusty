@@ -729,77 +729,133 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - **Property 24: Explicit generic parameters translate correctly**
     - **Validates: Requirements 38.18, 38.19, 38.20, 38.21**
 
-- [ ] 17. Checkpoint - Ensure advanced features work correctly
+- [ ] 17. Implement nested functions (closures)
+  - [ ]17.1 Add nested function parsing
+    - Extend Parser to recognize function declarations within function bodies
+    - Create NestedFunction AST node with signature and body
+    - Support multiple nested functions in the same enclosing function
+    - Verify nested functions use same syntax as top-level functions
+    - _Requirements: 59.1, 59.2, 59.3_
+  
+  - [ ]17.2 Implement capture analysis in semantic analyzer
+    - Track variables in scope when nested function is declared
+    - Build capture list for each nested function
+    - Determine which variables are captured (used in nested function body)
+    - Classify captures as immutable (read-only) or mutable (modified)
+    - Verify nested functions only access variables defined before declaration
+    - Verify variables defined after nested function are not accessible
+    - _Requirements: 59.4, 59.5, 59.6, 59.7, 59.24_
+  
+  - [ ]17.3 Add nested function type checking
+    - Verify nested functions can be assigned to variables
+    - Verify nested functions can be passed as function parameters
+    - Verify nested functions can be returned from functions
+    - Support function pointer types for parameters accepting nested functions
+    - Verify type compatibility when passing nested functions as arguments
+    - Verify multiple nested functions can capture same variables
+    - _Requirements: 59.8, 59.9, 59.10, 59.22, 59.23, 59.25_
+  
+  - [ ]17.4 Implement nested function code generation
+    - Translate nested functions to Rust closures
+    - Generate closure with appropriate trait (Fn, FnMut, FnOnce)
+    - Translate immutable captures to Fn closures
+    - Translate mutable captures to FnMut closures
+    - Translate move semantics to FnOnce closures when appropriate
+    - Infer closure trait based on capture analysis
+    - Handle nested functions with no captures
+    - _Requirements: 59.11, 59.12, 59.13, 59.14, 59.15, 59.16_
+  
+  - [ ]17.5 Add validation rules for nested functions
+    - Verify nested functions cannot be declared static
+    - Verify nested functions cannot contain nested functions (no multi-level nesting)
+    - Ensure proper type compatibility for function pointers
+    - _Requirements: 59.18, 59.19, 59.17_
+  
+  - [ ]17.6 Write property test for nested function translation
+    - **Property 35: Nested functions translate to Rust closures**
+    - **Validates: Requirements 59.11, 59.12, 59.13**
+  
+  - [ ]17.7 Write unit tests for nested functions
+    - Test parsing of nested functions
+    - Test capture analysis (immutable and mutable)
+    - Test scoping rules (before/after declaration)
+    - Test passing nested functions as parameters
+    - Test multiple nested functions sharing captures
+    - Test code generation to Fn, FnMut, FnOnce
+    - Test error cases (static nested functions, multi-level nesting)
+    - _Requirements: 59.1-59.25_
+
+- [ ] 37. Checkpoint - Ensure advanced features work correctly
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 18. Implement VTable to trait translation
-  - [ ]18.1 Detect VTable struct patterns
+- [ ] 37. Implement VTable to trait translation
+  - [ ]37.1 Detect VTable struct patterns
     - Identify typedef struct with function pointer fields
     - Recognize VTable suffix naming convention
     - Detect void *self or typed self pointers in function signatures
     - _Requirements: 17.1-17.5_
   
-  - [ ]18.2 Generate Rust trait definitions from VTables
+  - [ ]37.2 Generate Rust trait definitions from VTables
     - Translate VTable structs to Rust trait definitions
     - Translate function pointer fields to trait method signatures
     - Translate void *self to &self or &mut self based on semantics
     - _Requirements: 17.6, 17.7, 17.8_
   
-  - [ ]18.3 Generate trait implementations
+  - [ ]37.3 Generate trait implementations
     - Detect structs using VTable fields
     - Generate trait implementations for those structs
     - Handle trait object usage (dyn Trait)
     - _Requirements: 17.9, 17.10_
   
-  - [ ]18.4 Write property test for VTable translation
+  - [ ]37.4 Write property test for VTable translation
     - **Property 17: VTable structs translate to traits**
     - **Validates: Requirements 22.6**
   
-  - [ ]18.5 Write unit tests for VTable translation
+  - [ ]37.5 Write unit tests for VTable translation
     - Test VTable detection
     - Test trait generation
     - Test trait implementation generation
     - _Requirements: 17.1-17.14_
 
-- [ ] 19. Implement module system and visibility
-  - [ ]19.1 Add namespace parsing and code generation
+- [ ] 37. Implement module system and visibility
+  - [ ]37.1 Add namespace parsing and code generation
     - Parse namespace declarations (namespace name { ... })
     - Support nested namespaces
     - Translate namespaces to Rust mod blocks
     - Merge multiple namespace blocks with same name
     - _Requirements: 42.1-42.7_
   
-  - [ ]19.2 Add #use directive parsing and code generation
+  - [ ]37.2 Add #use directive parsing and code generation
     - Parse #use directives for module imports
     - Translate #use to Rust use statements
     - Support importing Rust std library modules
     - _Requirements: 41.1, 41.2, 41.3, 31.3, 31.4, 31.5, 31.6_
   
-  - [ ]19.3 Implement visibility rules
+  - [ ]37.3 Implement visibility rules
     - Recognize underscore-prefixed identifiers as private
     - Mark struct fields as pub or private based on naming
     - Mark functions as pub or private based on static keyword and naming
     - _Requirements: 43.1-43.6_
   
-  - [ ]19.4 Write property test for module translation
+  - [ ]37.4 Write property test for module translation
     - **Property 21: Module directives translate correctly**
     - **Validates: Requirements 47.3, 48.5**
   
-  - [ ]19.5 Write unit tests for module system
+  - [ ]37.5 Write unit tests for module system
     - Test namespace parsing and generation
     - Test #use directive handling
     - Test visibility rules
     - _Requirements: 41.1-41.3, 42.1-42.7, 43.1-43.6_
 
 
-- [ ] 20. Implement Rust parser integration
-  - [ ]20.1 Integrate syn crate for Rust parsing
+- [ ] 37. Implement Rust parser integration
+  - [ ]37.1 Integrate syn crate for Rust parsing
     - Add syn dependency to Cargo.toml
     - Create RustParser module
     - Implement parse_file() using syn::parse_file()
     - _Requirements: 47.1, 47.2, 47.3, 47.4_
   
-  - [ ]20.2 Convert syn AST to unified AST
+  - [ ]37.2 Convert syn AST to unified AST
     - Implement convert_syn_file() to convert syn::File to our File
     - Implement convert_syn_item() for items
     - Implement convert_syn_expr() for expressions
@@ -807,19 +863,19 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Implement convert_syn_stmt() for statements
     - _Requirements: 47.4, 47.5_
   
-  - [ ]20.3 Write unit tests for Rust parsing
+  - [ ]37.3 Write unit tests for Rust parsing
     - Test parsing of Rust source files
     - Test conversion from syn AST to unified AST
     - Test preservation of Rust constructs
     - _Requirements: 47.4, 47.5_
 
-- [ ] 21. Implement Crusty code generation from Rust
-  - [ ]21.1 Add Crusty code generation mode
+- [ ] 37. Implement Crusty code generation from Rust
+  - [ ]37.1 Add Crusty code generation mode
     - Extend CodeGenerator to support TargetLanguage::Crusty
     - Implement Crusty syntax generation for all AST nodes
     - _Requirements: 47.5, 47.6, 47.7, 47.8_
   
-  - [ ]21.2 Implement Rust-to-Crusty translation rules
+  - [ ]37.2 Implement Rust-to-Crusty translation rules
     - Translate Rust functions to Crusty syntax
     - Translate Rust match expressions to switch statements
     - Translate Rust impl blocks to struct methods
@@ -830,104 +886,104 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Translate Rust macro_name! to Crusty __macro_name__ (adding double-underscores, removing !)
     - _Requirements: 47.5, 47.6, 47.7, 47.8, 47.9, 47.10, 47.11, 21.18_
   
-  - [ ]21.3 Write property test for Rust-to-Crusty translation
+  - [ ]37.3 Write property test for Rust-to-Crusty translation
     - **Property 25: Rust to Crusty translation preserves structure**
     - **Validates: Requirements 53.5, 53.8**
   
-  - [ ]21.4 Write property test for round-trip transpilation (CRITICAL)
+  - [ ]37.4 Write property test for round-trip transpilation (CRITICAL)
     - **Property 26: Round-trip transpilation preserves semantics**
     - **Validates: Requirements 54.20**
   
-  - [ ]21.5 Write unit tests for Crusty code generation
+  - [ ]37.5 Write unit tests for Crusty code generation
     - Test generation of Crusty syntax from AST
     - Test specific translation rules
     - _Requirements: 47.5-47.11_
 
-- [ ] 22. Implement main() function validation
-  - [ ]22.1 Add main() function detection
+- [ ] 37. Implement main() function validation
+  - [ ]37.1 Add main() function detection
     - Parse main() function with C-like syntax
     - Support main() with no parameters (void)
     - Support main() with argc/argv parameters
     - _Requirements: 10.1, 10.5, 10.6_
   
-  - [ ]22.2 Validate main() function
+  - [ ]37.2 Validate main() function
     - Verify exactly one main() function exists
     - Report error if no main() found
     - Report error if multiple main() found
     - _Requirements: 10.2, 10.3, 10.4_
   
-  - [ ]22.3 Generate Rust main() function
+  - [ ]37.3 Generate Rust main() function
     - Translate main() to Rust fn main()
     - Translate argc/argv to std::env functions
     - _Requirements: 10.7, 10.8_
   
-  - [ ]22.4 Write unit tests for main() validation
+  - [ ]37.4 Write unit tests for main() validation
     - Test main() detection
     - Test error cases (no main, multiple main)
     - Test main() translation
     - _Requirements: 10.1-10.8_
 
-- [ ] 23. Ensure documentation comments are preserved
-  - [ ]23.1 Verify doc comment preservation in Code Generator
+- [ ] 37. Ensure documentation comments are preserved
+  - [ ]37.1 Verify doc comment preservation in Code Generator
     - Ensure /// and /** ... */ outer doc comments are preserved in generated Rust
     - Ensure //! and /*! ... */ inner doc comments are preserved in generated Rust
     - Ensure doc comments maintain their position relative to code elements
     - _Requirements: 53.1, 53.2, 53.3, 53.10_
   
-  - [ ]23.2 Write unit tests for doc comment preservation
+  - [ ]37.2 Write unit tests for doc comment preservation
     - Test that doc comments are preserved during transpilation
     - Test that doc comment content is unchanged
     - Test that doc comment positions are correct
     - _Requirements: 53.1-53.10_
 
-- [ ] 24. Implement crustydoc wrapper tool
-  - [ ]24.1 Create crustydoc CLI
+- [ ] 37. Implement crustydoc wrapper tool
+  - [ ]37.1 Create crustydoc CLI
     - Create separate binary target for crustydoc
     - Parse command-line arguments (input file, --output, --open, -D, --document-private-items)
     - Support passing through additional rustdoc options after --
     - _Requirements: 54.1, 54.6, 54.12_
   
-  - [ ]24.2 Implement transpile-and-document workflow
+  - [ ]37.2 Implement transpile-and-document workflow
     - Transpile Crusty source file to Rust
     - Invoke rustdoc on generated Rust code
     - Pass through all rustdoc command-line options
     - Capture rustdoc output and errors
     - _Requirements: 54.4, 54.5, 54.6, 54.9, 54.10_
   
-  - [ ]24.3 Implement error mapping
+  - [ ]37.3 Implement error mapping
     - Parse rustdoc error messages
     - Map Rust source locations back to Crusty source locations
     - Report errors with Crusty file paths and line numbers
     - Preserve rustdoc error messages and suggestions
     - _Requirements: 54.11, 55.4_
   
-  - [ ]24.4 Add Cargo integration support
+  - [ ]37.4 Add Cargo integration support
     - Support --manifest-path option for Cargo projects
     - Coordinate with build.rs for multi-file transpilation
     - Invoke cargo doc with appropriate options
     - _Requirements: 54.7, 54.8_
   
-  - [ ]24.5 Implement documentation validation
+  - [ ]37.5 Implement documentation validation
     - Support rustdoc's -D missing-docs flag
     - Support --document-private-items flag
     - Report documentation coverage from rustdoc output
     - _Requirements: 55.1, 55.2, 55.3, 55.5_
   
-  - [ ]24.6 Write unit tests for crustydoc
+  - [ ]37.6 Write unit tests for crustydoc
     - Test transpilation and rustdoc invocation
     - Test error mapping from Rust to Crusty locations
     - Test command-line option pass-through
     - Test Cargo integration
     - _Requirements: 54.1-54.12, 55.1-55.5_
 
-- [ ] 25. Implement crustyfmt code formatter
-  - [ ]25.1 Create crustyfmt CLI
+- [ ] 37. Implement crustyfmt code formatter
+  - [ ]37.1 Create crustyfmt CLI
     - Create separate binary target for crustyfmt
     - Parse command-line arguments (input files, --check, --config, --stdin)
     - Support formatting single files, multiple files, and directories
     - _Requirements: 56.1, 56.2, 56.8, 56.9, 56.18_
   
-  - [ ]25.2 Implement formatter core
+  - [ ]37.2 Implement formatter core
     - Parse Crusty source code into AST
     - Use Pretty_Printer to generate formatted code
     - Apply consistent indentation (4 spaces)
@@ -936,33 +992,33 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Preserve documentation comments in original positions
     - _Requirements: 56.3, 56.4, 56.10, 56.11, 56.12, 56.13, 56.14_
   
-  - [ ]25.3 Implement formatting modes
+  - [ ]37.3 Implement formatting modes
     - Implement in-place formatting (default)
     - Implement --check mode (verify without modifying)
     - Implement stdin/stdout mode for editor integration
     - Exit with appropriate status codes
     - _Requirements: 56.5, 56.6, 56.7, 56.18, 56.19, 56.20_
   
-  - [ ]25.4 Add configuration support
+  - [ ]37.4 Add configuration support
     - Support --config option for custom formatting rules
     - Define FormatterConfig structure
     - Load configuration from crustyfmt.toml
     - Apply custom indentation, line width, spacing rules
     - _Requirements: 56.15_
   
-  - [ ]25.5 Integrate with development workflow
+  - [ ]37.5 Integrate with development workflow
     - Add crustyfmt to pre-commit hooks
     - Update CI/CD to check formatting
     - Provide clear error messages for parsing failures
     - _Requirements: 56.16, 56.17_
   
-  - [ ]25.6 Write property tests for crustyfmt
+  - [ ]37.6 Write property tests for crustyfmt
     - **Property 33: crustyfmt preserves semantic meaning**
     - **Validates: Requirements 56.10**
     - **Property 34: crustyfmt is idempotent**
     - **Validates: Requirements 56.1-56.20**
   
-  - [ ]25.7 Write unit tests for crustyfmt
+  - [ ]37.7 Write unit tests for crustyfmt
     - Test formatting of various syntax constructs
     - Test --check mode
     - Test stdin/stdout mode
@@ -970,118 +1026,118 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Test error handling
     - _Requirements: 56.1-56.20_
 
-- [ ] 26. Implement additional language features
-  - [ ]26.1 Add extern "C" support
+- [ ] 37. Implement additional language features
+  - [ ]37.1 Add extern "C" support
     - Parse extern "C" blocks
     - Parse extern "C" function declarations
     - Validate C-compatible types in extern functions
     - Pass extern "C" to Rust unchanged
     - _Requirements: 35.1-35.9_
   
-  - [ ]25.2 Add inline assembly support
+  - [ ]37.2 Add inline assembly support
     - Parse __asm__ macro syntax with double-underscore naming (no ! suffix)
     - Require __asm__ within unsafe blocks
     - Translate __asm__ to Rust asm! syntax in code generation (add !)
     - _Requirements: 36.1-36.7_
   
-  - [ ]25.3 Add __rust__ macro support
+  - [ ]37.3 Add __rust__ macro support
     - Parse __rust__ macro with double-underscore naming for embedding raw Rust code (no ! suffix)
     - Support __rust__ in expression, statement, and type contexts
     - Extract and emit __rust__ contents directly as Rust code
     - Handle nested braces within __rust__ blocks
     - _Requirements: 43.1-43.13_
   
-  - [ ]25.4 Add conditional compilation support
+  - [ ]37.4 Add conditional compilation support
     - Parse #ifdef, #ifndef, #endif directives
     - Translate to Rust cfg attributes
     - Support nested conditional blocks
     - _Requirements: 41.4, 41.5, 41.6, 41.7, 41.8_
   
-  - [ ]25.5 Write unit tests for additional features
+  - [ ]37.5 Write unit tests for additional features
     - Test extern "C" parsing and generation
     - Test __asm__ parsing and generation (translates to Rust asm!)
     - Test __rust__ macro handling (no ! suffix in Crusty)
     - Test conditional compilation
     - _Requirements: 35.1-35.9, 36.1-36.7, 43.1-43.13, 41.4-41.8_
 
-- [ ] 27. Implement error message improvements
-  - [ ]27.1 Integrate codespan-reporting
+- [ ] 37. Implement error message improvements
+  - [ ]37.1 Integrate codespan-reporting
     - Use codespan-reporting crate for beautiful error messages
     - Display source code snippets with error locations
     - Highlight error positions with carets
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
   
-  - [ ]27.2 Improve error messages for unsupported features
+  - [ ]37.2 Improve error messages for unsupported features
     - Provide clear explanations for why features are unsupported
     - Suggest alternative approaches
     - Reference documentation for unsupported features
     - _Requirements: 5.3, 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7_
   
-  - [ ]27.3 Implement error recovery in parser
+  - [ ]37.3 Implement error recovery in parser
     - Add synchronization points at statement boundaries
     - Implement panic mode recovery
     - Continue parsing after errors to report multiple errors
     - _Requirements: 5.4_
   
-  - [ ]27.4 Write property test for multiple error reporting
+  - [ ]37.4 Write property test for multiple error reporting
     - **Property 3: Multiple errors are all reported**
     - **Validates: Requirements 10.4**
   
-  - [ ]27.5 Write unit tests for error messages
+  - [ ]37.5 Write unit tests for error messages
     - Test error message formatting
     - Test error recovery
     - Test multiple error reporting
     - _Requirements: 5.1-5.5_
 
-- [ ] 28. Implement pointer arithmetic and safety checks
-  - [ ]28.1 Add pointer arithmetic parsing
+- [ ] 37. Implement pointer arithmetic and safety checks
+  - [ ]37.1 Add pointer arithmetic parsing
     - Parse pointer + offset, pointer - offset operations
     - Parse pointer - pointer operations
     - _Requirements: 24.1, 24.2_
   
-  - [ ]28.2 Implement pointer safety analysis
+  - [ ]37.2 Implement pointer safety analysis
     - Enforce Rust's pointer arithmetic safety rules
     - Require unsafe context for raw pointer arithmetic
     - Translate safe pointer operations to slice indexing
     - Translate unsafe pointer arithmetic to unsafe blocks with offset
     - _Requirements: 24.3, 24.4, 24.5, 24.6, 24.7_
   
-  - [ ]28.3 Write unit tests for pointer arithmetic
+  - [ ]37.3 Write unit tests for pointer arithmetic
     - Test pointer arithmetic parsing
     - Test safety analysis
     - Test code generation for safe and unsafe operations
     - _Requirements: 24.1-24.7_
 
-- [ ] 29. Implement lifetime inference
-  - [ ]29.1 Add lifetime inference analysis
+- [ ] 37. Implement lifetime inference
+  - [ ]37.1 Add lifetime inference analysis
     - Infer lifetime relationships from reference parameters
     - Determine which parameters return value derives from
     - Handle multiple reference parameters
     - _Requirements: 30.6, 30.7, 30.8, 30.9_
   
-  - [ ]29.2 Generate explicit lifetime annotations
+  - [ ]37.2 Generate explicit lifetime annotations
     - Add Rust lifetime annotations where necessary
     - Use inferred relationships to determine lifetime parameters
     - _Requirements: 30.12_
   
-  - [ ]29.3 Validate borrowing rules
+  - [ ]37.3 Validate borrowing rules
     - Enforce one mutable reference OR multiple immutable references
     - Verify mutable references only from mutable variables
     - Verify references don't outlive referents
     - _Requirements: 30.13, 30.14, 30.15, 30.16_
   
-  - [ ]29.4 Write unit tests for lifetime inference
+  - [ ]37.4 Write unit tests for lifetime inference
     - Test lifetime inference from function signatures
     - Test lifetime annotation generation
     - Test borrowing rule validation
     - _Requirements: 30.6-30.16_
 
-- [ ] 30. Checkpoint - Ensure all features are implemented
+- [ ] 37. Checkpoint - Ensure all features are implemented
   - Ensure all tests pass, ask the user if questions arise.
 
 
-- [ ] 31. Implement comprehensive integration tests
-  - [ ]31.1 Write end-to-end integration tests
+- [ ] 37. Implement comprehensive integration tests
+  - [ ]37.1 Write end-to-end integration tests
     - Test complete compilation pipeline (Crusty → Rust → binary)
     - Test reverse transpilation (Rust → Crusty)
     - Test multi-file projects with build.rs
@@ -1089,14 +1145,14 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Test error handling across entire pipeline
     - _Requirements: All_
   
-  - [ ]31.2 Write property-based integration tests
+  - [ ]37.2 Write property-based integration tests
     - Generate random valid Crusty programs
     - Verify they compile successfully
     - Verify round-trip consistency
     - Run with 100+ iterations
     - _Requirements: All_
   
-  - [ ]31.3 Create test suite with example programs
+  - [ ]37.3 Create test suite with example programs
     - Create hello world example
     - Create struct and method example
     - Create error handling example
@@ -1105,28 +1161,28 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Verify all examples compile and run correctly
     - _Requirements: All_
 
-- [ ] 32. Performance optimization
-  - [ ]32.1 Profile transpiler performance
+- [ ] 37. Performance optimization
+  - [ ]37.1 Profile transpiler performance
     - Identify performance bottlenecks
     - Measure parsing, semantic analysis, and code generation times
     - _Requirements: All (non-functional)_
   
-  - [ ]32.2 Implement performance improvements
+  - [ ]37.2 Implement performance improvements
     - Add incremental parsing for large files
     - Implement parallel compilation for multi-file projects
     - Add AST caching to avoid re-parsing unchanged files
     - Implement lazy code generation
     - _Requirements: All (non-functional)_
   
-  - [ ]32.3 Write performance benchmarks
+  - [ ]37.3 Write performance benchmarks
     - Benchmark parsing performance
     - Benchmark semantic analysis performance
     - Benchmark code generation performance
     - Benchmark end-to-end compilation
     - _Requirements: All (non-functional)_
 
-- [ ] 33. Documentation and polish
-  - [ ]33.1 Write user documentation
+- [ ] 37. Documentation and polish
+  - [ ]37.1 Write user documentation
     - Create README with installation instructions
     - Document command-line options
     - Provide usage examples
@@ -1135,27 +1191,27 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Document build.rs integration patterns
     - _Requirements: 12.1-12.7_
   
-  - [ ]33.2 Write developer documentation
+  - [ ]37.2 Write developer documentation
     - Document transpiler architecture
     - Document AST structure
     - Document adding new language features
     - Document testing strategy
     - _Requirements: All (documentation)_
   
-  - [ ]33.3 Create language specification
+  - [ ]37.3 Create language specification
     - Document Crusty syntax formally
     - Document translation rules to Rust
     - Document type system
     - Document module system
     - _Requirements: All (specification)_
   
-  - [ ]33.4 Polish error messages
+  - [ ]37.4 Polish error messages
     - Review all error messages for clarity
     - Add helpful suggestions where possible
     - Ensure consistent error message format
     - _Requirements: 5.1-5.5_
 
-- [ ] 34. Final validation and testing
+- [ ] 37. Final validation and testing
   - [ ] 34.1 Run full test suite
     - Run all unit tests
     - Run all property tests with 1000 iterations
@@ -1176,20 +1232,20 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Verify generated Rust code compiles with rustc
     - _Requirements: All_
 
-- [ ] 35. Final checkpoint - Release preparation
+- [ ] 37. Final checkpoint - Release preparation
   - Ensure all tests pass, ask the user if questions arise.
   - Verify documentation is complete
   - Prepare release notes
 
-- [ ] 36. Validate Rust ecosystem integration
-  - [ ]36.1 Test external crate usage
+- [ ] 37. Validate Rust ecosystem integration
+  - [ ]37.1 Test external crate usage
     - Create test project that uses external Rust crates (e.g., serde, tokio)
     - Write Crusty code that imports and uses external types
     - Verify Crusty can call external functions
     - Verify type compatibility with external crates
     - _Requirements: 40.1, 40.2, 40.5, 40.6_
   
-  - [ ]36.2 Test Crusty crate publishing
+  - [ ]37.2 Test Crusty crate publishing
     - Create Crusty library project with public API
     - Build library and verify .rlib generation
     - Create separate Rust project that depends on Crusty library
@@ -1198,20 +1254,20 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Test API compatibility and type safety
     - _Requirements: 40.3, 40.4, 40.7, 40.8, 40.9, 40.10, 40.11_
   
-  - [ ]36.3 Test procedural macro usage
+  - [ ]37.3 Test procedural macro usage
     - Use Rust procedural macros in Crusty code (e.g., derive macros)
     - Verify macro expansion works correctly
     - Test custom derive macros with Crusty structs
     - _Requirements: 40.12, 40.13_
   
-  - [ ]36.4 Validate performance parity
+  - [ ]37.4 Validate performance parity
     - Create equivalent programs in Crusty and Rust
     - Benchmark execution time for both versions
     - Verify no runtime overhead from transpilation
     - Verify generated code is optimized equivalently
     - _Requirements: 40.14, 40.15_
   
-  - [ ]36.5 Write integration tests for ecosystem
+  - [ ]37.5 Write integration tests for ecosystem
     - Test importing std library modules
     - Test using external crate dependencies
     - Test publishing and consuming Crusty crates

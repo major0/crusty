@@ -1000,6 +1000,129 @@ impl Point {
 - `typedef struct @Type.name` → `impl Type` (name is for organization only)
 - Multiple `@Type.name` blocks are merged into a single `impl Type` block
 
+**Nested Functions as Closures**:
+
+Crusty supports defining functions within functions (nested functions) that can capture variables from the enclosing scope. This provides a familiar C-style syntax for closures:
+
+```c
+void outer_function() {
+    int captured_value = 42;
+    
+    // Nested function with immutable capture
+    int add_value(int x) {
+        return x + captured_value;  // Captures captured_value
+    }
+    
+    let result = add_value(10);  // Returns 52
+    
+    // Nested function with mutable capture
+    int counter = 0;
+    void increment() {
+        counter = counter + 1;  // Mutably captures counter
+    }
+    
+    increment();
+    increment();
+    // counter is now 2
+}
+```
+
+**Translation to Rust Closures:**
+
+```rust
+pub fn outer_function() {
+    let captured_value = 42;
+    
+    // Becomes Fn closure (immutable capture)
+    let add_value = |x: i32| -> i32 {
+        x + captured_value
+    };
+    
+    let result = add_value(10);
+    
+    // Becomes FnMut closure (mutable capture)
+    let mut counter = 0;
+    let mut increment = || {
+        counter = counter + 1;
+    };
+    
+    increment();
+    increment();
+}
+```
+
+**Scoping and Capture Rules:**
+1. Nested functions can only capture variables defined **before** the nested function declaration
+2. Variables defined **after** a nested function are not accessible to that function
+3. The Semantic_Analyzer tracks which variables are captured by each nested function
+4. Captures are automatically classified as:
+   - **Immutable (Fn)**: Variable is only read
+   - **Mutable (FnMut)**: Variable is modified
+   - **Move (FnOnce)**: Variable ownership is transferred (when appropriate)
+5. Multiple nested functions can capture and share the same outer variables
+6. Nested functions cannot be declared `static`
+7. Multi-level nesting is not supported (nested functions cannot contain nested functions)
+
+**Parsing Strategy:**
+- The Parser recognizes function declarations within function bodies
+- Nested functions use the same syntax as top-level functions
+- The Parser creates a `NestedFunction` AST node with:
+  - Function signature (return type, name, parameters)
+  - Function body
+  - Parent function context
+
+**Semantic Analysis:**
+- Build a capture list for each nested function
+- Determine capture mode (immutable/mutable/move) based on usage
+- Verify scoping rules (only access variables defined before)
+- Verify type compatibility when passing as function parameters
+- Track nested function types for type checking
+
+**Code Generation:**
+- Translate nested function to Rust closure with appropriate trait (Fn, FnMut, FnOnce)
+- Generate closure parameter types from function signature
+- Generate closure body from function body
+- Handle captured variables in closure environment
+- Infer closure trait based on capture analysis
+
+**Function Pointer Types:**
+
+When passing nested functions as parameters, use function pointer syntax:
+
+```c
+void apply(int (*func)(int), int value) {
+    return func(value);
+}
+
+void outer() {
+    int base = 10;
+    int add_base(int x) {
+        return x + base;
+    }
+    
+    let result = apply(add_base, 5);  // Returns 15
+}
+```
+
+Translates to Rust with generic closure parameters:
+
+```rust
+fn apply<F>(func: F, value: i32) -> i32 
+where F: Fn(i32) -> i32 
+{
+    func(value)
+}
+
+pub fn outer() {
+    let base = 10;
+    let add_base = |x: i32| -> i32 {
+        x + base
+    };
+    
+    let result = apply(add_base, 5);
+}
+```
+
 **Interface**:
 ```rust
 pub struct SemanticAnalyzer {

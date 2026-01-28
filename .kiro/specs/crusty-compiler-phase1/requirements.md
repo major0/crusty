@@ -1372,6 +1372,109 @@ fn process<T>(value: T) -> Option<T> { ... }
 12. WHEN generating Crusty code from Rust, THE Code_Generator SHALL preserve Rust doc comments in Crusty-compatible format
 13. WHEN Rust features cannot be represented in Crusty, THE Transpiler SHALL report an error with explanation
 
+### Requirement 59: Support Nested Functions as Closures
+
+**User Story:** As a Crusty programmer, I want to define functions within functions that can capture variables from the enclosing scope, so that I can write closures using familiar C-style function syntax.
+
+#### Acceptance Criteria
+
+1. THE Parser SHALL support function definitions within function bodies (nested functions)
+2. THE Parser SHALL allow nested functions to have the same syntax as top-level functions (return type, parameters, body)
+3. THE Parser SHALL support multiple nested functions within the same enclosing function
+4. THE Semantic_Analyzer SHALL verify that nested functions can only access variables defined before the nested function declaration
+5. THE Semantic_Analyzer SHALL verify that nested functions cannot access variables defined after the nested function declaration
+6. THE Semantic_Analyzer SHALL track which outer scope variables are captured by each nested function
+7. THE Semantic_Analyzer SHALL determine whether captures are immutable (read-only) or mutable (read-write)
+8. THE Semantic_Analyzer SHALL verify that nested functions can be assigned to variables
+9. THE Semantic_Analyzer SHALL verify that nested functions can be passed as function parameters
+10. THE Semantic_Analyzer SHALL verify that nested functions can be returned from functions
+11. WHEN generating Rust code, THE Code_Generator SHALL translate nested functions to Rust closures
+12. WHEN generating Rust code, THE Code_Generator SHALL translate immutable captures to Fn closures
+13. WHEN generating Rust code, THE Code_Generator SHALL translate mutable captures to FnMut closures
+14. WHEN generating Rust code, THE Code_Generator SHALL translate move semantics to FnOnce closures when appropriate
+15. WHEN generating Rust code, THE Code_Generator SHALL infer the appropriate closure trait (Fn, FnMut, FnOnce) based on usage
+16. WHEN a nested function captures no variables, THE Code_Generator SHALL generate a simple closure
+17. WHEN a nested function is used as a function pointer, THE Code_Generator SHALL ensure proper type compatibility
+18. THE Semantic_Analyzer SHALL verify that nested functions cannot be declared static
+19. THE Semantic_Analyzer SHALL verify that nested functions cannot have nested functions (no multi-level nesting)
+20. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust closures to Crusty nested functions where possible
+21. WHEN reverse transpiling from Rust, THE Code_Generator SHALL preserve closure syntax when nested function representation is not possible
+22. THE Parser SHALL support function pointer types for parameters that accept nested functions
+23. THE Semantic_Analyzer SHALL verify type compatibility when passing nested functions as arguments
+24. WHEN a nested function modifies a captured variable, THE Semantic_Analyzer SHALL mark it as a mutable capture
+25. WHEN multiple nested functions capture the same variable, THE Semantic_Analyzer SHALL verify capture compatibility
+
+**Syntax Examples:**
+
+```c
+void outer_function() {
+    int captured_value = 42;
+    
+    // Nested function with immutable capture
+    int add_value(int x) {
+        return x + captured_value;  // Immutable capture
+    }
+    
+    let result = add_value(10);  // Returns 52
+    
+    // Nested function with mutable capture
+    int counter = 0;
+    void increment() {
+        counter = counter + 1;  // Mutable capture
+    }
+    
+    increment();
+    increment();
+    // counter is now 2
+    
+    // Passing nested function as parameter
+    void apply(int (*func)(int), int value) {
+        return func(value);
+    }
+    
+    let result2 = apply(add_value, 5);  // Returns 47
+}
+```
+
+**Translation to Rust:**
+
+```rust
+pub fn outer_function() {
+    let captured_value = 42;
+    
+    // Becomes Fn closure (immutable capture)
+    let add_value = |x: i32| -> i32 {
+        x + captured_value
+    };
+    
+    let result = add_value(10);
+    
+    // Becomes FnMut closure (mutable capture)
+    let mut counter = 0;
+    let mut increment = || {
+        counter = counter + 1;
+    };
+    
+    increment();
+    increment();
+    
+    // Function accepting closure
+    fn apply<F>(func: F, value: i32) -> i32 
+    where F: Fn(i32) -> i32 
+    {
+        func(value)
+    }
+    
+    let result2 = apply(add_value, 5);
+}
+```
+
+**Scoping Rules:**
+- Nested functions can only capture variables declared **before** the nested function
+- Variables declared **after** a nested function are not accessible to that function
+- Multiple nested functions can capture and share the same outer variables
+- Captures are automatically determined to be immutable (Fn) or mutable (FnMut) based on usage
+
 
 ## Testing and Validation
 
