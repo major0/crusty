@@ -664,11 +664,8 @@ impl SemanticAnalyzer {
 
         // Validate that macro parameters are used consistently in the body
         // Build a set of parameter names for quick lookup
-        let param_names: std::collections::HashSet<String> = macro_def
-            .params
-            .iter()
-            .map(|p| p.name.clone())
-            .collect();
+        let param_names: std::collections::HashSet<String> =
+            macro_def.params.iter().map(|p| p.name.clone()).collect();
 
         // Check if parameters are referenced in the body
         for param in &macro_def.params {
@@ -2566,7 +2563,10 @@ mod tests {
 
         analyzer.analyze_macro_definition(&macro_def);
         assert_eq!(analyzer.errors().len(), 1);
-        assert_eq!(analyzer.errors()[0].kind, SemanticErrorKind::InvalidOperation);
+        assert_eq!(
+            analyzer.errors()[0].kind,
+            SemanticErrorKind::InvalidOperation
+        );
         assert!(analyzer.errors()[0].message.contains("double-underscore"));
     }
 
@@ -2581,7 +2581,10 @@ mod tests {
 
         analyzer.analyze_macro_definition(&macro_def);
         assert_eq!(analyzer.errors().len(), 1);
-        assert_eq!(analyzer.errors()[0].kind, SemanticErrorKind::InvalidOperation);
+        assert_eq!(
+            analyzer.errors()[0].kind,
+            SemanticErrorKind::InvalidOperation
+        );
     }
 
     #[test]
