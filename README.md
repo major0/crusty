@@ -140,6 +140,63 @@ void main() {
 }
 ```
 
+### Advanced Syntax
+
+#### Module Imports with #use
+```crusty
+// Import Rust standard library modules
+#use std.collections.HashMap;
+#use std.io.Write;
+
+void main() {
+    let map = @HashMap->new();
+    map.insert("key", "value");
+}
+```
+
+#### Explicit Generic Type Parameters
+```crusty
+void main() {
+    // Explicit type parameters with parentheses/brackets syntax
+    let v = @Vec(i32)->new();
+    v.push(42);
+    
+    // Nested generics alternate parentheses and brackets
+    let opt = @Option(Result[String, std.io.Error])->None;
+    
+    // Type inference when parameters omitted
+    let v2 = @Vec->new();  // Type inferred from usage
+}
+```
+
+#### Defining Macros with #define
+```crusty
+// Define macros with double-underscore naming
+#define __MAX__(a, b) ((a) > (b) ? (a) : (b))
+#define __SQUARE__(x) ((x) * (x))
+
+void main() {
+    let max_val = __MAX__(10, 20);
+    let squared = __SQUARE__(5);
+    __println__("Max: {}, Squared: {}", max_val, squared);
+}
+```
+
+#### Labeled Loops
+```crusty
+void main() {
+    // Labels use dot prefix (. is not part of the label name)
+    .outer: loop {
+        .inner: loop {
+            if (condition) {
+                break outer;  // Break to outer loop (no dot in break)
+            }
+            continue inner;  // Continue inner loop (no dot in continue)
+        }
+    }
+}
+```
+
 ## Usage
 
 ### Basic Transpilation

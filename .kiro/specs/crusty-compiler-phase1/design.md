@@ -807,14 +807,14 @@ int __compute__() { }       // ERROR - reserved for macros
 
 **Label Syntax for Loops**:
 
-Crusty uses dot-prefixed labels (`.label:`) for labeled loops, break, and continue statements, keeping with the "dot notation" theme:
+Crusty uses dot-prefixed labels (`.label:`) for labeled loops, mimicking C/ASM identifier syntax:
 
 ```crusty
-// Crusty label syntax
+// Crusty label syntax - dot prefix for declaration, no dot in break/continue
 .outer: loop {
     .inner: loop {
-        if (condition) break .outer;
-        continue .inner;
+        if (condition) break outer;
+        continue inner;
     }
 }
 
@@ -829,10 +829,12 @@ Crusty uses dot-prefixed labels (`.label:`) for labeled loops, break, and contin
 
 **Label Translation Rules**:
 - `.label:` in Crusty → `'label:` in Rust (loop labels)
-- `break .label` in Crusty → `break 'label` in Rust
-- `continue .label` in Crusty → `continue 'label` in Rust
+- `break label` in Crusty → `break 'label` in Rust
+- `continue label` in Crusty → `continue 'label` in Rust
 - Labels must be identifiers following the dot
 - Labels are scoped to the enclosing function
+
+**Important**: The dot (`.`) is a prefix for label declarations only, mimicking C/ASM identifier syntax. It is NOT part of the label name itself. When using `break` or `continue`, reference the label without the dot.
 
 **Explicit Generic Type Parameters with Parentheses and Brackets**:
 
@@ -1623,7 +1625,7 @@ Property 22: #define macros translate to macro_rules!
 **Validates: Requirements 24.7, 24.8, 24.9**
 
 Property 23: Label syntax translates correctly
-*For any* labeled loop (.label: loop), break statement (break .label), or continue statement (continue .label) in the AST, the generated Rust code should use Rust's label syntax ('label:, break 'label, continue 'label).
+*For any* labeled loop (.label: loop), break statement (break label), or continue statement (continue label) in the AST, the generated Rust code should use Rust's label syntax ('label:, break 'label, continue 'label). Note: The dot is a prefix for label declarations only, not part of the label name.
 **Validates: Requirements 6.13, 6.14, 6.15**
 
 Property 24: Explicit generic parameters translate correctly

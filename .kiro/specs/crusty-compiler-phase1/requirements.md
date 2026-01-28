@@ -212,12 +212,12 @@ This phase serves as an experimental platform to determine which C language feat
 10. THE Parser SHALL support C-like control flow structures (if, while, for, return)
 11. THE Parser SHALL support break statements for early loop termination
 12. THE Parser SHALL support continue statements for skipping to next loop iteration
-13. THE Parser SHALL support Crusty's labeled break syntax (break .label)
-14. THE Parser SHALL support Crusty's labeled continue syntax (continue .label)
-15. THE Parser SHALL support labeled loops (.label: loop { ... })
+13. THE Parser SHALL support Crusty's labeled break syntax (break label)
+14. THE Parser SHALL support Crusty's labeled continue syntax (continue label)
+15. THE Parser SHALL support labeled loops (.label: loop { ... }) where the dot prefix is syntax, not part of the label name
 16. WHEN generating Rust code, THE Code_Generator SHALL translate .label: to 'label:
-17. WHEN generating Rust code, THE Code_Generator SHALL translate break .label to break 'label
-18. WHEN generating Rust code, THE Code_Generator SHALL translate continue .label to continue 'label
+17. WHEN generating Rust code, THE Code_Generator SHALL translate break label to break 'label
+18. WHEN generating Rust code, THE Code_Generator SHALL translate continue label to continue 'label
 19. THE Parser SHALL support C-like variable declarations and assignments
 20. THE Parser SHALL support C-like expressions including arithmetic, logical, and comparison operators
 21. THE Parser SHALL support C-like struct definitions
@@ -228,11 +228,11 @@ This phase serves as an experimental platform to determine which C language feat
 
 **Label Syntax Examples:**
 ```crusty
-// Crusty syntax
+// Crusty syntax - dot prefix for label declaration, no dot in break/continue
 .outer: loop {
     .inner: loop {
-        if (condition) break .outer;
-        continue .inner;
+        if (condition) break outer;
+        continue inner;
     }
 }
 
@@ -244,6 +244,8 @@ This phase serves as an experimental platform to determine which C language feat
     }
 }
 ```
+
+**Note**: The dot (`.`) is a prefix for label declarations only, mimicking C/ASM identifier syntax. It is NOT part of the label name itself. When using `break` or `continue`, reference the label without the dot.
 
 ### Requirement 8: Validate Semantic Correctness
 

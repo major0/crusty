@@ -384,7 +384,8 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Translate for loops (both C-style and for-in)
     - Translate break and continue statements
     - Translate labeled loops (.label: to 'label:)
-    - Translate labeled break/continue (break .label to break 'label, continue .label to continue 'label)
+    - Translate labeled break/continue (break label to break 'label, continue label to continue 'label)
+    - Note: The dot is a prefix for label declarations only, not part of the label name
     - _Requirements: 3.9, 3.10, 3.11, 3.12, 3.13, 6.13, 6.14, 6.15, 29.7, 29.8, 29.9, 38.3-38.11_
   
   - [x]9.4 Implement expression code generation
