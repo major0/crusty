@@ -10,7 +10,7 @@ Crusty is a C-like programming language that transpiles to Rust, providing famil
 ### C-like Syntax with Rust Safety
 - **Familiar C syntax**: Write code with C-style function declarations, control flow, and data structures
 - **Type-scoped calls**: Use arrow notation for static methods: `@Vec->new()`, `@Option->None`
-- **Macro system**: Double-underscore naming for macros: `__println__!("Hello")`, `__vec__![1, 2, 3]`
+- **Macro system**: Double-underscore naming for macros: `__println__("Hello")`, `__vec__[1, 2, 3]`
 - **Rust compatibility**: All Crusty code transpiles to safe, idiomatic Rust
 
 ### Rust Ecosystem Integration
@@ -46,7 +46,7 @@ cargo install --path .
 Create `hello.crst`:
 ```crusty
 void main() {
-    __println__!("Hello, Crusty!");
+    __println__("Hello, Crusty!");
 }
 ```
 
@@ -67,7 +67,7 @@ int add(int a, int b) {
 
 // Void return type
 void print_sum(int x, int y) {
-    __println__!("Sum: {}", add(x, y));
+    __println__("Sum: {}", add(x, y));
 }
 
 // Static functions (private in Rust)
@@ -99,7 +99,7 @@ void main() {
     
     // Instance method call
     let p = Point { x: 3, y: 4 };
-    __println__!("Distance²: {}", p.distance_squared());
+    __println__("Distance²: {}", p.distance_squared());
 }
 ```
 
@@ -114,7 +114,7 @@ int fibonacci(int n) {
 
 void count_to_ten() {
     for (int i = 0; i < 10; i++) {
-        __println__!("{}", i);
+        __println__("{}", i);
     }
 }
 ```
@@ -122,8 +122,8 @@ void count_to_ten() {
 ### Macros and Type-Scoped Calls
 ```crusty
 void main() {
-    // Macros use double-underscore naming
-    __println__!("Creating a vector...");
+    // Macros use double-underscore naming (no ! suffix in Crusty)
+    __println__("Creating a vector...");
     
     // Type-scoped calls use @ prefix with arrow notation
     let v = @Vec->new();
@@ -132,7 +132,7 @@ void main() {
     v.push(3);
     
     // Macro with formatting
-    __println__!("Vector: {:?}", v);
+    __println__("Vector: {:?}", v);
 }
 ```
 
@@ -276,7 +276,7 @@ The hooks will automatically run:
 - Function declarations and definitions
 - Struct and enum types
 - Type-scoped calls with arrow notation (`@Type->method()`)
-- Macro invocations with double-underscore naming (`__macro_name__!`)
+- Macro invocations with double-underscore naming (`__macro_name__`)
 - Control flow statements
 - Memory management and ownership
 - Module system and visibility

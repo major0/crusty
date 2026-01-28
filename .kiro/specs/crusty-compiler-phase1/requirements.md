@@ -167,7 +167,7 @@ This phase serves as an experimental platform to determine which C language feat
 8. THE example .crst files SHALL demonstrate control flow (if/else-if/else, while, for loops, switch statements)
 9. THE example .crst files SHALL demonstrate struct definitions with methods
 10. THE example .crst files SHALL demonstrate type-scoped static method calls with @ prefix and -> notation
-11. THE example .crst files SHALL demonstrate macro usage with double-underscore naming (__println__!, __vec__!, etc.)
+11. THE example .crst files SHALL demonstrate macro usage with double-underscore naming (__println__, __vec__, etc.)
 12. THE example .crst files SHALL demonstrate #define macro definitions with double-underscore naming
 13. THE example .crst files SHALL demonstrate variable declarations (const, var, let, static)
 14. THE example .crst files SHALL demonstrate references and borrowing (&, &var, &mut)
@@ -546,15 +546,17 @@ This phase serves as an experimental platform to determine which C language feat
 
 #### Acceptance Criteria
 
-1. THE Parser SHALL support Crusty macro invocation syntax with ! suffix (__macro_name__!(args), __macro_name__![args], __macro_name__!{args})
+1. THE Parser SHALL support Crusty macro invocation syntax WITHOUT ! suffix (__macro_name__(args), __macro_name__[args], __macro_name__{args})
 2. THE Parser SHALL require macros to be denoted by double-underscores as prefix and suffix of the macro name (e.g., __println__, __vec__, __assert__, __panic__)
-3. THE Parser SHALL support common Rust macros with double-underscore naming (__println__!(...), __print__!(...), __format__!(...), __vec__![...], __assert__!(...), __panic__!(...), etc.)
+3. THE Parser SHALL support common Rust macros with double-underscore naming (__println__(...), __print__(...), __format__(...), __vec__[...], __assert__(...), __panic__(...), etc.)
 4. THE Parser SHALL support macro invocations in expression contexts
 5. THE Parser SHALL support macro invocations in statement contexts
-6. THE Parser SHALL use ! suffix exclusively for macros, while @ prefix is exclusively for type-scoped calls
-7. WHEN generating Rust code, THE Code_Generator SHALL translate __macro_name__! to Rust macro_name! (removing the double-underscore prefix and suffix)
+6. THE Parser SHALL use double-underscore pattern exclusively for macros, while @ prefix is exclusively for type-scoped calls
+7. WHEN generating Rust code, THE Code_Generator SHALL translate __macro_name__ to Rust macro_name! (removing the double-underscore prefix and suffix, adding !)
 8. THE Semantic_Analyzer SHALL validate macro arguments where possible
-9. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust macro_name! to Crusty __macro_name__! (adding double-underscore prefix and suffix)
+9. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust macro_name! to Crusty __macro_name__ (adding double-underscore prefix and suffix, removing !)
+10. THE Semantic_Analyzer SHALL prohibit function definitions with leading AND trailing double-underscores (reserved for macros)
+11. WHEN a function is defined with double-underscore pattern, THE Semantic_Analyzer SHALL report error: "Function names cannot use double-underscore pattern (reserved for macros)"
 
 ### Requirement 26: Support Defining Macros with #define
 
@@ -1003,14 +1005,15 @@ fn process<T>(value: T) -> Option<T> { ... }
 
 #### Acceptance Criteria
 
-1. THE Parser SHALL support __asm__! macro syntax with ! suffix and double-underscore naming
+1. THE Parser SHALL support __asm__ macro syntax with double-underscore naming (no ! suffix)
 2. THE Parser SHALL support inline assembly within unsafe blocks
 3. THE Parser SHALL support assembly templates with input and output operands
 4. THE Parser SHALL support assembly options (e.g., nostack, readonly, nomem)
-5. WHEN generating Rust code, THE Code_Generator SHALL translate __asm__! to Rust asm! (removing double-underscore prefix and suffix)
-6. THE Semantic_Analyzer SHALL require __asm__! to be used within unsafe blocks
-7. THE Semantic_Analyzer SHALL verify that __asm__! syntax is valid
-8. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust asm! to Crusty __asm__! (adding double-underscore prefix and suffix)
+5. WHEN generating Rust code, THE Code_Generator SHALL translate __asm__ to Rust asm! (removing double-underscore prefix and suffix, adding !)
+6. THE Semantic_Analyzer SHALL require __asm__ to be used within unsafe blocks
+7. THE Semantic_Analyzer SHALL verify that __asm__ syntax is valid
+8. THE Semantic_Analyzer SHALL prohibit function definitions named __asm__ (reserved for macro)
+9. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust asm! to Crusty __asm__ (adding double-underscore prefix and suffix, removing !)
 
 ### Requirement 46: Support Embedding Raw Rust Code
 
@@ -1018,19 +1021,20 @@ fn process<T>(value: T) -> Option<T> { ... }
 
 #### Acceptance Criteria
 
-1. THE Parser SHALL support __rust__! macro syntax with ! suffix and double-underscore naming for embedding raw Rust code
-2. THE Parser SHALL support __rust__! with block syntax (__rust__! { ... })
-3. THE Parser SHALL treat the contents of __rust__! blocks as opaque Rust code
-4. THE Parser SHALL support __rust__! in expression contexts
-5. THE Parser SHALL support __rust__! in statement contexts
-6. THE Parser SHALL support __rust__! in type contexts
-7. WHEN generating Rust code, THE Code_Generator SHALL extract the contents of __rust__! blocks and emit them directly as Rust code
+1. THE Parser SHALL support __rust__ macro syntax with double-underscore naming for embedding raw Rust code (no ! suffix)
+2. THE Parser SHALL support __rust__ with block syntax (__rust__{ ... })
+3. THE Parser SHALL treat the contents of __rust__ blocks as opaque Rust code
+4. THE Parser SHALL support __rust__ in expression contexts
+5. THE Parser SHALL support __rust__ in statement contexts
+6. THE Parser SHALL support __rust__ in type contexts
+7. WHEN generating Rust code, THE Code_Generator SHALL extract the contents of __rust__ blocks and emit them directly as Rust code
 8. WHEN generating Rust code, THE Code_Generator SHALL preserve the exact formatting and syntax of embedded Rust code
-9. THE Semantic_Analyzer SHALL NOT validate the contents of __rust__! blocks (validation deferred to rustc)
-10. THE Semantic_Analyzer SHALL verify that __rust__! blocks are syntactically closed (matching braces)
-11. WHEN reverse transpiling from Rust, THE Code_Generator MAY wrap Rust-specific syntax in __rust__! blocks when no Crusty equivalent exists
-12. THE Parser SHALL support nested braces within __rust__! blocks
-13. THE crustyc documentation SHALL recommend using __rust__! as an escape hatch for unsupported features
+9. THE Semantic_Analyzer SHALL NOT validate the contents of __rust__ blocks (validation deferred to rustc)
+10. THE Semantic_Analyzer SHALL verify that __rust__ blocks are syntactically closed (matching braces)
+11. THE Semantic_Analyzer SHALL prohibit function definitions named __rust__ (reserved for macro)
+12. WHEN reverse transpiling from Rust, THE Code_Generator MAY wrap Rust-specific syntax in __rust__ blocks when no Crusty equivalent exists
+13. THE Parser SHALL support nested braces within __rust__ blocks
+14. THE crustyc documentation SHALL recommend using __rust__ as an escape hatch for unsupported features
 
 ## Control Flow and Pattern Matching
 

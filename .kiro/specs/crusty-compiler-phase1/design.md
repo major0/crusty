@@ -340,7 +340,7 @@ int add(int a, int b) {
 }
 
 void print_message(char* msg) {
-    __println__!("{}", msg);
+    __println__("{}", msg);
 }
 
 static int helper(int x) {
@@ -456,7 +456,7 @@ pub enum TokenKind {
     
     // Special
     Hash,  // # - for preprocessor directives (#use, #ifdef, etc.)
-    Bang,  // ! - for macro invocations (__println__!(...), __vec__![...]) and error propagation operator
+    Bang,  // ! - for error propagation operator (Rust's ?)
     At,    // @ - for type-scoped calls (@Type->method())
     Eof,
 }
@@ -679,40 +679,42 @@ The `@` prefix with `->` is **required** for all type-scoped calls and translate
 
 **Macro Invocation Syntax**:
 
-Crusty uses Rust's `!` suffix for macro invocations, keeping the familiar Rust syntax:
+Crusty uses double-underscore naming for macros, WITHOUT the `!` suffix:
 
 ```crusty
-// Macro invocations with ! suffix and double-underscore naming
-__println__!("Hello, world!");
-__vec__![1, 2, 3];
-__format__!("Value: {}", x);
-__assert__!(x > 0);
-__rust__! { /* raw Rust code */ };
+// Macro invocations with double-underscore naming (no ! in Crusty)
+__println__("Hello, world!");
+__vec__[1, 2, 3];
+__format__("Value: {}", x);
+__assert__(x > 0);
+__rust__{ /* raw Rust code */ };
 
-// Translates to Rust (removing double-underscores)
+// Translates to Rust (removing double-underscores, adding !)
 println!("Hello, world!");
 vec![1, 2, 3];
 format!("Value: {}", x);
 assert!(x > 0);
 ```
 
+**Important**: The `!` suffix is Rust-specific syntax. Crusty macros do NOT use `!` - it is added during transpilation to Rust.
+
 **Distinguishing Type-Scoped Calls from Macros**:
 
 The parser distinguishes between type-scoped static method calls and macro invocations based on syntax:
 - **Type-scoped call**: `@Type->method()` - uses `@` prefix with `->` separator
-- **Macro invocation**: `__macro_name__!(...)` - uses double-underscore prefix/suffix with `!`
+- **Macro invocation**: `__macro_name__(...)` - uses double-underscore prefix/suffix, NO `!`
 
 Examples:
 ```crusty
 @Vec->new()              // Type-scoped call → Vec::new()
-__vec__![1, 2, 3]        // Macro invocation → vec![1, 2, 3]
+__vec__[1, 2, 3]         // Macro invocation → vec![1, 2, 3]
 @Option->None            // Type-scoped call → Option::None
-__println__!("hello")    // Macro invocation → println!("hello")
+__println__("hello")     // Macro invocation → println!("hello")
 @String->from("hi")      // Type-scoped call → String::from("hi")
-__format__!("x={}", x)   // Macro invocation → format!("x={}", x)
+__format__("x={}", x)    // Macro invocation → format!("x={}", x)
 ```
 
-The `@` prefix is exclusively for type-scoped calls, while `!` suffix with double-underscores is exclusively for macros, eliminating any ambiguity.
+The `@` prefix is exclusively for type-scoped calls, while double-underscores are exclusively for macros, eliminating any ambiguity.
 
 **Defining Macros with #define**:
 
@@ -722,7 +724,7 @@ Crusty supports defining macros using the `#define` directive, which translates 
 // Simple macro definitions with double-underscore naming
 #define __MAX__(a, b) ((a) > (b) ? (a) : (b))
 #define __SQUARE__(x) ((x) * (x))
-#define __DEBUG_PRINT__(msg) __println__!("DEBUG: {}", msg)
+#define __DEBUG_PRINT__(msg) __println__("DEBUG: {}", msg)
 
 // Translates to Rust macro_rules! (removing double-underscores)
 macro_rules! max {
@@ -749,9 +751,27 @@ macro_rules! debug_print {
 - Macro names MUST have double-underscores as prefix and suffix
 - Macro parameters are parsed as identifiers
 - The macro body is parsed as a token sequence
-- When generating Rust, double-underscores are removed and name is converted to snake_case
-- Macro invocations within the body use `@` prefix syntax
+- When generating Rust, double-underscores are removed and name is converted to snake_case, and `!` is added
+- Macro invocations within the body are also translated (double-underscores removed, `!` added)
 - The parser does not perform full semantic analysis on macro bodies
+
+**Reserved Pattern for Macros**:
+- The double-underscore pattern (leading AND trailing) is **reserved exclusively for macros**
+- Functions CANNOT use leading and trailing double-underscores
+- The Semantic_Analyzer SHALL detect and reject function definitions with this pattern
+- Error message: "Function names cannot use double-underscore pattern (reserved for macros)"
+
+**Valid function names**:
+```crusty
+void helper() { }           // OK
+void _private_helper() { }  // OK - single leading underscore
+```
+
+**Invalid function names**:
+```crusty
+void __helper__() { }       // ERROR - reserved for macros
+int __compute__() { }       // ERROR - reserved for macros
+```
 
 **#define to macro_rules! Translation**:
 - Macro name is preserved

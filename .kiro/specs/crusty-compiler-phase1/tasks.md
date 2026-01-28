@@ -495,10 +495,10 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - _Requirements: 19.1-19.9_
   
   - [x]14.4 Add support for macros
-    - Parse Crusty macro invocation syntax with ! suffix and double-underscore naming (__macro_name__!(args), __macro_name__![args], __macro_name__!{args})
-    - Support common macros with double-underscore naming (__println__!(...), __vec__![...], __assert__!(...), __panic__!(...))
+    - Parse Crusty macro invocation syntax with double-underscore naming (__macro_name__(args), __macro_name__[args], __macro_name__{args})
+    - Support common macros with double-underscore naming (__println__(...), __vec__[...], __assert__(...), __panic__(...))
     - Parse macro invocations in expression and statement contexts
-    - Use ! suffix exclusively for macros (@ prefix is exclusively for type-scoped calls)
+    - Note: Crusty macros do NOT use ! suffix - it is added during transpilation to Rust
     - _Requirements: 23.1-23.6_
   
   - [x]14.5 Add support for ranges and slices
@@ -545,7 +545,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
   - [ ]14.9.3 Add attribute and macro examples
     - Create example/src/attributes.crst with attribute examples
     - Create example/src/macros.crst with macro usage examples using double-underscore naming
-    - Include __println__!, __vec__!, __assert__! examples
+    - Include __println__, __vec__, __assert__ examples (no ! suffix in Crusty)
     - _Requirements: 6.21, 6.22_
   
   - [ ]14.9.4 Add range and slice examples
@@ -576,11 +576,11 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - _Requirements: 24.1, 24.2, 24.3, 24.4, 24.5, 24.6_
   
   - [ ]15.2 Implement #define to macro_rules! translation
-    - Translate double-underscore macro name to Rust snake_case macro_rules! name (removing underscores)
+    - Translate double-underscore macro name to Rust snake_case macro_rules! name (removing underscores, adding !)
     - Translate parameters to Rust pattern variables ($param:expr)
     - Wrap macro body in Rust macro syntax
     - Translate ternary operators to if-else expressions
-    - Pass through macro! invocations unchanged to Rust
+    - Translate macro invocations in body (remove __, add !)
     - _Requirements: 24.7, 24.8, 24.9_
   
   - [ ]15.3 Add macro validation
@@ -588,6 +588,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Verify macro names have double-underscore prefix and suffix
     - Verify macro parameters are used consistently
     - Check for valid macro body structure
+    - Prohibit function definitions with double-underscore pattern (reserved for macros)
     - _Requirements: 24.10, 24.11_
   
   - [ ]15.4 Write property test for #define translation
@@ -772,7 +773,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Translate Rust Result<T,E> to Type!
     - Translate Rust ? operator to ! operator
     - Translate Rust Type::method() to Crusty @Type->method()
-    - Translate Rust macro_name! to Crusty __macro_name__! (adding double-underscores)
+    - Translate Rust macro_name! to Crusty __macro_name__ (adding double-underscores, removing !)
     - _Requirements: 47.5, 47.6, 47.7, 47.8, 47.9, 47.10, 47.11, 21.18_
   
   - [ ]21.3 Write property test for Rust-to-Crusty translation
@@ -914,16 +915,16 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - _Requirements: 35.1-35.9_
   
   - [ ]26.2 Add inline assembly support
-    - Parse @asm macro syntax with @ prefix
-    - Require @asm within unsafe blocks
-    - Translate @asm to Rust asm! syntax in code generation
+    - Parse __asm__ macro syntax with double-underscore naming (no ! suffix)
+    - Require __asm__ within unsafe blocks
+    - Translate __asm__ to Rust asm! syntax in code generation (add !)
     - _Requirements: 36.1-36.7_
   
-  - [ ]26.3 Add rust! macro support
-    - Parse rust! macro with ! suffix for embedding raw Rust code
-    - Support rust! in expression, statement, and type contexts
-    - Extract and emit rust! contents directly as Rust code
-    - Handle nested braces within rust! blocks
+  - [ ]26.3 Add __rust__ macro support
+    - Parse __rust__ macro with double-underscore naming for embedding raw Rust code (no ! suffix)
+    - Support __rust__ in expression, statement, and type contexts
+    - Extract and emit __rust__ contents directly as Rust code
+    - Handle nested braces within __rust__ blocks
     - _Requirements: 43.1-43.13_
   
   - [ ]26.4 Add conditional compilation support
@@ -934,8 +935,8 @@ The implementation follows a bottom-up approach, building core infrastructure fi
   
   - [ ]26.5 Write unit tests for additional features
     - Test extern "C" parsing and generation
-    - Test asm! parsing and generation (! suffix for Rust asm!)
-    - Test rust! macro handling (! suffix syntax)
+    - Test __asm__ parsing and generation (translates to Rust asm!)
+    - Test __rust__ macro handling (no ! suffix in Crusty)
     - Test conditional compilation
     - _Requirements: 35.1-35.9, 36.1-36.7, 43.1-43.13, 41.4-41.8_
 
