@@ -1,0 +1,50 @@
+// Copyright (c) 2024 Crusty Programming Language
+// Licensed under the MIT License. See LICENSE.txt in the project root.
+
+/// Main entry point for the Crusty example program
+///
+/// This example demonstrates basic Crusty syntax including:
+/// - Function declarations with C-style syntax
+/// - Variable declarations
+/// - Control flow statements
+/// - Function calls
+int main() {
+    __println__("Hello from Crusty!");
+    __println__("This is a C-like language that transpiles to Rust.");
+    
+    // Demonstrate basic arithmetic
+    int x = 10;
+    int y = 20;
+    int sum = add(x, y);
+    
+    __println__("The sum of {} and {} is {}", x, y, sum);
+    
+    // Demonstrate control flow
+    if (sum > 25) {
+        __println__("Sum is greater than 25");
+    } else {
+        __println__("Sum is 25 or less");
+    }
+    
+    // Demonstrate loops
+    __println__("Counting from 1 to 5:");
+    int i = 1;
+    while (i <= 5) {
+        __println__("  {}", i);
+        i = i + 1;
+    }
+    
+    return 0;
+}
+
+/// Adds two integers and returns the result
+///
+/// # Arguments
+/// * `a` - The first integer
+/// * `b` - The second integer
+///
+/// # Returns
+/// The sum of a and b
+int add(int a, int b) {
+    return a + b;
+}

@@ -112,7 +112,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Test build.rs script functionality
     - _Requirements: 14.1-14.3, 15.1-15.8, 19.1-19.7_
 
-- [ ] 2.7 Create example directory structure
+- [x] 2.7 Create example directory structure
   - [ ]2.7.1 Create example directory and Cargo.toml
     - Create example/ directory in repository root
     - Create example/Cargo.toml with crustyc as build-dependency

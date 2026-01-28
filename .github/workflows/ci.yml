@@ -49,3 +49,13 @@ jobs:
       
       - name: Check formatting
         run: cargo fmt -- --check
+      
+      - name: Build example project
+        run: |
+          cd example
+          cargo build --verbose
+      
+      - name: Run example binary
+        run: |
+          cd example
+          cargo run
