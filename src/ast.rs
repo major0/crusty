@@ -34,6 +34,7 @@ pub struct Function {
     pub return_type: Option<Type>,
     pub body: Block,
     pub doc_comments: Vec<String>,
+    pub attributes: Vec<Attribute>,
 }
 
 /// Struct definition
@@ -44,6 +45,7 @@ pub struct Struct {
     pub fields: Vec<Field>,
     pub methods: Vec<Function>,
     pub doc_comments: Vec<String>,
+    pub attributes: Vec<Attribute>,
 }
 
 /// Enum definition
@@ -53,6 +55,22 @@ pub struct Enum {
     pub name: Ident,
     pub variants: Vec<EnumVariant>,
     pub doc_comments: Vec<String>,
+    pub attributes: Vec<Attribute>,
+}
+
+/// Attribute (e.g., #[derive(Debug)], #[test])
+#[derive(Debug, Clone, PartialEq)]
+pub struct Attribute {
+    pub name: Ident,
+    pub args: Vec<AttributeArg>,
+}
+
+/// Attribute argument
+#[derive(Debug, Clone, PartialEq)]
+pub enum AttributeArg {
+    Ident(Ident),
+    Literal(Literal),
+    NameValue { name: Ident, value: Literal },
 }
 
 /// Type alias (typedef)
@@ -333,6 +351,7 @@ pub struct Field {
     pub name: Ident,
     pub ty: Type,
     pub doc_comments: Vec<String>,
+    pub attributes: Vec<Attribute>,
 }
 
 /// Enum variant
@@ -468,6 +487,7 @@ mod tests {
             return_type: None,
             body: Block::empty(),
             doc_comments: vec![],
+            attributes: vec![],
         };
         
         assert_eq!(func.name.name, "main");
@@ -493,6 +513,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::I32)),
             body: Block::empty(),
             doc_comments: vec![],
+            attributes: vec![],
         };
         
         assert_eq!(func.params.len(), 2);
@@ -512,16 +533,19 @@ mod tests {
                     name: Ident::new("x"),
                     ty: Type::Primitive(PrimitiveType::I32),
                     doc_comments: vec![],
+                    attributes: vec![],
                 },
                 Field {
                     visibility: Visibility::Public,
                     name: Ident::new("y"),
                     ty: Type::Primitive(PrimitiveType::I32),
                     doc_comments: vec![],
+                    attributes: vec![],
                 },
             ],
             methods: vec![],
             doc_comments: vec![],
+            attributes: vec![],
         };
         
         assert_eq!(struct_def.name.name, "Point");
@@ -550,6 +574,7 @@ mod tests {
                 },
             ],
             doc_comments: vec![],
+            attributes: vec![],
         };
         
         assert_eq!(enum_def.name.name, "Color");
@@ -805,6 +830,7 @@ mod tests {
             return_type: None,
             body: Block::empty(),
             doc_comments: vec![],
+            attributes: vec![],
         };
         
         let cloned = original.clone();
