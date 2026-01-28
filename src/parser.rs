@@ -2329,3 +2329,77 @@ mod tests {
             _ => panic!("Expected function"),
         }
     }
+
+
+#[cfg(test)]
+mod property_tests {
+    use super::*;
+
+    #[test]
+    fn test_property_1_valid_programs_parse() {
+        // Property 1: Valid Crusty programs parse successfully
+        // Validates: Requirements 6.1
+        
+        let valid_programs = vec![
+            "int main() {}",
+            "void foo() {}",
+            "int add(int a, int b) { return a + b; }",
+            "struct Point { int x; int y; }",
+            "enum Color { Red, Green, Blue }",
+            "typedef int MyInt;",
+            "int main() { let x = 5; return x; }",
+            "int main() { var y = 10; return y; }",
+            "int main() { if (true) { return 1; } else { return 0; } }",
+            "int main() { while (true) { break; } return 0; }",
+            "int main() { for (i in items) { } return 0; }",
+            "int main() { .outer: loop { break .outer; } return 0; }",
+            "int main() { return 1 + 2 * 3; }",
+            "int main() { return foo(1, 2); }",
+            "int main() { return obj.field; }",
+            "int main() { return arr[0]; }",
+            "int main() { return x ? 1 : 0; }",
+            "int main() { return @Vec.new(); }",
+        ];
+
+        for program in valid_programs {
+            let mut parser = Parser::new(program).unwrap();
+            let result = parser.parse_file();
+            assert!(
+                result.is_ok(),
+                "Failed to parse valid program: {}\nError: {:?}",
+                program,
+                result.err()
+            );
+        }
+    }
+
+    #[test]
+    fn test_property_2_invalid_syntax_produces_errors() {
+        // Property 2: Invalid syntax produces error reports with location
+        // Validates: Requirements 6.2, 10.1
+        
+        let invalid_programs = vec![
+            "int main(",           // Missing closing paren
+            "int main() {",        // Missing closing brace
+            "int main() { let }",  // Incomplete let statement
+            "struct { }",          // Missing struct name
+            "enum { }",            // Missing enum name
+        ];
+
+        for program in invalid_programs {
+            let mut parser = Parser::new(program).unwrap();
+            let result = parser.parse_file();
+            assert!(
+                result.is_err(),
+                "Expected error for invalid program: {}",
+                program
+            );
+            
+            // Verify error has location information
+            if let Err(e) = result {
+                // Error should have span information
+                assert!(e.span.start.line > 0, "Error should have line information");
+            }
+        }
+    }
+}
