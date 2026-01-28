@@ -7,6 +7,7 @@ Crusty is a C-like programming language that transpiles to Rust. It provides fam
 - [Syntax](syntax/README.md) - Language syntax reference
 - [Architecture](architecture/README.md) - Compiler architecture and components
 - [Design](design/README.md) - Design decisions and rationale
+- [Tools](tools/README.md) - Development tools (crustyfmt)
 
 ## Quick Start
 
