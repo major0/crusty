@@ -106,6 +106,7 @@ typedef default {
 
 void main() {
     // Type-scoped call with arrow notation (@ prefix required)
+    // Arrow (->) always replaces Rust's ::
     let p1 = @Point->new(3, 4);
     
     // Use Default trait
@@ -114,8 +115,8 @@ void main() {
     // Instance method call (no @ prefix)
     __println__("Distance²: {}", p1.distance_squared());
     
-    // Nested type paths use dot notation after @
-    // Example: @std.collections.HashMap->new()
+    // Nested type paths: arrow replaces ALL :: occurrences
+    // @std->collections->HashMap->new()
     // Translates to: std::collections::HashMap::new()
 }
 ```
@@ -158,8 +159,9 @@ void main() {
 #### Module Imports with #use
 ```crusty
 // Import Rust standard library modules
-#use std.collections.HashMap;
-#use std.io.Write;
+// Arrow replaces :: in module paths
+#use std->collections->HashMap;
+#use std->io->Write;
 
 void main() {
     let map = @HashMap->new();
@@ -175,7 +177,8 @@ void main() {
     v.push(42);
     
     // Nested generics alternate parentheses and brackets
-    let opt = @Option(Result[String, std.io.Error])->None;
+    // Arrow replaces :: in type paths
+    let opt = @Option(Result[String, std->io->Error])->None;
     
     // Type inference when parameters omitted
     let v2 = @Vec->new();  // Type inferred from usage
