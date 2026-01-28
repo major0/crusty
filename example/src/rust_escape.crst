@@ -2,9 +2,18 @@
 // Licensed under the MIT License. See LICENSE.txt in the project root.
 
 /// Example demonstrating the __rust__ escape hatch for embedding raw Rust code
-/// NOTE: This feature is not yet implemented in the transpiler
+/// NOTE: This feature is planned for future implementation
 
 void main() {
-    __println__("The __rust__ escape hatch feature is planned for a future release.");
-    __println__("It will allow embedding raw Rust code for advanced features.");
+    // The __rust__ escape hatch will allow embedding raw Rust code
+    // for advanced features not yet available in Crusty syntax
+    //
+    // Example (future):
+    // __rust__ {
+    //     let value = Some(42);
+    //     match value {
+    //         Some(x) => println!("Got: {}", x),
+    //         None => println!("None"),
+    //     }
+    // }
 }
