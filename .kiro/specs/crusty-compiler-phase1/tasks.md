@@ -76,6 +76,42 @@ The implementation follows a bottom-up approach, building core infrastructure fi
   - Commit with message: "feat(task-2): set up project structure and dependencies"
   - _Requirements: All (foundational)_
 
+- [ ] 2.5 Create example directory structure
+  - [ ]2.5.1 Create example directory and Cargo.toml
+    - Create example/ directory in repository root
+    - Create example/Cargo.toml with crustyc as build-dependency
+    - Configure example as a binary crate
+    - _Requirements: 6.1, 6.2, 6.3_
+  
+  - [ ]2.5.2 Create build.rs script for examples
+    - Create example/build.rs script
+    - Implement logic to discover all .crst files in example/src/
+    - Invoke crustyc to transpile .crst files to OUT_DIR
+    - Set up cargo:rerun-if-changed for incremental builds
+    - _Requirements: 6.4, 6.5, 6.6, 6.7, 6.8_
+  
+  - [ ]2.5.3 Create basic example files
+    - Create example/src/ directory
+    - Create example/src/main.crst with hello world program
+    - Create example/src/functions.crst with function examples
+    - Create example/src/structs.crst with struct examples
+    - Create example/README.md with build and run instructions
+    - _Requirements: 6.9, 6.10, 6.11, 6.12, 6.13_
+  
+  - [ ]2.5.4 Integrate example into CI/CD
+    - Update .github/workflows/ci.yml to build example/
+    - Add step to run example binary
+    - Verify example builds and runs successfully in CI
+    - _Requirements: 6.14, 6.15, 6.16_
+  
+  - [ ]2.5.5 Commit example directory setup
+    - Stage all example files
+    - Create commit with message: "feat(task-2.5): create example directory structure"
+    - Include commit body describing example setup
+    - Reference requirements: "Validates: Requirements 6.1-6.16"
+    - Push to trigger CI pipeline
+    - _Requirements: 6.1-6.34_
+
 - [x] 3. Implement error handling infrastructure
   - [x]3.1 Define error types and structures
     - Create CompilerError enum with variants for Lex, Parse, Semantic, CodeGen, Io, RustcInvocation
@@ -437,7 +473,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Parse C++-style method definitions within structs
     - Parse self, &self, &var self parameters
     - Parse static methods (no self parameter)
-    - Parse type-scoped static method calls with @ prefix (@Type.method())
+    - Parse type-scoped static method calls with @ prefix and arrow notation (@Type->method())
     - _Requirements: 16.1-16.7, 21.7, 21.8_
   
   - [x]14.2 Add support for explicit generic type parameters
@@ -459,8 +495,8 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - _Requirements: 19.1-19.9_
   
   - [x]14.4 Add support for macros
-    - Parse Crusty macro invocation syntax with ! suffix (macro_name!(args), macro_name![args], macro_name!{args})
-    - Support common macros with ! suffix (println!(...), vec![...], assert!(...), panic!(...))
+    - Parse Crusty macro invocation syntax with ! suffix and double-underscore naming (__macro_name__!(args), __macro_name__![args], __macro_name__!{args})
+    - Support common macros with double-underscore naming (__println__!(...), __vec__![...], __assert__!(...), __panic__!(...))
     - Parse macro invocations in expression and statement contexts
     - Use ! suffix exclusively for macros (@ prefix is exclusively for type-scoped calls)
     - _Requirements: 23.1-23.6_
@@ -493,16 +529,54 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Test array and tuple literal parsing
     - _Requirements: 14.1-14.10, 15.1-15.7, 16.1-16.7, 18.1-18.6, 19.1-19.9, 20.1-20.11, 38.1-38.28_
 
+- [ ] 14.9 Update example directory with advanced features
+  - [ ]14.9.1 Add struct method examples
+    - Create example/src/methods.crst with struct method examples
+    - Include static method calls using @Type->method() syntax
+    - Include instance method calls
+    - _Requirements: 6.17, 6.18_
+  
+  - [ ]14.9.2 Add generic type parameter examples
+    - Create example/src/generics.crst with generic examples
+    - Include explicit generic parameters using parentheses/brackets syntax
+    - Include type inference examples
+    - _Requirements: 6.19, 6.20_
+  
+  - [ ]14.9.3 Add attribute and macro examples
+    - Create example/src/attributes.crst with attribute examples
+    - Create example/src/macros.crst with macro usage examples using double-underscore naming
+    - Include __println__!, __vec__!, __assert__! examples
+    - _Requirements: 6.21, 6.22_
+  
+  - [ ]14.9.4 Add range and slice examples
+    - Create example/src/ranges.crst with range syntax examples
+    - Create example/src/slices.crst with slice examples
+    - _Requirements: 6.23, 6.24_
+  
+  - [ ]14.9.5 Update example README
+    - Update example/README.md with new examples
+    - Document advanced features demonstrated
+    - Add build and run instructions for each example
+    - _Requirements: 6.25, 6.26_
+  
+  - [ ]14.9.6 Commit example updates
+    - Stage all new example files
+    - Create commit with message: "feat(task-14.9): add advanced feature examples"
+    - Reference requirements: "Validates: Requirements 6.17-6.26"
+    - _Requirements: 6.17-6.34_
+
 - [ ] 15. Implement #define macro support
   - [ ]15.1 Add #define parsing
-    - Parse #define directive with macro name and parameters
+    - Parse #define directive with double-underscore macro names (__MACRO_NAME__)
+    - Parse macro parameters
     - Parse macro body as token sequence
     - Support macros with and without parameters
     - Create MacroDefinition AST node
+    - Validate macro names have double-underscore prefix and suffix
     - _Requirements: 24.1, 24.2, 24.3, 24.4, 24.5, 24.6_
   
   - [ ]15.2 Implement #define to macro_rules! translation
-    - Translate macro name to Rust macro_rules! name
+    - Translate double-underscore macro name to Rust snake_case macro_rules! name (removing underscores)
     - Translate parameters to Rust pattern variables ($param:expr)
     - Wrap macro body in Rust macro syntax
     - Translate ternary operators to if-else expressions
@@ -511,6 +585,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
   
   - [ ]15.3 Add macro validation
     - Validate #define syntax
+    - Verify macro names have double-underscore prefix and suffix
     - Verify macro parameters are used consistently
     - Check for valid macro body structure
     - _Requirements: 24.10, 24.11_
@@ -520,9 +595,9 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - **Validates: Requirements 24.7, 24.8, 24.9**
   
   - [ ]15.5 Write unit tests for #define macros
-    - Test parsing of simple macros
+    - Test parsing of simple macros with double-underscores
     - Test parsing of macros with parameters
-    - Test translation to macro_rules!
+    - Test translation to macro_rules! (removing double-underscores)
     - Test macro invocations within macro bodies
     - _Requirements: 24.1-24.13_
 
@@ -531,7 +606,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Translate struct methods to Rust impl blocks
     - Translate self parameters correctly
     - Translate static methods (associated functions)
-    - Translate @Type.method() calls to Rust Type::method()
+    - Translate @Type->method() calls to Rust Type::method()
     - _Requirements: 16.8, 16.9, 16.10, 16.11, 21.13_
   
   - [ ]16.2 Add explicit generic parameter code generation
@@ -548,7 +623,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - _Requirements: 25.9, 25.10_
   
   - [ ]16.4 Add NULL and Option code generation
-    - Translate NULL to @Option.None (which becomes Option::None in Rust)
+    - Translate NULL to @Option->None (which becomes Option::None in Rust)
     - Translate nullable pointer types to Option<&T>
     - Translate NULL comparisons to is_none()/is_some()
     - _Requirements: 28.4, 28.5, 28.6, 28.7, 28.8_
@@ -696,8 +771,8 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Translate Rust traits to VTable structs
     - Translate Rust Result<T,E> to Type!
     - Translate Rust ? operator to ! operator
-    - Translate Rust Type::method() to Crusty @Type.method()
-    - Pass through Rust macro invocations (macro!) unchanged to Crusty
+    - Translate Rust Type::method() to Crusty @Type->method()
+    - Translate Rust macro_name! to Crusty __macro_name__! (adding double-underscores)
     - _Requirements: 47.5, 47.6, 47.7, 47.8, 47.9, 47.10, 47.11, 21.18_
   
   - [ ]21.3 Write property test for Rust-to-Crusty translation
@@ -713,40 +788,41 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Test specific translation rules
     - _Requirements: 47.5-47.11_
 
-- [ ] 22. Implement multi-file project support
-  - [ ]22.1 Add crusty.toml parsing
-    - Use toml crate to parse crusty.toml files
-    - Create ProjectConfig struct for configuration
-    - Parse [package], [dependencies], [dev-dependencies] sections
-    - Parse [[bin]] and [lib] sections
-    - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8_
+- [ ] 22. Implement build.rs integration and multi-file support
+  - [ ]22.1 Add --out-dir CLI option
+    - Add --out-dir option to specify output directory for generated Rust files
+    - Create output directory if it doesn't exist
+    - Preserve source directory structure in output directory
+    - _Requirements: 14.1, 14.2, 14.3_
   
-  - [ ]22.2 Implement multi-file compilation
-    - Discover all .crst files in src directory
-    - Parse all source files
-    - Resolve module imports across files
-    - Generate corresponding .rs files preserving directory structure
-    - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 9.8_
+  - [ ]22.2 Implement batch transpilation mode
+    - Support transpiling multiple .crst files in a single invocation
+    - Accept directory path as input to discover all .crst files
+    - Transpile all discovered files to output directory
+    - Report progress and errors for each file
+    - _Requirements: 15.1, 15.2, 15.3, 15.4_
   
   - [ ]22.3 Implement module resolution
     - Resolve #use directives to local modules
     - Locate corresponding source files for modules
     - Build module dependency graph
     - Resolve symbols across module boundaries
-    - _Requirements: 9.3, 9.4, 9.9, 9.10_
+    - _Requirements: 15.5, 15.6, 15.7, 15.8_
   
-  - [ ]22.4 Generate Cargo.toml from crusty.toml
-    - Translate crusty.toml to Cargo.toml format
-    - Preserve all configuration sections
-    - Pass dependency information to rustc/cargo
-    - _Requirements: 8.10, 8.14_
+  - [ ]22.4 Create reference build.rs script
+    - Create example build.rs that invokes crustyc
+    - Discover all .crst files in src/ directory
+    - Transpile to OUT_DIR preserving directory structure
+    - Set up cargo:rerun-if-changed for incremental builds
+    - Document build.rs integration patterns
+    - _Requirements: 19.1, 19.2, 19.3, 19.4, 19.5, 19.6, 19.7_
   
-  - [ ]22.5 Write unit tests for multi-file support
-    - Test crusty.toml parsing
-    - Test multi-file discovery
+  - [ ]22.5 Write unit tests for build.rs integration
+    - Test --out-dir option
+    - Test batch transpilation
     - Test module resolution
-    - Test Cargo.toml generation
-    - _Requirements: 8.1-8.14, 9.1-9.10_
+    - Test build.rs script functionality
+    - _Requirements: 14.1-14.3, 15.1-15.8, 19.1-19.7_
 
 - [ ] 23. Implement main() function validation
   - [ ]23.1 Add main() function detection
@@ -943,7 +1019,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
   - [ ]31.1 Write end-to-end integration tests
     - Test complete compilation pipeline (Crusty → Rust → binary)
     - Test reverse transpilation (Rust → Crusty)
-    - Test multi-file projects with crusty.toml
+    - Test multi-file projects with build.rs
     - Test CLI with various options
     - Test error handling across entire pipeline
     - _Requirements: All_
@@ -959,7 +1035,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Create hello world example
     - Create struct and method example
     - Create error handling example
-    - Create multi-file project example
+    - Create multi-file project example with build.rs
     - Create FFI example with extern "C"
     - Verify all examples compile and run correctly
     - _Requirements: All_
@@ -991,10 +1067,11 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Provide usage examples
     - Document supported and unsupported C features
     - Create migration guide from C to Crusty
+    - Document build.rs integration patterns
     - _Requirements: 12.1-12.7_
   
   - [ ]33.2 Write developer documentation
-    - Document compiler architecture
+    - Document transpiler architecture
     - Document AST structure
     - Document adding new language features
     - Document testing strategy
@@ -1038,6 +1115,43 @@ The implementation follows a bottom-up approach, building core infrastructure fi
   - Ensure all tests pass, ask the user if questions arise.
   - Verify documentation is complete
   - Prepare release notes
+
+- [ ] 36. Validate Rust ecosystem integration
+  - [ ]36.1 Test external crate usage
+    - Create test project that uses external Rust crates (e.g., serde, tokio)
+    - Write Crusty code that imports and uses external types
+    - Verify Crusty can call external functions
+    - Verify type compatibility with external crates
+    - _Requirements: 40.1, 40.2, 40.5, 40.6_
+  
+  - [ ]36.2 Test Crusty crate publishing
+    - Create Crusty library project with public API
+    - Build library and verify .rlib generation
+    - Create separate Rust project that depends on Crusty library
+    - Verify Rust code can import and use Crusty library types
+    - Verify Rust code can call Crusty library functions
+    - Test API compatibility and type safety
+    - _Requirements: 40.3, 40.4, 40.7, 40.8, 40.9, 40.10, 40.11_
+  
+  - [ ]36.3 Test procedural macro usage
+    - Use Rust procedural macros in Crusty code (e.g., derive macros)
+    - Verify macro expansion works correctly
+    - Test custom derive macros with Crusty structs
+    - _Requirements: 40.12, 40.13_
+  
+  - [ ]36.4 Validate performance parity
+    - Create equivalent programs in Crusty and Rust
+    - Benchmark execution time for both versions
+    - Verify no runtime overhead from transpilation
+    - Verify generated code is optimized equivalently
+    - _Requirements: 40.14, 40.15_
+  
+  - [ ]36.5 Write integration tests for ecosystem
+    - Test importing std library modules
+    - Test using external crate dependencies
+    - Test publishing and consuming Crusty crates
+    - Test interoperability with Rust code
+    - _Requirements: 40.1-40.15_
 
 ## Notes
 

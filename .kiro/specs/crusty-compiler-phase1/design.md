@@ -340,7 +340,7 @@ int add(int a, int b) {
 }
 
 void print_message(char* msg) {
-    println!("{}", msg);
+    __println__!("{}", msg);
 }
 
 static int helper(int x) {
@@ -456,8 +456,8 @@ pub enum TokenKind {
     
     // Special
     Hash,  // # - for preprocessor directives (#use, #ifdef, etc.)
-    Bang,  // ! - for macro invocations (println!(...), vec![...]) and error propagation operator
-    At,    // @ - for type-scoped calls (@Type.method())
+    Bang,  // ! - for macro invocations (__println__!(...), __vec__![...]) and error propagation operator
+    At,    // @ - for type-scoped calls (@Type->method())
     Eof,
 }
 
@@ -658,10 +658,10 @@ pub enum Visibility {
 When calling static methods (associated functions) on types, Crusty requires the `@` prefix before the type name to distinguish type-scoped calls from instance method calls:
 
 ```crusty
-// Static method calls (type-scoped) - ALWAYS require @ prefix
-let v = @Vector.new();
-let none = @Option.None;
-let s = @String.from("hello");
+// Static method calls (type-scoped) - ALWAYS require @ prefix with -> notation
+let v = @Vector->new();
+let none = @Option->None;
+let s = @String->from("hello");
 
 // Instance method calls - no @ prefix
 let len = v.len();
@@ -669,27 +669,27 @@ let item = v.get(0);
 ```
 
 This syntax makes it immediately clear whether a call is:
-- **Type-scoped** (`@Type.method()`): Calling a static method/associated function on the type itself
+- **Type-scoped** (`@Type->method()`): Calling a static method/associated function on the type itself
 - **Instance-scoped** (`obj.method()`): Calling a method on an instance
 
-The `@` prefix is **required** for all type-scoped calls and translates to Rust's `::` syntax:
-- `@Vector.new()` → `Vector::new()`
-- `@Option.None` → `Option::None`
-- `@String.from("hello")` → `String::from("hello")`
+The `@` prefix with `->` is **required** for all type-scoped calls and translates to Rust's `::` syntax:
+- `@Vector->new()` → `Vector::new()`
+- `@Option->None` → `Option::None`
+- `@String->from("hello")` → `String::from("hello")`
 
 **Macro Invocation Syntax**:
 
 Crusty uses Rust's `!` suffix for macro invocations, keeping the familiar Rust syntax:
 
 ```crusty
-// Macro invocations with ! suffix (same as Rust)
-println!("Hello, world!");
-vec![1, 2, 3];
-format!("Value: {}", x);
-assert!(x > 0);
-rust! { /* raw Rust code */ };
+// Macro invocations with ! suffix and double-underscore naming
+__println__!("Hello, world!");
+__vec__![1, 2, 3];
+__format__!("Value: {}", x);
+__assert__!(x > 0);
+__rust__! { /* raw Rust code */ };
 
-// This is identical to Rust syntax
+// Translates to Rust (removing double-underscores)
 println!("Hello, world!");
 vec![1, 2, 3];
 format!("Value: {}", x);
@@ -699,45 +699,45 @@ assert!(x > 0);
 **Distinguishing Type-Scoped Calls from Macros**:
 
 The parser distinguishes between type-scoped static method calls and macro invocations based on syntax:
-- **Type-scoped call**: `@Type.method()` - uses `@` prefix with `.` separator
-- **Macro invocation**: `macro_name!(...)` - uses `!` suffix with `(`, `[`, or `{`
+- **Type-scoped call**: `@Type->method()` - uses `@` prefix with `->` separator
+- **Macro invocation**: `__macro_name__!(...)` - uses double-underscore prefix/suffix with `!`
 
 Examples:
 ```crusty
-@Vec.new()           // Type-scoped call → Vec::new()
-vec![1, 2, 3]        // Macro invocation → vec![1, 2, 3]
-@Option.None         // Type-scoped call → Option::None
-println!("hello")    // Macro invocation → println!("hello")
-@String.from("hi")   // Type-scoped call → String::from("hi")
-format!("x={}", x)   // Macro invocation → format!("x={}", x)
+@Vec->new()              // Type-scoped call → Vec::new()
+__vec__![1, 2, 3]        // Macro invocation → vec![1, 2, 3]
+@Option->None            // Type-scoped call → Option::None
+__println__!("hello")    // Macro invocation → println!("hello")
+@String->from("hi")      // Type-scoped call → String::from("hi")
+__format__!("x={}", x)   // Macro invocation → format!("x={}", x)
 ```
 
-The `@` prefix is exclusively for type-scoped calls, while `!` suffix is exclusively for macros, eliminating any ambiguity.
+The `@` prefix is exclusively for type-scoped calls, while `!` suffix with double-underscores is exclusively for macros, eliminating any ambiguity.
 
 **Defining Macros with #define**:
 
 Crusty supports defining macros using the `#define` directive, which translates to Rust's `macro_rules!` system:
 
 ```crusty
-// Simple macro definitions
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
-#define SQUARE(x) ((x) * (x))
-#define DEBUG_PRINT(msg) println!("DEBUG: {}", msg)
+// Simple macro definitions with double-underscore naming
+#define __MAX__(a, b) ((a) > (b) ? (a) : (b))
+#define __SQUARE__(x) ((x) * (x))
+#define __DEBUG_PRINT__(msg) __println__!("DEBUG: {}", msg)
 
-// Translates to Rust macro_rules!
-macro_rules! MAX {
+// Translates to Rust macro_rules! (removing double-underscores)
+macro_rules! max {
     ($a:expr, $b:expr) => {
         if $a > $b { $a } else { $b }
     };
 }
 
-macro_rules! SQUARE {
+macro_rules! square {
     ($x:expr) => {
         ($x) * ($x)
     };
 }
 
-macro_rules! DEBUG_PRINT {
+macro_rules! debug_print {
     ($msg:expr) => {
         println!("DEBUG: {}", $msg)
     };
@@ -745,9 +745,11 @@ macro_rules! DEBUG_PRINT {
 ```
 
 **#define Parsing Rules**:
-- The parser recognizes `#define MACRO_NAME(params) body` syntax
+- The parser recognizes `#define __MACRO_NAME__(params) body` syntax with double-underscore prefix and suffix
+- Macro names MUST have double-underscores as prefix and suffix
 - Macro parameters are parsed as identifiers
 - The macro body is parsed as a token sequence
+- When generating Rust, double-underscores are removed and name is converted to snake_case
 - Macro invocations within the body use `@` prefix syntax
 - The parser does not perform full semantic analysis on macro bodies
 
@@ -792,16 +794,16 @@ Crusty uses dot-prefixed labels (`.label:`) for labeled loops, break, and contin
 Crusty provides a C-like syntax for explicit generic type parameters using parentheses and brackets that alternate for nested generics. The `@` prefix is **required** for all type-scoped calls:
 
 ```crusty
-// Type-scoped calls ALWAYS require @ prefix
-let opt = @Option.None;          // Type inferred from context
-let v = @Vec.new();               // Type inferred from usage
+// Type-scoped calls ALWAYS require @ prefix with -> notation
+let opt = @Option->None;          // Type inferred from context
+let v = @Vec->new();               // Type inferred from usage
 
 // Explicit type parameters with required @ prefix
-let opt = @Option(Result[String, std.io.Error]).None;
-let v = @Vec(i32).new();
+let opt = @Option(Result[String, std.io.Error])->None;
+let v = @Vec(i32)->new();
 
 // Deep nesting with alternating parentheses and brackets
-let complex = @Option(Inner[Type(T), std.io.Error]).None;
+let complex = @Option(Inner[Type(T), std.io.Error])->None;
 // Translates to: Option::<Inner<Type<T>, std::io::Error>>::None
 
 // @ is ALWAYS required for type-scoped calls
@@ -1048,31 +1050,7 @@ impl TypeEnvironment {
 }
 ```
 
-### Configuration Model
 
-For crusty.toml parsing:
-
-```rust
-pub struct ProjectConfig {
-    pub package: PackageInfo,
-    pub dependencies: HashMap<String, Dependency>,
-    pub dev_dependencies: HashMap<String, Dependency>,
-    pub bin_targets: Vec<BinTarget>,
-    pub lib_target: Option<LibTarget>,
-}
-
-pub struct PackageInfo {
-    pub name: String,
-    pub version: String,
-    pub authors: Vec<String>,
-    pub edition: String,
-}
-
-pub struct Dependency {
-    pub version: String,
-    pub features: Vec<String>,
-}
-```
 
 ## Correctness Properties
 
@@ -1138,7 +1116,7 @@ Property 13: C-style enums translate to Rust enums with discriminants
 **Validates: Requirements 32.8**
 
 Property 14: NULL translates to Option types
-*For any* NULL literal in the AST, the generated Rust code should use @Option.None (translating to Option::None); for any nullable pointer type, the generated Rust code should use Option<&T> or Option<&mut T>.
+*For any* NULL literal in the AST, the generated Rust code should use @Option->None (translating to Option::None); for any nullable pointer type, the generated Rust code should use Option<&T> or Option<&mut T>.
 **Validates: Requirements 34.4, 34.5**
 
 Property 15: Struct initializers translate to Rust struct literals
@@ -1146,7 +1124,7 @@ Property 15: Struct initializers translate to Rust struct literals
 **Validates: Requirements 39.6**
 
 Property 16: Struct methods translate to impl blocks
-*For any* struct with methods in the AST, the generated Rust code should create a corresponding impl block containing all methods. Static method calls using @Type.method() syntax should translate to Rust Type::method() syntax.
+*For any* struct with methods in the AST, the generated Rust code should create a corresponding impl block containing all methods. Static method calls using @Type->method() syntax should translate to Rust Type::method() syntax.
 **Validates: Requirements 21.9**
 
 Property 17: VTable structs translate to traits
@@ -1325,7 +1303,7 @@ fn test_property_25_pretty_print_parse_roundtrip() {
    - File I/O (Property 28)
    - rustc invocation
    - Multi-file projects
-   - crusty.toml parsing
+   - build.rs integration
 
 6. **Error Handling Tests**
    - All error categories
@@ -1359,12 +1337,11 @@ For property-based tests, we'll implement generators for:
 
 ### Technology Stack
 
-- **Language**: Rust (for implementing the compiler itself)
+- **Language**: Rust (for implementing the transpiler itself)
 - **Parsing**: Custom recursive descent parser for Crusty, `syn` crate for Rust
 - **Pretty Printing**: `prettyplease` crate for Rust code formatting
 - **Testing**: `proptest` crate for property-based testing
 - **CLI**: `clap` crate for command-line argument parsing
-- **Configuration**: `toml` crate for crusty.toml parsing
 - **Error Reporting**: `codespan-reporting` crate for beautiful error messages
 
 ### Development Phases
@@ -1392,7 +1369,7 @@ For property-based tests, we'll implement generators for:
 
 **Phase 1e: Advanced Features**
 - Multi-file projects
-- crusty.toml support
+- build.rs integration
 - crustydoc tool
 
 **Phase 1f: Polish**
