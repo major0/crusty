@@ -1,0 +1,45 @@
+// Copyright (c) 2024 Crusty Programming Language
+// Licensed under the MIT License. See LICENSE.txt in the project root.
+
+/// Example demonstrating slice syntax and operations
+
+void main() {
+    // Create an array
+    let arr = __vec__[10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+    __println__("Original array: {:?}", arr);
+    
+    // Slice with range (start..end)
+    let slice1 = &arr[2..5];
+    __println__("Slice [2..5]: {:?}", slice1);
+    
+    // Slice with inclusive range (start..=end)
+    let slice2 = &arr[0..=3];
+    __println__("Slice [0..=3]: {:?}", slice2);
+    
+    // Slice from start (..end)
+    let slice3 = &arr[..4];
+    __println__("Slice [..4]: {:?}", slice3);
+    
+    // Slice to end (start..)
+    let slice4 = &arr[5..];
+    __println__("Slice [5..]: {:?}", slice4);
+    
+    // Full slice (..)
+    let slice5 = &arr[..];
+    __println__("Full slice [..]: {:?}", slice5);
+    
+    // Slice operations
+    __println__("Slice length: {}", slice1.len());
+    __println__("First element: {}", slice1[0]);
+    
+    // Mutable slice
+    let var mut_arr = __vec__[1, 2, 3, 4, 5];
+    let var_slice = &var mut_arr[1..4];
+    var_slice[0] = 99;
+    __println__("Modified array: {:?}", mut_arr);
+    
+    // String slices
+    let text = "Hello, Crusty!";
+    let hello = &text[0..5];
+    __println__("String slice: {}", hello);
+}
