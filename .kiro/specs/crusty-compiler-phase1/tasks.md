@@ -76,21 +76,57 @@ The implementation follows a bottom-up approach, building core infrastructure fi
   - Commit with message: "feat(task-2): set up project structure and dependencies"
   - _Requirements: All (foundational)_
 
-- [ ] 2.5 Create example directory structure
-  - [ ]2.5.1 Create example directory and Cargo.toml
+- [ ] 2.6 Implement build.rs integration and multi-file support
+  - [ ]2.6.1 Add --out-dir CLI option
+    - Add --out-dir option to specify output directory for generated Rust files
+    - Create output directory if it doesn't exist
+    - Preserve source directory structure in output directory
+    - _Requirements: 14.1, 14.2, 14.3_
+  
+  - [ ]2.6.2 Implement batch transpilation mode
+    - Support transpiling multiple .crst files in a single invocation
+    - Accept directory path as input to discover all .crst files
+    - Transpile all discovered files to output directory
+    - Report progress and errors for each file
+    - _Requirements: 15.1, 15.2, 15.3, 15.4_
+  
+  - [ ]2.6.3 Implement module resolution
+    - Resolve #use directives to local modules
+    - Locate corresponding source files for modules
+    - Build module dependency graph
+    - Resolve symbols across module boundaries
+    - _Requirements: 15.5, 15.6, 15.7, 15.8_
+  
+  - [ ]2.6.4 Create reference build.rs script
+    - Create example build.rs that invokes crustyc
+    - Discover all .crst files in src/ directory
+    - Transpile to OUT_DIR preserving directory structure
+    - Set up cargo:rerun-if-changed for incremental builds
+    - Document build.rs integration patterns
+    - _Requirements: 19.1, 19.2, 19.3, 19.4, 19.5, 19.6, 19.7_
+  
+  - [ ]2.6.5 Write unit tests for build.rs integration
+    - Test --out-dir option
+    - Test batch transpilation
+    - Test module resolution
+    - Test build.rs script functionality
+    - _Requirements: 14.1-14.3, 15.1-15.8, 19.1-19.7_
+
+- [ ] 2.7 Create example directory structure
+  - [ ]2.7.1 Create example directory and Cargo.toml
     - Create example/ directory in repository root
     - Create example/Cargo.toml with crustyc as build-dependency
     - Configure example as a binary crate
     - _Requirements: 6.1, 6.2, 6.3_
   
-  - [ ]2.5.2 Create build.rs script for examples
+  - [ ]2.7.2 Create build.rs script for examples
     - Create example/build.rs script
     - Implement logic to discover all .crst files in example/src/
     - Invoke crustyc to transpile .crst files to OUT_DIR
     - Set up cargo:rerun-if-changed for incremental builds
     - _Requirements: 6.4, 6.5, 6.6, 6.7, 6.8_
   
-  - [ ]2.5.3 Create basic example files
+  - [ ]2.7.3 Create basic example files
     - Create example/src/ directory
     - Create example/src/main.crst with hello world program
     - Create example/src/functions.crst with function examples
@@ -98,15 +134,15 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Create example/README.md with build and run instructions
     - _Requirements: 6.9, 6.10, 6.11, 6.12, 6.13_
   
-  - [ ]2.5.4 Integrate example into CI/CD
+  - [ ]2.7.4 Integrate example into CI/CD
     - Update .github/workflows/ci.yml to build example/
     - Add step to run example binary
     - Verify example builds and runs successfully in CI
     - _Requirements: 6.14, 6.15, 6.16_
   
-  - [ ]2.5.5 Commit example directory setup
+  - [ ]2.7.5 Commit example directory setup
     - Stage all example files
-    - Create commit with message: "feat(task-2.5): create example directory structure"
+    - Create commit with message: "feat(task-2.7): create example directory structure"
     - Include commit body describing example setup
     - Reference requirements: "Validates: Requirements 6.1-6.16"
     - Push to trigger CI pipeline
@@ -564,6 +600,8 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Create commit with message: "feat(task-14.9): add advanced feature examples"
     - Reference requirements: "Validates: Requirements 6.17-6.26"
     - _Requirements: 6.17-6.34_
+  
+  - [ ]14.9.7 Note: This task depends on Task 2.7 (Create example directory)
 
 - [ ] 15. Implement #define macro support
   - [ ]15.1 Add #define parsing
@@ -789,74 +827,38 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Test specific translation rules
     - _Requirements: 47.5-47.11_
 
-- [ ] 22. Implement build.rs integration and multi-file support
-  - [ ]22.1 Add --out-dir CLI option
-    - Add --out-dir option to specify output directory for generated Rust files
-    - Create output directory if it doesn't exist
-    - Preserve source directory structure in output directory
-    - _Requirements: 14.1, 14.2, 14.3_
-  
-  - [ ]22.2 Implement batch transpilation mode
-    - Support transpiling multiple .crst files in a single invocation
-    - Accept directory path as input to discover all .crst files
-    - Transpile all discovered files to output directory
-    - Report progress and errors for each file
-    - _Requirements: 15.1, 15.2, 15.3, 15.4_
-  
-  - [ ]22.3 Implement module resolution
-    - Resolve #use directives to local modules
-    - Locate corresponding source files for modules
-    - Build module dependency graph
-    - Resolve symbols across module boundaries
-    - _Requirements: 15.5, 15.6, 15.7, 15.8_
-  
-  - [ ]22.4 Create reference build.rs script
-    - Create example build.rs that invokes crustyc
-    - Discover all .crst files in src/ directory
-    - Transpile to OUT_DIR preserving directory structure
-    - Set up cargo:rerun-if-changed for incremental builds
-    - Document build.rs integration patterns
-    - _Requirements: 19.1, 19.2, 19.3, 19.4, 19.5, 19.6, 19.7_
-  
-  - [ ]22.5 Write unit tests for build.rs integration
-    - Test --out-dir option
-    - Test batch transpilation
-    - Test module resolution
-    - Test build.rs script functionality
-    - _Requirements: 14.1-14.3, 15.1-15.8, 19.1-19.7_
-
-- [ ] 23. Implement main() function validation
-  - [ ]23.1 Add main() function detection
+- [ ] 22. Implement main() function validation
+  - [ ]22.1 Add main() function detection
     - Parse main() function with C-like syntax
     - Support main() with no parameters (void)
     - Support main() with argc/argv parameters
     - _Requirements: 10.1, 10.5, 10.6_
   
-  - [ ]23.2 Validate main() function
+  - [ ]22.2 Validate main() function
     - Verify exactly one main() function exists
     - Report error if no main() found
     - Report error if multiple main() found
     - _Requirements: 10.2, 10.3, 10.4_
   
-  - [ ]23.3 Generate Rust main() function
+  - [ ]22.3 Generate Rust main() function
     - Translate main() to Rust fn main()
     - Translate argc/argv to std::env functions
     - _Requirements: 10.7, 10.8_
   
-  - [ ]23.4 Write unit tests for main() validation
+  - [ ]22.4 Write unit tests for main() validation
     - Test main() detection
     - Test error cases (no main, multiple main)
     - Test main() translation
     - _Requirements: 10.1-10.8_
 
-- [ ] 24. Implement documentation extraction
-  - [ ]24.1 Parse documentation comments
+- [ ] 23. Implement documentation extraction
+  - [ ]23.1 Parse documentation comments
     - Recognize /// and /** ... */ outer doc comments
     - Recognize //! and /*! ... */ inner doc comments
     - Preserve doc comments in AST
     - _Requirements: 44.1, 44.2, 44.3, 44.9_
   
-  - [ ]24.2 Create documentation extractor
+  - [ ]23.2 Create documentation extractor
     - Extract function descriptions from doc comments
     - Extract parameter descriptions
     - Extract return value descriptions
@@ -864,20 +866,20 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Associate documentation with code elements
     - _Requirements: 44.5, 44.6, 44.7, 44.8, 44.9_
   
-  - [ ]24.3 Write unit tests for documentation extraction
+  - [ ]23.3 Write unit tests for documentation extraction
     - Test doc comment parsing
     - Test documentation extraction
     - Test association with code elements
     - _Requirements: 44.1-44.9_
 
 
-- [ ] 25. Implement crustydoc tool
-  - [ ]25.1 Create crustydoc CLI
+- [ ] 24. Implement crustydoc tool
+  - [ ]24.1 Create crustydoc CLI
     - Create separate binary target for crustydoc
     - Parse command-line arguments (input file, output directory, format)
     - _Requirements: 45.1_
   
-  - [ ]25.2 Implement documentation generator
+  - [ ]24.2 Implement documentation generator
     - Generate documentation using Linux kernel document object model
     - Create structured output with function signatures
     - Include parameter descriptions with types
@@ -885,14 +887,14 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Include struct definitions with field descriptions
     - _Requirements: 45.2, 45.3, 45.4, 45.5, 45.6_
   
-  - [ ]25.3 Support multiple output formats
+  - [ ]24.3 Support multiple output formats
     - Generate HTML documentation
     - Generate man pages
     - Generate plain text documentation
     - Default to HTML if format not specified
     - _Requirements: 45.7, 45.8_
   
-  - [ ]25.4 Implement documentation validation
+  - [ ]24.4 Implement documentation validation
     - Identify public functions without documentation
     - Identify public structs without documentation
     - Report warnings for undocumented items
@@ -900,124 +902,124 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Report documentation coverage statistics
     - _Requirements: 46.1, 46.2, 46.3, 46.4, 46.5_
   
-  - [ ]25.5 Write unit tests for crustydoc
+  - [ ]24.5 Write unit tests for crustydoc
     - Test documentation generation
     - Test output formats
     - Test documentation validation
     - _Requirements: 45.1-45.9, 46.1-46.5_
 
-- [ ] 26. Implement additional language features
-  - [ ]26.1 Add extern "C" support
+- [ ] 25. Implement additional language features
+  - [ ]25.1 Add extern "C" support
     - Parse extern "C" blocks
     - Parse extern "C" function declarations
     - Validate C-compatible types in extern functions
     - Pass extern "C" to Rust unchanged
     - _Requirements: 35.1-35.9_
   
-  - [ ]26.2 Add inline assembly support
+  - [ ]25.2 Add inline assembly support
     - Parse __asm__ macro syntax with double-underscore naming (no ! suffix)
     - Require __asm__ within unsafe blocks
     - Translate __asm__ to Rust asm! syntax in code generation (add !)
     - _Requirements: 36.1-36.7_
   
-  - [ ]26.3 Add __rust__ macro support
+  - [ ]25.3 Add __rust__ macro support
     - Parse __rust__ macro with double-underscore naming for embedding raw Rust code (no ! suffix)
     - Support __rust__ in expression, statement, and type contexts
     - Extract and emit __rust__ contents directly as Rust code
     - Handle nested braces within __rust__ blocks
     - _Requirements: 43.1-43.13_
   
-  - [ ]26.4 Add conditional compilation support
+  - [ ]25.4 Add conditional compilation support
     - Parse #ifdef, #ifndef, #endif directives
     - Translate to Rust cfg attributes
     - Support nested conditional blocks
     - _Requirements: 41.4, 41.5, 41.6, 41.7, 41.8_
   
-  - [ ]26.5 Write unit tests for additional features
+  - [ ]25.5 Write unit tests for additional features
     - Test extern "C" parsing and generation
     - Test __asm__ parsing and generation (translates to Rust asm!)
     - Test __rust__ macro handling (no ! suffix in Crusty)
     - Test conditional compilation
     - _Requirements: 35.1-35.9, 36.1-36.7, 43.1-43.13, 41.4-41.8_
 
-- [ ] 27. Implement error message improvements
-  - [ ]27.1 Integrate codespan-reporting
+- [ ] 26. Implement error message improvements
+  - [ ]26.1 Integrate codespan-reporting
     - Use codespan-reporting crate for beautiful error messages
     - Display source code snippets with error locations
     - Highlight error positions with carets
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
   
-  - [ ]27.2 Improve error messages for unsupported features
+  - [ ]26.2 Improve error messages for unsupported features
     - Provide clear explanations for why features are unsupported
     - Suggest alternative approaches
     - Reference documentation for unsupported features
     - _Requirements: 5.3, 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7_
   
-  - [ ]27.3 Implement error recovery in parser
+  - [ ]26.3 Implement error recovery in parser
     - Add synchronization points at statement boundaries
     - Implement panic mode recovery
     - Continue parsing after errors to report multiple errors
     - _Requirements: 5.4_
   
-  - [ ]27.4 Write property test for multiple error reporting
+  - [ ]26.4 Write property test for multiple error reporting
     - **Property 3: Multiple errors are all reported**
     - **Validates: Requirements 10.4**
   
-  - [ ]27.5 Write unit tests for error messages
+  - [ ]26.5 Write unit tests for error messages
     - Test error message formatting
     - Test error recovery
     - Test multiple error reporting
     - _Requirements: 5.1-5.5_
 
-- [ ] 28. Implement pointer arithmetic and safety checks
-  - [ ]28.1 Add pointer arithmetic parsing
+- [ ] 27. Implement pointer arithmetic and safety checks
+  - [ ]27.1 Add pointer arithmetic parsing
     - Parse pointer + offset, pointer - offset operations
     - Parse pointer - pointer operations
     - _Requirements: 24.1, 24.2_
   
-  - [ ]28.2 Implement pointer safety analysis
+  - [ ]27.2 Implement pointer safety analysis
     - Enforce Rust's pointer arithmetic safety rules
     - Require unsafe context for raw pointer arithmetic
     - Translate safe pointer operations to slice indexing
     - Translate unsafe pointer arithmetic to unsafe blocks with offset
     - _Requirements: 24.3, 24.4, 24.5, 24.6, 24.7_
   
-  - [ ]28.3 Write unit tests for pointer arithmetic
+  - [ ]27.3 Write unit tests for pointer arithmetic
     - Test pointer arithmetic parsing
     - Test safety analysis
     - Test code generation for safe and unsafe operations
     - _Requirements: 24.1-24.7_
 
-- [ ] 29. Implement lifetime inference
-  - [ ]29.1 Add lifetime inference analysis
+- [ ] 28. Implement lifetime inference
+  - [ ]28.1 Add lifetime inference analysis
     - Infer lifetime relationships from reference parameters
     - Determine which parameters return value derives from
     - Handle multiple reference parameters
     - _Requirements: 30.6, 30.7, 30.8, 30.9_
   
-  - [ ]29.2 Generate explicit lifetime annotations
+  - [ ]28.2 Generate explicit lifetime annotations
     - Add Rust lifetime annotations where necessary
     - Use inferred relationships to determine lifetime parameters
     - _Requirements: 30.12_
   
-  - [ ]29.3 Validate borrowing rules
+  - [ ]28.3 Validate borrowing rules
     - Enforce one mutable reference OR multiple immutable references
     - Verify mutable references only from mutable variables
     - Verify references don't outlive referents
     - _Requirements: 30.13, 30.14, 30.15, 30.16_
   
-  - [ ]29.4 Write unit tests for lifetime inference
+  - [ ]28.4 Write unit tests for lifetime inference
     - Test lifetime inference from function signatures
     - Test lifetime annotation generation
     - Test borrowing rule validation
     - _Requirements: 30.6-30.16_
 
-- [ ] 30. Checkpoint - Ensure all features are implemented
+- [ ] 29. Checkpoint - Ensure all features are implemented
   - Ensure all tests pass, ask the user if questions arise.
 
 
-- [ ] 31. Implement comprehensive integration tests
-  - [ ]31.1 Write end-to-end integration tests
+- [ ] 30. Implement comprehensive integration tests
+  - [ ]30.1 Write end-to-end integration tests
     - Test complete compilation pipeline (Crusty → Rust → binary)
     - Test reverse transpilation (Rust → Crusty)
     - Test multi-file projects with build.rs
@@ -1025,14 +1027,14 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Test error handling across entire pipeline
     - _Requirements: All_
   
-  - [ ]31.2 Write property-based integration tests
+  - [ ]30.2 Write property-based integration tests
     - Generate random valid Crusty programs
     - Verify they compile successfully
     - Verify round-trip consistency
     - Run with 100+ iterations
     - _Requirements: All_
   
-  - [ ]31.3 Create test suite with example programs
+  - [ ]30.3 Create test suite with example programs
     - Create hello world example
     - Create struct and method example
     - Create error handling example
@@ -1041,28 +1043,28 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Verify all examples compile and run correctly
     - _Requirements: All_
 
-- [ ] 32. Performance optimization
-  - [ ]32.1 Profile transpiler performance
+- [ ] 31. Performance optimization
+  - [ ]31.1 Profile transpiler performance
     - Identify performance bottlenecks
     - Measure parsing, semantic analysis, and code generation times
     - _Requirements: All (non-functional)_
   
-  - [ ]32.2 Implement performance improvements
+  - [ ]31.2 Implement performance improvements
     - Add incremental parsing for large files
     - Implement parallel compilation for multi-file projects
     - Add AST caching to avoid re-parsing unchanged files
     - Implement lazy code generation
     - _Requirements: All (non-functional)_
   
-  - [ ]32.3 Write performance benchmarks
+  - [ ]31.3 Write performance benchmarks
     - Benchmark parsing performance
     - Benchmark semantic analysis performance
     - Benchmark code generation performance
     - Benchmark end-to-end compilation
     - _Requirements: All (non-functional)_
 
-- [ ] 33. Documentation and polish
-  - [ ]33.1 Write user documentation
+- [ ] 32. Documentation and polish
+  - [ ]32.1 Write user documentation
     - Create README with installation instructions
     - Document command-line options
     - Provide usage examples
@@ -1071,61 +1073,61 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Document build.rs integration patterns
     - _Requirements: 12.1-12.7_
   
-  - [ ]33.2 Write developer documentation
+  - [ ]32.2 Write developer documentation
     - Document transpiler architecture
     - Document AST structure
     - Document adding new language features
     - Document testing strategy
     - _Requirements: All (documentation)_
   
-  - [ ]33.3 Create language specification
+  - [ ]32.3 Create language specification
     - Document Crusty syntax formally
     - Document translation rules to Rust
     - Document type system
     - Document module system
     - _Requirements: All (specification)_
   
-  - [ ]33.4 Polish error messages
+  - [ ]32.4 Polish error messages
     - Review all error messages for clarity
     - Add helpful suggestions where possible
     - Ensure consistent error message format
     - _Requirements: 5.1-5.5_
 
-- [ ] 34. Final validation and testing
-  - [ ] 34.1 Run full test suite
+- [ ] 33. Final validation and testing
+  - [ ] 33.1 Run full test suite
     - Run all unit tests
     - Run all property tests with 1000 iterations
     - Run all integration tests
     - Verify 90%+ code coverage
     - _Requirements: All_
   
-  - [ ] 34.2 Validate against requirements
+  - [ ] 33.2 Validate against requirements
     - Verify all 54 requirements are implemented
     - Verify all 29 correctness properties are tested
     - Check for any missing functionality
     - _Requirements: All_
   
-  - [ ] 34.3 Perform manual testing
+  - [ ] 33.3 Perform manual testing
     - Test with real-world C code examples
     - Test edge cases and corner cases
     - Test error handling with invalid inputs
     - Verify generated Rust code compiles with rustc
     - _Requirements: All_
 
-- [ ] 35. Final checkpoint - Release preparation
+- [ ] 34. Final checkpoint - Release preparation
   - Ensure all tests pass, ask the user if questions arise.
   - Verify documentation is complete
   - Prepare release notes
 
-- [ ] 36. Validate Rust ecosystem integration
-  - [ ]36.1 Test external crate usage
+- [ ] 35. Validate Rust ecosystem integration
+  - [ ]35.1 Test external crate usage
     - Create test project that uses external Rust crates (e.g., serde, tokio)
     - Write Crusty code that imports and uses external types
     - Verify Crusty can call external functions
     - Verify type compatibility with external crates
     - _Requirements: 40.1, 40.2, 40.5, 40.6_
   
-  - [ ]36.2 Test Crusty crate publishing
+  - [ ]35.2 Test Crusty crate publishing
     - Create Crusty library project with public API
     - Build library and verify .rlib generation
     - Create separate Rust project that depends on Crusty library
@@ -1134,20 +1136,20 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Test API compatibility and type safety
     - _Requirements: 40.3, 40.4, 40.7, 40.8, 40.9, 40.10, 40.11_
   
-  - [ ]36.3 Test procedural macro usage
+  - [ ]35.3 Test procedural macro usage
     - Use Rust procedural macros in Crusty code (e.g., derive macros)
     - Verify macro expansion works correctly
     - Test custom derive macros with Crusty structs
     - _Requirements: 40.12, 40.13_
   
-  - [ ]36.4 Validate performance parity
+  - [ ]35.4 Validate performance parity
     - Create equivalent programs in Crusty and Rust
     - Benchmark execution time for both versions
     - Verify no runtime overhead from transpilation
     - Verify generated code is optimized equivalently
     - _Requirements: 40.14, 40.15_
   
-  - [ ]36.5 Write integration tests for ecosystem
+  - [ ]35.5 Write integration tests for ecosystem
     - Test importing std library modules
     - Test using external crate dependencies
     - Test publishing and consuming Crusty crates

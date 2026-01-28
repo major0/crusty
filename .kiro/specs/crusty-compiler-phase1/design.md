@@ -1024,6 +1024,275 @@ pub enum SemanticErrorKind {
 
 ## Data Models
 
+### Build System Integration
+
+The transpiler supports integration with Rust's build system through build.rs scripts and multi-file project handling.
+
+**build.rs Integration Architecture:**
+
+The transpiler provides a `--out-dir` option that allows build.rs scripts to specify where generated Rust files should be placed. This enables seamless integration with Cargo's build process:
+
+```rust
+// Example build.rs script
+use std::env;
+use std::path::PathBuf;
+use std::process::Command;
+
+fn main() {
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+    
+    // Discover all .crst files in src/
+    let crst_files = discover_crst_files(&manifest_dir);
+    
+    // Transpile each file to OUT_DIR
+    for crst_file in crst_files {
+        let status = Command::new("crustyc")
+            .arg(&crst_file)
+            .arg("--out-dir")
+            .arg(&out_dir)
+            .arg("--no-compile")
+            .status()
+            .expect("Failed to run crustyc");
+        
+        if !status.success() {
+            panic!("Failed to transpile {}", crst_file.display());
+        }
+        
+        // Tell Cargo to rerun if this file changes
+        println!("cargo:rerun-if-changed={}", crst_file.display());
+    }
+}
+```
+
+**Multi-File Project Structure:**
+
+For projects with multiple Crusty source files, the transpiler:
+1. Preserves directory structure in the output directory
+2. Resolves `#use` directives to locate local modules
+3. Builds a module dependency graph
+4. Transpiles files in dependency order
+
+**Module Resolution:**
+
+When encountering a `#use` directive for a local module:
+```crusty
+#use crate.utils.helpers;
+```
+
+The transpiler:
+1. Resolves the module path to a file: `src/utils/helpers.crst`
+2. Parses the referenced file if not already parsed
+3. Resolves symbols across module boundaries
+4. Generates appropriate Rust `use` statements
+
+**Batch Transpilation:**
+
+The transpiler supports batch mode for transpiling multiple files:
+```bash
+crustyc --out-dir target/generated src/**/*.crst
+```
+
+This discovers all `.crst` files in the source directory and transpiles them to the output directory, preserving the directory structure.
+
+### Example Directory Architecture
+
+The project includes an `example/` directory demonstrating Crusty usage and serving as integration tests.
+
+**Directory Structure:**
+```
+example/
+├── Cargo.toml          # Example project manifest
+├── build.rs            # Build script that invokes crustyc
+├── README.md           # Build and run instructions
+└── src/
+    ├── main.crst       # Hello world example
+    ├── functions.crst  # Function examples
+    ├── structs.crst    # Struct and method examples
+    ├── methods.crst    # Struct method examples
+    ├── generics.crst   # Generic type parameter examples
+    ├── attributes.crst # Attribute examples
+    ├── macros.crst     # Macro usage examples
+    ├── ranges.crst     # Range syntax examples
+    └── slices.crst     # Slice examples
+```
+
+**Example Cargo.toml:**
+```toml
+[package]
+name = "crusty-example"
+version = "0.1.0"
+edition = "2021"
+
+[build-dependencies]
+# Reference crustyc from parent directory
+crustyc = { path = ".." }
+```
+
+**Example build.rs:**
+```rust
+// Discovers all .crst files and transpiles them
+use std::env;
+use std::fs;
+use std::path::Path;
+use std::process::Command;
+
+fn main() {
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let src_dir = Path::new("src");
+    
+    // Discover all .crst files
+    for entry in fs::read_dir(src_dir).unwrap() {
+        let entry = entry.unwrap();
+        let path = entry.path();
+        
+        if path.extension().and_then(|s| s.to_str()) == Some("crst") {
+            // Transpile to OUT_DIR
+            let status = Command::new("crustyc")
+                .arg(&path)
+                .arg("--out-dir")
+                .arg(&out_dir)
+                .arg("--no-compile")
+                .status()
+                .expect("Failed to run crustyc");
+            
+            if !status.success() {
+                panic!("Failed to transpile {:?}", path);
+            }
+            
+            println!("cargo:rerun-if-changed={}", path.display());
+        }
+    }
+}
+```
+
+**CI/CD Integration:**
+
+The example directory is built and tested in the CI/CD pipeline:
+```yaml
+- name: Build examples
+  run: |
+    cd example
+    cargo build --verbose
+    cargo run
+```
+
+This ensures that:
+1. The example project builds successfully
+2. All Crusty syntax features work correctly
+3. Generated Rust code compiles
+4. The example binary runs without errors
+
+### Rust Ecosystem Integration
+
+Crusty programs can seamlessly integrate with the Rust ecosystem, using external crates and publishing their own crates.
+
+**Using External Crates:**
+
+Crusty code can import and use types from external Rust crates:
+
+```crusty
+// Import external crate types
+#use serde.Serialize;
+#use serde.Deserialize;
+#use tokio.runtime.Runtime;
+
+// Use external types in Crusty code
+#[derive(Serialize, Deserialize)]
+struct User {
+    name: char*,
+    age: i32,
+}
+
+void process_user(User* user) {
+    // Use external crate functions
+    let json = @serde_json->to_string(user)!;
+    __println__("{}", json);
+}
+```
+
+**Type Compatibility:**
+
+The transpiler ensures type compatibility between Crusty and external Rust types:
+- Crusty structs can implement external traits
+- External types can be used in Crusty function signatures
+- Generic types from external crates work correctly
+
+**Publishing Crusty Crates:**
+
+Crusty libraries can be published as Rust crates:
+
+1. **Library Structure:**
+```
+my-crusty-lib/
+├── Cargo.toml
+├── build.rs
+└── src/
+    ├── lib.crst
+    └── utils.crst
+```
+
+2. **Cargo.toml:**
+```toml
+[package]
+name = "my-crusty-lib"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["rlib"]
+
+[build-dependencies]
+crustyc = "0.1"
+```
+
+3. **build.rs:**
+```rust
+// Transpile all .crst files to OUT_DIR
+// (same pattern as example directory)
+```
+
+4. **Publishing:**
+```bash
+cargo build --release
+cargo publish
+```
+
+**Consuming Crusty Libraries from Rust:**
+
+Rust projects can depend on Crusty libraries:
+
+```toml
+[dependencies]
+my-crusty-lib = "0.1"
+```
+
+```rust
+// Rust code using Crusty library
+use my_crusty_lib::User;
+
+fn main() {
+    let user = User::new("Alice", 30);
+    user.process();
+}
+```
+
+**API Compatibility:**
+
+The transpiler ensures that Crusty libraries expose Rust-compatible APIs:
+- Public functions become `pub fn`
+- Public structs become `pub struct`
+- Type signatures are Rust-compatible
+- Documentation comments are preserved
+
+**Performance Parity:**
+
+Crusty code compiles to the same Rust code that a human would write, ensuring:
+- No runtime overhead
+- Same optimization opportunities
+- Identical performance characteristics
+- Zero-cost abstractions
+
 ### Symbol Table
 
 The symbol table tracks all declared symbols (variables, functions, types) and their scopes. It uses a stack of scopes to handle nested blocks.
@@ -1201,11 +1470,21 @@ Property 28: Type checking matches Rust semantics
 *For any* type operation in a valid program (assignment, function call, operator application), the Semantic_Analyzer should accept it if and only if Rust's type system would accept it.
 **Validates: Requirements 18.9**
 
-### File I/O Properties
-
 Property 29: Valid file paths are read successfully
 *For any* valid file path provided to crustyc, the file contents should be successfully read into memory.
 **Validates: Requirements 11.1**
+
+Property 30: Example directory builds successfully
+*For any* valid example project in the example/ directory, running `cargo build` should succeed without errors, and running `cargo run` should execute the example binary successfully.
+**Validates: Requirements 6.1-6.34**
+
+Property 31: Rust ecosystem integration works correctly
+*For any* Crusty project using external Rust crates, the transpiled code should compile and link correctly, with full type compatibility and API access to external types and functions.
+**Validates: Requirements 40.1-40.15**
+
+Property 32: Function names with double-underscore pattern are rejected
+*For any* function definition with both leading AND trailing double-underscores (e.g., `void __helper__()`), the Semantic_Analyzer should report an error indicating that this pattern is reserved for macros.
+**Validates: Requirements 25.10, 25.11**
 
 ## Error Handling
 
