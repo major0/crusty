@@ -9,7 +9,6 @@ use crate::error::{LexError, Position, Span};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TokenKind {
     // Keywords
-    Fn,
     Let,
     Var,
     Const,
@@ -123,7 +122,6 @@ pub enum TokenKind {
 impl std::fmt::Display for TokenKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TokenKind::Fn => write!(f, "fn"),
             TokenKind::Let => write!(f, "let"),
             TokenKind::Var => write!(f, "var"),
             TokenKind::Ident(s) => write!(f, "identifier '{}'", s),
@@ -256,7 +254,6 @@ impl<'a> Lexer<'a> {
 
         let text = &self.source[start..self.position];
         let kind = match text {
-            "fn" => TokenKind::Fn,
             "let" => TokenKind::Let,
             "var" => TokenKind::Var,
             "const" => TokenKind::Const,
@@ -663,10 +660,9 @@ mod tests {
 
     #[test]
     fn test_keywords() {
-        let source = "fn let var const if else while for return";
+        let source = "let var const if else while for return";
         let mut lexer = Lexer::new(source);
         
-        assert_eq!(lexer.next_token().unwrap().kind, TokenKind::Fn);
         assert_eq!(lexer.next_token().unwrap().kind, TokenKind::Let);
         assert_eq!(lexer.next_token().unwrap().kind, TokenKind::Var);
         assert_eq!(lexer.next_token().unwrap().kind, TokenKind::Const);
@@ -729,10 +725,10 @@ mod tests {
 
     #[test]
     fn test_comments() {
-        let source = "// line comment\nfn /* block comment */ main";
+        let source = "// line comment\nint /* block comment */ main";
         let mut lexer = Lexer::new(source);
         
-        assert_eq!(lexer.next_token().unwrap().kind, TokenKind::Fn);
+        assert_eq!(lexer.next_token().unwrap().kind, TokenKind::Int);
         assert_eq!(lexer.next_token().unwrap().kind, TokenKind::Ident("main".to_string()));
     }
 
