@@ -658,7 +658,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - _Requirements: 24.1-24.13_
 
 - [ ] 16. Implement advanced code generation features
-  - [ ]16.1 Add struct method code generation
+  - [x]16.1 Add struct method code generation
     - Translate struct methods to Rust impl blocks
     - Translate self parameters correctly
     - Translate static methods (associated functions)
