@@ -1971,6 +1971,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::I32)),
             body: Block::empty(),
             doc_comments: vec![],
+        attributes: vec![],
         };
         
         analyzer.analyze_function(&func);
@@ -1995,16 +1996,19 @@ mod tests {
                     name: Ident::new("x"),
                     ty: Type::Primitive(PrimitiveType::I32),
                     doc_comments: vec![],
+                attributes: vec![],
                 },
                 Field {
                     visibility: Visibility::Public,
                     name: Ident::new("y"),
                     ty: Type::Primitive(PrimitiveType::I32),
                     doc_comments: vec![],
+                attributes: vec![],
                 },
             ],
             methods: vec![],
             doc_comments: vec![],
+        attributes: vec![],
         };
         
         analyzer.analyze_struct(&struct_def);
@@ -2039,6 +2043,7 @@ mod tests {
                 },
             ],
             doc_comments: vec![],
+        attributes: vec![],
         };
         
         analyzer.analyze_enum(&enum_def);
@@ -2061,6 +2066,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::I32)),
             body: Block::empty(),
             doc_comments: vec![],
+        attributes: vec![],
         };
         
         analyzer.analyze_function(&func);
