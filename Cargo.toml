@@ -7,6 +7,10 @@ license = "MIT"
 description = "A bidirectional transpiler between Crusty (C-like syntax) and Rust"
 repository = "https://github.com/major0/crusty"
 
+[lib]
+name = "crustyc"
+path = "src/lib.rs"
+
 [[bin]]
 name = "crustyc"
 path = "src/main.rs"

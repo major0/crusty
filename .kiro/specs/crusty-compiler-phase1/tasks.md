@@ -137,8 +137,8 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Commit with message: "test(task-5.3): add unit tests for AST construction"
     - _Requirements: 6.3_
 
-- [ ] 6. Implement basic Crusty parser
-  - [ ]6.1 Create parser structure and initialization
+- [-] 6. Implement basic Crusty parser
+  - [x]6.1 Create parser structure and initialization
     - Create Parser struct with lexer and current_token fields
     - Implement Parser::new() that initializes lexer
     - Implement advance() method to move to next token
@@ -147,7 +147,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Commit with message: "feat(task-6.1): create parser structure and initialization"
     - _Requirements: 6.1_
   
-  - [ ]6.2 Implement top-level item parsing
+  - [x]6.2 Implement top-level item parsing
     - Implement parse_file() to parse entire source file into File AST
     - Implement parse_item() to dispatch to specific item parsers
     - Implement parse_function() for function declarations
@@ -157,7 +157,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Commit with message: "feat(task-6.2): implement top-level item parsing"
     - _Requirements: 6.1, 6.4, 6.5, 6.6, 6.7, 6.15, 30.1-30.7, 31.1-31.5_
   
-  - [ ]6.3 Implement statement parsing
+  - [x]6.3 Implement statement parsing
     - Implement parse_statement() to dispatch to specific statement parsers
     - Implement parsing for let, var, const declarations
     - Implement parsing for if/else-if/else statements
@@ -166,7 +166,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Implement parsing for for-in loops
     - Implement parsing for return, break, continue statements
     - Implement parsing for labeled loops (.label: loop { ... })
-    - Implement parsing for labeled break (break .label) and continue (continue .label)
+    - Implement parsing for labeled break (break label) and continue (continue label)
     - Commit with message: "feat(task-6.3): implement statement parsing"
     - _Requirements: 6.8, 6.9, 6.10, 6.11, 6.12, 6.13, 6.14, 6.15, 34.1-34.5, 43.1, 43.2_
   
