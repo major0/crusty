@@ -1,8 +1,0 @@
-# Seeds for failure cases proptest has generated in the past. It is
-# automatically read and these particular cases re-run before any
-# novel cases are generated.
-#
-# It is recommended to check this file in to source control so that
-# everyone who runs the test benefits from these saved cases.
-cc 911b647d5160b8b97bce91c6262f34b06bbe13be340dcf17face941c36415c28 # shrinks to file = File { items: [Function(Function { visibility: Private, name: Ident { name: "a" }, params: [], return_type: Some(Primitive(Int)), body: Block { statements: [Let { name: Ident { name: "a" }, ty: Some(Primitive(Int)), init: None, mutable: false }] }, doc_comments: [] })], doc_comments: [] }
-cc 6c2ad0376772d253987317eb2a533fbb66bec4e134fb7c7403e27ac2512525be # shrinks to file = File { items: [Function(Function { visibility: Private, name: Ident { name: "a" }, params: [], return_type: Some(Primitive(Int)), body: Block { statements: [Let { name: Ident { name: "in" }, ty: Some(Primitive(Int)), init: Some(Literal(Int(42))), mutable: false }] }, doc_comments: [] })], doc_comments: [] }

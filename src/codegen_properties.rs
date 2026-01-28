@@ -11,7 +11,20 @@ mod tests {
 
     // Helper to create simple valid AST nodes for testing
     fn arb_ident() -> impl Strategy<Value = Ident> {
-        "[a-z][a-z0-9_]{0,10}".prop_map(|s| Ident::new(s))
+        "[a-z][a-z0-9_]{0,10}"
+            .prop_filter("Must not be a Rust keyword", |s| {
+                !matches!(
+                    s.as_str(),
+                    "let" | "var" | "const" | "static" | "if" | "else" | "while" | "for" | "in" | "return"
+                        | "break" | "continue" | "fn" | "struct" | "enum" | "type" | "impl" | "trait"
+                        | "pub" | "use" | "mod" | "match" | "loop" | "as" | "mut" | "ref" | "self"
+                        | "Self" | "super" | "crate" | "extern" | "unsafe" | "where" | "async" | "await"
+                        | "dyn" | "move" | "true" | "false" | "do" | "box" | "yield" | "become"
+                        | "abstract" | "final" | "override" | "macro" | "priv" | "typeof" | "unsized"
+                        | "virtual" | "try"
+                )
+            })
+            .prop_map(|s| Ident::new(s))
     }
 
     fn arb_primitive_type() -> impl Strategy<Value = Type> {
