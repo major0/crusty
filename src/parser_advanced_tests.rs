@@ -83,7 +83,7 @@ mod tests {
             Item::Function(func) => match &func.body.statements[0] {
                 Statement::Return(Some(expr)) => match expr {
                     Expression::ExplicitGenericCall {
-                        ty,
+                        ty: _,
                         generics,
                         method,
                         ..

@@ -88,13 +88,13 @@ impl<'a> Parser<'a> {
 
     /// Parse a top-level item
     fn parse_item(&mut self) -> Result<Item, ParseError> {
-        // Check for #define directive first
+        // Parse attributes first (they start with #[)
+        let attributes = self.parse_attributes()?;
+
+        // Check for #define directive (starts with # but not #[)
         if self.check(&TokenKind::Hash) {
             return self.parse_define();
         }
-
-        // Parse attributes first
-        let attributes = self.parse_attributes()?;
 
         // Check for visibility modifier (static keyword makes functions private)
         let is_static = if self.check(&TokenKind::Static) {
@@ -140,6 +140,32 @@ impl<'a> Parser<'a> {
         let mut attributes = Vec::new();
 
         while self.check(&TokenKind::Hash) {
+            // Peek ahead to check if this is an attribute (#[) or a #define
+            // We need to check the next token without consuming the #
+            let is_attribute = {
+                let mut temp_lexer = Lexer {
+                    source: self.lexer.source,
+                    chars: self.lexer.source[self.lexer.position..]
+                        .char_indices()
+                        .peekable(),
+                    position: self.lexer.position,
+                    line: self.lexer.line,
+                    column: self.lexer.column,
+                };
+                
+                // Try to read the next token
+                if let Ok(token) = temp_lexer.next_token() {
+                    matches!(token.kind, TokenKind::LBracket)
+                } else {
+                    false
+                }
+            };
+            
+            // If not an attribute, stop parsing attributes
+            if !is_attribute {
+                break;
+            }
+            
             self.advance()?;
             self.expect(TokenKind::LBracket)?;
 
