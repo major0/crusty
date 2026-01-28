@@ -982,7 +982,72 @@ pub struct FunctionDoc {
 }
 ```
 
-### 10. Error Handling
+### 10. Code Formatter Module (crustyfmt)
+
+**Responsibility**: Format Crusty source code according to consistent style conventions.
+
+**Interface**:
+```rust
+pub struct CrustyFormatter {
+    config: FormatterConfig,
+}
+
+pub struct FormatterConfig {
+    pub indent_size: usize,
+    pub max_line_width: usize,
+    pub space_before_brace: bool,
+    pub space_after_comma: bool,
+}
+
+impl CrustyFormatter {
+    pub fn new(config: FormatterConfig) -> Self;
+    pub fn format_file(&self, path: &Path) -> Result<String, FormatterError>;
+    pub fn format_source(&self, source: &str) -> Result<String, FormatterError>;
+    pub fn check_file(&self, path: &Path) -> Result<bool, FormatterError>;
+    pub fn format_files(&self, paths: Vec<PathBuf>) -> Result<(), FormatterError>;
+}
+
+pub enum FormatterError {
+    Parse(ParseError),
+    Io(std::io::Error),
+    InvalidConfig(String),
+}
+```
+
+**Formatting Rules**:
+- **Indentation**: 4 spaces per level (no tabs)
+- **Line Width**: Maximum 100 characters (configurable)
+- **Braces**: Opening brace on same line as declaration
+- **Spacing**: Space after commas, around binary operators
+- **Blank Lines**: One blank line between top-level items
+- **Comments**: Preserve position and content of all comments
+- **Alignment**: Align struct field types and values in initializers
+
+**CLI Interface**:
+```bash
+# Format a single file (in-place)
+crustyfmt src/main.crst
+
+# Check formatting without modifying
+crustyfmt --check src/main.crst
+
+# Format all .crst files in directory
+crustyfmt src/
+
+# Format from stdin to stdout (for editor integration)
+crustyfmt --stdin < input.crst > output.crst
+
+# Use custom config file
+crustyfmt --config crustyfmt.toml src/
+```
+
+**Integration Points**:
+- **Pre-commit hooks**: Automatically format staged .crst files
+- **CI/CD**: Verify formatting in pull requests
+- **Editor plugins**: Format on save via stdin/stdout mode
+- **Build scripts**: Format generated code
+
+### 11. Error Handling
 
 **Error Types**:
 ```rust
@@ -1485,6 +1550,14 @@ Property 31: Rust ecosystem integration works correctly
 Property 32: Function names with double-underscore pattern are rejected
 *For any* function definition with both leading AND trailing double-underscores (e.g., `void __helper__()`), the Semantic_Analyzer should report an error indicating that this pattern is reserved for macros.
 **Validates: Requirements 25.10, 25.11**
+
+Property 33: crustyfmt preserves semantic meaning
+*For any* valid Crusty source file, formatting it with crustyfmt and then parsing both the original and formatted versions should produce semantically equivalent ASTs (modulo whitespace and formatting differences).
+**Validates: Requirements 56.10**
+
+Property 34: crustyfmt is idempotent
+*For any* valid Crusty source file, formatting it with crustyfmt multiple times should produce identical output after the first formatting pass.
+**Validates: Requirements 56.1-56.20**
 
 ## Error Handling
 

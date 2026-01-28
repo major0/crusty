@@ -1202,9 +1202,36 @@ fn process<T>(value: T) -> Option<T> { ... }
 4. WHERE a strict mode is enabled, THE crustydoc SHALL treat missing documentation as errors
 5. THE crustydoc SHALL report documentation coverage statistics
 
+### Requirement 56: Provide crustyfmt Code Formatting Tool
+
+**User Story:** As a Crusty developer, I want a code formatting tool similar to rustfmt, so that I can automatically format my Crusty code according to consistent style conventions.
+
+#### Acceptance Criteria
+
+1. THE project SHALL provide a crustyfmt binary tool for formatting Crusty source code
+2. THE crustyfmt SHALL accept Crusty source files as input
+3. THE crustyfmt SHALL parse Crusty source code into an AST
+4. THE crustyfmt SHALL use the Pretty_Printer to generate formatted Crusty code from the AST
+5. THE crustyfmt SHALL write formatted code back to the source file by default
+6. THE crustyfmt SHALL support a --check flag that verifies formatting without modifying files
+7. WHEN --check is used and files are not formatted, THE crustyfmt SHALL exit with non-zero status
+8. THE crustyfmt SHALL support formatting multiple files in a single invocation
+9. THE crustyfmt SHALL support formatting all .crst files in a directory recursively
+10. THE crustyfmt SHALL preserve the semantic meaning of code while reformatting
+11. THE crustyfmt SHALL apply consistent indentation (4 spaces for Crusty code)
+12. THE crustyfmt SHALL apply consistent spacing around operators and delimiters
+13. THE crustyfmt SHALL apply consistent line breaking for long statements
+14. THE crustyfmt SHALL preserve documentation comments in their original positions
+15. THE crustyfmt SHALL support a --config option to specify custom formatting rules
+16. THE crustyfmt SHALL integrate with pre-commit hooks for automatic formatting
+17. THE crustyfmt SHALL provide clear error messages when parsing fails
+18. THE crustyfmt SHALL support stdin/stdout mode for editor integration
+19. WHEN formatting is successful, THE crustyfmt SHALL exit with status 0
+20. WHEN parsing or formatting fails, THE crustyfmt SHALL exit with non-zero status and display error details
+
 ## Bidirectional Transpilation
 
-### Requirement 56: Support Reverse Transpilation from Rust to Crusty
+### Requirement 57: Support Reverse Transpilation from Rust to Crusty
 
 **User Story:** As a developer, I want to transpile Rust code to Crusty syntax, so that I can convert existing Rust code or interoperate with Rust libraries.
 
@@ -1227,7 +1254,7 @@ fn process<T>(value: T) -> Option<T> { ... }
 
 ## Testing and Validation
 
-### Requirement 57: Provide Comprehensive Test Coverage for All Syntax Features
+### Requirement 58: Provide Comprehensive Test Coverage for All Syntax Features
 
 **User Story:** As a transpiler developer, I want comprehensive tests for all Crusty syntax features, so that I can ensure correctness and prevent regressions.
 
