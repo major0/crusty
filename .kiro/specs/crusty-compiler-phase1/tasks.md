@@ -373,8 +373,8 @@ The implementation follows a bottom-up approach, building core infrastructure fi
 - [x] 11. Checkpoint - Ensure code generation tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 12. Implement CLI and file I/O
-  - [ ]12.1 Create CLI argument parser
+- [x] 12. Implement CLI and file I/O
+  - [x]12.1 Create CLI argument parser
     - Use clap crate to define command-line options
     - Support -o/--output for output file path
     - Support --emit for output mode (rust, binary, ast)
@@ -384,7 +384,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Support --version and -h/--help
     - _Requirements: 6.1-6.6, 7.1-7.13_
   
-  - [ ]12.2 Implement file I/O operations
+  - [x]12.2 Implement file I/O operations
     - Implement reading source files from disk
     - Implement writing generated code to output files
     - Handle file not found errors
@@ -392,7 +392,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Handle file write errors
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6_
   
-  - [ ]12.3 Implement compiler orchestration
+  - [x]12.3 Implement compiler orchestration
     - Create run_compiler() function that coordinates compilation pipeline
     - Read source file
     - Parse source (Crusty or Rust based on --from-lang)
@@ -402,11 +402,11 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Optionally invoke rustc
     - _Requirements: 3.1, 3.2, 4.1, 4.2, 4.3, 4.4_
   
-  - [ ]12.4 Write property test for file I/O
+  - [x]12.4 Write property test for file I/O
     - **Property 29: Valid file paths are read successfully**
     - **Validates: Requirements 11.1**
   
-  - [ ]12.5 Write unit tests for CLI
+  - [x]12.5 Write unit tests for CLI
     - Test argument parsing
     - Test file I/O operations
     - Test error handling

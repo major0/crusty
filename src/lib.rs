@@ -5,6 +5,8 @@
 
 pub mod ast;
 pub mod cli;
+#[cfg(test)]
+mod cli_properties;
 pub mod codegen;
 #[cfg(test)]
 mod codegen_properties;
