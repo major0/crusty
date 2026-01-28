@@ -298,9 +298,78 @@ impl CodeGenerator {
         self.write_line("// TODO: generate_static");
     }
 
-    fn generate_macro_definition(&mut self, _macro_def: &MacroDefinition) {
-        // Placeholder
-        self.write_line("// TODO: generate_macro_definition");
+    fn generate_macro_definition(&mut self, macro_def: &MacroDefinition) {
+        // Translate #define to Rust macro_rules!
+        // Remove double-underscore prefix and suffix from macro name
+        let rust_name = macro_def.name.name
+            .trim_start_matches("__")
+            .trim_end_matches("__")
+            .to_lowercase();
+
+        self.write_line(&format!("macro_rules! {} {{", rust_name));
+        self.indent();
+
+        // Generate macro pattern and body
+        self.write_indent();
+        self.write("(");
+
+        // Generate parameter pattern
+        if !macro_def.params.is_empty() {
+            for (i, param) in macro_def.params.iter().enumerate() {
+                if i > 0 {
+                    self.write(", ");
+                }
+                self.write(&format!("${}:expr", param.name));
+            }
+        }
+
+        self.write(") => {{\n");
+        self.indent();
+
+        // Generate macro body
+        self.write_indent();
+        for token in &macro_def.body {
+            // Check if token is a parameter reference
+            let is_param = macro_def.params.iter().any(|p| {
+                if let crate::lexer::TokenKind::Ident(ref name) = token.kind {
+                    name == &p.name
+                } else {
+                    false
+                }
+            });
+
+            if is_param {
+                // Replace parameter with $param
+                if let crate::lexer::TokenKind::Ident(ref name) = token.kind {
+                    self.write(&format!("${}", name));
+                }
+            } else {
+                // Check if it's a macro invocation with double-underscores
+                if let crate::lexer::TokenKind::Ident(ref name) = token.kind {
+                    if name.starts_with("__") && name.ends_with("__") {
+                        // Convert __macro_name__ to macro_name!
+                        let rust_macro = name
+                            .trim_start_matches("__")
+                            .trim_end_matches("__")
+                            .to_lowercase();
+                        self.write(&format!("{}!", rust_macro));
+                    } else {
+                        self.write(&token.text);
+                    }
+                } else {
+                    self.write(&token.text);
+                }
+            }
+            self.write(" ");
+        }
+        self.write("\n");
+
+        self.dedent();
+        self.write_indent();
+        self.write("}};\n");
+
+        self.dedent();
+        self.write_line("}");
     }
 
     /// Generate a block of statements
@@ -1741,5 +1810,149 @@ mod tests {
             inclusive: true,
         };
         assert_eq!(gen.generate_expression_string(&range_inclusive), "0..=10");
+    }
+
+    #[test]
+    fn test_generate_simple_macro() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let macro_def = MacroDefinition {
+            name: Ident::new("__MAX__".to_string()),
+            params: vec![],
+            body: vec![
+                crate::lexer::Token::new(
+                    crate::lexer::TokenKind::IntLiteral("100".to_string()),
+                    crate::error::Span::new(
+                        crate::error::Position::new(1, 1),
+                        crate::error::Position::new(1, 4),
+                    ),
+                    "100".to_string(),
+                ),
+            ],
+        };
+
+        let file = File {
+            items: vec![Item::MacroDefinition(macro_def)],
+            doc_comments: vec![],
+        };
+
+        let output = gen.generate(&file);
+        assert!(output.contains("macro_rules! max"));
+        assert!(output.contains("100"));
+    }
+
+    #[test]
+    fn test_generate_macro_with_params() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let macro_def = MacroDefinition {
+            name: Ident::new("__ADD__".to_string()),
+            params: vec![Ident::new("a".to_string()), Ident::new("b".to_string())],
+            body: vec![
+                crate::lexer::Token::new(
+                    crate::lexer::TokenKind::LParen,
+                    crate::error::Span::new(
+                        crate::error::Position::new(1, 1),
+                        crate::error::Position::new(1, 2),
+                    ),
+                    "(".to_string(),
+                ),
+                crate::lexer::Token::new(
+                    crate::lexer::TokenKind::Ident("a".to_string()),
+                    crate::error::Span::new(
+                        crate::error::Position::new(1, 2),
+                        crate::error::Position::new(1, 3),
+                    ),
+                    "a".to_string(),
+                ),
+                crate::lexer::Token::new(
+                    crate::lexer::TokenKind::Plus,
+                    crate::error::Span::new(
+                        crate::error::Position::new(1, 4),
+                        crate::error::Position::new(1, 5),
+                    ),
+                    "+".to_string(),
+                ),
+                crate::lexer::Token::new(
+                    crate::lexer::TokenKind::Ident("b".to_string()),
+                    crate::error::Span::new(
+                        crate::error::Position::new(1, 6),
+                        crate::error::Position::new(1, 7),
+                    ),
+                    "b".to_string(),
+                ),
+                crate::lexer::Token::new(
+                    crate::lexer::TokenKind::RParen,
+                    crate::error::Span::new(
+                        crate::error::Position::new(1, 7),
+                        crate::error::Position::new(1, 8),
+                    ),
+                    ")".to_string(),
+                ),
+            ],
+        };
+
+        let file = File {
+            items: vec![Item::MacroDefinition(macro_def)],
+            doc_comments: vec![],
+        };
+
+        let output = gen.generate(&file);
+        assert!(output.contains("macro_rules! add"));
+        assert!(output.contains("$a:expr"));
+        assert!(output.contains("$b:expr"));
+        assert!(output.contains("$a"));
+        assert!(output.contains("$b"));
+    }
+
+    #[test]
+    fn test_generate_macro_with_nested_macro_call() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let macro_def = MacroDefinition {
+            name: Ident::new("__DEBUG__".to_string()),
+            params: vec![Ident::new("msg".to_string())],
+            body: vec![
+                crate::lexer::Token::new(
+                    crate::lexer::TokenKind::Ident("__println__".to_string()),
+                    crate::error::Span::new(
+                        crate::error::Position::new(1, 1),
+                        crate::error::Position::new(1, 11),
+                    ),
+                    "__println__".to_string(),
+                ),
+                crate::lexer::Token::new(
+                    crate::lexer::TokenKind::LParen,
+                    crate::error::Span::new(
+                        crate::error::Position::new(1, 11),
+                        crate::error::Position::new(1, 12),
+                    ),
+                    "(".to_string(),
+                ),
+                crate::lexer::Token::new(
+                    crate::lexer::TokenKind::Ident("msg".to_string()),
+                    crate::error::Span::new(
+                        crate::error::Position::new(1, 12),
+                        crate::error::Position::new(1, 15),
+                    ),
+                    "msg".to_string(),
+                ),
+                crate::lexer::Token::new(
+                    crate::lexer::TokenKind::RParen,
+                    crate::error::Span::new(
+                        crate::error::Position::new(1, 15),
+                        crate::error::Position::new(1, 16),
+                    ),
+                    ")".to_string(),
+                ),
+            ],
+        };
+
+        let file = File {
+            items: vec![Item::MacroDefinition(macro_def)],
+            doc_comments: vec![],
+        };
+
+        let output = gen.generate(&file);
+        assert!(output.contains("macro_rules! debug"));
+        assert!(output.contains("println!"));  // __println__ should become println!
+        assert!(output.contains("$msg"));
     }
 }

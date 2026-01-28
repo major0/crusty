@@ -630,7 +630,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Validate macro names have double-underscore prefix and suffix
     - _Requirements: 24.1, 24.2, 24.3, 24.4, 24.5, 24.6_
   
-  - [ ]15.2 Implement #define to macro_rules! translation
+  - [x]15.2 Implement #define to macro_rules! translation
     - Translate double-underscore macro name to Rust snake_case macro_rules! name (removing underscores, adding !)
     - Translate parameters to Rust pattern variables ($param:expr)
     - Wrap macro body in Rust macro syntax
