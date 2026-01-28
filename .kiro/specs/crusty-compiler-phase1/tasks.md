@@ -646,7 +646,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Prohibit function definitions with double-underscore pattern (reserved for macros)
     - _Requirements: 24.10, 24.11_
   
-  - [ ]15.4 Write property test for #define translation
+  - [x]15.4 Write property test for #define translation
     - **Property 22: #define macros translate to macro_rules!**
     - **Validates: Requirements 24.7, 24.8, 24.9**
   
