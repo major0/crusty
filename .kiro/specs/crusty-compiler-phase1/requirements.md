@@ -1174,21 +1174,24 @@ fn process<T>(value: T) -> Option<T> { ... }
 9. THE Doc_Extractor SHALL associate documentation with the corresponding code elements
 10. WHEN generating Rust code, THE Code_Generator SHALL preserve all comment styles unchanged
 
-### Requirement 54: Generate Documentation Using Kernel Document Object Model
+### Requirement 54: Generate Documentation Using rustdoc
 
-**User Story:** As a Crusty programmer, I want to generate documentation from my code using crustydoc, so that I can maintain up-to-date documentation.
+**User Story:** As a Crusty programmer, I want to generate documentation from my code using rustdoc, so that I can maintain up-to-date documentation with the same quality and features as Rust projects.
 
 #### Acceptance Criteria
 
-1. WHEN invoked with a source file path, THE crustydoc SHALL parse the file and extract documentation
-2. WHEN documentation is extracted, THE Doc_Generator SHALL format it according to the Linux kernel document object model
-3. WHEN generating documentation, THE Doc_Generator SHALL create structured output including function signatures
-4. WHEN generating documentation, THE Doc_Generator SHALL include parameter descriptions with types
-5. WHEN generating documentation, THE Doc_Generator SHALL include return value descriptions
-6. WHEN generating documentation, THE Doc_Generator SHALL include struct definitions with field descriptions
-7. WHERE an output format is specified, THE crustydoc SHALL generate documentation in that format (HTML, man pages, or text)
-8. WHERE an output format is not specified, THE crustydoc SHALL default to HTML output
-9. WHEN documentation generation completes, THE crustydoc SHALL write output files to the specified directory
+1. THE crustyc transpiler SHALL preserve all documentation comments when generating Rust code
+2. THE crustyc SHALL translate Crusty doc comments to Rust doc comments with identical content
+3. THE project SHALL provide a crustydoc wrapper script that transpiles .crst files and invokes rustdoc
+4. WHEN crustydoc is invoked with a Crusty source file, IT SHALL transpile the file to Rust
+5. WHEN transpilation succeeds, THE crustydoc SHALL invoke rustdoc on the generated Rust code
+6. THE crustydoc SHALL pass through all rustdoc command-line options (--output, --html-in-header, etc.)
+7. THE crustydoc SHALL support generating documentation for entire Crusty projects via Cargo integration
+8. WHEN used with Cargo, THE build.rs SHALL transpile all .crst files before rustdoc runs
+9. THE generated documentation SHALL be identical in format and features to standard Rust documentation
+10. THE generated documentation SHALL include all rustdoc features (search, cross-references, examples, etc.)
+11. WHEN documentation generation fails, THE crustydoc SHALL report errors from both transpilation and rustdoc
+12. THE crustydoc SHALL support the --open flag to automatically open generated documentation in a browser
 
 ### Requirement 55: Validate Documentation Completeness
 
@@ -1196,11 +1199,11 @@ fn process<T>(value: T) -> Option<T> { ... }
 
 #### Acceptance Criteria
 
-1. WHEN crustydoc analyzes source code, THE Doc_Extractor SHALL identify public functions without documentation
-2. WHEN crustydoc analyzes source code, THE Doc_Extractor SHALL identify public structs without documentation
-3. WHEN undocumented public items are found, THE crustydoc SHALL report warnings with source locations
-4. WHERE a strict mode is enabled, THE crustydoc SHALL treat missing documentation as errors
-5. THE crustydoc SHALL report documentation coverage statistics
+1. THE crustydoc SHALL leverage rustdoc's built-in missing documentation warnings
+2. THE crustydoc SHALL support rustdoc's -D missing-docs flag to treat missing documentation as errors
+3. THE crustydoc SHALL support rustdoc's --document-private-items flag for internal documentation
+4. WHEN rustdoc reports missing documentation, THE crustydoc SHALL map error locations back to Crusty source files
+5. THE crustydoc SHALL report documentation coverage statistics from rustdoc output
 
 ### Requirement 56: Provide crustyfmt Code Formatting Tool
 

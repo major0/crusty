@@ -851,62 +851,58 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Test main() translation
     - _Requirements: 10.1-10.8_
 
-- [ ] 23. Implement documentation extraction
-  - [ ]23.1 Parse documentation comments
-    - Recognize /// and /** ... */ outer doc comments
-    - Recognize //! and /*! ... */ inner doc comments
-    - Preserve doc comments in AST
-    - _Requirements: 44.1, 44.2, 44.3, 44.9_
+- [ ] 23. Ensure documentation comments are preserved
+  - [ ]23.1 Verify doc comment preservation in Code Generator
+    - Ensure /// and /** ... */ outer doc comments are preserved in generated Rust
+    - Ensure //! and /*! ... */ inner doc comments are preserved in generated Rust
+    - Ensure doc comments maintain their position relative to code elements
+    - _Requirements: 53.1, 53.2, 53.3, 53.10_
   
-  - [ ]23.2 Create documentation extractor
-    - Extract function descriptions from doc comments
-    - Extract parameter descriptions
-    - Extract return value descriptions
-    - Extract struct field descriptions
-    - Associate documentation with code elements
-    - _Requirements: 44.5, 44.6, 44.7, 44.8, 44.9_
-  
-  - [ ]23.3 Write unit tests for documentation extraction
-    - Test doc comment parsing
-    - Test documentation extraction
-    - Test association with code elements
-    - _Requirements: 44.1-44.9_
+  - [ ]23.2 Write unit tests for doc comment preservation
+    - Test that doc comments are preserved during transpilation
+    - Test that doc comment content is unchanged
+    - Test that doc comment positions are correct
+    - _Requirements: 53.1-53.10_
 
-
-- [ ] 24. Implement crustydoc tool
+- [ ] 24. Implement crustydoc wrapper tool
   - [ ]24.1 Create crustydoc CLI
     - Create separate binary target for crustydoc
-    - Parse command-line arguments (input file, output directory, format)
-    - _Requirements: 45.1_
+    - Parse command-line arguments (input file, --output, --open, -D, --document-private-items)
+    - Support passing through additional rustdoc options after --
+    - _Requirements: 54.1, 54.6, 54.12_
   
-  - [ ]24.2 Implement documentation generator
-    - Generate documentation using Linux kernel document object model
-    - Create structured output with function signatures
-    - Include parameter descriptions with types
-    - Include return value descriptions
-    - Include struct definitions with field descriptions
-    - _Requirements: 45.2, 45.3, 45.4, 45.5, 45.6_
+  - [ ]24.2 Implement transpile-and-document workflow
+    - Transpile Crusty source file to Rust
+    - Invoke rustdoc on generated Rust code
+    - Pass through all rustdoc command-line options
+    - Capture rustdoc output and errors
+    - _Requirements: 54.4, 54.5, 54.6, 54.9, 54.10_
   
-  - [ ]24.3 Support multiple output formats
-    - Generate HTML documentation
-    - Generate man pages
-    - Generate plain text documentation
-    - Default to HTML if format not specified
-    - _Requirements: 45.7, 45.8_
+  - [ ]24.3 Implement error mapping
+    - Parse rustdoc error messages
+    - Map Rust source locations back to Crusty source locations
+    - Report errors with Crusty file paths and line numbers
+    - Preserve rustdoc error messages and suggestions
+    - _Requirements: 54.11, 55.4_
   
-  - [ ]24.4 Implement documentation validation
-    - Identify public functions without documentation
-    - Identify public structs without documentation
-    - Report warnings for undocumented items
-    - Support strict mode (treat warnings as errors)
-    - Report documentation coverage statistics
-    - _Requirements: 46.1, 46.2, 46.3, 46.4, 46.5_
+  - [ ]24.4 Add Cargo integration support
+    - Support --manifest-path option for Cargo projects
+    - Coordinate with build.rs for multi-file transpilation
+    - Invoke cargo doc with appropriate options
+    - _Requirements: 54.7, 54.8_
   
-  - [ ]24.5 Write unit tests for crustydoc
-    - Test documentation generation
-    - Test output formats
-    - Test documentation validation
-    - _Requirements: 45.1-45.9, 46.1-46.5_
+  - [ ]24.5 Implement documentation validation
+    - Support rustdoc's -D missing-docs flag
+    - Support --document-private-items flag
+    - Report documentation coverage from rustdoc output
+    - _Requirements: 55.1, 55.2, 55.3, 55.5_
+  
+  - [ ]24.6 Write unit tests for crustydoc
+    - Test transpilation and rustdoc invocation
+    - Test error mapping from Rust to Crusty locations
+    - Test command-line option pass-through
+    - Test Cargo integration
+    - _Requirements: 54.1-54.12, 55.1-55.5_
 
 - [ ] 25. Implement crustyfmt code formatter
   - [ ]25.1 Create crustyfmt CLI

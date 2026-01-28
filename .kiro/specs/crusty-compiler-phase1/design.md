@@ -956,30 +956,122 @@ impl PrettyPrinter {
 
 For Rust code, we'll use the `prettyplease` crate which formats syn AST into well-formatted Rust source code.
 
-### 9. Documentation Extractor Module
+### 9. Documentation Generation Module (crustydoc)
 
-**Responsibility**: Extract documentation comments from AST for crustydoc tool.
+**Responsibility**: Generate documentation by transpiling Crusty code and invoking rustdoc.
+
+**Architecture**:
+
+The crustydoc tool is a thin wrapper that:
+1. Transpiles Crusty source files to Rust
+2. Invokes rustdoc on the generated Rust code
+3. Maps any errors back to Crusty source locations
+
+This approach provides several benefits:
+- **Zero maintenance**: rustdoc is maintained by the Rust team
+- **Full feature parity**: All rustdoc features work automatically (search, cross-references, examples, etc.)
+- **Consistent output**: Documentation looks identical to Rust documentation
+- **Cargo integration**: Works seamlessly with Cargo's doc generation
 
 **Interface**:
 ```rust
-pub struct DocExtractor;
-
-impl DocExtractor {
-    pub fn extract_docs(file: &File) -> Documentation;
+pub struct CrustyDoc {
+    transpiler: Transpiler,
+    rustdoc_path: PathBuf,
 }
 
-pub struct Documentation {
-    pub functions: Vec<FunctionDoc>,
-    pub structs: Vec<StructDoc>,
-    pub enums: Vec<EnumDoc>,
+impl CrustyDoc {
+    pub fn new() -> Self;
+    
+    /// Generate documentation for a single Crusty file
+    pub fn document_file(&self, input: &Path, output_dir: &Path, options: &DocOptions) -> Result<(), DocError>;
+    
+    /// Generate documentation for a Crusty project (via Cargo)
+    pub fn document_project(&self, manifest_path: &Path, options: &DocOptions) -> Result<(), DocError>;
+    
+    /// Map rustdoc error locations back to Crusty source
+    fn map_error_location(&self, rust_error: &RustdocError) -> CrustyError;
 }
 
-pub struct FunctionDoc {
-    pub name: String,
-    pub description: String,
-    pub params: Vec<ParamDoc>,
-    pub return_doc: Option<String>,
+pub struct DocOptions {
+    pub open_browser: bool,
+    pub document_private: bool,
+    pub deny_missing_docs: bool,
+    pub extra_args: Vec<String>,
 }
+
+pub enum DocError {
+    Transpilation(CompilerError),
+    Rustdoc(RustdocError),
+    Io(std::io::Error),
+}
+```
+
+**CLI Interface**:
+```bash
+# Generate documentation for a single file
+crustydoc src/lib.crst --output target/doc
+
+# Generate documentation for entire project (via Cargo)
+crustydoc --manifest-path Cargo.toml
+
+# Open documentation in browser after generation
+crustydoc src/lib.crst --open
+
+# Treat missing documentation as errors
+crustydoc src/lib.crst -D missing-docs
+
+# Document private items
+crustydoc src/lib.crst --document-private-items
+
+# Pass additional rustdoc options
+crustydoc src/lib.crst -- --html-in-header header.html
+```
+
+**Cargo Integration**:
+
+For Crusty projects using Cargo, documentation generation works automatically:
+
+```toml
+# Cargo.toml
+[package]
+name = "my-crusty-lib"
+version = "0.1.0"
+
+[build-dependencies]
+crustyc = "0.1"
+```
+
+```rust
+// build.rs
+fn main() {
+    // Transpile all .crst files to OUT_DIR
+    crustyc::transpile_all("src", env::var("OUT_DIR").unwrap());
+}
+```
+
+Then run:
+```bash
+cargo doc --open
+```
+
+Cargo will:
+1. Run build.rs to transpile .crst files
+2. Run rustdoc on the generated Rust code
+3. Open the documentation in a browser
+
+**Error Mapping**:
+
+When rustdoc reports errors, crustydoc maps them back to Crusty source:
+
+```
+error: missing documentation for a function
+  --> src/utils.crst:42:1
+   |
+42 | int calculate(int x, int y) {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: requested on the command line with `-D missing-docs`
 ```
 
 ### 10. Code Formatter Module (crustyfmt)
