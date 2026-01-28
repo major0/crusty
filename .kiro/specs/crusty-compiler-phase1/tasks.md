@@ -115,8 +115,8 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - _Requirements: 6.1, 6.2_
 
 
-- [ ] 5. Implement AST data structures
-  - [ ]5.1 Define core AST types
+- [x] 5. Implement AST data structures
+  - [x]5.1 Define core AST types
     - Create File, Item, Function, Struct, Enum, Typedef, Namespace, Use, Extern, Const, Static types
     - Create Statement enum with Let, Var, Const, Expr, Return, If, While, For, ForIn, Switch, Break, Continue variants
     - Create Expression enum with Literal, Ident, Binary, Unary, Call, FieldAccess, Index, Cast, Sizeof, Ternary, StructInit, ArrayLit, TupleLit, Range, MacroCall, RustBlock, ErrorProp, MethodCall variants
@@ -124,14 +124,14 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Commit with message: "feat(task-5.1): define core AST types"
     - _Requirements: 6.3, 18.1-18.9, 19.1-19.10, 20.1-20.7, 21.1-21.14_
   
-  - [ ]5.2 Define supporting AST types
+  - [x]5.2 Define supporting AST types
     - Create Param, Field, EnumVariant, SwitchCase, Visibility, BinaryOp, UnaryOp, Literal, Ident types
     - Create Block type for statement sequences
     - Add doc_comments field to relevant AST nodes
     - Commit with message: "feat(task-5.2): define supporting AST types"
     - _Requirements: 6.3, 49.1, 49.9_
   
-  - [ ]5.3 Write unit tests for AST construction
+  - [x]5.3 Write unit tests for AST construction
     - Test creating various AST nodes
     - Test AST node equality and cloning
     - Commit with message: "test(task-5.3): add unit tests for AST construction"
