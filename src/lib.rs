@@ -13,6 +13,8 @@ mod codegen_properties;
 pub mod error;
 pub mod lexer;
 pub mod parser;
+#[cfg(test)]
+mod parser_advanced_tests;
 pub mod pretty;
 #[cfg(test)]
 mod pretty_properties;

@@ -83,6 +83,9 @@ impl<'a> Parser<'a> {
 
     /// Parse a top-level item
     fn parse_item(&mut self) -> Result<Item, ParseError> {
+        // Parse attributes first
+        let attributes = self.parse_attributes()?;
+        
         // Check for visibility modifier (static keyword makes functions private)
         let is_static = if self.check(&TokenKind::Static) {
             self.advance()?;
@@ -96,13 +99,13 @@ impl<'a> Parser<'a> {
             TokenKind::Int | TokenKind::I32 | TokenKind::I64 | TokenKind::U32 | TokenKind::U64 |
             TokenKind::Float | TokenKind::F32 | TokenKind::F64 | TokenKind::Bool | TokenKind::Char |
             TokenKind::Void => {
-                self.parse_function(is_static)
+                self.parse_function(is_static, attributes)
             }
             TokenKind::Struct => {
-                self.parse_struct()
+                self.parse_struct_with_attributes(attributes)
             }
             TokenKind::Enum => {
-                self.parse_enum()
+                self.parse_enum_with_attributes(attributes)
             }
             TokenKind::Typedef => {
                 self.parse_typedef()
@@ -117,9 +120,298 @@ impl<'a> Parser<'a> {
             }
         }
     }
+    
+    /// Parse attributes (#[...])
+    fn parse_attributes(&mut self) -> Result<Vec<Attribute>, ParseError> {
+        let mut attributes = Vec::new();
+        
+        while self.check(&TokenKind::Hash) {
+            self.advance()?;
+            self.expect(TokenKind::LBracket)?;
+            
+            // Parse attribute name
+            let name = match &self.current_token.kind {
+                TokenKind::Ident(n) => {
+                    let ident = Ident::new(n.clone());
+                    self.advance()?;
+                    ident
+                }
+                _ => {
+                    return Err(ParseError::new(
+                        self.current_token.span,
+                        "expected attribute name",
+                        vec!["identifier".to_string()],
+                        format!("{:?}", self.current_token.kind),
+                    ));
+                }
+            };
+            
+            // Parse optional attribute arguments
+            let mut args = Vec::new();
+            if self.check(&TokenKind::LParen) {
+                self.advance()?;
+                
+                if !self.check(&TokenKind::RParen) {
+                    loop {
+                        args.push(self.parse_attribute_arg()?);
+                        if self.check(&TokenKind::Comma) {
+                            self.advance()?;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                
+                self.expect(TokenKind::RParen)?;
+            }
+            
+            self.expect(TokenKind::RBracket)?;
+            
+            attributes.push(Attribute { name, args });
+        }
+        
+        Ok(attributes)
+    }
+    
+    /// Parse an attribute argument
+    fn parse_attribute_arg(&mut self) -> Result<AttributeArg, ParseError> {
+        match &self.current_token.kind {
+            TokenKind::Ident(n) => {
+                let ident = Ident::new(n.clone());
+                self.advance()?;
+                
+                // Check for name = value syntax
+                if self.check(&TokenKind::Assign) {
+                    self.advance()?;
+                    let value = self.parse_attribute_literal()?;
+                    Ok(AttributeArg::NameValue { name: ident, value })
+                } else {
+                    Ok(AttributeArg::Ident(ident))
+                }
+            }
+            _ => {
+                let lit = self.parse_attribute_literal()?;
+                Ok(AttributeArg::Literal(lit))
+            }
+        }
+    }
+    
+    /// Parse a literal for attribute arguments
+    fn parse_attribute_literal(&mut self) -> Result<Literal, ParseError> {
+        match &self.current_token.kind {
+            TokenKind::IntLiteral(s) => {
+                let val = s.parse::<i64>().map_err(|_| {
+                    ParseError::new(
+                        self.current_token.span,
+                        "invalid integer literal",
+                        vec![],
+                        s.clone(),
+                    )
+                })?;
+                self.advance()?;
+                Ok(Literal::Int(val))
+            }
+            TokenKind::StringLiteral(s) => {
+                let val = s.clone();
+                self.advance()?;
+                Ok(Literal::String(val))
+            }
+            TokenKind::BoolLiteral(b) => {
+                let val = *b;
+                self.advance()?;
+                Ok(Literal::Bool(val))
+            }
+            _ => {
+                Err(ParseError::new(
+                    self.current_token.span,
+                    "expected literal in attribute",
+                    vec!["integer".to_string(), "string".to_string(), "bool".to_string()],
+                    format!("{:?}", self.current_token.kind),
+                ))
+            }
+        }
+    }
+
+    /// Parse a struct definition with attributes
+    fn parse_struct_with_attributes(&mut self, attributes: Vec<Attribute>) -> Result<Item, ParseError> {
+        self.expect(TokenKind::Struct)?;
+
+        // Parse struct name
+        let name = match &self.current_token.kind {
+            TokenKind::Ident(name) => {
+                let ident = Ident::new(name.clone());
+                self.advance()?;
+                ident
+            }
+            _ => {
+                return Err(ParseError::new(
+                    self.current_token.span,
+                    "expected struct name",
+                    vec!["identifier".to_string()],
+                    format!("{:?}", self.current_token.kind),
+                ));
+            }
+        };
+
+        self.expect(TokenKind::LBrace)?;
+
+        let mut fields = Vec::new();
+        let mut methods = Vec::new();
+
+        while !self.check(&TokenKind::RBrace) {
+            // Parse field/method attributes
+            let item_attributes = self.parse_attributes()?;
+            
+            // Check if this is a method (has parentheses after identifier) or a field
+            if self.is_method_definition()? {
+                let mut method = self.parse_struct_method()?;
+                method.attributes = item_attributes;
+                methods.push(method);
+            } else {
+                // Parse as field
+                let field_type = self.parse_type()?;
+
+                let field_name = match &self.current_token.kind {
+                    TokenKind::Ident(name) => {
+                        let ident = Ident::new(name.clone());
+                        self.advance()?;
+                        ident
+                    }
+                    _ => {
+                        return Err(ParseError::new(
+                            self.current_token.span,
+                            "expected field name",
+                            vec!["identifier".to_string()],
+                            format!("{:?}", self.current_token.kind),
+                        ));
+                    }
+                };
+
+                self.expect(TokenKind::Semicolon)?;
+
+                fields.push(Field {
+                    visibility: Visibility::Public,
+                    name: field_name,
+                    ty: field_type,
+                    doc_comments: Vec::new(),
+                    attributes: item_attributes,
+                });
+            }
+        }
+
+        self.expect(TokenKind::RBrace)?;
+
+        Ok(Item::Struct(Struct {
+            visibility: Visibility::Public,
+            name,
+            fields,
+            methods,
+            doc_comments: Vec::new(),
+            attributes,
+        }))
+    }
+
+    /// Parse an enum definition with attributes
+    fn parse_enum_with_attributes(&mut self, attributes: Vec<Attribute>) -> Result<Item, ParseError> {
+        self.expect(TokenKind::Enum)?;
+
+        // Parse enum name
+        let name = match &self.current_token.kind {
+            TokenKind::Ident(name) => {
+                let ident = Ident::new(name.clone());
+                self.advance()?;
+                ident
+            }
+            _ => {
+                return Err(ParseError::new(
+                    self.current_token.span,
+                    "expected enum name",
+                    vec!["identifier".to_string()],
+                    format!("{:?}", self.current_token.kind),
+                ));
+            }
+        };
+
+        self.expect(TokenKind::LBrace)?;
+
+        let mut variants = Vec::new();
+        let mut next_value = 0i64;
+
+        while !self.check(&TokenKind::RBrace) {
+            // Parse variant name
+            let variant_name = match &self.current_token.kind {
+                TokenKind::Ident(name) => {
+                    let ident = Ident::new(name.clone());
+                    self.advance()?;
+                    ident
+                }
+                _ => {
+                    return Err(ParseError::new(
+                        self.current_token.span,
+                        "expected enum variant name",
+                        vec!["identifier".to_string()],
+                        format!("{:?}", self.current_token.kind),
+                    ));
+                }
+            };
+
+            // Check for explicit value
+            let value = if self.check(&TokenKind::Assign) {
+                self.advance()?;
+                match &self.current_token.kind {
+                    TokenKind::IntLiteral(s) => {
+                        let val = s.parse::<i64>().map_err(|_| {
+                            ParseError::new(
+                                self.current_token.span,
+                                "invalid integer literal",
+                                vec![],
+                                s.clone(),
+                            )
+                        })?;
+                        self.advance()?;
+                        next_value = val + 1;
+                        Some(val)
+                    }
+                    _ => {
+                        return Err(ParseError::new(
+                            self.current_token.span,
+                            "expected integer literal",
+                            vec!["integer".to_string()],
+                            format!("{:?}", self.current_token.kind),
+                        ));
+                    }
+                }
+            } else {
+                let val = next_value;
+                next_value += 1;
+                Some(val)
+            };
+
+            variants.push(EnumVariant {
+                name: variant_name,
+                value,
+            });
+
+            if self.check(&TokenKind::Comma) {
+                self.advance()?;
+            } else {
+                break;
+            }
+        }
+
+        self.expect(TokenKind::RBrace)?;
+
+        Ok(Item::Enum(Enum {
+            visibility: Visibility::Public,
+            name,
+            variants,
+            doc_comments: Vec::new(),
+            attributes,
+        }))
+    }
 
     /// Parse a function declaration
-    fn parse_function(&mut self, is_static: bool) -> Result<Item, ParseError> {
+    fn parse_function(&mut self, is_static: bool, attributes: Vec<Attribute>) -> Result<Item, ParseError> {
         // Parse return type
         let return_type = if self.check(&TokenKind::Void) {
             self.advance()?;
@@ -200,6 +492,7 @@ impl<'a> Parser<'a> {
             return_type,
             body,
             doc_comments: Vec::new(),
+            attributes,
         }))
     }
 
@@ -227,36 +520,50 @@ impl<'a> Parser<'a> {
         self.expect(TokenKind::LBrace)?;
 
         let mut fields = Vec::new();
+        let mut methods = Vec::new();
 
         while !self.check(&TokenKind::RBrace) {
-            // Parse field type
-            let field_type = self.parse_type()?;
+            // Check if this is a method (has parentheses after identifier) or a field
+            // We need to look ahead to determine this
+            
+            // Save current position for potential backtracking
+            let saved_token = self.current_token.clone();
+            
+            // Try to parse as a method first
+            if self.is_method_definition()? {
+                methods.push(self.parse_struct_method()?);
+            } else {
+                // Parse as field
+                // Parse field type
+                let field_type = self.parse_type()?;
 
-            // Parse field name
-            let field_name = match &self.current_token.kind {
-                TokenKind::Ident(name) => {
-                    let ident = Ident::new(name.clone());
-                    self.advance()?;
-                    ident
-                }
-                _ => {
-                    return Err(ParseError::new(
-                        self.current_token.span,
-                        "expected field name",
-                        vec!["identifier".to_string()],
-                        format!("{:?}", self.current_token.kind),
-                    ));
-                }
-            };
+                // Parse field name
+                let field_name = match &self.current_token.kind {
+                    TokenKind::Ident(name) => {
+                        let ident = Ident::new(name.clone());
+                        self.advance()?;
+                        ident
+                    }
+                    _ => {
+                        return Err(ParseError::new(
+                            self.current_token.span,
+                            "expected field name",
+                            vec!["identifier".to_string()],
+                            format!("{:?}", self.current_token.kind),
+                        ));
+                    }
+                };
 
-            self.expect(TokenKind::Semicolon)?;
+                self.expect(TokenKind::Semicolon)?;
 
-            fields.push(Field {
-                visibility: Visibility::Public,
-                name: field_name,
-                ty: field_type,
-                doc_comments: Vec::new(),
-            });
+                fields.push(Field {
+                    visibility: Visibility::Public,
+                    name: field_name,
+                    ty: field_type,
+                    doc_comments: Vec::new(),
+                    attributes: Vec::new(),
+                });
+            }
         }
 
         self.expect(TokenKind::RBrace)?;
@@ -265,9 +572,221 @@ impl<'a> Parser<'a> {
             visibility: Visibility::Public,
             name,
             fields,
-            methods: Vec::new(),
+            methods,
             doc_comments: Vec::new(),
+            attributes: Vec::new(),
         }))
+    }
+
+    /// Check if the current position is a method definition
+    fn is_method_definition(&mut self) -> Result<bool, ParseError> {
+        // A method definition looks like:
+        // - return_type method_name(params) { body }
+        // - void method_name(params) { body }
+        // - static return_type method_name(params) { body }
+        
+        // Check for static keyword
+        if self.check(&TokenKind::Static) {
+            return Ok(true);
+        }
+        
+        // Check for type keyword followed by identifier and then (
+        let is_type_keyword = matches!(
+            self.current_token.kind,
+            TokenKind::Int | TokenKind::I32 | TokenKind::I64 | TokenKind::U32 | TokenKind::U64 |
+            TokenKind::Float | TokenKind::F32 | TokenKind::F64 | TokenKind::Bool | TokenKind::Char |
+            TokenKind::Void
+        );
+        
+        if !is_type_keyword {
+            return Ok(false);
+        }
+        
+        // Look ahead to see if there's an identifier followed by (
+        // This is a simplified check - we'll parse it properly if it looks like a method
+        let saved_pos = (self.position(), self.current_token.clone());
+        
+        // Skip the type
+        self.advance()?;
+        
+        // Check for identifier
+        let has_ident = matches!(self.current_token.kind, TokenKind::Ident(_));
+        
+        if !has_ident {
+            // Restore position
+            self.restore_position(saved_pos)?;
+            return Ok(false);
+        }
+        
+        // Skip identifier
+        self.advance()?;
+        
+        // Check for (
+        let has_lparen = self.check(&TokenKind::LParen);
+        
+        // Restore position
+        self.restore_position(saved_pos)?;
+        
+        Ok(has_lparen)
+    }
+    
+    /// Get current parser position
+    fn position(&self) -> (usize, usize, usize) {
+        (self.lexer.position, self.lexer.line, self.lexer.column)
+    }
+    
+    /// Restore parser position
+    fn restore_position(&mut self, pos: ((usize, usize, usize), Token)) -> Result<(), ParseError> {
+        let ((position, line, column), token) = pos;
+        self.lexer.position = position;
+        self.lexer.line = line;
+        self.lexer.column = column;
+        self.lexer.chars = self.lexer.source[position..].char_indices().peekable();
+        self.current_token = token;
+        Ok(())
+    }
+
+    /// Parse a method definition within a struct
+    fn parse_struct_method(&mut self) -> Result<Function, ParseError> {
+        // Check for static keyword
+        let is_static = if self.check(&TokenKind::Static) {
+            self.advance()?;
+            true
+        } else {
+            false
+        };
+
+        // Parse return type
+        let return_type = if self.check(&TokenKind::Void) {
+            self.advance()?;
+            None
+        } else {
+            Some(self.parse_type()?)
+        };
+
+        // Parse method name
+        let name = match &self.current_token.kind {
+            TokenKind::Ident(name) => {
+                let ident = Ident::new(name.clone());
+                self.advance()?;
+                ident
+            }
+            _ => {
+                return Err(ParseError::new(
+                    self.current_token.span,
+                    "expected method name",
+                    vec!["identifier".to_string()],
+                    format!("{:?}", self.current_token.kind),
+                ));
+            }
+        };
+
+        // Parse parameter list
+        self.expect(TokenKind::LParen)?;
+        let mut params = Vec::new();
+
+        if !self.check(&TokenKind::RParen) {
+            loop {
+                // Check for self parameter
+                if self.check(&TokenKind::Ident("self".to_string())) {
+                    let self_ident = Ident::new("self");
+                    self.advance()?;
+                    
+                    // self parameter (immutable reference)
+                    params.push(Param {
+                        name: self_ident,
+                        ty: Type::Ident(Ident::new("Self")),
+                    });
+                } else if self.check(&TokenKind::BitAnd) {
+                    // &self or &var self
+                    self.advance()?;
+                    
+                    let mutable = if self.check(&TokenKind::Var) {
+                        self.advance()?;
+                        true
+                    } else {
+                        false
+                    };
+                    
+                    // Expect 'self' identifier
+                    if let TokenKind::Ident(n) = &self.current_token.kind {
+                        if n == "self" {
+                            self.advance()?;
+                            params.push(Param {
+                                name: Ident::new("self"),
+                                ty: Type::Reference {
+                                    ty: Box::new(Type::Ident(Ident::new("Self"))),
+                                    mutable,
+                                },
+                            });
+                        } else {
+                            return Err(ParseError::new(
+                                self.current_token.span,
+                                "expected 'self' after &",
+                                vec!["self".to_string()],
+                                format!("{:?}", self.current_token.kind),
+                            ));
+                        }
+                    } else {
+                        return Err(ParseError::new(
+                            self.current_token.span,
+                            "expected 'self' after &",
+                            vec!["self".to_string()],
+                            format!("{:?}", self.current_token.kind),
+                        ));
+                    }
+                } else {
+                    // Regular parameter
+                    let param_type = self.parse_type()?;
+
+                    let param_name = match &self.current_token.kind {
+                        TokenKind::Ident(name) => {
+                            let ident = Ident::new(name.clone());
+                            self.advance()?;
+                            ident
+                        }
+                        _ => {
+                            return Err(ParseError::new(
+                                self.current_token.span,
+                                "expected parameter name",
+                                vec!["identifier".to_string()],
+                                format!("{:?}", self.current_token.kind),
+                            ));
+                        }
+                    };
+
+                    params.push(Param {
+                        name: param_name,
+                        ty: param_type,
+                    });
+                }
+
+                if self.check(&TokenKind::Comma) {
+                    self.advance()?;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        self.expect(TokenKind::RParen)?;
+
+        // Parse method body
+        let body = self.parse_block()?;
+
+        Ok(Function {
+            visibility: if is_static {
+                Visibility::Private
+            } else {
+                Visibility::Public
+            },
+            name,
+            params,
+            return_type,
+            body,
+            doc_comments: Vec::new(),
+            attributes: Vec::new(),
+        })
     }
 
     /// Parse an enum definition
@@ -365,6 +884,7 @@ impl<'a> Parser<'a> {
             name,
             variants,
             doc_comments: Vec::new(),
+            attributes: Vec::new(),
         }))
     }
 
@@ -1073,7 +1593,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Parse postfix operators (++, --, function calls, field access, array indexing)
+    /// Parse postfix operators (++, --, function calls, field access, array indexing, macro calls)
     fn parse_postfix(&mut self) -> Result<Expression, ParseError> {
         let mut expr = self.parse_primary()?;
 
@@ -1092,6 +1612,36 @@ impl<'a> Parser<'a> {
                         op: UnaryOp::PostDec,
                         expr: Box::new(expr),
                     };
+                }
+                TokenKind::Bang => {
+                    // Macro invocation: ident!(args) or ident![args] or ident!{args}
+                    // Only valid if expr is an identifier
+                    if let Expression::Ident(name) = expr {
+                        self.advance()?;
+                        
+                        // Parse macro arguments based on delimiter
+                        let args = if self.check(&TokenKind::LParen) {
+                            self.parse_macro_args(TokenKind::LParen, TokenKind::RParen)?
+                        } else if self.check(&TokenKind::LBracket) {
+                            self.parse_macro_args(TokenKind::LBracket, TokenKind::RBracket)?
+                        } else if self.check(&TokenKind::LBrace) {
+                            self.parse_macro_args(TokenKind::LBrace, TokenKind::RBrace)?
+                        } else {
+                            return Err(ParseError::new(
+                                self.current_token.span,
+                                "expected (, [, or { after macro name",
+                                vec!["(".to_string(), "[".to_string(), "{".to_string()],
+                                format!("{:?}", self.current_token.kind),
+                            ));
+                        };
+                        
+                        expr = Expression::MacroCall { name, args };
+                    } else {
+                        // ! is error propagation operator, not a macro call
+                        expr = Expression::ErrorProp {
+                            expr: Box::new(expr),
+                        };
+                    }
                 }
                 TokenKind::LParen => {
                     // Function call
@@ -1116,27 +1666,48 @@ impl<'a> Parser<'a> {
                     };
                 }
                 TokenKind::Dot => {
-                    // Field access
+                    // Field access or tuple indexing
                     self.advance()?;
-                    let field = match &self.current_token.kind {
-                        TokenKind::Ident(n) => {
-                            let ident = Ident::new(n.clone());
-                            self.advance()?;
-                            ident
-                        }
-                        _ => {
-                            return Err(ParseError::new(
+                    
+                    // Check for tuple indexing (.0, .1, .2, etc.)
+                    if let TokenKind::IntLiteral(s) = &self.current_token.kind {
+                        let index = s.parse::<usize>().map_err(|_| {
+                            ParseError::new(
                                 self.current_token.span,
-                                "expected field name",
-                                vec!["identifier".to_string()],
-                                format!("{:?}", self.current_token.kind),
-                            ));
-                        }
-                    };
-                    expr = Expression::FieldAccess {
-                        expr: Box::new(expr),
-                        field,
-                    };
+                                "invalid tuple index",
+                                vec![],
+                                s.clone(),
+                            )
+                        })?;
+                        self.advance()?;
+                        
+                        // Create tuple indexing as field access with numeric field name
+                        expr = Expression::FieldAccess {
+                            expr: Box::new(expr),
+                            field: Ident::new(index.to_string()),
+                        };
+                    } else {
+                        // Regular field access
+                        let field = match &self.current_token.kind {
+                            TokenKind::Ident(n) => {
+                                let ident = Ident::new(n.clone());
+                                self.advance()?;
+                                ident
+                            }
+                            _ => {
+                                return Err(ParseError::new(
+                                    self.current_token.span,
+                                    "expected field name or tuple index",
+                                    vec!["identifier".to_string(), "integer".to_string()],
+                                    format!("{:?}", self.current_token.kind),
+                                ));
+                            }
+                        };
+                        expr = Expression::FieldAccess {
+                            expr: Box::new(expr),
+                            field,
+                        };
+                    }
                 }
                 TokenKind::Arrow => {
                     // Pointer field access (->)
@@ -1167,20 +1738,111 @@ impl<'a> Parser<'a> {
                     };
                 }
                 TokenKind::LBracket => {
-                    // Array indexing
+                    // Array indexing or slice range
                     self.advance()?;
-                    let index = self.parse_expression()?;
-                    self.expect(TokenKind::RBracket)?;
-                    expr = Expression::Index {
-                        expr: Box::new(expr),
-                        index: Box::new(index),
-                    };
+                    
+                    // Check for range syntax
+                    if self.check(&TokenKind::DotDot) || self.check(&TokenKind::DotDotEq) {
+                        // Range starting from beginning: [..end] or [..=end]
+                        let inclusive = self.check(&TokenKind::DotDotEq);
+                        self.advance()?;
+                        
+                        let end = if self.check(&TokenKind::RBracket) {
+                            None
+                        } else {
+                            Some(Box::new(self.parse_expression()?))
+                        };
+                        
+                        self.expect(TokenKind::RBracket)?;
+                        
+                        let range = Expression::Range {
+                            start: None,
+                            end,
+                            inclusive,
+                        };
+                        
+                        expr = Expression::Index {
+                            expr: Box::new(expr),
+                            index: Box::new(range),
+                        };
+                    } else {
+                        let start = self.parse_expression()?;
+                        
+                        // Check if this is a range
+                        if self.check(&TokenKind::DotDot) || self.check(&TokenKind::DotDotEq) {
+                            let inclusive = self.check(&TokenKind::DotDotEq);
+                            self.advance()?;
+                            
+                            let end = if self.check(&TokenKind::RBracket) {
+                                None
+                            } else {
+                                Some(Box::new(self.parse_expression()?))
+                            };
+                            
+                            self.expect(TokenKind::RBracket)?;
+                            
+                            let range = Expression::Range {
+                                start: Some(Box::new(start)),
+                                end,
+                                inclusive,
+                            };
+                            
+                            expr = Expression::Index {
+                                expr: Box::new(expr),
+                                index: Box::new(range),
+                            };
+                        } else {
+                            // Regular array indexing
+                            self.expect(TokenKind::RBracket)?;
+                            expr = Expression::Index {
+                                expr: Box::new(expr),
+                                index: Box::new(start),
+                            };
+                        }
+                    }
                 }
                 _ => break,
             }
         }
 
         Ok(expr)
+    }
+    
+    /// Parse macro arguments as a token stream
+    fn parse_macro_args(&mut self, open: TokenKind, close: TokenKind) -> Result<Vec<crate::ast::Token>, ParseError> {
+        let open_discriminant = std::mem::discriminant(&open);
+        let close_discriminant = std::mem::discriminant(&close);
+        
+        self.expect(open)?;
+        let mut tokens = Vec::new();
+        let mut depth = 1;
+        
+        while depth > 0 && !self.is_at_end() {
+            let token_kind = self.current_token.kind.clone();
+            let token_text = self.current_token.text.clone();
+            let token_discriminant = std::mem::discriminant(&token_kind);
+            
+            // Track nesting depth
+            if token_discriminant == open_discriminant {
+                depth += 1;
+            } else if token_discriminant == close_discriminant {
+                depth -= 1;
+                if depth == 0 {
+                    break;
+                }
+            }
+            
+            // Convert lexer token to AST token
+            tokens.push(crate::ast::Token {
+                kind: crate::ast::TokenKind::Other,
+                text: token_text,
+            });
+            
+            self.advance()?;
+        }
+        
+        self.expect(close)?;
+        Ok(tokens)
     }
 
     /// Parse primary expressions (literals, identifiers, parenthesized expressions, type-scoped calls)
@@ -1226,16 +1888,115 @@ impl<'a> Parser<'a> {
                 Ok(Expression::Literal(Literal::Bool(val)))
             }
             TokenKind::LParen => {
-                // Parenthesized expression
+                // Parenthesized expression or tuple literal
                 self.advance()?;
-                let expr = self.parse_expression()?;
-                self.expect(TokenKind::RParen)?;
-                Ok(expr)
+                
+                // Check for empty tuple ()
+                if self.check(&TokenKind::RParen) {
+                    self.advance()?;
+                    return Ok(Expression::TupleLit {
+                        elements: Vec::new(),
+                    });
+                }
+                
+                let first_expr = self.parse_expression()?;
+                
+                // Check if this is a tuple (has comma) or just a parenthesized expression
+                if self.check(&TokenKind::Comma) {
+                    // Tuple literal
+                    let mut elements = vec![first_expr];
+                    
+                    while self.check(&TokenKind::Comma) {
+                        self.advance()?;
+                        
+                        // Allow trailing comma
+                        if self.check(&TokenKind::RParen) {
+                            break;
+                        }
+                        
+                        elements.push(self.parse_expression()?);
+                    }
+                    
+                    self.expect(TokenKind::RParen)?;
+                    Ok(Expression::TupleLit { elements })
+                } else {
+                    // Just a parenthesized expression
+                    self.expect(TokenKind::RParen)?;
+                    Ok(first_expr)
+                }
+            }
+            TokenKind::LBracket => {
+                // Array literal [1, 2, 3] or array initialization [value; count]
+                self.advance()?;
+                
+                // Check for empty array []
+                if self.check(&TokenKind::RBracket) {
+                    self.advance()?;
+                    return Ok(Expression::ArrayLit {
+                        elements: Vec::new(),
+                    });
+                }
+                
+                let first_expr = self.parse_expression()?;
+                
+                // Check for array initialization syntax [value; count]
+                if self.check(&TokenKind::Semicolon) {
+                    self.advance()?;
+                    let count_expr = self.parse_expression()?;
+                    self.expect(TokenKind::RBracket)?;
+                    
+                    // Represent [value; count] as a special array literal
+                    // We'll need to handle this in code generation
+                    return Ok(Expression::ArrayLit {
+                        elements: vec![first_expr, count_expr],
+                    });
+                }
+                
+                // Regular array literal
+                let mut elements = vec![first_expr];
+                
+                while self.check(&TokenKind::Comma) {
+                    self.advance()?;
+                    
+                    // Allow trailing comma
+                    if self.check(&TokenKind::RBracket) {
+                        break;
+                    }
+                    
+                    elements.push(self.parse_expression()?);
+                }
+                
+                self.expect(TokenKind::RBracket)?;
+                Ok(Expression::ArrayLit { elements })
             }
             TokenKind::At => {
-                // Type-scoped static method call (@Type.method())
+                // Type-scoped static method call (@Type.method() or @Type(T).method())
                 self.advance()?;
                 let ty = self.parse_type()?;
+                
+                // Check for explicit generic parameters with parentheses syntax
+                let explicit_generics = if self.check(&TokenKind::LParen) {
+                    // Parse explicit generic parameters: @Type(T1, T2)
+                    self.advance()?;
+                    let mut generics = Vec::new();
+                    
+                    if !self.check(&TokenKind::RParen) {
+                        loop {
+                            generics.push(self.parse_generic_type_param()?);
+                            if self.check(&TokenKind::Comma) {
+                                self.advance()?;
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                    
+                    self.expect(TokenKind::RParen)?;
+                    Some(generics)
+                } else {
+                    None
+                };
+                
                 self.expect(TokenKind::Dot)?;
                 let method = match &self.current_token.kind {
                     TokenKind::Ident(n) => {
@@ -1270,7 +2031,17 @@ impl<'a> Parser<'a> {
 
                 self.expect(TokenKind::RParen)?;
 
-                Ok(Expression::TypeScopedCall { ty, method, args })
+                // Return appropriate expression type
+                if let Some(generics) = explicit_generics {
+                    Ok(Expression::ExplicitGenericCall { 
+                        ty, 
+                        generics, 
+                        method, 
+                        args 
+                    })
+                } else {
+                    Ok(Expression::TypeScopedCall { ty, method, args })
+                }
             }
             TokenKind::Ident(n) => {
                 let ident = Ident::new(n.clone());
@@ -1282,6 +2053,133 @@ impl<'a> Parser<'a> {
                     self.current_token.span,
                     "expected expression",
                     vec!["literal".to_string(), "identifier".to_string(), "(".to_string()],
+                    format!("{:?}", self.current_token.kind),
+                ))
+            }
+        }
+    }
+    
+    /// Parse a generic type parameter with alternating parentheses and brackets
+    /// Supports: T, Inner[T], Inner[Type(T)], etc.
+    fn parse_generic_type_param(&mut self) -> Result<Type, ParseError> {
+        // Parse base type
+        let mut base_type = self.parse_base_type_for_generic()?;
+        
+        // Check for nested generics with brackets
+        if self.check(&TokenKind::LBracket) {
+            self.advance()?;
+            let mut args = Vec::new();
+            
+            if !self.check(&TokenKind::RBracket) {
+                loop {
+                    // Recursively parse nested generic parameters
+                    args.push(self.parse_nested_generic_param()?);
+                    if self.check(&TokenKind::Comma) {
+                        self.advance()?;
+                    } else {
+                        break;
+                    }
+                }
+            }
+            
+            self.expect(TokenKind::RBracket)?;
+            base_type = Type::Generic {
+                base: Box::new(base_type),
+                args,
+            };
+        }
+        
+        Ok(base_type)
+    }
+    
+    /// Parse nested generic parameter (alternates back to parentheses)
+    fn parse_nested_generic_param(&mut self) -> Result<Type, ParseError> {
+        let mut base_type = self.parse_base_type_for_generic()?;
+        
+        // Check for nested generics with parentheses (alternating)
+        if self.check(&TokenKind::LParen) {
+            self.advance()?;
+            let mut args = Vec::new();
+            
+            if !self.check(&TokenKind::RParen) {
+                loop {
+                    // Recursively parse, alternating back to brackets
+                    args.push(self.parse_generic_type_param()?);
+                    if self.check(&TokenKind::Comma) {
+                        self.advance()?;
+                    } else {
+                        break;
+                    }
+                }
+            }
+            
+            self.expect(TokenKind::RParen)?;
+            base_type = Type::Generic {
+                base: Box::new(base_type),
+                args,
+            };
+        }
+        
+        Ok(base_type)
+    }
+    
+    /// Parse a base type for generic parameters (identifier or primitive)
+    fn parse_base_type_for_generic(&mut self) -> Result<Type, ParseError> {
+        match &self.current_token.kind {
+            TokenKind::Int => {
+                self.advance()?;
+                Ok(Type::Primitive(PrimitiveType::Int))
+            }
+            TokenKind::I32 => {
+                self.advance()?;
+                Ok(Type::Primitive(PrimitiveType::I32))
+            }
+            TokenKind::I64 => {
+                self.advance()?;
+                Ok(Type::Primitive(PrimitiveType::I64))
+            }
+            TokenKind::U32 => {
+                self.advance()?;
+                Ok(Type::Primitive(PrimitiveType::U32))
+            }
+            TokenKind::U64 => {
+                self.advance()?;
+                Ok(Type::Primitive(PrimitiveType::U64))
+            }
+            TokenKind::Float => {
+                self.advance()?;
+                Ok(Type::Primitive(PrimitiveType::Float))
+            }
+            TokenKind::F32 => {
+                self.advance()?;
+                Ok(Type::Primitive(PrimitiveType::F32))
+            }
+            TokenKind::F64 => {
+                self.advance()?;
+                Ok(Type::Primitive(PrimitiveType::F64))
+            }
+            TokenKind::Bool => {
+                self.advance()?;
+                Ok(Type::Primitive(PrimitiveType::Bool))
+            }
+            TokenKind::Char => {
+                self.advance()?;
+                Ok(Type::Primitive(PrimitiveType::Char))
+            }
+            TokenKind::Void => {
+                self.advance()?;
+                Ok(Type::Primitive(PrimitiveType::Void))
+            }
+            TokenKind::Ident(name) => {
+                let ident = Ident::new(name.clone());
+                self.advance()?;
+                Ok(Type::Ident(ident))
+            }
+            _ => {
+                Err(ParseError::new(
+                    self.current_token.span,
+                    "expected type in generic parameter",
+                    vec!["type".to_string()],
                     format!("{:?}", self.current_token.kind),
                 ))
             }
