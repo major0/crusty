@@ -75,6 +75,7 @@ Rust Source → Rust Parser (syn) → AST → Semantic Analysis → Code Generat
 ## Key Design Principles
 
 - **Shared AST**: Use a unified AST representation that can represent both Crusty and Rust constructs
+- **C-like Function Syntax**: Crusty uses C-style function declarations with return types before function names (e.g., `int main()`, `void foo()`), NOT Rust's `fn` keyword syntax
 - **Rust Standard Library**: Crusty programs use Rust's std library directly without wrappers
 - **Safety First**: Reject C features that violate Rust's safety guarantees
 - **Familiar Syntax**: Provide C-like syntax that maps cleanly to Rust semantics

@@ -2,11 +2,11 @@
 
 ## Introduction
 
-Functions in Crusty use C-style syntax with the return type before the function name.
+Functions in Crusty use C-style syntax with the return type before the function name. This is a key design principle that distinguishes Crusty from Rust's `fn` keyword syntax.
 
 ## Rationale
 
-C-style function declarations are familiar to most programmers and clearly indicate the return type at the start of the declaration.
+C-style function declarations are familiar to most programmers and clearly indicate the return type at the start of the declaration. This makes Crusty code immediately readable to C, C++, and Java developers.
 
 ## Examples
 
@@ -14,6 +14,13 @@ C-style function declarations are familiar to most programmers and clearly indic
 
 ```crusty
 int add(int a, int b) {
+    return a + b;
+}
+```
+
+Translates to Rust:
+```rust
+pub fn add(a: i32, b: i32) -> i32 {
     return a + b;
 }
 ```
@@ -26,12 +33,26 @@ void greet(char* name) {
 }
 ```
 
+Translates to Rust:
+```rust
+pub fn greet(name: &str) {
+    println!("Hello, {}!", name);
+}
+```
+
 ### Static Function
 
-Static functions are module-private:
+Static functions are module-private (no `pub` in Rust):
 
 ```crusty
 static int helper(int x) {
+    return x * 2;
+}
+```
+
+Translates to Rust:
+```rust
+fn helper(x: i32) -> i32 {
     return x * 2;
 }
 ```
@@ -40,6 +61,13 @@ static int helper(int x) {
 
 ```crusty
 int get_value() {
+    return 42;
+}
+```
+
+Translates to Rust:
+```rust
+pub fn get_value() -> i32 {
     return 42;
 }
 ```
