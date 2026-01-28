@@ -10,6 +10,7 @@ mod codegen;
 mod error;
 mod utils;
 mod pretty;
+mod rustc;
 
 use cli::{CompilerOptions, run_compiler};
 use std::process;

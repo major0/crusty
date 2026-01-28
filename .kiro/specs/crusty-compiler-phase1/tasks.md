@@ -412,21 +412,21 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Test error handling
     - _Requirements: 6.1-6.6, 7.1-7.13_
 
-- [ ] 13. Implement rustc invocation
-  - [ ]13.1 Create rustc invoker
+- [x] 13. Implement rustc invocation
+  - [x]13.1 Create rustc invoker
     - Implement function to invoke rustc as subprocess
     - Pass generated Rust code to rustc
     - Capture rustc output (stdout and stderr)
     - Report compilation success or failure
     - _Requirements: 4.1, 4.2, 4.3, 4.4_
   
-  - [ ]13.2 Handle rustc errors
+  - [x]13.2 Handle rustc errors
     - Parse rustc error messages
     - Report rustc errors to user
     - Preserve error locations and descriptions
     - _Requirements: 4.3, 5.1, 5.2_
   
-  - [ ]13.3 Write unit tests for rustc invocation
+  - [x]13.3 Write unit tests for rustc invocation
     - Test successful compilation
     - Test compilation failures
     - Test error message handling
