@@ -11,6 +11,7 @@ Crusty is a C-like programming language that transpiles to Rust, providing famil
 - **Familiar C syntax**: Write code with C-style function declarations, control flow, and data structures
 - **Type-scoped calls**: Use `@Type` prefix with dot notation: `@Vec.new()`, `@Option.None`
 - **Macro system**: Double-underscore naming for macros: `__println__("Hello")`, `__vec__[1, 2, 3]`
+- **Escape hatch**: Use `__rust__` to embed raw Rust code for advanced features
 - **Rust compatibility**: All Crusty code transpiles to safe, idiomatic Rust
 
 ### Rust Ecosystem Integration
@@ -218,6 +219,37 @@ void main() {
 }
 ```
 
+#### Embedding Raw Rust Code with __rust__
+```crusty
+void main() {
+    // Use __rust__ as an escape hatch for Rust-specific features
+    // The contents are passed directly to the Rust compiler
+    
+    // In expression context
+    let result = __rust__{ Some(42) };
+    
+    // In statement context
+    __rust__{
+        println!("This is raw Rust code");
+        let x = vec![1, 2, 3];
+    };
+    
+    // For complex Rust patterns not yet supported in Crusty
+    __rust__{
+        match value {
+            Some(x) if x > 10 => println!("Large: {}", x),
+            Some(x) => println!("Small: {}", x),
+            None => println!("Nothing"),
+        }
+    };
+    
+    // In type context (for complex Rust types)
+    let callback: __rust__{ Box<dyn Fn(i32) -> i32> } = __rust__{ Box::new(|x| x * 2) };
+}
+```
+
+**Note**: The `__rust__` macro provides an escape hatch for using Rust features not yet supported by Crusty syntax. The contents are passed directly to rustc without validation by crustyc. Use this when you need access to advanced Rust features like pattern matching, closures, or complex trait bounds.
+
 #### Implementation Blocks with typedef
 ```crusty
 // Define a struct type
@@ -417,6 +449,7 @@ The hooks will automatically run:
 - Trait implementations (typedef default @Type)
 - Type-scoped calls with dot notation (`@Type.method()`)
 - Macro invocations with double-underscore naming (`__macro_name__`)
+- Raw Rust code embedding with `__rust__` escape hatch
 - Control flow statements
 - Memory management and ownership
 - Module system and visibility
