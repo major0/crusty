@@ -25,6 +25,7 @@ int main() {
         let options = CompilerOptions {
             input_file: input_path.clone(),
             output_file: Some(output_path.clone()),
+            out_dir: None,
             emit: EmitMode::Binary,
             absorb: None,
             verbose: false,
@@ -66,6 +67,7 @@ main() {
         let options = CompilerOptions {
             input_file: input_path.clone(),
             output_file: Some(output_path.clone()),
+            out_dir: None,
             emit: EmitMode::Binary,
             absorb: None,
             verbose: false,
@@ -99,6 +101,7 @@ int add(int a, int b) {
         let options = CompilerOptions {
             input_file: input_path.clone(),
             output_file: Some(output_path.clone()),
+            out_dir: None,
             emit: EmitMode::Binary,
             absorb: None,
             verbose: false,
@@ -131,6 +134,7 @@ int multiply(int x, int y) {
         let options = CompilerOptions {
             input_file: input_path.clone(),
             output_file: Some(output_path.clone()),
+            out_dir: None,
             emit: EmitMode::Rust, // Only generate Rust, don't compile
             absorb: None,
             verbose: false,
@@ -163,6 +167,7 @@ int square(int n) {
         let options = CompilerOptions {
             input_file: input_path.clone(),
             output_file: Some(output_path.clone()),
+            out_dir: None,
             emit: EmitMode::Rust,
             absorb: None,
             verbose: true, // Enable verbose output
@@ -200,6 +205,7 @@ int test_func() {
         let options = CompilerOptions {
             input_file: input_path.clone(),
             output_file: Some(output_path.clone()),
+            out_dir: None,
             emit: EmitMode::Binary,
             absorb: None,
             verbose: false,

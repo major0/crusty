@@ -1,0 +1,118 @@
+// Copyright (c) 2026 Mark Ferrell
+// Licensed under the MIT License. See LICENSE.txt in the project root.
+
+//! Example build.rs script for Crusty projects
+//!
+//! This script demonstrates how to integrate crustyc into a Cargo build process.
+//! It discovers all .crst files in the src/ directory and transpiles them to Rust
+//! code in the OUT_DIR, preserving the directory structure.
+//!
+//! ## Usage
+//!
+//! 1. Add this file as `build.rs` in your project root
+//! 2. Add crustyc as a build dependency in Cargo.toml:
+//!    ```toml
+//!    [build-dependencies]
+//!    crustyc = "0.1"
+//!    ```
+//! 3. Place your .crst files in the src/ directory
+//! 4. Run `cargo build` - the .crst files will be transpiled automatically
+//!
+//! ## Incremental Builds
+//!
+//! This script sets up cargo:rerun-if-changed directives so that Cargo will
+//! only re-run the build script when .crst files are modified.
+
+use std::env;
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
+fn main() {
+    // Get the output directory where generated Rust files should go
+    let out_dir = env::var("OUT_DIR").expect("OUT_DIR not set");
+    let out_path = Path::new(&out_dir);
+
+    // Get the source directory (usually src/)
+    let src_dir = Path::new("src");
+
+    // Discover all .crst files in the source directory
+    let crst_files = discover_crst_files(src_dir).expect("Failed to discover .crst files");
+
+    if crst_files.is_empty() {
+        println!("cargo:warning=No .crst files found in src/");
+        return;
+    }
+
+    println!("cargo:warning=Found {} .crst files", crst_files.len());
+
+    // Transpile each .crst file
+    for crst_file in &crst_files {
+        // Set up cargo:rerun-if-changed for incremental builds
+        println!("cargo:rerun-if-changed={}", crst_file.display());
+
+        // Invoke crustyc to transpile the file
+        let status = Command::new("crustyc")
+            .arg(crst_file)
+            .arg("--out-dir")
+            .arg(out_path)
+            .arg("--emit")
+            .arg("rust")
+            .arg("--no-compile")
+            .status()
+            .expect("Failed to execute crustyc");
+
+        if !status.success() {
+            panic!("Failed to transpile {}", crst_file.display());
+        }
+    }
+
+    // Alternative: Batch transpilation mode (more efficient for many files)
+    // Uncomment this and comment out the loop above to use batch mode:
+    /*
+    let status = Command::new("crustyc")
+        .arg(src_dir)
+        .arg("--out-dir")
+        .arg(out_path)
+        .arg("--emit")
+        .arg("rust")
+        .arg("--no-compile")
+        .status()
+        .expect("Failed to execute crustyc");
+
+    if !status.success() {
+        panic!("Failed to transpile .crst files");
+    }
+
+    // Still need to set up rerun-if-changed for each file
+    for crst_file in &crst_files {
+        println!("cargo:rerun-if-changed={}", crst_file.display());
+    }
+    */
+
+    println!("cargo:warning=Successfully transpiled {} .crst files", crst_files.len());
+}
+
+/// Recursively discover all .crst files in a directory
+fn discover_crst_files(dir: &Path) -> std::io::Result<Vec<PathBuf>> {
+    let mut files = Vec::new();
+
+    if dir.is_dir() {
+        for entry in fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+
+            if path.is_dir() {
+                // Recursively search subdirectories
+                files.extend(discover_crst_files(&path)?);
+            } else if let Some(ext) = path.extension() {
+                if ext == "crst" {
+                    files.push(path);
+                }
+            }
+        }
+    }
+
+    files.sort(); // Sort for deterministic order
+    Ok(files)
+}

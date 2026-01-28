@@ -76,14 +76,14 @@ The implementation follows a bottom-up approach, building core infrastructure fi
   - Commit with message: "feat(task-2): set up project structure and dependencies"
   - _Requirements: All (foundational)_
 
-- [ ] 2.6 Implement build.rs integration and multi-file support
-  - [ ]2.6.1 Add --out-dir CLI option
+- [x] 2.6 Implement build.rs integration and multi-file support
+  - [x]2.6.1 Add --out-dir CLI option
     - Add --out-dir option to specify output directory for generated Rust files
     - Create output directory if it doesn't exist
     - Preserve source directory structure in output directory
     - _Requirements: 14.1, 14.2, 14.3_
   
-  - [ ]2.6.2 Implement batch transpilation mode
+  - [x]2.6.2 Implement batch transpilation mode
     - Support transpiling multiple .crst files in a single invocation
     - Accept directory path as input to discover all .crst files
     - Transpile all discovered files to output directory
@@ -97,7 +97,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Resolve symbols across module boundaries
     - _Requirements: 15.5, 15.6, 15.7, 15.8_
   
-  - [ ]2.6.4 Create reference build.rs script
+  - [x]2.6.4 Create reference build.rs script
     - Create example build.rs that invokes crustyc
     - Discover all .crst files in src/ directory
     - Transpile to OUT_DIR preserving directory structure
@@ -105,7 +105,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Document build.rs integration patterns
     - _Requirements: 19.1, 19.2, 19.3, 19.4, 19.5, 19.6, 19.7_
   
-  - [ ]2.6.5 Write unit tests for build.rs integration
+  - [x]2.6.5 Write unit tests for build.rs integration
     - Test --out-dir option
     - Test batch transpilation
     - Test module resolution
