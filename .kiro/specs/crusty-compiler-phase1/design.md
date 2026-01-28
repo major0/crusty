@@ -457,7 +457,7 @@ pub enum TokenKind {
     // Special
     Hash,  // # - for preprocessor directives (#use, #ifdef, etc.)
     Bang,  // ! - for error propagation operator (Rust's ?)
-    At,    // @ - for type-scoped calls (@Type->method())
+    At,    // @ - for type-scoped calls (@Type.method())
     Eof,
 }
 
@@ -659,9 +659,9 @@ When calling static methods (associated functions) on types, Crusty requires the
 
 ```crusty
 // Static method calls (type-scoped) - ALWAYS require @ prefix
-let v = @Vector->new();
-let none = @Option->None;
-let s = @String->from("hello");
+let v = @Vector.new();
+let none = @Option.None;
+let s = @String.from("hello");
 
 // Instance method calls - no @ prefix
 let len = v.len();
@@ -669,27 +669,35 @@ let item = v.get(0);
 ```
 
 This syntax makes it immediately clear whether a call is:
-- **Type-scoped** (`@Type->method()` or `@Type.method()`): Calling a static method/associated function on the type itself
+- **Type-scoped** (`@Type.method()`): Calling a static method/associated function on the type itself
 - **Instance-scoped** (`obj.method()`): Calling a method on an instance
 
-**Arrow vs Dot Notation for Type-Scoped Calls**:
+**Dot Notation for Type-Scoped Calls**:
 
-The `@` prefix is **required** for all type-scoped calls. After the type name, you can use either:
-- **Arrow notation (`->`)**: For simple type-scoped calls
-- **Dot notation (`.`)**: For nested type paths (matching Rust's `::` followed by `.`)
+The `@` prefix is **required** for all type-scoped calls. After the `@` prefix and type name, use **dot notation (`.`)** to replace Rust's `::`:
 
-Both translate to Rust's `::` syntax:
-- `@Vector->new()` → `Vector::new()`
-- `@Option->None` → `Option::None`
-- `@String->from("hello")` → `String::from("hello")`
+```crusty
+// Simple type-scoped calls - dot replaces ::
+@Vector.new()                  → Vector::new()
+@Option.None                   → Option::None
+@String.from("hello")          → String::from("hello")
 
-**Nested Type Paths**:
+// Nested type paths - dot replaces ALL :: occurrences
+@std.collections.HashMap.new() → std::collections::HashMap::new()
+@std.io.Error.last_os_error()  → std::io::Error::last_os_error()
+```
 
-For nested type paths (like Rust's `Foo::Bar.boo()`), use dot notation after the `@` prefix:
-- `@Foo.Bar.boo()` → `Foo::Bar.boo()` (nested type path with method call)
-- `@std.collections.HashMap->new()` → `std::collections::HashMap::new()`
+**Method Calls on Type-Scoped Values**:
 
-The dot notation allows natural mapping to Rust's nested type paths while maintaining the `@` prefix to distinguish type-scoped from instance-scoped calls.
+When accessing a constant/associated item and then calling a method on the resulting value, use arrow notation for the method call:
+
+```crusty
+// Arrow for method calls on type-scoped values
+@Foo.BAR->boo()                → Foo::BAR.boo()
+// Where BAR is a constant value, and boo() is a method call on that value
+```
+
+The dot notation provides a consistent mapping where `.` in `@Type.path` always replaces `::` in Rust's `Type::path`.
 
 **Macro Invocation Syntax**:
 
@@ -715,18 +723,19 @@ assert!(x > 0);
 **Distinguishing Type-Scoped Calls from Macros**:
 
 The parser distinguishes between type-scoped static method calls and macro invocations based on syntax:
-- **Type-scoped call**: `@Type->method()` or `@Type.method()` - uses `@` prefix with `->` or `.` separator
+- **Type-scoped call**: `@Type.method()` - uses `@` prefix with `.` separator
 - **Macro invocation**: `__macro_name__(...)` - uses double-underscore prefix/suffix, NO `!`
 
 Examples:
 ```crusty
-@Vec->new()              // Type-scoped call → Vec::new()
+@Vec.new()               // Type-scoped call → Vec::new()
 __vec__[1, 2, 3]         // Macro invocation → vec![1, 2, 3]
-@Option->None            // Type-scoped call → Option::None
+@Option.None             // Type-scoped call → Option::None
 __println__("hello")     // Macro invocation → println!("hello")
-@String->from("hi")      // Type-scoped call → String::from("hi")
+@String.from("hi")       // Type-scoped call → String::from("hi")
 __format__("x={}", x)    // Macro invocation → format!("x={}", x)
 @Foo.Bar.boo()           // Nested type path → Foo::Bar.boo()
+@Foo.BAR->boo()          // Type-scoped value + method → Foo::BAR.boo()
 ```
 
 The `@` prefix is exclusively for type-scoped calls, while double-underscores are exclusively for macros, eliminating any ambiguity.

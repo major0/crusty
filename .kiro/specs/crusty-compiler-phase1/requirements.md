@@ -166,7 +166,7 @@ This phase serves as an experimental platform to determine which C language feat
 7. THE example .crst files SHALL demonstrate function declarations (static and non-static)
 8. THE example .crst files SHALL demonstrate control flow (if/else-if/else, while, for loops, switch statements)
 9. THE example .crst files SHALL demonstrate struct definitions with methods
-10. THE example .crst files SHALL demonstrate type-scoped static method calls with @ prefix and -> notation
+10. THE example .crst files SHALL demonstrate type-scoped static method calls with @ prefix and dot notation
 11. THE example .crst files SHALL demonstrate macro usage with double-underscore naming (__println__, __vec__, etc.)
 12. THE example .crst files SHALL demonstrate #define macro definitions with double-underscore naming
 13. THE example .crst files SHALL demonstrate variable declarations (const, var, let, static)
@@ -506,22 +506,22 @@ This phase serves as an experimental platform to determine which C language feat
 4. THE Parser SHALL support methods with &var self or &mut self parameter for mutable instance methods
 5. THE Parser SHALL support static methods (associated functions) without self parameter
 6. THE Parser SHALL support method calls with dot notation (obj.method())
-7. THE Parser SHALL support static method calls with @ prefix and arrow or dot notation (@Type->method() or @Type.method())
+7. THE Parser SHALL support static method calls with @ prefix and dot notation (@Type.method())
 8. THE Parser SHALL support nested type paths with @ prefix and dot notation (@Foo.Bar.boo() matching Rust's Foo::Bar.boo())
 9. THE Parser SHALL require @ prefix for all type-scoped static method calls
 10. WHEN generating Rust code, THE Code_Generator SHALL translate struct methods to Rust impl blocks
 11. WHEN generating Rust code, THE Code_Generator SHALL translate self to Rust self
 12. WHEN generating Rust code, THE Code_Generator SHALL translate &self to Rust &self
 13. WHEN generating Rust code, THE Code_Generator SHALL translate &var self and &mut self to Rust &mut self
-14. WHEN generating Rust code, THE Code_Generator SHALL translate @Type->method() to Rust Type::method()
-15. WHEN generating Rust code, THE Code_Generator SHALL translate @Type.method() to Rust Type::method()
-16. WHEN generating Rust code, THE Code_Generator SHALL translate nested type paths @Foo.Bar.boo() to Rust Foo::Bar.boo()
+14. WHEN generating Rust code, THE Code_Generator SHALL translate @Type.method() to Rust Type::method()
+15. WHEN generating Rust code, THE Code_Generator SHALL translate nested type paths @Foo.Bar.boo() to Rust Foo::Bar.boo()
+16. WHEN generating Rust code, THE Code_Generator SHALL translate @Foo.BAR->boo() to Rust Foo::BAR.boo() (where BAR is a constant and boo() is a method call)
 17. THE Semantic_Analyzer SHALL verify method calls are made on appropriate types
 18. THE Semantic_Analyzer SHALL verify self is only used in instance methods
 19. THE Semantic_Analyzer SHALL require @ prefix for type-scoped static method calls
 20. THE Semantic_Analyzer SHALL reject type-scoped calls without @ prefix
 21. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust impl blocks to Crusty struct methods
-22. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust Type::method() to Crusty @Type->method() or @Type.method()
+22. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust Type::method() to Crusty @Type.method()
 23. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust nested type paths Foo::Bar.boo() to Crusty @Foo.Bar.boo()
 
 ### Requirement 23A: Support Implementation Blocks with typedef Syntax
@@ -550,10 +550,10 @@ This phase serves as an experimental platform to determine which C language feat
 13. THE Semantic_Analyzer SHALL verify that typedef default blocks contain a valid default() method
 
 **Named Implementation Blocks:**
-14. THE Parser SHALL support typedef struct with @Type->name syntax for named impl blocks (typedef struct { ... } @Type->foo;)
-15. WHEN typedef struct uses @Type->name syntax, THE Parser SHALL treat it as a named impl block
-16. THE Parser SHALL allow multiple typedef struct @Type->name blocks with different names for the same type
-17. WHEN generating Rust code, THE Code_Generator SHALL translate typedef struct @Type->foo to impl Type (combining all methods from all impl blocks)
+14. THE Parser SHALL support typedef struct with @Type.name syntax for named impl blocks (typedef struct { ... } @Type.foo;)
+15. WHEN typedef struct uses @Type.name syntax, THE Parser SHALL treat it as a named impl block
+16. THE Parser SHALL allow multiple typedef struct @Type.name blocks with different names for the same type
+17. WHEN generating Rust code, THE Code_Generator SHALL translate typedef struct @Type.foo to impl Type (combining all methods from all impl blocks)
 18. THE Semantic_Analyzer SHALL track multiple impl blocks for the same type
 
 **Syntax Examples:**
@@ -628,7 +628,7 @@ impl Point {
 19. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust impl Type blocks to Crusty typedef struct { ... } @Type
 20. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust impl Default for Type to Crusty typedef default { ... } @Type
 21. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust impl Trait for Type to appropriate Crusty syntax
-22. THE Code_Generator MAY use named impl blocks (@Type->name) to organize multiple impl blocks in reverse transpilation
+22. THE Code_Generator MAY use named impl blocks (@Type.name) to organize multiple impl blocks in reverse transpilation
 
 ### Requirement 24: Support Traits as C-Style VTable Structs
 
@@ -999,14 +999,14 @@ impl Point {
 11. THE Parser SHALL support nested generic type parameters using alternating parentheses and brackets (@Type(Inner[T]))
 12. THE Parser SHALL support multiple type parameters separated by commas (@Type(T1, T2))
 13. THE Parser SHALL require @ prefix for all type-scoped calls with or without explicit generic parameters
-14. THE Parser SHALL support omitting generic parameters when types can be fully inferred (@Type->method())
-15. THE Parser SHALL use arrow notation (->) to separate type names from method calls
+14. THE Parser SHALL support omitting generic parameters when types can be fully inferred (@Type.method())
+15. THE Parser SHALL use dot notation (.) after the type name for type-scoped access
 16. WHEN explicit generic parameters are specified, THE Parser SHALL use parentheses for the outermost level
 17. WHEN nested generic parameters are specified, THE Parser SHALL alternate between parentheses and brackets for each nesting level
 18. WHEN generating Rust code, THE Code_Generator SHALL translate parentheses/brackets syntax to Rust's angle bracket turbofish syntax (<>)
-19. WHEN generating Rust code, THE Code_Generator SHALL translate @Type(T)->method() to Type::<T>::method()
-20. WHEN generating Rust code, THE Code_Generator SHALL translate @Type(Inner[T])->method() to Type::<Inner<T>>::method()
-21. WHEN generating Rust code, THE Code_Generator SHALL translate @Type(T1, T2)->method() to Type::<T1, T2>::method()
+19. WHEN generating Rust code, THE Code_Generator SHALL translate @Type(T).method() to Type::<T>::method()
+20. WHEN generating Rust code, THE Code_Generator SHALL translate @Type(Inner[T]).method() to Type::<Inner<T>>::method()
+21. WHEN generating Rust code, THE Code_Generator SHALL translate @Type(T1, T2).method() to Type::<T1, T2>::method()
 22. WHEN generic parameters are omitted, THE Code_Generator SHALL omit the turbofish syntax and rely on Rust's type inference
 23. THE Semantic_Analyzer SHALL verify that parentheses and brackets alternate correctly in nested generics
 24. THE Semantic_Analyzer SHALL verify that the number of type parameters matches the generic type definition
