@@ -112,33 +112,65 @@ impl CodeGenerator {
         // Generate function signature
         self.write_indent();
         
-        // Visibility: static functions are private, non-static are public
-        match func.visibility {
-            Visibility::Public => self.write("pub "),
-            Visibility::Private => {}, // No keyword for private
-        }
+        match self.target {
+            TargetLanguage::Rust => {
+                // Rust syntax: pub fn name(params) -> return_type { }
+                match func.visibility {
+                    Visibility::Public => self.write("pub "),
+                    Visibility::Private => {}, // No keyword for private
+                }
 
-        self.write("fn ");
-        self.write(&func.name.name);
-        self.write("(");
+                self.write("fn ");
+                self.write(&func.name.name);
+                self.write("(");
 
-        // Parameters
-        for (i, param) in func.params.iter().enumerate() {
-            if i > 0 {
-                self.write(", ");
+                // Parameters
+                for (i, param) in func.params.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&param.name.name);
+                    self.write(": ");
+                    self.write(&self.generate_type_string(&param.ty));
+                }
+
+                self.write(")");
+
+                // Return type (void becomes no annotation)
+                if let Some(ref return_type) = func.return_type {
+                    if !matches!(return_type, Type::Primitive(PrimitiveType::Void)) {
+                        self.write(" -> ");
+                        self.write(&self.generate_type_string(return_type));
+                    }
+                }
             }
-            self.write(&param.name.name);
-            self.write(": ");
-            self.write(&self.generate_type_string(&param.ty));
-        }
+            TargetLanguage::Crusty => {
+                // Crusty syntax: static? return_type name(params) { }
+                if matches!(func.visibility, Visibility::Private) {
+                    self.write("static ");
+                }
 
-        self.write(")");
+                // Return type comes first in Crusty (C-style)
+                if let Some(ref return_type) = func.return_type {
+                    self.write(&self.generate_type_string(return_type));
+                } else {
+                    self.write("void");
+                }
+                self.write(" ");
+                self.write(&func.name.name);
+                self.write("(");
 
-        // Return type (void becomes no annotation)
-        if let Some(ref return_type) = func.return_type {
-            if !matches!(return_type, Type::Primitive(PrimitiveType::Void)) {
-                self.write(" -> ");
-                self.write(&self.generate_type_string(return_type));
+                // Parameters
+                for (i, param) in func.params.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.generate_type_string(&param.ty));
+                    self.write(" ");
+                    self.write(&param.name.name);
+                }
+
+                self.write(")");
             }
         }
 
@@ -289,45 +321,95 @@ impl CodeGenerator {
         match stmt {
             Statement::Let { name, ty, init, mutable } => {
                 self.write_indent();
-                self.write("let ");
-                if *mutable {
-                    self.write("mut ");
+                match self.target {
+                    TargetLanguage::Rust => {
+                        self.write("let ");
+                        if *mutable {
+                            self.write("mut ");
+                        }
+                        self.write(&name.name);
+                        if let Some(ref ty) = ty {
+                            self.write(": ");
+                            self.write(&self.generate_type_string(ty));
+                        }
+                        if let Some(ref init) = init {
+                            self.write(" = ");
+                            self.write(&self.generate_expression_string(init));
+                        }
+                        self.write(";\n");
+                    }
+                    TargetLanguage::Crusty => {
+                        // Crusty uses Rust-style let syntax (not C-style)
+                        self.write("let ");
+                        self.write(&name.name);
+                        if let Some(ref ty) = ty {
+                            self.write(": ");
+                            self.write(&self.generate_type_string(ty));
+                        }
+                        if let Some(ref init) = init {
+                            self.write(" = ");
+                            self.write(&self.generate_expression_string(init));
+                        }
+                        self.write(";\n");
+                    }
                 }
-                self.write(&name.name);
-                if let Some(ref ty) = ty {
-                    self.write(": ");
-                    self.write(&self.generate_type_string(ty));
-                }
-                if let Some(ref init) = init {
-                    self.write(" = ");
-                    self.write(&self.generate_expression_string(init));
-                }
-                self.write(";\n");
             }
             Statement::Var { name, ty, init } => {
-                // var is translated to let mut
                 self.write_indent();
-                self.write("let mut ");
-                self.write(&name.name);
-                if let Some(ref ty) = ty {
-                    self.write(": ");
-                    self.write(&self.generate_type_string(ty));
+                match self.target {
+                    TargetLanguage::Rust => {
+                        // var is translated to let mut
+                        self.write("let mut ");
+                        self.write(&name.name);
+                        if let Some(ref ty) = ty {
+                            self.write(": ");
+                            self.write(&self.generate_type_string(ty));
+                        }
+                        if let Some(ref init) = init {
+                            self.write(" = ");
+                            self.write(&self.generate_expression_string(init));
+                        }
+                        self.write(";\n");
+                    }
+                    TargetLanguage::Crusty => {
+                        // Crusty uses Rust-style var syntax
+                        self.write("var ");
+                        self.write(&name.name);
+                        if let Some(ref ty) = ty {
+                            self.write(": ");
+                            self.write(&self.generate_type_string(ty));
+                        }
+                        if let Some(ref init) = init {
+                            self.write(" = ");
+                            self.write(&self.generate_expression_string(init));
+                        }
+                        self.write(";\n");
+                    }
                 }
-                if let Some(ref init) = init {
-                    self.write(" = ");
-                    self.write(&self.generate_expression_string(init));
-                }
-                self.write(";\n");
             }
             Statement::Const { name, ty, value } => {
                 self.write_indent();
-                self.write("const ");
-                self.write(&name.name);
-                self.write(": ");
-                self.write(&self.generate_type_string(ty));
-                self.write(" = ");
-                self.write(&self.generate_expression_string(value));
-                self.write(";\n");
+                match self.target {
+                    TargetLanguage::Rust => {
+                        self.write("const ");
+                        self.write(&name.name);
+                        self.write(": ");
+                        self.write(&self.generate_type_string(ty));
+                        self.write(" = ");
+                        self.write(&self.generate_expression_string(value));
+                        self.write(";\n");
+                    }
+                    TargetLanguage::Crusty => {
+                        // Crusty uses Rust-style const syntax
+                        self.write("const ");
+                        self.write(&name.name);
+                        self.write(": ");
+                        self.write(&self.generate_type_string(ty));
+                        self.write(" = ");
+                        self.write(&self.generate_expression_string(value));
+                        self.write(";\n");
+                    }
+                }
             }
             Statement::Expr(expr) => {
                 self.write_indent();
@@ -346,7 +428,16 @@ impl CodeGenerator {
             Statement::If { condition, then_block, else_block } => {
                 self.write_indent();
                 self.write("if ");
-                self.write(&self.generate_expression_string(condition));
+                match self.target {
+                    TargetLanguage::Rust => {
+                        self.write(&self.generate_expression_string(condition));
+                    }
+                    TargetLanguage::Crusty => {
+                        self.write("(");
+                        self.write(&self.generate_expression_string(condition));
+                        self.write(")");
+                    }
+                }
                 self.write(" ");
                 self.generate_block(then_block);
                 if let Some(ref else_block) = else_block {
@@ -358,13 +449,31 @@ impl CodeGenerator {
             Statement::While { label, condition, body } => {
                 self.write_indent();
                 if let Some(ref label) = label {
-                    // Translate .label: to 'label:
-                    self.write("'");
-                    self.write(&label.name);
-                    self.write(": ");
+                    match self.target {
+                        TargetLanguage::Rust => {
+                            // Translate .label: to 'label:
+                            self.write("'");
+                            self.write(&label.name);
+                            self.write(": ");
+                        }
+                        TargetLanguage::Crusty => {
+                            self.write(".");
+                            self.write(&label.name);
+                            self.write(": ");
+                        }
+                    }
                 }
                 self.write("while ");
-                self.write(&self.generate_expression_string(condition));
+                match self.target {
+                    TargetLanguage::Rust => {
+                        self.write(&self.generate_expression_string(condition));
+                    }
+                    TargetLanguage::Crusty => {
+                        self.write("(");
+                        self.write(&self.generate_expression_string(condition));
+                        self.write(")");
+                    }
+                }
                 self.write(" ");
                 self.generate_block(body);
                 self.write("\n");
@@ -373,51 +482,112 @@ impl CodeGenerator {
                 // C-style for loop translates to Rust loop with break
                 self.write_indent();
                 if let Some(ref label) = label {
-                    self.write("'");
-                    self.write(&label.name);
-                    self.write(": ");
-                }
-                self.write("{\n");
-                self.indent();
-                
-                // Init statement
-                self.generate_statement(init);
-                
-                // Loop
-                self.write_indent();
-                self.write("loop {\n");
-                self.indent();
-                
-                // Condition check
-                self.write_indent();
-                self.write("if !(");
-                self.write(&self.generate_expression_string(condition));
-                self.write(") { break; }\n");
-                
-                // Body
-                for stmt in &body.statements {
-                    self.generate_statement(stmt);
+                    match self.target {
+                        TargetLanguage::Rust => {
+                            self.write("'");
+                            self.write(&label.name);
+                            self.write(": ");
+                        }
+                        TargetLanguage::Crusty => {
+                            self.write(".");
+                            self.write(&label.name);
+                            self.write(": ");
+                        }
+                    }
                 }
                 
-                // Increment
-                self.write_indent();
-                self.write(&self.generate_expression_string(increment));
-                self.write(";\n");
-                
-                self.dedent();
-                self.write_indent();
-                self.write("}\n");
-                
-                self.dedent();
-                self.write_indent();
-                self.write("}\n");
+                match self.target {
+                    TargetLanguage::Rust => {
+                        self.write("{\n");
+                        self.indent();
+                        
+                        // Init statement
+                        self.generate_statement(init);
+                        
+                        // Loop
+                        self.write_indent();
+                        self.write("loop {\n");
+                        self.indent();
+                        
+                        // Condition check
+                        self.write_indent();
+                        self.write("if !(");
+                        self.write(&self.generate_expression_string(condition));
+                        self.write(") { break; }\n");
+                        
+                        // Body
+                        for stmt in &body.statements {
+                            self.generate_statement(stmt);
+                        }
+                        
+                        // Increment
+                        self.write_indent();
+                        self.write(&self.generate_expression_string(increment));
+                        self.write(";\n");
+                        
+                        self.dedent();
+                        self.write_indent();
+                        self.write("}\n");
+                        
+                        self.dedent();
+                        self.write_indent();
+                        self.write("}\n");
+                    }
+                    TargetLanguage::Crusty => {
+                        self.write("for (");
+                        // Generate init inline (without newline)
+                        match init.as_ref() {
+                            Statement::Let { name, ty, init, .. } => {
+                                self.write("let ");
+                                if let Some(ref ty) = ty {
+                                    self.write(&self.generate_type_string(ty));
+                                    self.write(" ");
+                                }
+                                self.write(&name.name);
+                                if let Some(ref init) = init {
+                                    self.write(" = ");
+                                    self.write(&self.generate_expression_string(init));
+                                }
+                            }
+                            Statement::Var { name, ty, init } => {
+                                self.write("var ");
+                                if let Some(ref ty) = ty {
+                                    self.write(&self.generate_type_string(ty));
+                                    self.write(" ");
+                                }
+                                self.write(&name.name);
+                                if let Some(ref init) = init {
+                                    self.write(" = ");
+                                    self.write(&self.generate_expression_string(init));
+                                }
+                            }
+                            _ => {}
+                        }
+                        self.write("; ");
+                        self.write(&self.generate_expression_string(condition));
+                        self.write("; ");
+                        self.write(&self.generate_expression_string(increment));
+                        self.write(") ");
+                        self.generate_block(body);
+                        self.write("\n");
+                    }
+                }
             }
             Statement::ForIn { label, var, iter, body } => {
                 self.write_indent();
                 if let Some(ref label) = label {
-                    self.write("'");
-                    self.write(&label.name);
-                    self.write(": ");
+                    match self.target {
+                        TargetLanguage::Rust => {
+                            self.write("'");
+                            self.write(&label.name);
+                            self.write(": ");
+                        }
+                        TargetLanguage::Crusty => {
+                            self.write(".");
+                            self.write(&label.name);
+                            self.write(": ");
+                        }
+                    }
                 }
                 self.write("for ");
                 self.write(&var.name);
@@ -429,42 +599,85 @@ impl CodeGenerator {
             }
             Statement::Switch { expr, cases, default } => {
                 self.write_indent();
-                self.write("match ");
-                self.write(&self.generate_expression_string(expr));
-                self.write(" {\n");
-                self.indent();
-                
-                for case in cases {
-                    self.write_indent();
-                    for (i, value) in case.values.iter().enumerate() {
-                        if i > 0 {
-                            self.write(" | ");
+                match self.target {
+                    TargetLanguage::Rust => {
+                        self.write("match ");
+                        self.write(&self.generate_expression_string(expr));
+                        self.write(" {\n");
+                        self.indent();
+                        
+                        for case in cases {
+                            self.write_indent();
+                            for (i, value) in case.values.iter().enumerate() {
+                                if i > 0 {
+                                    self.write(" | ");
+                                }
+                                self.write(&self.generate_expression_string(value));
+                            }
+                            self.write(" => ");
+                            self.generate_block(&case.body);
+                            self.write(",\n");
                         }
-                        self.write(&self.generate_expression_string(value));
+                        
+                        if let Some(ref default) = default {
+                            self.write_indent();
+                            self.write("_ => ");
+                            self.generate_block(default);
+                            self.write(",\n");
+                        }
+                        
+                        self.dedent();
+                        self.write_indent();
+                        self.write("}\n");
                     }
-                    self.write(" => ");
-                    self.generate_block(&case.body);
-                    self.write(",\n");
+                    TargetLanguage::Crusty => {
+                        self.write("switch (");
+                        self.write(&self.generate_expression_string(expr));
+                        self.write(") {\n");
+                        self.indent();
+                        
+                        for case in cases {
+                            self.write_indent();
+                            self.write("case ");
+                            for (i, value) in case.values.iter().enumerate() {
+                                if i > 0 {
+                                    self.write(", ");
+                                }
+                                self.write(&self.generate_expression_string(value));
+                            }
+                            self.write(": ");
+                            self.generate_block(&case.body);
+                            self.write("\n");
+                        }
+                        
+                        if let Some(ref default) = default {
+                            self.write_indent();
+                            self.write("default: ");
+                            self.generate_block(default);
+                            self.write("\n");
+                        }
+                        
+                        self.dedent();
+                        self.write_indent();
+                        self.write("}\n");
+                    }
                 }
-                
-                if let Some(ref default) = default {
-                    self.write_indent();
-                    self.write("_ => ");
-                    self.generate_block(default);
-                    self.write(",\n");
-                }
-                
-                self.dedent();
-                self.write_indent();
-                self.write("}\n");
             }
             Statement::Break(label) => {
                 self.write_indent();
                 self.write("break");
                 if let Some(ref label) = label {
-                    // Translate break .label to break 'label
-                    self.write(" '");
-                    self.write(&label.name);
+                    match self.target {
+                        TargetLanguage::Rust => {
+                            // Translate break .label to break 'label
+                            self.write(" '");
+                            self.write(&label.name);
+                        }
+                        TargetLanguage::Crusty => {
+                            self.write(" .");
+                            self.write(&label.name);
+                        }
+                    }
                 }
                 self.write(";\n");
             }
@@ -472,9 +685,17 @@ impl CodeGenerator {
                 self.write_indent();
                 self.write("continue");
                 if let Some(ref label) = label {
-                    // Translate continue .label to continue 'label
-                    self.write(" '");
-                    self.write(&label.name);
+                    match self.target {
+                        TargetLanguage::Rust => {
+                            // Translate continue .label to continue 'label
+                            self.write(" '");
+                            self.write(&label.name);
+                        }
+                        TargetLanguage::Crusty => {
+                            self.write(" .");
+                            self.write(&label.name);
+                        }
+                    }
                 }
                 self.write(";\n");
             }
@@ -817,18 +1038,33 @@ impl CodeGenerator {
 
     /// Generate a primitive type as string
     fn generate_primitive_type_string(&self, prim: &PrimitiveType) -> String {
-        match prim {
-            PrimitiveType::Int => "i32".to_string(),
-            PrimitiveType::I32 => "i32".to_string(),
-            PrimitiveType::I64 => "i64".to_string(),
-            PrimitiveType::U32 => "u32".to_string(),
-            PrimitiveType::U64 => "u64".to_string(),
-            PrimitiveType::Float => "f64".to_string(),
-            PrimitiveType::F32 => "f32".to_string(),
-            PrimitiveType::F64 => "f64".to_string(),
-            PrimitiveType::Bool => "bool".to_string(),
-            PrimitiveType::Char => "char".to_string(),
-            PrimitiveType::Void => "()".to_string(),
+        match self.target {
+            TargetLanguage::Rust => match prim {
+                PrimitiveType::Int => "i32".to_string(),
+                PrimitiveType::I32 => "i32".to_string(),
+                PrimitiveType::I64 => "i64".to_string(),
+                PrimitiveType::U32 => "u32".to_string(),
+                PrimitiveType::U64 => "u64".to_string(),
+                PrimitiveType::Float => "f64".to_string(),
+                PrimitiveType::F32 => "f32".to_string(),
+                PrimitiveType::F64 => "f64".to_string(),
+                PrimitiveType::Bool => "bool".to_string(),
+                PrimitiveType::Char => "char".to_string(),
+                PrimitiveType::Void => "()".to_string(),
+            },
+            TargetLanguage::Crusty => match prim {
+                PrimitiveType::Int => "int".to_string(),
+                PrimitiveType::I32 => "i32".to_string(),
+                PrimitiveType::I64 => "i64".to_string(),
+                PrimitiveType::U32 => "u32".to_string(),
+                PrimitiveType::U64 => "u64".to_string(),
+                PrimitiveType::Float => "float".to_string(),
+                PrimitiveType::F32 => "f32".to_string(),
+                PrimitiveType::F64 => "f64".to_string(),
+                PrimitiveType::Bool => "bool".to_string(),
+                PrimitiveType::Char => "char".to_string(),
+                PrimitiveType::Void => "void".to_string(),
+            },
         }
     }
 }
