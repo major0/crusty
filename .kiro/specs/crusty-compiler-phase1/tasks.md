@@ -665,7 +665,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Translate @Type.method() calls to Rust Type::method()
     - _Requirements: 16.8, 16.9, 16.10, 16.11, 21.13_
   
-  - [ ]16.2 Add explicit generic parameter code generation
+  - [x]16.2 Add explicit generic parameter code generation
     - Translate parentheses syntax to Rust turbofish with angle brackets (Type(T) → Type::<T>)
     - Translate nested generics with alternating parentheses/brackets to nested angle brackets (Type(Inner[T]) → Type::<Inner<T>>)
     - Translate multiple type parameters (Type(T1, T2) → Type::<T1, T2>)
