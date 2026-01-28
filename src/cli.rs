@@ -251,40 +251,19 @@ pub fn run_compiler(options: &CompilerOptions) -> crate::error::Result<()> {
             println!("Invoking rustc...");
         }
 
-        let rustc_result = invoke_rustc(&rust_output_path, &output_path, options.verbose);
+        use crate::rustc;
+        let rustc_result = rustc::invoke_rustc(&rust_output_path, &output_path, options.verbose)
+            .map_err(|e| CompilerError::RustcInvocation(e))?;
 
-        if let Err(e) = rustc_result {
-            return Err(CompilerError::RustcInvocation(e));
+        if !rustc_result.is_success() {
+            return Err(CompilerError::RustcInvocation(
+                rustc_result.error_message().unwrap_or_else(|| "Unknown rustc error".to_string())
+            ));
         }
 
         if options.verbose {
             println!("Compilation successful: {:?}", output_path);
         }
-    }
-
-    Ok(())
-}
-
-/// Invoke rustc to compile generated Rust code
-fn invoke_rustc(
-    rust_file: &PathBuf,
-    output_binary: &PathBuf,
-    verbose: bool,
-) -> Result<(), String> {
-    use std::process::Command;
-
-    let mut cmd = Command::new("rustc");
-    cmd.arg(rust_file).arg("-o").arg(output_binary);
-
-    if verbose {
-        println!("Running: rustc {:?} -o {:?}", rust_file, output_binary);
-    }
-
-    let output = cmd.output().map_err(|e| format!("Failed to execute rustc: {}", e))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("rustc compilation failed:\n{}", stderr));
     }
 
     Ok(())

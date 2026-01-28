@@ -16,5 +16,8 @@ pub mod parser;
 pub mod pretty;
 #[cfg(test)]
 mod pretty_properties;
+pub mod rustc;
+#[cfg(test)]
+mod rustc_integration_tests;
 pub mod semantic;
 pub mod utils;
