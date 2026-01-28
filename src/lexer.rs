@@ -48,45 +48,45 @@ pub enum TokenKind {
     Void,
 
     // Operators
-    Plus,       // +
-    Minus,      // -
-    Star,       // *
-    Slash,      // /
-    Percent,    // %
-    Eq,         // ==
-    Ne,         // !=
-    Lt,         // <
-    Gt,         // >
-    Le,         // <=
-    Ge,         // >=
-    And,        // &&
-    Or,         // ||
-    Not,        // !
-    BitAnd,     // &
-    BitOr,      // |
-    BitXor,     // ^
-    BitNot,     // ~
-    Shl,        // <<
-    Shr,        // >>
-    Assign,     // =
-    PlusEq,     // +=
-    MinusEq,    // -=
-    StarEq,     // *=
-    SlashEq,    // /=
-    PercentEq,  // %=
-    AndEq,      // &=
-    OrEq,       // |=
-    XorEq,      // ^=
-    ShlEq,      // <<=
-    ShrEq,      // >>=
-    Inc,        // ++
-    Dec,        // --
-    Dot,        // .
-    Arrow,      // ->
-    DotDot,     // ..
-    DotDotEq,   // ..=
-    Question,   // ?
-    Colon,      // :
+    Plus,        // +
+    Minus,       // -
+    Star,        // *
+    Slash,       // /
+    Percent,     // %
+    Eq,          // ==
+    Ne,          // !=
+    Lt,          // <
+    Gt,          // >
+    Le,          // <=
+    Ge,          // >=
+    And,         // &&
+    Or,          // ||
+    Not,         // !
+    BitAnd,      // &
+    BitOr,       // |
+    BitXor,      // ^
+    BitNot,      // ~
+    Shl,         // <<
+    Shr,         // >>
+    Assign,      // =
+    PlusEq,      // +=
+    MinusEq,     // -=
+    StarEq,      // *=
+    SlashEq,     // /=
+    PercentEq,   // %=
+    AndEq,       // &=
+    OrEq,        // |=
+    XorEq,       // ^=
+    ShlEq,       // <<=
+    ShrEq,       // >>=
+    Inc,         // ++
+    Dec,         // --
+    Dot,         // .
+    Arrow,       // ->
+    DotDot,      // ..
+    DotDotEq,    // ..=
+    Question,    // ?
+    Colon,       // :
     DoubleColon, // ::
 
     // Delimiters
@@ -100,9 +100,9 @@ pub enum TokenKind {
     Semicolon, // ;
 
     // Special
-    Hash,  // #
-    Bang,  // !
-    At,    // @
+    Hash, // #
+    Bang, // !
+    At,   // @
 
     // Literals
     IntLiteral(String),
@@ -203,7 +203,7 @@ impl<'a> Lexer<'a> {
         // Skip //
         self.advance();
         self.advance();
-        
+
         while let Some(ch) = self.peek() {
             if ch == '\n' {
                 break;
@@ -243,7 +243,7 @@ impl<'a> Lexer<'a> {
 
     fn read_identifier(&mut self, start_pos: Position, first_char: char) -> Token {
         let start = self.position - first_char.len_utf8();
-        
+
         while let Some(ch) = self.peek() {
             if ch.is_alphanumeric() || ch == '_' {
                 self.advance();
@@ -313,7 +313,7 @@ impl<'a> Lexer<'a> {
                 // Peek ahead to see if there's a digit after the dot
                 // We need to look at the source directly without consuming
                 let dot_pos = self.position;
-                
+
                 // Check if there's a character after the dot and if it's a digit
                 if dot_pos + 1 < self.source.len() {
                     let next_char = self.source.as_bytes()[dot_pos + 1] as char;
@@ -644,15 +644,15 @@ impl<'a> Lexer<'a> {
             self.column,
             self.source[self.position..].to_string(),
         );
-        
+
         let token = self.next_token()?;
-        
+
         // Restore state
         self.position = saved_state.0;
         self.line = saved_state.1;
         self.column = saved_state.2;
         self.chars = self.source[self.position..].char_indices().peekable();
-        
+
         Ok(token)
     }
 }
@@ -665,7 +665,7 @@ mod tests {
     fn test_keywords() {
         let source = "let var const if else while for return";
         let mut lexer = Lexer::new(source);
-        
+
         assert_eq!(lexer.next_token().unwrap().kind, TokenKind::Let);
         assert_eq!(lexer.next_token().unwrap().kind, TokenKind::Var);
         assert_eq!(lexer.next_token().unwrap().kind, TokenKind::Const);
@@ -680,7 +680,7 @@ mod tests {
     fn test_operators() {
         let source = "+ - * / == != < > <= >= && ||";
         let mut lexer = Lexer::new(source);
-        
+
         assert_eq!(lexer.next_token().unwrap().kind, TokenKind::Plus);
         assert_eq!(lexer.next_token().unwrap().kind, TokenKind::Minus);
         assert_eq!(lexer.next_token().unwrap().kind, TokenKind::Star);
@@ -699,29 +699,44 @@ mod tests {
     fn test_identifiers() {
         let source = "foo bar_baz _private";
         let mut lexer = Lexer::new(source);
-        
-        assert!(matches!(lexer.next_token().unwrap().kind, TokenKind::Ident(_)));
-        assert!(matches!(lexer.next_token().unwrap().kind, TokenKind::Ident(_)));
-        assert!(matches!(lexer.next_token().unwrap().kind, TokenKind::Ident(_)));
+
+        assert!(matches!(
+            lexer.next_token().unwrap().kind,
+            TokenKind::Ident(_)
+        ));
+        assert!(matches!(
+            lexer.next_token().unwrap().kind,
+            TokenKind::Ident(_)
+        ));
+        assert!(matches!(
+            lexer.next_token().unwrap().kind,
+            TokenKind::Ident(_)
+        ));
     }
 
     #[test]
     fn test_numbers() {
         let source = "123 456.789";
         let mut lexer = Lexer::new(source);
-        
-        assert!(matches!(lexer.next_token().unwrap().kind, TokenKind::IntLiteral(_)));
-        assert!(matches!(lexer.next_token().unwrap().kind, TokenKind::FloatLiteral(_)));
+
+        assert!(matches!(
+            lexer.next_token().unwrap().kind,
+            TokenKind::IntLiteral(_)
+        ));
+        assert!(matches!(
+            lexer.next_token().unwrap().kind,
+            TokenKind::FloatLiteral(_)
+        ));
     }
 
     #[test]
     fn test_strings() {
         let source = r#""hello" "world\n""#;
         let mut lexer = Lexer::new(source);
-        
+
         let token1 = lexer.next_token().unwrap();
         assert!(matches!(token1.kind, TokenKind::StringLiteral(_)));
-        
+
         let token2 = lexer.next_token().unwrap();
         assert!(matches!(token2.kind, TokenKind::StringLiteral(_)));
     }
@@ -730,16 +745,19 @@ mod tests {
     fn test_comments() {
         let source = "// line comment\nint /* block comment */ main";
         let mut lexer = Lexer::new(source);
-        
+
         assert_eq!(lexer.next_token().unwrap().kind, TokenKind::Int);
-        assert_eq!(lexer.next_token().unwrap().kind, TokenKind::Ident("main".to_string()));
+        assert_eq!(
+            lexer.next_token().unwrap().kind,
+            TokenKind::Ident("main".to_string())
+        );
     }
 
     #[test]
     fn test_delimiters() {
         let source = "( ) { } [ ] , ;";
         let mut lexer = Lexer::new(source);
-        
+
         assert_eq!(lexer.next_token().unwrap().kind, TokenKind::LParen);
         assert_eq!(lexer.next_token().unwrap().kind, TokenKind::RParen);
         assert_eq!(lexer.next_token().unwrap().kind, TokenKind::LBrace);
@@ -754,7 +772,7 @@ mod tests {
     fn test_error_unterminated_string() {
         let source = r#""unterminated"#;
         let mut lexer = Lexer::new(source);
-        
+
         assert!(lexer.next_token().is_err());
     }
 
@@ -762,7 +780,7 @@ mod tests {
     fn test_error_invalid_character() {
         let source = "$invalid";
         let mut lexer = Lexer::new(source);
-        
+
         assert!(lexer.next_token().is_err());
     }
 }

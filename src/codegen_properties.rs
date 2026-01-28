@@ -15,13 +15,58 @@ mod tests {
             .prop_filter("Must not be a Rust keyword", |s| {
                 !matches!(
                     s.as_str(),
-                    "let" | "var" | "const" | "static" | "if" | "else" | "while" | "for" | "in" | "return"
-                        | "break" | "continue" | "fn" | "struct" | "enum" | "type" | "impl" | "trait"
-                        | "pub" | "use" | "mod" | "match" | "loop" | "as" | "mut" | "ref" | "self"
-                        | "Self" | "super" | "crate" | "extern" | "unsafe" | "where" | "async" | "await"
-                        | "dyn" | "move" | "true" | "false" | "do" | "box" | "yield" | "become"
-                        | "abstract" | "final" | "override" | "macro" | "priv" | "typeof" | "unsized"
-                        | "virtual" | "try"
+                    "let"
+                        | "var"
+                        | "const"
+                        | "static"
+                        | "if"
+                        | "else"
+                        | "while"
+                        | "for"
+                        | "in"
+                        | "return"
+                        | "break"
+                        | "continue"
+                        | "fn"
+                        | "struct"
+                        | "enum"
+                        | "type"
+                        | "impl"
+                        | "trait"
+                        | "pub"
+                        | "use"
+                        | "mod"
+                        | "match"
+                        | "loop"
+                        | "as"
+                        | "mut"
+                        | "ref"
+                        | "self"
+                        | "Self"
+                        | "super"
+                        | "crate"
+                        | "extern"
+                        | "unsafe"
+                        | "where"
+                        | "async"
+                        | "await"
+                        | "dyn"
+                        | "move"
+                        | "true"
+                        | "false"
+                        | "do"
+                        | "box"
+                        | "yield"
+                        | "become"
+                        | "abstract"
+                        | "final"
+                        | "override"
+                        | "macro"
+                        | "priv"
+                        | "typeof"
+                        | "unsized"
+                        | "virtual"
+                        | "try"
                 )
             })
             .prop_map(|s| Ident::new(s))
@@ -59,10 +104,7 @@ mod tests {
     }
 
     fn arb_visibility() -> impl Strategy<Value = Visibility> {
-        prop_oneof![
-            Just(Visibility::Public),
-            Just(Visibility::Private),
-        ]
+        prop_oneof![Just(Visibility::Public), Just(Visibility::Private),]
     }
 
     fn arb_simple_function() -> impl Strategy<Value = Function> {
@@ -80,36 +122,32 @@ mod tests {
     }
 
     fn arb_simple_struct() -> impl Strategy<Value = Struct> {
-        (arb_visibility(), arb_ident()).prop_map(|(vis, name)| {
-            Struct {
-                visibility: vis,
-                name,
-                fields: vec![],
-                methods: vec![],
-                doc_comments: vec![],
-                attributes: vec![],
-            }
+        (arb_visibility(), arb_ident()).prop_map(|(vis, name)| Struct {
+            visibility: vis,
+            name,
+            fields: vec![],
+            methods: vec![],
+            doc_comments: vec![],
+            attributes: vec![],
         })
     }
 
     fn arb_simple_enum() -> impl Strategy<Value = Enum> {
-        (arb_visibility(), arb_ident()).prop_map(|(vis, name)| {
-            Enum {
-                visibility: vis,
-                name,
-                variants: vec![
-                    EnumVariant {
-                        name: Ident::new("Variant1"),
-                        value: Some(0),
-                    },
-                    EnumVariant {
-                        name: Ident::new("Variant2"),
-                        value: Some(1),
-                    },
-                ],
-                doc_comments: vec![],
-                attributes: vec![],
-            }
+        (arb_visibility(), arb_ident()).prop_map(|(vis, name)| Enum {
+            visibility: vis,
+            name,
+            variants: vec![
+                EnumVariant {
+                    name: Ident::new("Variant1"),
+                    value: Some(0),
+                },
+                EnumVariant {
+                    name: Ident::new("Variant2"),
+                    value: Some(1),
+                },
+            ],
+            doc_comments: vec![],
+            attributes: vec![],
         })
     }
 
@@ -124,7 +162,7 @@ mod tests {
                 doc_comments: vec![],
             };
             let output = gen.generate(&file);
-            
+
             // The output should be parseable by syn
             let parse_result = syn::parse_file(&output);
             prop_assert!(parse_result.is_ok(), "Generated Rust code should be syntactically valid: {}", output);
@@ -139,7 +177,7 @@ mod tests {
             let gen = CodeGenerator::new(TargetLanguage::Rust);
             let expr = Expression::TupleLit { elements };
             let output = gen.generate_expression_string(&expr);
-            
+
             // Tuple syntax should be preserved (parentheses with comma-separated elements)
             prop_assert!(output.starts_with('('));
             prop_assert!(output.ends_with(')'));
@@ -150,7 +188,7 @@ mod tests {
             let gen = CodeGenerator::new(TargetLanguage::Rust);
             let expr = Expression::ArrayLit { elements };
             let output = gen.generate_expression_string(&expr);
-            
+
             // Array syntax should be preserved (brackets with comma-separated elements)
             prop_assert!(output.starts_with('['));
             prop_assert!(output.ends_with(']'));
@@ -183,7 +221,7 @@ mod tests {
                 doc_comments: vec![],
             };
             let output = gen.generate(&file);
-            
+
             // Should contain "let" keyword
             prop_assert!(output.contains("let "));
             // Should contain variable name
@@ -216,7 +254,7 @@ mod tests {
                 doc_comments: vec![],
             };
             let output = gen.generate(&file);
-            
+
             // var should translate to "let mut"
             prop_assert!(output.contains("let mut "));
             prop_assert!(output.contains(&name.name));
@@ -234,7 +272,7 @@ mod tests {
                 mutable,
             };
             let output = gen.generate_type_string(&ref_type);
-            
+
             // Should start with &
             prop_assert!(output.starts_with('&'));
             // If mutable, should contain "mut"
@@ -269,7 +307,7 @@ mod tests {
                 doc_comments: vec![],
             };
             let output = gen.generate(&file);
-            
+
             // Should translate .label to 'label
             prop_assert!(output.contains("break '"));
             prop_assert!(output.contains(&label.name));
@@ -293,7 +331,7 @@ mod tests {
                 doc_comments: vec![],
             };
             let output = gen.generate(&file);
-            
+
             // Should translate .label to 'label
             prop_assert!(output.contains("continue '"));
             prop_assert!(output.contains(&label.name));
@@ -321,7 +359,7 @@ mod tests {
                 doc_comments: vec![],
             };
             let output = gen.generate(&file);
-            
+
             // Should translate .label: to 'label:
             let expected = format!("'{}:", label.name);
             prop_assert!(output.contains(&expected));
@@ -338,7 +376,7 @@ mod tests {
                 doc_comments: vec![],
             };
             let output = gen.generate(&file);
-            
+
             // Should be parseable by syn
             let parse_result = syn::parse_file(&output);
             prop_assert!(parse_result.is_ok(), "Generated struct should be syntactically valid: {}", output);
@@ -352,7 +390,7 @@ mod tests {
                 doc_comments: vec![],
             };
             let output = gen.generate(&file);
-            
+
             // Should be parseable by syn
             let parse_result = syn::parse_file(&output);
             prop_assert!(parse_result.is_ok(), "Generated enum should be syntactically valid: {}", output);

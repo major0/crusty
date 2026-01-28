@@ -22,7 +22,7 @@ mod tests {
         "#;
         let mut parser = Parser::new(source).unwrap();
         let file = parser.parse_file().unwrap();
-        
+
         assert_eq!(file.items.len(), 1);
         match &file.items[0] {
             Item::Struct(s) => {
@@ -46,7 +46,7 @@ mod tests {
         "#;
         let mut parser = Parser::new(source).unwrap();
         let file = parser.parse_file().unwrap();
-        
+
         match &file.items[0] {
             Item::Struct(s) => {
                 assert_eq!(s.methods.len(), 1);
@@ -61,16 +61,14 @@ mod tests {
         let source = "int main() { return @Vec.new(); }";
         let mut parser = Parser::new(source).unwrap();
         let file = parser.parse_file().unwrap();
-        
+
         match &file.items[0] {
-            Item::Function(func) => {
-                match &func.body.statements[0] {
-                    Statement::Return(Some(expr)) => {
-                        assert!(matches!(expr, Expression::TypeScopedCall { .. }));
-                    }
-                    _ => panic!("Expected return statement"),
+            Item::Function(func) => match &func.body.statements[0] {
+                Statement::Return(Some(expr)) => {
+                    assert!(matches!(expr, Expression::TypeScopedCall { .. }));
                 }
-            }
+                _ => panic!("Expected return statement"),
+            },
             _ => panic!("Expected function"),
         }
     }
@@ -80,22 +78,23 @@ mod tests {
         let source = "int main() { return @Vec(i32).new(); }";
         let mut parser = Parser::new(source).unwrap();
         let file = parser.parse_file().unwrap();
-        
+
         match &file.items[0] {
-            Item::Function(func) => {
-                match &func.body.statements[0] {
-                    Statement::Return(Some(expr)) => {
-                        match expr {
-                            Expression::ExplicitGenericCall { ty, generics, method, .. } => {
-                                assert_eq!(method.name, "new");
-                                assert_eq!(generics.len(), 1);
-                            }
-                            _ => panic!("Expected ExplicitGenericCall"),
-                        }
+            Item::Function(func) => match &func.body.statements[0] {
+                Statement::Return(Some(expr)) => match expr {
+                    Expression::ExplicitGenericCall {
+                        ty,
+                        generics,
+                        method,
+                        ..
+                    } => {
+                        assert_eq!(method.name, "new");
+                        assert_eq!(generics.len(), 1);
                     }
-                    _ => panic!("Expected return statement"),
-                }
-            }
+                    _ => panic!("Expected ExplicitGenericCall"),
+                },
+                _ => panic!("Expected return statement"),
+            },
             _ => panic!("Expected function"),
         }
     }
@@ -105,7 +104,7 @@ mod tests {
         let source = "int main() { return @Option(Result[String, Error]).None; }";
         let mut parser = Parser::new(source).unwrap();
         let file = parser.parse_file().unwrap();
-        
+
         match &file.items[0] {
             Item::Function(func) => {
                 match &func.body.statements[0] {
@@ -141,7 +140,7 @@ mod tests {
         "#;
         let mut parser = Parser::new(source).unwrap();
         let file = parser.parse_file().unwrap();
-        
+
         match &file.items[0] {
             Item::Struct(s) => {
                 assert_eq!(s.attributes.len(), 1);
@@ -161,7 +160,7 @@ mod tests {
         "#;
         let mut parser = Parser::new(source).unwrap();
         let file = parser.parse_file().unwrap();
-        
+
         match &file.items[0] {
             Item::Function(func) => {
                 assert_eq!(func.attributes.len(), 2);
@@ -177,21 +176,17 @@ mod tests {
         let source = "int main() { println!(\"hello\"); }";
         let mut parser = Parser::new(source).unwrap();
         let file = parser.parse_file().unwrap();
-        
+
         match &file.items[0] {
-            Item::Function(func) => {
-                match &func.body.statements[0] {
-                    Statement::Expr(expr) => {
-                        match expr {
-                            Expression::MacroCall { name, .. } => {
-                                assert_eq!(name.name, "println");
-                            }
-                            _ => panic!("Expected macro call"),
-                        }
+            Item::Function(func) => match &func.body.statements[0] {
+                Statement::Expr(expr) => match expr {
+                    Expression::MacroCall { name, .. } => {
+                        assert_eq!(name.name, "println");
                     }
-                    _ => panic!("Expected expression statement"),
-                }
-            }
+                    _ => panic!("Expected macro call"),
+                },
+                _ => panic!("Expected expression statement"),
+            },
             _ => panic!("Expected function"),
         }
     }
@@ -201,21 +196,19 @@ mod tests {
         let source = "int main() { let arr = [1, 2, 3]; }";
         let mut parser = Parser::new(source).unwrap();
         let file = parser.parse_file().unwrap();
-        
+
         match &file.items[0] {
-            Item::Function(func) => {
-                match &func.body.statements[0] {
-                    Statement::Let { init: Some(expr), .. } => {
-                        match expr {
-                            Expression::ArrayLit { elements } => {
-                                assert_eq!(elements.len(), 3);
-                            }
-                            _ => panic!("Expected array literal"),
-                        }
+            Item::Function(func) => match &func.body.statements[0] {
+                Statement::Let {
+                    init: Some(expr), ..
+                } => match expr {
+                    Expression::ArrayLit { elements } => {
+                        assert_eq!(elements.len(), 3);
                     }
-                    _ => panic!("Expected let statement"),
-                }
-            }
+                    _ => panic!("Expected array literal"),
+                },
+                _ => panic!("Expected let statement"),
+            },
             _ => panic!("Expected function"),
         }
     }
@@ -225,21 +218,19 @@ mod tests {
         let source = "int main() { let t = (1, 2, 3); }";
         let mut parser = Parser::new(source).unwrap();
         let file = parser.parse_file().unwrap();
-        
+
         match &file.items[0] {
-            Item::Function(func) => {
-                match &func.body.statements[0] {
-                    Statement::Let { init: Some(expr), .. } => {
-                        match expr {
-                            Expression::TupleLit { elements } => {
-                                assert_eq!(elements.len(), 3);
-                            }
-                            _ => panic!("Expected tuple literal"),
-                        }
+            Item::Function(func) => match &func.body.statements[0] {
+                Statement::Let {
+                    init: Some(expr), ..
+                } => match expr {
+                    Expression::TupleLit { elements } => {
+                        assert_eq!(elements.len(), 3);
                     }
-                    _ => panic!("Expected let statement"),
-                }
-            }
+                    _ => panic!("Expected tuple literal"),
+                },
+                _ => panic!("Expected let statement"),
+            },
             _ => panic!("Expected function"),
         }
     }
@@ -249,21 +240,17 @@ mod tests {
         let source = "int main() { return t.0; }";
         let mut parser = Parser::new(source).unwrap();
         let file = parser.parse_file().unwrap();
-        
+
         match &file.items[0] {
-            Item::Function(func) => {
-                match &func.body.statements[0] {
-                    Statement::Return(Some(expr)) => {
-                        match expr {
-                            Expression::FieldAccess { field, .. } => {
-                                assert_eq!(field.name, "0");
-                            }
-                            _ => panic!("Expected field access"),
-                        }
+            Item::Function(func) => match &func.body.statements[0] {
+                Statement::Return(Some(expr)) => match expr {
+                    Expression::FieldAccess { field, .. } => {
+                        assert_eq!(field.name, "0");
                     }
-                    _ => panic!("Expected return statement"),
-                }
-            }
+                    _ => panic!("Expected field access"),
+                },
+                _ => panic!("Expected return statement"),
+            },
             _ => panic!("Expected function"),
         }
     }
@@ -273,28 +260,28 @@ mod tests {
         let source = "int main() { let r = arr[0..5]; }";
         let mut parser = Parser::new(source).unwrap();
         let file = parser.parse_file().unwrap();
-        
+
         match &file.items[0] {
-            Item::Function(func) => {
-                match &func.body.statements[0] {
-                    Statement::Let { init: Some(expr), .. } => {
-                        match expr {
-                            Expression::Index { index, .. } => {
-                                match &**index {
-                                    Expression::Range { start, end, inclusive } => {
-                                        assert!(start.is_some());
-                                        assert!(end.is_some());
-                                        assert!(!inclusive);
-                                    }
-                                    _ => panic!("Expected range expression"),
-                                }
-                            }
-                            _ => panic!("Expected index expression"),
+            Item::Function(func) => match &func.body.statements[0] {
+                Statement::Let {
+                    init: Some(expr), ..
+                } => match expr {
+                    Expression::Index { index, .. } => match &**index {
+                        Expression::Range {
+                            start,
+                            end,
+                            inclusive,
+                        } => {
+                            assert!(start.is_some());
+                            assert!(end.is_some());
+                            assert!(!inclusive);
                         }
-                    }
-                    _ => panic!("Expected let statement"),
-                }
-            }
+                        _ => panic!("Expected range expression"),
+                    },
+                    _ => panic!("Expected index expression"),
+                },
+                _ => panic!("Expected let statement"),
+            },
             _ => panic!("Expected function"),
         }
     }
@@ -304,26 +291,22 @@ mod tests {
         let source = "int main() { let r = arr[0..=5]; }";
         let mut parser = Parser::new(source).unwrap();
         let file = parser.parse_file().unwrap();
-        
+
         match &file.items[0] {
-            Item::Function(func) => {
-                match &func.body.statements[0] {
-                    Statement::Let { init: Some(expr), .. } => {
-                        match expr {
-                            Expression::Index { index, .. } => {
-                                match &**index {
-                                    Expression::Range { inclusive, .. } => {
-                                        assert!(*inclusive);
-                                    }
-                                    _ => panic!("Expected range expression"),
-                                }
-                            }
-                            _ => panic!("Expected index expression"),
+            Item::Function(func) => match &func.body.statements[0] {
+                Statement::Let {
+                    init: Some(expr), ..
+                } => match expr {
+                    Expression::Index { index, .. } => match &**index {
+                        Expression::Range { inclusive, .. } => {
+                            assert!(*inclusive);
                         }
-                    }
-                    _ => panic!("Expected let statement"),
-                }
-            }
+                        _ => panic!("Expected range expression"),
+                    },
+                    _ => panic!("Expected index expression"),
+                },
+                _ => panic!("Expected let statement"),
+            },
             _ => panic!("Expected function"),
         }
     }

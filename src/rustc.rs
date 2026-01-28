@@ -38,7 +38,9 @@ impl RustcResult {
         } else {
             Some(format!(
                 "rustc compilation failed (exit code: {}):\n{}",
-                self.exit_code.map(|c| c.to_string()).unwrap_or_else(|| "unknown".to_string()),
+                self.exit_code
+                    .map(|c| c.to_string())
+                    .unwrap_or_else(|| "unknown".to_string()),
                 self.stderr
             ))
         }
@@ -96,7 +98,9 @@ impl RustcError {
     fn parse_from_line(line: &str) -> Self {
         // Try to extract error code like "error[E0425]:"
         let error_code = if let Some(start) = line.find("error[") {
-            line[start..].find(']').map(|end| line[start + 6..start + end].to_string())
+            line[start..]
+                .find(']')
+                .map(|end| line[start + 6..start + end].to_string())
         } else {
             None
         };
@@ -304,7 +308,8 @@ mod tests {
         let output = Output {
             status: create_exit_status(256),
             stdout: b"".to_vec(),
-            stderr: b"error[E0425]: cannot find value `x` in this scope\nerror: expected `;`".to_vec(),
+            stderr: b"error[E0425]: cannot find value `x` in this scope\nerror: expected `;`"
+                .to_vec(),
         };
 
         let result = RustcResult::from_output(output);
@@ -423,7 +428,7 @@ fn main() {
             } else {
                 // Expected: compilation failed
                 assert!(rustc_result.error_message().is_some());
-                
+
                 // Parse errors and verify we got error information
                 let errors = rustc_result.parse_errors();
                 assert!(!errors.is_empty());

@@ -28,8 +28,8 @@ impl PrettyPrinter {
     /// Format Rust code using prettyplease
     fn format_rust(&self, code: &str) -> Result<String, String> {
         // Parse the Rust code into a syn AST
-        let syntax_tree = syn::parse_file(code)
-            .map_err(|e| format!("Failed to parse Rust code: {}", e))?;
+        let syntax_tree =
+            syn::parse_file(code).map_err(|e| format!("Failed to parse Rust code: {}", e))?;
 
         // Use prettyplease to format the AST
         let formatted = prettyplease::unparse(&syntax_tree);
@@ -41,10 +41,11 @@ impl PrettyPrinter {
     fn format_crusty(&self, code: &str) -> Result<String, String> {
         // Parse the Crusty code into an AST
         use crate::parser::Parser;
-        
-        let mut parser = Parser::new(code)
-            .map_err(|e| format!("Failed to create parser: {:?}", e))?;
-        let file = parser.parse_file()
+
+        let mut parser =
+            Parser::new(code).map_err(|e| format!("Failed to create parser: {:?}", e))?;
+        let file = parser
+            .parse_file()
             .map_err(|e| format!("Failed to parse Crusty code: {:?}", e))?;
 
         // Regenerate Crusty code from AST with proper formatting
@@ -133,7 +134,7 @@ return a+b;
             return_type: None,
             body: Block::empty(),
             doc_comments: vec![],
-        attributes: vec![],
+            attributes: vec![],
         };
         let file = File {
             items: vec![Item::Function(func)],

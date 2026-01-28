@@ -186,13 +186,23 @@ pub fn run_compiler(options: &CompilerOptions) -> crate::error::Result<()> {
 
     if options.verbose {
         println!("Compiling: {:?}", options.input_file);
-        println!("Source language: {:?} ({})", 
+        println!(
+            "Source language: {:?} ({})",
             source_lang,
-            if options.absorb.is_some() { "explicit" } else { "auto-detected" }
+            if options.absorb.is_some() {
+                "explicit"
+            } else {
+                "auto-detected"
+            }
         );
-        println!("Emit mode: {:?} ({})",
+        println!(
+            "Emit mode: {:?} ({})",
             emit_mode,
-            if options.emit == EmitMode::Auto { "auto-detected" } else { "explicit" }
+            if options.emit == EmitMode::Auto {
+                "auto-detected"
+            } else {
+                "explicit"
+            }
         );
         if let Some(ref out_dir) = options.out_dir {
             println!("Output directory: {:?}", out_dir);
@@ -212,13 +222,20 @@ pub fn run_compiler(options: &CompilerOptions) -> crate::error::Result<()> {
 /// Run compilation for a single source file
 fn run_single_file_compilation(options: &CompilerOptions) -> crate::error::Result<()> {
     // For single file mode, use the file's parent directory as base
-    let base_dir = options.input_file.parent().unwrap_or(std::path::Path::new(".")).to_path_buf();
+    let base_dir = options
+        .input_file
+        .parent()
+        .unwrap_or(std::path::Path::new("."))
+        .to_path_buf();
     run_single_file_compilation_with_base(options, &base_dir)
 }
 
 /// Run compilation for a single source file with a specified base directory
 /// The base_dir is used to preserve directory structure when using --out-dir
-fn run_single_file_compilation_with_base(options: &CompilerOptions, base_dir: &Path) -> crate::error::Result<()> {
+fn run_single_file_compilation_with_base(
+    options: &CompilerOptions,
+    base_dir: &Path,
+) -> crate::error::Result<()> {
     use crate::ast::File;
     use crate::codegen::{CodeGenerator, TargetLanguage};
     use crate::error::CompilerError;
@@ -306,7 +323,10 @@ fn run_single_file_compilation_with_base(options: &CompilerOptions, base_dir: &P
         // For binary mode, write to a temporary .rs file
         PathBuf::from(format!(
             "{}.rs",
-            output_path.file_stem().and_then(|s| s.to_str()).unwrap_or("output")
+            output_path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("output")
         ))
     } else {
         output_path.clone()
@@ -330,7 +350,9 @@ fn run_single_file_compilation_with_base(options: &CompilerOptions, base_dir: &P
 
         if !rustc_result.is_success() {
             return Err(CompilerError::RustcInvocation(
-                rustc_result.error_message().unwrap_or_else(|| "Unknown rustc error".to_string())
+                rustc_result
+                    .error_message()
+                    .unwrap_or_else(|| "Unknown rustc error".to_string()),
             ));
         }
 
@@ -367,7 +389,10 @@ fn run_batch_compilation(options: &CompilerOptions) -> crate::error::Result<()> 
     if source_files.is_empty() {
         return Err(CompilerError::Io(std::io::Error::new(
             std::io::ErrorKind::NotFound,
-            format!("No .{} files found in directory: {:?}", extension, options.input_file),
+            format!(
+                "No .{} files found in directory: {:?}",
+                extension, options.input_file
+            ),
         )));
     }
 
@@ -445,7 +470,11 @@ fn discover_source_files(dir: &PathBuf, extension: &str) -> Result<Vec<PathBuf>,
 
     let mut files = Vec::new();
 
-    fn visit_dir(dir: &PathBuf, extension: &str, files: &mut Vec<PathBuf>) -> Result<(), std::io::Error> {
+    fn visit_dir(
+        dir: &PathBuf,
+        extension: &str,
+        files: &mut Vec<PathBuf>,
+    ) -> Result<(), std::io::Error> {
         if dir.is_dir() {
             for entry in fs::read_dir(dir)? {
                 let entry = entry?;
@@ -833,7 +862,7 @@ int add(int a, int b) {
 "#;
         let input_path = PathBuf::from("test_outdir_12345.crst");
         let out_dir = PathBuf::from("test_output_dir_12345");
-        
+
         fs::write(&input_path, test_source).unwrap();
 
         let options = CompilerOptions {
@@ -850,7 +879,7 @@ int add(int a, int b) {
 
         // Check that output directory was created
         assert!(out_dir.exists());
-        
+
         // Check that output file exists in the output directory
         let expected_output = out_dir.join("test_outdir_12345.rs");
         assert!(expected_output.exists());
@@ -889,7 +918,7 @@ int add(int a, int b) {
         // Create a temporary directory structure
         let test_dir = PathBuf::from("test_discover_12345");
         fs::create_dir_all(test_dir.join("subdir")).unwrap();
-        
+
         // Create some test files
         fs::write(test_dir.join("file1.crst"), "").unwrap();
         fs::write(test_dir.join("file2.crst"), "").unwrap();
@@ -916,9 +945,9 @@ int add(int a, int b) {
         // Create a temporary directory with multiple source files
         let test_dir = PathBuf::from("test_batch_12345");
         let out_dir = PathBuf::from("test_batch_output_12345");
-        
+
         fs::create_dir_all(&test_dir).unwrap();
-        
+
         let source1 = r#"
 int add(int a, int b) {
     return a + b;
@@ -929,7 +958,7 @@ int multiply(int a, int b) {
     return a * b;
 }
 "#;
-        
+
         fs::write(test_dir.join("file1.crst"), source1).unwrap();
         fs::write(test_dir.join("file2.crst"), source2).unwrap();
 

@@ -12,19 +12,63 @@ use proptest::prelude::*;
 /// Generate a simple valid function for testing
 fn arb_simple_function() -> impl Strategy<Value = Function> {
     // Avoid Rust/Crusty keywords
-    let valid_ident = "[a-z][a-z0-9_]{0,10}"
-        .prop_filter("Must not be a keyword", |s| {
-            !matches!(
-                s.as_str(),
-                "let" | "var" | "const" | "static" | "if" | "else" | "while" | "for" | "in" | "return"
-                    | "break" | "continue" | "fn" | "struct" | "enum" | "type" | "impl" | "trait"
-                    | "pub" | "use" | "mod" | "match" | "loop" | "as" | "mut" | "ref" | "self"
-                    | "Self" | "super" | "crate" | "extern" | "unsafe" | "where" | "async" | "await"
-                    | "dyn" | "move" | "true" | "false" | "do" | "box" | "yield" | "become"
-                    | "abstract" | "final" | "override" | "macro" | "priv" | "typeof" | "unsized"
-                    | "virtual" | "try"
-            )
-        });
+    let valid_ident = "[a-z][a-z0-9_]{0,10}".prop_filter("Must not be a keyword", |s| {
+        !matches!(
+            s.as_str(),
+            "let"
+                | "var"
+                | "const"
+                | "static"
+                | "if"
+                | "else"
+                | "while"
+                | "for"
+                | "in"
+                | "return"
+                | "break"
+                | "continue"
+                | "fn"
+                | "struct"
+                | "enum"
+                | "type"
+                | "impl"
+                | "trait"
+                | "pub"
+                | "use"
+                | "mod"
+                | "match"
+                | "loop"
+                | "as"
+                | "mut"
+                | "ref"
+                | "self"
+                | "Self"
+                | "super"
+                | "crate"
+                | "extern"
+                | "unsafe"
+                | "where"
+                | "async"
+                | "await"
+                | "dyn"
+                | "move"
+                | "true"
+                | "false"
+                | "do"
+                | "box"
+                | "yield"
+                | "become"
+                | "abstract"
+                | "final"
+                | "override"
+                | "macro"
+                | "priv"
+                | "typeof"
+                | "unsized"
+                | "virtual"
+                | "try"
+        )
+    });
 
     (
         prop::bool::ANY,
@@ -42,30 +86,76 @@ fn arb_simple_function() -> impl Strategy<Value = Function> {
             return_type: Some(Type::Primitive(PrimitiveType::Int)),
             body: Block::new(statements),
             doc_comments: vec![],
-        attributes: vec![],
+            attributes: vec![],
         })
 }
 
 /// Generate a simple valid statement for testing
 fn arb_simple_statement() -> impl Strategy<Value = Statement> {
     // Avoid Rust/Crusty keywords
-    let valid_ident = "[a-z][a-z0-9_]{0,10}"
-        .prop_filter("Must not be a keyword", |s| {
-            !matches!(
-                s.as_str(),
-                "let" | "var" | "const" | "static" | "if" | "else" | "while" | "for" | "in" | "return"
-                    | "break" | "continue" | "fn" | "struct" | "enum" | "type" | "impl" | "trait"
-                    | "pub" | "use" | "mod" | "match" | "loop" | "as" | "mut" | "ref" | "self"
-                    | "Self" | "super" | "crate" | "extern" | "unsafe" | "where" | "async" | "await"
-                    | "dyn" | "move" | "true" | "false" | "do" | "box" | "yield" | "become"
-                    | "abstract" | "final" | "override" | "macro" | "priv" | "typeof" | "unsized"
-                    | "virtual" | "try"
-            )
-        });
+    let valid_ident = "[a-z][a-z0-9_]{0,10}".prop_filter("Must not be a keyword", |s| {
+        !matches!(
+            s.as_str(),
+            "let"
+                | "var"
+                | "const"
+                | "static"
+                | "if"
+                | "else"
+                | "while"
+                | "for"
+                | "in"
+                | "return"
+                | "break"
+                | "continue"
+                | "fn"
+                | "struct"
+                | "enum"
+                | "type"
+                | "impl"
+                | "trait"
+                | "pub"
+                | "use"
+                | "mod"
+                | "match"
+                | "loop"
+                | "as"
+                | "mut"
+                | "ref"
+                | "self"
+                | "Self"
+                | "super"
+                | "crate"
+                | "extern"
+                | "unsafe"
+                | "where"
+                | "async"
+                | "await"
+                | "dyn"
+                | "move"
+                | "true"
+                | "false"
+                | "do"
+                | "box"
+                | "yield"
+                | "become"
+                | "abstract"
+                | "final"
+                | "override"
+                | "macro"
+                | "priv"
+                | "typeof"
+                | "unsized"
+                | "virtual"
+                | "try"
+        )
+    });
 
     prop_oneof![
         // Return statement with literal
-        Just(Statement::Return(Some(Expression::Literal(Literal::Int(0))))),
+        Just(Statement::Return(Some(Expression::Literal(Literal::Int(
+            0
+        ))))),
         // Return statement without value
         Just(Statement::Return(None)),
         // Let statement with initialization
@@ -118,15 +208,15 @@ proptest! {
             .and_then(|mut parser| parser.parse_file());
 
         // The parse should succeed
-        prop_assert!(parse_result.is_ok(), 
-            "Failed to parse generated Crusty code:\n{}\nError: {:?}", 
+        prop_assert!(parse_result.is_ok(),
+            "Failed to parse generated Crusty code:\n{}\nError: {:?}",
             crusty_code, parse_result.err());
 
         let parsed_file = parse_result.unwrap();
 
         // The parsed AST should have the same structure as the original
         // (We compare the number of items and their types as a basic check)
-        prop_assert_eq!(file.items.len(), parsed_file.items.len(), 
+        prop_assert_eq!(file.items.len(), parsed_file.items.len(),
             "Number of items should match. Generated code:\n{}", crusty_code);
 
         // Check that each item is of the same type
@@ -164,9 +254,9 @@ proptest! {
 
         // Format again - should be idempotent
         let formatted_again = printer.format(&formatted).expect("Failed to format Rust code again");
-        
+
         // Formatting should be idempotent (formatting formatted code produces the same result)
-        prop_assert_eq!(formatted, formatted_again, 
+        prop_assert_eq!(formatted, formatted_again,
             "Formatting should be idempotent");
     }
 }

@@ -160,7 +160,7 @@ impl TypeEnvironment {
         let mut env = Self {
             types: HashMap::new(),
         };
-        
+
         // Register primitive types
         env.register_type(
             "int".to_string(),
@@ -206,7 +206,7 @@ impl TypeEnvironment {
             "void".to_string(),
             TypeInfo::new("void".to_string(), TypeKind::Primitive),
         );
-        
+
         env
     }
 
@@ -223,67 +223,99 @@ impl TypeEnvironment {
     /// Check if two types are compatible
     pub fn is_compatible(&self, t1: &Type, t2: &Type) -> bool {
         use crate::ast::PrimitiveType;
-        
+
         match (t1, t2) {
             // Auto type is compatible with anything
             (Type::Auto, _) | (_, Type::Auto) => true,
-            
+
             // Numeric type compatibility (int can be used as i32, etc.)
             (Type::Primitive(PrimitiveType::Int), Type::Primitive(PrimitiveType::I32)) => true,
             (Type::Primitive(PrimitiveType::I32), Type::Primitive(PrimitiveType::Int)) => true,
             (Type::Primitive(PrimitiveType::Float), Type::Primitive(PrimitiveType::F64)) => true,
             (Type::Primitive(PrimitiveType::F64), Type::Primitive(PrimitiveType::Float)) => true,
-            
+
             // Exact match for primitives
             (Type::Primitive(p1), Type::Primitive(p2)) => p1 == p2,
             (Type::Ident(i1), Type::Ident(i2)) => i1.name == i2.name,
-            
+
             // Pointer compatibility
-            (Type::Pointer { ty: ty1, mutable: m1 }, Type::Pointer { ty: ty2, mutable: m2 }) => {
-                m1 == m2 && self.is_compatible(ty1, ty2)
-            }
-            
+            (
+                Type::Pointer {
+                    ty: ty1,
+                    mutable: m1,
+                },
+                Type::Pointer {
+                    ty: ty2,
+                    mutable: m2,
+                },
+            ) => m1 == m2 && self.is_compatible(ty1, ty2),
+
             // Reference compatibility
-            (Type::Reference { ty: ty1, mutable: m1 }, Type::Reference { ty: ty2, mutable: m2 }) => {
+            (
+                Type::Reference {
+                    ty: ty1,
+                    mutable: m1,
+                },
+                Type::Reference {
+                    ty: ty2,
+                    mutable: m2,
+                },
+            ) => {
                 // Immutable reference can be created from mutable, but not vice versa
                 (*m1 || !*m2) && self.is_compatible(ty1, ty2)
             }
-            
+
             // Array compatibility
             (Type::Array { ty: ty1, size: s1 }, Type::Array { ty: ty2, size: s2 }) => {
                 s1 == s2 && self.is_compatible(ty1, ty2)
             }
-            
+
             // Slice compatibility
-            (Type::Slice { ty: ty1 }, Type::Slice { ty: ty2 }) => {
-                self.is_compatible(ty1, ty2)
-            }
-            
+            (Type::Slice { ty: ty1 }, Type::Slice { ty: ty2 }) => self.is_compatible(ty1, ty2),
+
             // Tuple compatibility
             (Type::Tuple { types: types1 }, Type::Tuple { types: types2 }) => {
                 types1.len() == types2.len()
-                    && types1.iter().zip(types2.iter()).all(|(t1, t2)| self.is_compatible(t1, t2))
+                    && types1
+                        .iter()
+                        .zip(types2.iter())
+                        .all(|(t1, t2)| self.is_compatible(t1, t2))
             }
-            
+
             // Generic compatibility
             (Type::Generic { base: b1, args: a1 }, Type::Generic { base: b2, args: a2 }) => {
                 self.is_compatible(b1, b2)
                     && a1.len() == a2.len()
-                    && a1.iter().zip(a2.iter()).all(|(t1, t2)| self.is_compatible(t1, t2))
+                    && a1
+                        .iter()
+                        .zip(a2.iter())
+                        .all(|(t1, t2)| self.is_compatible(t1, t2))
             }
-            
+
             // Function compatibility
-            (Type::Function { params: p1, return_type: r1 }, Type::Function { params: p2, return_type: r2 }) => {
+            (
+                Type::Function {
+                    params: p1,
+                    return_type: r1,
+                },
+                Type::Function {
+                    params: p2,
+                    return_type: r2,
+                },
+            ) => {
                 p1.len() == p2.len()
-                    && p1.iter().zip(p2.iter()).all(|(t1, t2)| self.is_compatible(t1, t2))
+                    && p1
+                        .iter()
+                        .zip(p2.iter())
+                        .all(|(t1, t2)| self.is_compatible(t1, t2))
                     && self.is_compatible(r1, r2)
             }
-            
+
             // Fallible compatibility
             (Type::Fallible { ty: ty1 }, Type::Fallible { ty: ty2 }) => {
                 self.is_compatible(ty1, ty2)
             }
-            
+
             _ => false,
         }
     }
@@ -334,7 +366,7 @@ impl SemanticAnalyzer {
     /// Analyze a single item
     fn analyze_item(&mut self, item: &crate::ast::Item) {
         use crate::ast::Item;
-        
+
         match item {
             Item::Function(func) => self.analyze_function(func),
             Item::Struct(struct_def) => self.analyze_struct(struct_def),
@@ -394,7 +426,10 @@ impl SemanticAnalyzer {
                 false,
             );
 
-            if let Err(msg) = self.symbol_table.insert(param.name.name.clone(), param_symbol) {
+            if let Err(msg) = self
+                .symbol_table
+                .insert(param.name.name.clone(), param_symbol)
+            {
                 self.errors.push(SemanticError::new(
                     Span::new(
                         crate::error::Position::new(0, 0),
@@ -422,12 +457,10 @@ impl SemanticAnalyzer {
             .map(|f| (f.name.name.clone(), f.ty.clone()))
             .collect();
 
-        let type_info = TypeInfo::new(
-            struct_def.name.name.clone(),
-            TypeKind::Struct { fields },
-        );
+        let type_info = TypeInfo::new(struct_def.name.name.clone(), TypeKind::Struct { fields });
 
-        self.type_env.register_type(struct_def.name.name.clone(), type_info);
+        self.type_env
+            .register_type(struct_def.name.name.clone(), type_info);
 
         // Register struct as a type symbol
         let symbol = Symbol::new(
@@ -437,7 +470,10 @@ impl SemanticAnalyzer {
             false,
         );
 
-        if let Err(msg) = self.symbol_table.insert(struct_def.name.name.clone(), symbol) {
+        if let Err(msg) = self
+            .symbol_table
+            .insert(struct_def.name.name.clone(), symbol)
+        {
             self.errors.push(SemanticError::new(
                 Span::new(
                     crate::error::Position::new(0, 0),
@@ -463,12 +499,10 @@ impl SemanticAnalyzer {
             .map(|v| v.name.name.clone())
             .collect();
 
-        let type_info = TypeInfo::new(
-            enum_def.name.name.clone(),
-            TypeKind::Enum { variants },
-        );
+        let type_info = TypeInfo::new(enum_def.name.name.clone(), TypeKind::Enum { variants });
 
-        self.type_env.register_type(enum_def.name.name.clone(), type_info);
+        self.type_env
+            .register_type(enum_def.name.name.clone(), type_info);
 
         // Register enum as a type symbol
         let symbol = Symbol::new(
@@ -500,7 +534,8 @@ impl SemanticAnalyzer {
             },
         );
 
-        self.type_env.register_type(typedef.name.name.clone(), type_info);
+        self.type_env
+            .register_type(typedef.name.name.clone(), type_info);
 
         // Register typedef as a type symbol
         let symbol = Symbol::new(
@@ -550,7 +585,10 @@ impl SemanticAnalyzer {
             false,
         );
 
-        if let Err(msg) = self.symbol_table.insert(const_def.name.name.clone(), symbol) {
+        if let Err(msg) = self
+            .symbol_table
+            .insert(const_def.name.name.clone(), symbol)
+        {
             self.errors.push(SemanticError::new(
                 Span::new(
                     crate::error::Position::new(0, 0),
@@ -590,7 +628,10 @@ impl SemanticAnalyzer {
             static_def.mutable,
         );
 
-        if let Err(msg) = self.symbol_table.insert(static_def.name.name.clone(), symbol) {
+        if let Err(msg) = self
+            .symbol_table
+            .insert(static_def.name.name.clone(), symbol)
+        {
             self.errors.push(SemanticError::new(
                 Span::new(
                     crate::error::Position::new(0, 0),
@@ -612,9 +653,14 @@ impl SemanticAnalyzer {
     /// Analyze a statement (placeholder for sub-task 8.3)
     fn analyze_statement(&mut self, statement: &crate::ast::Statement) {
         use crate::ast::Statement;
-        
+
         match statement {
-            Statement::Let { name, ty, init, mutable } => {
+            Statement::Let {
+                name,
+                ty,
+                init,
+                mutable,
+            } => {
                 // Analyze initialization expression if present
                 let init_type = if let Some(ref init_expr) = init {
                     self.analyze_expression(init_expr)
@@ -644,12 +690,8 @@ impl SemanticAnalyzer {
                 };
 
                 // Register variable in symbol table
-                let symbol = Symbol::new(
-                    name.name.clone(),
-                    var_type,
-                    SymbolKind::Variable,
-                    *mutable,
-                );
+                let symbol =
+                    Symbol::new(name.name.clone(), var_type, SymbolKind::Variable, *mutable);
 
                 if let Err(msg) = self.symbol_table.insert(name.name.clone(), symbol) {
                     self.errors.push(SemanticError::new(
@@ -693,12 +735,7 @@ impl SemanticAnalyzer {
                 };
 
                 // Register variable in symbol table (var is always mutable)
-                let symbol = Symbol::new(
-                    name.name.clone(),
-                    var_type,
-                    SymbolKind::Variable,
-                    true,
-                );
+                let symbol = Symbol::new(name.name.clone(), var_type, SymbolKind::Variable, true);
 
                 if let Err(msg) = self.symbol_table.insert(name.name.clone(), symbol) {
                     self.errors.push(SemanticError::new(
@@ -732,12 +769,7 @@ impl SemanticAnalyzer {
                 }
 
                 // Register const in symbol table
-                let symbol = Symbol::new(
-                    name.name.clone(),
-                    ty.clone(),
-                    SymbolKind::Const,
-                    false,
-                );
+                let symbol = Symbol::new(name.name.clone(), ty.clone(), SymbolKind::Const, false);
 
                 if let Err(msg) = self.symbol_table.insert(name.name.clone(), symbol) {
                     self.errors.push(SemanticError::new(
@@ -763,12 +795,19 @@ impl SemanticAnalyzer {
                 }
             }
 
-            Statement::If { condition, then_block, else_block } => {
+            Statement::If {
+                condition,
+                then_block,
+                else_block,
+            } => {
                 // Analyze condition
                 let cond_type = self.analyze_expression(condition);
-                
+
                 // Condition should be boolean
-                if !self.type_env.is_compatible(&Type::Primitive(crate::ast::PrimitiveType::Bool), &cond_type) {
+                if !self.type_env.is_compatible(
+                    &Type::Primitive(crate::ast::PrimitiveType::Bool),
+                    &cond_type,
+                ) {
                     self.errors.push(SemanticError::new(
                         Span::new(
                             crate::error::Position::new(0, 0),
@@ -792,12 +831,19 @@ impl SemanticAnalyzer {
                 }
             }
 
-            Statement::While { label: _, condition, body } => {
+            Statement::While {
+                label: _,
+                condition,
+                body,
+            } => {
                 // Analyze condition
                 let cond_type = self.analyze_expression(condition);
-                
+
                 // Condition should be boolean
-                if !self.type_env.is_compatible(&Type::Primitive(crate::ast::PrimitiveType::Bool), &cond_type) {
+                if !self.type_env.is_compatible(
+                    &Type::Primitive(crate::ast::PrimitiveType::Bool),
+                    &cond_type,
+                ) {
                     self.errors.push(SemanticError::new(
                         Span::new(
                             crate::error::Position::new(0, 0),
@@ -814,7 +860,13 @@ impl SemanticAnalyzer {
                 self.symbol_table.exit_scope();
             }
 
-            Statement::For { label: _, init, condition, increment, body } => {
+            Statement::For {
+                label: _,
+                init,
+                condition,
+                increment,
+                body,
+            } => {
                 // Enter scope for the for loop
                 self.symbol_table.enter_scope();
 
@@ -823,7 +875,10 @@ impl SemanticAnalyzer {
 
                 // Analyze condition
                 let cond_type = self.analyze_expression(condition);
-                if !self.type_env.is_compatible(&Type::Primitive(crate::ast::PrimitiveType::Bool), &cond_type) {
+                if !self.type_env.is_compatible(
+                    &Type::Primitive(crate::ast::PrimitiveType::Bool),
+                    &cond_type,
+                ) {
                     self.errors.push(SemanticError::new(
                         Span::new(
                             crate::error::Position::new(0, 0),
@@ -844,7 +899,12 @@ impl SemanticAnalyzer {
                 self.symbol_table.exit_scope();
             }
 
-            Statement::ForIn { label: _, var, iter, body } => {
+            Statement::ForIn {
+                label: _,
+                var,
+                iter,
+                body,
+            } => {
                 // Enter scope for the for-in loop
                 self.symbol_table.enter_scope();
 
@@ -852,12 +912,7 @@ impl SemanticAnalyzer {
                 let iter_type = self.analyze_expression(iter);
 
                 // Register loop variable (type inference from iterator)
-                let symbol = Symbol::new(
-                    var.name.clone(),
-                    iter_type,
-                    SymbolKind::Variable,
-                    false,
-                );
+                let symbol = Symbol::new(var.name.clone(), iter_type, SymbolKind::Variable, false);
 
                 if let Err(msg) = self.symbol_table.insert(var.name.clone(), symbol) {
                     self.errors.push(SemanticError::new(
@@ -877,7 +932,11 @@ impl SemanticAnalyzer {
                 self.symbol_table.exit_scope();
             }
 
-            Statement::Switch { expr, cases, default } => {
+            Statement::Switch {
+                expr,
+                cases,
+                default,
+            } => {
                 // Analyze switch expression
                 let switch_type = self.analyze_expression(expr);
 
@@ -921,8 +980,8 @@ impl SemanticAnalyzer {
 
     /// Analyze an expression and return its type (placeholder for sub-task 8.4)
     fn analyze_expression(&mut self, expr: &crate::ast::Expression) -> Type {
-        use crate::ast::{Expression, BinaryOp, UnaryOp, PrimitiveType};
-        
+        use crate::ast::{BinaryOp, Expression, PrimitiveType, UnaryOp};
+
         match expr {
             Expression::Literal(lit) => {
                 use crate::ast::Literal;
@@ -976,25 +1035,35 @@ impl SemanticAnalyzer {
 
                 // Determine result type based on operator
                 match op {
-                    BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Mod => {
-                        left_type
-                    }
-                    BinaryOp::Eq | BinaryOp::Ne | BinaryOp::Lt | BinaryOp::Gt | BinaryOp::Le | BinaryOp::Ge => {
-                        Type::Primitive(PrimitiveType::Bool)
-                    }
-                    BinaryOp::And | BinaryOp::Or => {
-                        Type::Primitive(PrimitiveType::Bool)
-                    }
-                    BinaryOp::BitAnd | BinaryOp::BitOr | BinaryOp::BitXor | BinaryOp::Shl | BinaryOp::Shr => {
-                        left_type
-                    }
-                    BinaryOp::Assign | BinaryOp::AddAssign | BinaryOp::SubAssign | BinaryOp::MulAssign | BinaryOp::DivAssign => {
-                        left_type
-                    }
+                    BinaryOp::Add
+                    | BinaryOp::Sub
+                    | BinaryOp::Mul
+                    | BinaryOp::Div
+                    | BinaryOp::Mod => left_type,
+                    BinaryOp::Eq
+                    | BinaryOp::Ne
+                    | BinaryOp::Lt
+                    | BinaryOp::Gt
+                    | BinaryOp::Le
+                    | BinaryOp::Ge => Type::Primitive(PrimitiveType::Bool),
+                    BinaryOp::And | BinaryOp::Or => Type::Primitive(PrimitiveType::Bool),
+                    BinaryOp::BitAnd
+                    | BinaryOp::BitOr
+                    | BinaryOp::BitXor
+                    | BinaryOp::Shl
+                    | BinaryOp::Shr => left_type,
+                    BinaryOp::Assign
+                    | BinaryOp::AddAssign
+                    | BinaryOp::SubAssign
+                    | BinaryOp::MulAssign
+                    | BinaryOp::DivAssign => left_type,
                 }
             }
 
-            Expression::Unary { op, expr: inner_expr } => {
+            Expression::Unary {
+                op,
+                expr: inner_expr,
+            } => {
                 let expr_type = self.analyze_expression(inner_expr);
 
                 match op {
@@ -1004,23 +1073,23 @@ impl SemanticAnalyzer {
                         ty: Box::new(expr_type),
                         mutable: false,
                     },
-                    UnaryOp::Deref => {
-                        match expr_type {
-                            Type::Pointer { ty, .. } | Type::Reference { ty, .. } => *ty,
-                            _ => {
-                                self.errors.push(SemanticError::new(
-                                    Span::new(
-                                        crate::error::Position::new(0, 0),
-                                        crate::error::Position::new(0, 0),
-                                    ),
-                                    SemanticErrorKind::InvalidOperation,
-                                    "cannot dereference non-pointer type".to_string(),
-                                ));
-                                Type::Auto
-                            }
+                    UnaryOp::Deref => match expr_type {
+                        Type::Pointer { ty, .. } | Type::Reference { ty, .. } => *ty,
+                        _ => {
+                            self.errors.push(SemanticError::new(
+                                Span::new(
+                                    crate::error::Position::new(0, 0),
+                                    crate::error::Position::new(0, 0),
+                                ),
+                                SemanticErrorKind::InvalidOperation,
+                                "cannot dereference non-pointer type".to_string(),
+                            ));
+                            Type::Auto
                         }
+                    },
+                    UnaryOp::PreInc | UnaryOp::PreDec | UnaryOp::PostInc | UnaryOp::PostDec => {
+                        expr_type
                     }
-                    UnaryOp::PreInc | UnaryOp::PreDec | UnaryOp::PostInc | UnaryOp::PostDec => expr_type,
                 }
             }
 
@@ -1028,11 +1097,17 @@ impl SemanticAnalyzer {
                 let func_type = self.analyze_expression(func);
 
                 // Analyze argument types
-                let arg_types: Vec<Type> = args.iter().map(|arg| self.analyze_expression(arg)).collect();
+                let arg_types: Vec<Type> = args
+                    .iter()
+                    .map(|arg| self.analyze_expression(arg))
+                    .collect();
 
                 // Check if function type is valid
                 match func_type {
-                    Type::Function { params, return_type } => {
+                    Type::Function {
+                        params,
+                        return_type,
+                    } => {
                         // Check argument count
                         if params.len() != arg_types.len() {
                             self.errors.push(SemanticError::new(
@@ -1049,7 +1124,9 @@ impl SemanticAnalyzer {
                             ));
                         } else {
                             // Check argument types
-                            for (i, (param_type, arg_type)) in params.iter().zip(arg_types.iter()).enumerate() {
+                            for (i, (param_type, arg_type)) in
+                                params.iter().zip(arg_types.iter()).enumerate()
+                            {
                                 if !self.type_env.is_compatible(param_type, arg_type) {
                                     self.errors.push(SemanticError::new(
                                         Span::new(
@@ -1082,7 +1159,10 @@ impl SemanticAnalyzer {
                 }
             }
 
-            Expression::FieldAccess { expr: obj_expr, field } => {
+            Expression::FieldAccess {
+                expr: obj_expr,
+                field,
+            } => {
                 let obj_type = self.analyze_expression(obj_expr);
 
                 // Look up field in struct type
@@ -1091,7 +1171,9 @@ impl SemanticAnalyzer {
                         if let Some(type_info) = self.type_env.get_type(&type_ident.name) {
                             match &type_info.kind {
                                 TypeKind::Struct { fields } => {
-                                    if let Some((_, field_type)) = fields.iter().find(|(name, _)| name == &field.name) {
+                                    if let Some((_, field_type)) =
+                                        fields.iter().find(|(name, _)| name == &field.name)
+                                    {
                                         field_type.clone()
                                     } else {
                                         self.errors.push(SemanticError::new(
@@ -1135,7 +1217,10 @@ impl SemanticAnalyzer {
                 }
             }
 
-            Expression::Index { expr: array_expr, index: index_expr } => {
+            Expression::Index {
+                expr: array_expr,
+                index: index_expr,
+            } => {
                 let array_type = self.analyze_expression(array_expr);
                 let index_type = self.analyze_expression(index_expr);
 
@@ -1175,7 +1260,10 @@ impl SemanticAnalyzer {
                 }
             }
 
-            Expression::Cast { expr: cast_expr, ty } => {
+            Expression::Cast {
+                expr: cast_expr,
+                ty,
+            } => {
                 // Analyze the expression being cast
                 let expr_type = self.analyze_expression(cast_expr);
 
@@ -1203,13 +1291,20 @@ impl SemanticAnalyzer {
                 Type::Primitive(PrimitiveType::U64)
             }
 
-            Expression::Ternary { condition, then_expr, else_expr } => {
+            Expression::Ternary {
+                condition,
+                then_expr,
+                else_expr,
+            } => {
                 let cond_type = self.analyze_expression(condition);
                 let then_type = self.analyze_expression(then_expr);
                 let else_type = self.analyze_expression(else_expr);
 
                 // Condition should be boolean
-                if !self.type_env.is_compatible(&Type::Primitive(PrimitiveType::Bool), &cond_type) {
+                if !self
+                    .type_env
+                    .is_compatible(&Type::Primitive(PrimitiveType::Bool), &cond_type)
+                {
                     self.errors.push(SemanticError::new(
                         Span::new(
                             crate::error::Position::new(0, 0),
@@ -1255,7 +1350,7 @@ impl SemanticAnalyzer {
                     }
                 } else {
                     let first_type = self.analyze_expression(&elements[0]);
-                    
+
                     // Check all elements have the same type
                     for elem in &elements[1..] {
                         let elem_type = self.analyze_expression(elem);
@@ -1282,11 +1377,18 @@ impl SemanticAnalyzer {
             }
 
             Expression::TupleLit { elements } => {
-                let types: Vec<Type> = elements.iter().map(|e| self.analyze_expression(e)).collect();
+                let types: Vec<Type> = elements
+                    .iter()
+                    .map(|e| self.analyze_expression(e))
+                    .collect();
                 Type::Tuple { types }
             }
 
-            Expression::Range { start, end, inclusive: _ } => {
+            Expression::Range {
+                start,
+                end,
+                inclusive: _,
+            } => {
                 // Analyze start and end expressions if present
                 if let Some(ref start_expr) = start {
                     self.analyze_expression(start_expr);
@@ -1311,7 +1413,7 @@ impl SemanticAnalyzer {
 
             Expression::ErrorProp { expr: inner_expr } => {
                 let expr_type = self.analyze_expression(inner_expr);
-                
+
                 // Error propagation should be on fallible types
                 match expr_type {
                     Type::Fallible { ty } => *ty,
@@ -1322,16 +1424,21 @@ impl SemanticAnalyzer {
                                 crate::error::Position::new(0, 0),
                             ),
                             SemanticErrorKind::InvalidOperation,
-                            "error propagation operator (!) can only be used on fallible types".to_string(),
+                            "error propagation operator (!) can only be used on fallible types"
+                                .to_string(),
                         ));
                         Type::Auto
                     }
                 }
             }
 
-            Expression::MethodCall { receiver, method: _, args } => {
+            Expression::MethodCall {
+                receiver,
+                method: _,
+                args,
+            } => {
                 let _receiver_type = self.analyze_expression(receiver);
-                
+
                 // Analyze arguments
                 for arg in args {
                     self.analyze_expression(arg);
@@ -1341,7 +1448,11 @@ impl SemanticAnalyzer {
                 Type::Auto
             }
 
-            Expression::TypeScopedCall { ty, method: _, args } => {
+            Expression::TypeScopedCall {
+                ty,
+                method: _,
+                args,
+            } => {
                 // Analyze arguments
                 for arg in args {
                     self.analyze_expression(arg);
@@ -1351,7 +1462,12 @@ impl SemanticAnalyzer {
                 ty.clone()
             }
 
-            Expression::ExplicitGenericCall { ty, generics: _, method: _, args } => {
+            Expression::ExplicitGenericCall {
+                ty,
+                generics: _,
+                method: _,
+                args,
+            } => {
                 // Analyze arguments
                 for arg in args {
                     self.analyze_expression(arg);
@@ -1433,7 +1549,6 @@ impl Default for SemanticAnalyzer {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1451,19 +1566,19 @@ mod tests {
     fn test_symbol_table_enter_exit_scope() {
         let mut table = SymbolTable::new();
         assert_eq!(table.scopes.len(), 1);
-        
+
         table.enter_scope();
         assert_eq!(table.scopes.len(), 2);
-        
+
         table.enter_scope();
         assert_eq!(table.scopes.len(), 3);
-        
+
         table.exit_scope();
         assert_eq!(table.scopes.len(), 2);
-        
+
         table.exit_scope();
         assert_eq!(table.scopes.len(), 1);
-        
+
         // Should not go below 1 scope
         table.exit_scope();
         assert_eq!(table.scopes.len(), 1);
@@ -1472,16 +1587,16 @@ mod tests {
     #[test]
     fn test_symbol_table_insert_and_lookup() {
         let mut table = SymbolTable::new();
-        
+
         let symbol = Symbol::new(
             "x".to_string(),
             Type::Primitive(PrimitiveType::I32),
             SymbolKind::Variable,
             false,
         );
-        
+
         assert!(table.insert("x".to_string(), symbol.clone()).is_ok());
-        
+
         let found = table.lookup("x");
         assert!(found.is_some());
         assert_eq!(found.unwrap().name, "x");
@@ -1492,23 +1607,23 @@ mod tests {
     #[test]
     fn test_symbol_table_duplicate_detection() {
         let mut table = SymbolTable::new();
-        
+
         let symbol1 = Symbol::new(
             "x".to_string(),
             Type::Primitive(PrimitiveType::I32),
             SymbolKind::Variable,
             false,
         );
-        
+
         let symbol2 = Symbol::new(
             "x".to_string(),
             Type::Primitive(PrimitiveType::I64),
             SymbolKind::Variable,
             true,
         );
-        
+
         assert!(table.insert("x".to_string(), symbol1).is_ok());
-        
+
         // Should fail because 'x' already exists in current scope
         let result = table.insert("x".to_string(), symbol2);
         assert!(result.is_err());
@@ -1518,7 +1633,7 @@ mod tests {
     #[test]
     fn test_symbol_table_scope_shadowing() {
         let mut table = SymbolTable::new();
-        
+
         // Insert 'x' in outer scope
         let symbol1 = Symbol::new(
             "x".to_string(),
@@ -1527,10 +1642,10 @@ mod tests {
             false,
         );
         assert!(table.insert("x".to_string(), symbol1).is_ok());
-        
+
         // Enter new scope
         table.enter_scope();
-        
+
         // Insert 'x' in inner scope (shadowing)
         let symbol2 = Symbol::new(
             "x".to_string(),
@@ -1539,27 +1654,33 @@ mod tests {
             true,
         );
         assert!(table.insert("x".to_string(), symbol2).is_ok());
-        
+
         // Lookup should find inner scope's 'x'
         let found = table.lookup("x");
         assert!(found.is_some());
-        assert!(matches!(found.unwrap().ty, Type::Primitive(PrimitiveType::I64)));
+        assert!(matches!(
+            found.unwrap().ty,
+            Type::Primitive(PrimitiveType::I64)
+        ));
         assert!(found.unwrap().mutable);
-        
+
         // Exit inner scope
         table.exit_scope();
-        
+
         // Lookup should now find outer scope's 'x'
         let found = table.lookup("x");
         assert!(found.is_some());
-        assert!(matches!(found.unwrap().ty, Type::Primitive(PrimitiveType::I32)));
+        assert!(matches!(
+            found.unwrap().ty,
+            Type::Primitive(PrimitiveType::I32)
+        ));
         assert!(!found.unwrap().mutable);
     }
 
     #[test]
     fn test_symbol_table_lookup_in_current_scope() {
         let mut table = SymbolTable::new();
-        
+
         // Insert 'x' in outer scope
         let symbol1 = Symbol::new(
             "x".to_string(),
@@ -1568,16 +1689,16 @@ mod tests {
             false,
         );
         assert!(table.insert("x".to_string(), symbol1).is_ok());
-        
+
         // Enter new scope
         table.enter_scope();
-        
+
         // lookup_in_current_scope should not find 'x' from outer scope
         assert!(table.lookup_in_current_scope("x").is_none());
-        
+
         // But regular lookup should find it
         assert!(table.lookup("x").is_some());
-        
+
         // Insert 'y' in inner scope
         let symbol2 = Symbol::new(
             "y".to_string(),
@@ -1586,7 +1707,7 @@ mod tests {
             false,
         );
         assert!(table.insert("y".to_string(), symbol2).is_ok());
-        
+
         // lookup_in_current_scope should find 'y'
         assert!(table.lookup_in_current_scope("y").is_some());
     }
@@ -1594,19 +1715,31 @@ mod tests {
     #[test]
     fn test_symbol_table_multiple_symbols() {
         let mut table = SymbolTable::new();
-        
+
         let symbols = vec![
-            ("x", Type::Primitive(PrimitiveType::I32), SymbolKind::Variable),
-            ("y", Type::Primitive(PrimitiveType::Bool), SymbolKind::Variable),
-            ("foo", Type::Primitive(PrimitiveType::Void), SymbolKind::Function),
+            (
+                "x",
+                Type::Primitive(PrimitiveType::I32),
+                SymbolKind::Variable,
+            ),
+            (
+                "y",
+                Type::Primitive(PrimitiveType::Bool),
+                SymbolKind::Variable,
+            ),
+            (
+                "foo",
+                Type::Primitive(PrimitiveType::Void),
+                SymbolKind::Function,
+            ),
             ("Point", Type::Ident(Ident::new("Point")), SymbolKind::Type),
         ];
-        
+
         for (name, ty, kind) in symbols {
             let symbol = Symbol::new(name.to_string(), ty, kind, false);
             assert!(table.insert(name.to_string(), symbol).is_ok());
         }
-        
+
         assert!(table.lookup("x").is_some());
         assert!(table.lookup("y").is_some());
         assert!(table.lookup("foo").is_some());
@@ -1622,7 +1755,7 @@ mod tests {
             SymbolKind::Type,
             SymbolKind::Const,
         ];
-        
+
         assert_eq!(kinds.len(), 4);
     }
 
@@ -1631,7 +1764,7 @@ mod tests {
     #[test]
     fn test_type_environment_creation() {
         let env = TypeEnvironment::new();
-        
+
         // Should have primitive types registered
         assert!(env.get_type("int").is_some());
         assert!(env.get_type("i32").is_some());
@@ -1643,7 +1776,7 @@ mod tests {
     #[test]
     fn test_type_environment_register_and_get() {
         let mut env = TypeEnvironment::new();
-        
+
         let type_info = TypeInfo::new(
             "Point".to_string(),
             TypeKind::Struct {
@@ -1653,13 +1786,13 @@ mod tests {
                 ],
             },
         );
-        
+
         env.register_type("Point".to_string(), type_info);
-        
+
         let found = env.get_type("Point");
         assert!(found.is_some());
         assert_eq!(found.unwrap().name, "Point");
-        
+
         match &found.unwrap().kind {
             TypeKind::Struct { fields } => {
                 assert_eq!(fields.len(), 2);
@@ -1673,11 +1806,11 @@ mod tests {
     #[test]
     fn test_type_compatibility_primitives() {
         let env = TypeEnvironment::new();
-        
+
         let t1 = Type::Primitive(PrimitiveType::I32);
         let t2 = Type::Primitive(PrimitiveType::I32);
         let t3 = Type::Primitive(PrimitiveType::Bool);
-        
+
         assert!(env.is_compatible(&t1, &t2));
         assert!(!env.is_compatible(&t1, &t3));
     }
@@ -1685,10 +1818,10 @@ mod tests {
     #[test]
     fn test_type_compatibility_int_i32() {
         let env = TypeEnvironment::new();
-        
+
         let int_type = Type::Primitive(PrimitiveType::Int);
         let i32_type = Type::Primitive(PrimitiveType::I32);
-        
+
         // int and i32 should be compatible
         assert!(env.is_compatible(&int_type, &i32_type));
         assert!(env.is_compatible(&i32_type, &int_type));
@@ -1697,10 +1830,10 @@ mod tests {
     #[test]
     fn test_type_compatibility_float_f64() {
         let env = TypeEnvironment::new();
-        
+
         let float_type = Type::Primitive(PrimitiveType::Float);
         let f64_type = Type::Primitive(PrimitiveType::F64);
-        
+
         // float and f64 should be compatible
         assert!(env.is_compatible(&float_type, &f64_type));
         assert!(env.is_compatible(&f64_type, &float_type));
@@ -1709,10 +1842,10 @@ mod tests {
     #[test]
     fn test_type_compatibility_auto() {
         let env = TypeEnvironment::new();
-        
+
         let auto_type = Type::Auto;
         let i32_type = Type::Primitive(PrimitiveType::I32);
-        
+
         // Auto should be compatible with anything
         assert!(env.is_compatible(&auto_type, &i32_type));
         assert!(env.is_compatible(&i32_type, &auto_type));
@@ -1721,7 +1854,7 @@ mod tests {
     #[test]
     fn test_type_compatibility_pointers() {
         let env = TypeEnvironment::new();
-        
+
         let ptr1 = Type::Pointer {
             ty: Box::new(Type::Primitive(PrimitiveType::I32)),
             mutable: true,
@@ -1734,7 +1867,7 @@ mod tests {
             ty: Box::new(Type::Primitive(PrimitiveType::I32)),
             mutable: false,
         };
-        
+
         assert!(env.is_compatible(&ptr1, &ptr2));
         assert!(!env.is_compatible(&ptr1, &ptr3)); // Different mutability
     }
@@ -1742,7 +1875,7 @@ mod tests {
     #[test]
     fn test_type_compatibility_references() {
         let env = TypeEnvironment::new();
-        
+
         let ref1 = Type::Reference {
             ty: Box::new(Type::Primitive(PrimitiveType::I32)),
             mutable: false,
@@ -1755,7 +1888,7 @@ mod tests {
             ty: Box::new(Type::Primitive(PrimitiveType::I32)),
             mutable: true,
         };
-        
+
         assert!(env.is_compatible(&ref1, &ref2));
         // Immutable reference can be created from mutable
         assert!(env.is_compatible(&ref3, &ref1));
@@ -1766,7 +1899,7 @@ mod tests {
     #[test]
     fn test_type_compatibility_arrays() {
         let env = TypeEnvironment::new();
-        
+
         let arr1 = Type::Array {
             ty: Box::new(Type::Primitive(PrimitiveType::I32)),
             size: Some(10),
@@ -1779,7 +1912,7 @@ mod tests {
             ty: Box::new(Type::Primitive(PrimitiveType::I32)),
             size: Some(20),
         };
-        
+
         assert!(env.is_compatible(&arr1, &arr2));
         assert!(!env.is_compatible(&arr1, &arr3)); // Different sizes
     }
@@ -1787,7 +1920,7 @@ mod tests {
     #[test]
     fn test_type_compatibility_tuples() {
         let env = TypeEnvironment::new();
-        
+
         let tuple1 = Type::Tuple {
             types: vec![
                 Type::Primitive(PrimitiveType::I32),
@@ -1806,7 +1939,7 @@ mod tests {
                 Type::Primitive(PrimitiveType::I32),
             ],
         };
-        
+
         assert!(env.is_compatible(&tuple1, &tuple2));
         assert!(!env.is_compatible(&tuple1, &tuple3)); // Different element types
     }
@@ -1814,7 +1947,7 @@ mod tests {
     #[test]
     fn test_type_compatibility_generics() {
         let env = TypeEnvironment::new();
-        
+
         let gen1 = Type::Generic {
             base: Box::new(Type::Ident(Ident::new("Vec"))),
             args: vec![Type::Primitive(PrimitiveType::I32)],
@@ -1827,7 +1960,7 @@ mod tests {
             base: Box::new(Type::Ident(Ident::new("Vec"))),
             args: vec![Type::Primitive(PrimitiveType::Bool)],
         };
-        
+
         assert!(env.is_compatible(&gen1, &gen2));
         assert!(!env.is_compatible(&gen1, &gen3)); // Different type arguments
     }
@@ -1835,7 +1968,7 @@ mod tests {
     #[test]
     fn test_type_compatibility_functions() {
         let env = TypeEnvironment::new();
-        
+
         let func1 = Type::Function {
             params: vec![Type::Primitive(PrimitiveType::I32)],
             return_type: Box::new(Type::Primitive(PrimitiveType::Bool)),
@@ -1848,7 +1981,7 @@ mod tests {
             params: vec![Type::Primitive(PrimitiveType::I32)],
             return_type: Box::new(Type::Primitive(PrimitiveType::I32)),
         };
-        
+
         assert!(env.is_compatible(&func1, &func2));
         assert!(!env.is_compatible(&func1, &func3)); // Different return types
     }
@@ -1858,19 +1991,13 @@ mod tests {
         let primitive = TypeInfo::new("int".to_string(), TypeKind::Primitive);
         assert_eq!(primitive.name, "int");
         assert!(matches!(primitive.kind, TypeKind::Primitive));
-        
-        let struct_type = TypeInfo::new(
-            "Point".to_string(),
-            TypeKind::Struct { fields: vec![] },
-        );
+
+        let struct_type = TypeInfo::new("Point".to_string(), TypeKind::Struct { fields: vec![] });
         assert!(matches!(struct_type.kind, TypeKind::Struct { .. }));
-        
-        let enum_type = TypeInfo::new(
-            "Color".to_string(),
-            TypeKind::Enum { variants: vec![] },
-        );
+
+        let enum_type = TypeInfo::new("Color".to_string(), TypeKind::Enum { variants: vec![] });
         assert!(matches!(enum_type.kind, TypeKind::Enum { .. }));
-        
+
         let alias_type = TypeInfo::new(
             "MyInt".to_string(),
             TypeKind::Alias {
@@ -1889,7 +2016,7 @@ mod tests {
             true,
         );
         assert!(mutable_symbol.mutable);
-        
+
         let immutable_symbol = Symbol::new(
             "y".to_string(),
             Type::Primitive(PrimitiveType::I32),
@@ -1902,7 +2029,7 @@ mod tests {
     #[test]
     fn test_type_compatibility_slices() {
         let env = TypeEnvironment::new();
-        
+
         let slice1 = Type::Slice {
             ty: Box::new(Type::Primitive(PrimitiveType::I32)),
         };
@@ -1912,7 +2039,7 @@ mod tests {
         let slice3 = Type::Slice {
             ty: Box::new(Type::Primitive(PrimitiveType::Bool)),
         };
-        
+
         assert!(env.is_compatible(&slice1, &slice2));
         assert!(!env.is_compatible(&slice1, &slice3));
     }
@@ -1920,7 +2047,7 @@ mod tests {
     #[test]
     fn test_type_compatibility_fallible() {
         let env = TypeEnvironment::new();
-        
+
         let fallible1 = Type::Fallible {
             ty: Box::new(Type::Primitive(PrimitiveType::I32)),
         };
@@ -1930,7 +2057,7 @@ mod tests {
         let fallible3 = Type::Fallible {
             ty: Box::new(Type::Primitive(PrimitiveType::Bool)),
         };
-        
+
         assert!(env.is_compatible(&fallible1, &fallible2));
         assert!(!env.is_compatible(&fallible1, &fallible3));
     }
@@ -1951,7 +2078,7 @@ mod tests {
             items: vec![],
             doc_comments: vec![],
         };
-        
+
         let result = analyzer.analyze(&file);
         assert!(result.is_ok());
         assert_eq!(analyzer.errors().len(), 0);
@@ -1965,8 +2092,8 @@ mod tests {
 
     #[test]
     fn test_semantic_analyzer_function_registration() {
-        use crate::ast::{Function, Visibility, Block, PrimitiveType};
-        
+        use crate::ast::{Block, Function, PrimitiveType, Visibility};
+
         let mut analyzer = SemanticAnalyzer::new();
         let func = Function {
             visibility: Visibility::Public,
@@ -1975,11 +2102,11 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::I32)),
             body: Block::empty(),
             doc_comments: vec![],
-        attributes: vec![],
+            attributes: vec![],
         };
-        
+
         analyzer.analyze_function(&func);
-        
+
         // Function should be registered in symbol table
         let symbol = analyzer.symbol_table().lookup("test_func");
         assert!(symbol.is_some());
@@ -1988,8 +2115,8 @@ mod tests {
 
     #[test]
     fn test_semantic_analyzer_struct_registration() {
-        use crate::ast::{Struct, Visibility, Field, PrimitiveType};
-        
+        use crate::ast::{Field, PrimitiveType, Struct, Visibility};
+
         let mut analyzer = SemanticAnalyzer::new();
         let struct_def = Struct {
             visibility: Visibility::Public,
@@ -2000,28 +2127,28 @@ mod tests {
                     name: Ident::new("x"),
                     ty: Type::Primitive(PrimitiveType::I32),
                     doc_comments: vec![],
-                attributes: vec![],
+                    attributes: vec![],
                 },
                 Field {
                     visibility: Visibility::Public,
                     name: Ident::new("y"),
                     ty: Type::Primitive(PrimitiveType::I32),
                     doc_comments: vec![],
-                attributes: vec![],
+                    attributes: vec![],
                 },
             ],
             methods: vec![],
             doc_comments: vec![],
-        attributes: vec![],
+            attributes: vec![],
         };
-        
+
         analyzer.analyze_struct(&struct_def);
-        
+
         // Struct should be registered as a type
         let type_info = analyzer.type_env().get_type("Point");
         assert!(type_info.is_some());
         assert!(matches!(type_info.unwrap().kind, TypeKind::Struct { .. }));
-        
+
         // Struct should also be in symbol table
         let symbol = analyzer.symbol_table().lookup("Point");
         assert!(symbol.is_some());
@@ -2030,8 +2157,8 @@ mod tests {
 
     #[test]
     fn test_semantic_analyzer_enum_registration() {
-        use crate::ast::{Enum, Visibility, EnumVariant};
-        
+        use crate::ast::{Enum, EnumVariant, Visibility};
+
         let mut analyzer = SemanticAnalyzer::new();
         let enum_def = Enum {
             visibility: Visibility::Public,
@@ -2047,11 +2174,11 @@ mod tests {
                 },
             ],
             doc_comments: vec![],
-        attributes: vec![],
+            attributes: vec![],
         };
-        
+
         analyzer.analyze_enum(&enum_def);
-        
+
         // Enum should be registered as a type
         let type_info = analyzer.type_env().get_type("Color");
         assert!(type_info.is_some());
@@ -2060,8 +2187,8 @@ mod tests {
 
     #[test]
     fn test_semantic_analyzer_duplicate_function() {
-        use crate::ast::{Function, Visibility, Block, PrimitiveType};
-        
+        use crate::ast::{Block, Function, PrimitiveType, Visibility};
+
         let mut analyzer = SemanticAnalyzer::new();
         let func = Function {
             visibility: Visibility::Public,
@@ -2070,22 +2197,25 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::I32)),
             body: Block::empty(),
             doc_comments: vec![],
-        attributes: vec![],
+            attributes: vec![],
         };
-        
+
         analyzer.analyze_function(&func);
         assert_eq!(analyzer.errors().len(), 0);
-        
+
         // Try to register the same function again
         analyzer.analyze_function(&func);
         assert_eq!(analyzer.errors().len(), 1);
-        assert_eq!(analyzer.errors()[0].kind, SemanticErrorKind::DuplicateDefinition);
+        assert_eq!(
+            analyzer.errors()[0].kind,
+            SemanticErrorKind::DuplicateDefinition
+        );
     }
 
     #[test]
     fn test_semantic_analyzer_let_statement() {
-        use crate::ast::{Statement, Expression, Literal, PrimitiveType};
-        
+        use crate::ast::{Expression, Literal, PrimitiveType, Statement};
+
         let mut analyzer = SemanticAnalyzer::new();
         let stmt = Statement::Let {
             name: Ident::new("x"),
@@ -2093,9 +2223,9 @@ mod tests {
             init: Some(Expression::Literal(Literal::Int(42))),
             mutable: false,
         };
-        
+
         analyzer.analyze_statement(&stmt);
-        
+
         // Variable should be registered
         let symbol = analyzer.symbol_table().lookup("x");
         assert!(symbol.is_some());
@@ -2105,17 +2235,17 @@ mod tests {
 
     #[test]
     fn test_semantic_analyzer_var_statement() {
-        use crate::ast::{Statement, Expression, Literal, PrimitiveType};
-        
+        use crate::ast::{Expression, Literal, PrimitiveType, Statement};
+
         let mut analyzer = SemanticAnalyzer::new();
         let stmt = Statement::Var {
             name: Ident::new("y"),
             ty: Some(Type::Primitive(PrimitiveType::I32)),
             init: Some(Expression::Literal(Literal::Int(10))),
         };
-        
+
         analyzer.analyze_statement(&stmt);
-        
+
         // Variable should be registered as mutable
         let symbol = analyzer.symbol_table().lookup("y");
         assert!(symbol.is_some());
@@ -2125,63 +2255,66 @@ mod tests {
 
     #[test]
     fn test_semantic_analyzer_undefined_variable() {
-        use crate::ast::{Statement, Expression};
-        
+        use crate::ast::{Expression, Statement};
+
         let mut analyzer = SemanticAnalyzer::new();
         let stmt = Statement::Expr(Expression::Ident(Ident::new("undefined_var")));
-        
+
         analyzer.analyze_statement(&stmt);
-        
+
         // Should detect undefined variable
         assert_eq!(analyzer.errors().len(), 1);
-        assert_eq!(analyzer.errors()[0].kind, SemanticErrorKind::UndefinedVariable);
+        assert_eq!(
+            analyzer.errors()[0].kind,
+            SemanticErrorKind::UndefinedVariable
+        );
     }
 
     #[test]
     fn test_semantic_analyzer_if_statement() {
-        use crate::ast::{Statement, Expression, Literal, Block};
-        
+        use crate::ast::{Block, Expression, Literal, Statement};
+
         let mut analyzer = SemanticAnalyzer::new();
         let stmt = Statement::If {
             condition: Expression::Literal(Literal::Bool(true)),
             then_block: Block::empty(),
             else_block: None,
         };
-        
+
         analyzer.analyze_statement(&stmt);
-        
+
         // Should have no errors for valid if statement
         assert_eq!(analyzer.errors().len(), 0);
     }
 
     #[test]
     fn test_semantic_analyzer_while_statement() {
-        use crate::ast::{Statement, Expression, Literal, Block};
-        
+        use crate::ast::{Block, Expression, Literal, Statement};
+
         let mut analyzer = SemanticAnalyzer::new();
         let stmt = Statement::While {
             label: None,
             condition: Expression::Literal(Literal::Bool(true)),
             body: Block::empty(),
         };
-        
+
         analyzer.analyze_statement(&stmt);
-        
+
         // Should have no errors for valid while statement
         assert_eq!(analyzer.errors().len(), 0);
     }
 
     #[test]
     fn test_semantic_analyzer_binary_expression() {
-        use crate::ast::{Expression, BinaryOp, Literal};
-        
+        use crate::ast::{BinaryOp, Expression, Literal};
+
         let mut analyzer = SemanticAnalyzer::new();
         let expr = Expression::Binary {
             op: BinaryOp::Add,
             left: Box::new(Expression::Literal(Literal::Int(1))),
             right: Box::new(Expression::Literal(Literal::Int(2))),
         };
-        
+
         let result_type = analyzer.analyze_expression(&expr);
         assert!(matches!(result_type, Type::Primitive(PrimitiveType::I32)));
         assert_eq!(analyzer.errors().len(), 0);
@@ -2189,15 +2322,15 @@ mod tests {
 
     #[test]
     fn test_semantic_analyzer_comparison_expression() {
-        use crate::ast::{Expression, BinaryOp, Literal};
-        
+        use crate::ast::{BinaryOp, Expression, Literal};
+
         let mut analyzer = SemanticAnalyzer::new();
         let expr = Expression::Binary {
             op: BinaryOp::Lt,
             left: Box::new(Expression::Literal(Literal::Int(1))),
             right: Box::new(Expression::Literal(Literal::Int(2))),
         };
-        
+
         let result_type = analyzer.analyze_expression(&expr);
         assert!(matches!(result_type, Type::Primitive(PrimitiveType::Bool)));
         assert_eq!(analyzer.errors().len(), 0);
@@ -2206,7 +2339,7 @@ mod tests {
     #[test]
     fn test_semantic_analyzer_array_literal() {
         use crate::ast::{Expression, Literal};
-        
+
         let mut analyzer = SemanticAnalyzer::new();
         let expr = Expression::ArrayLit {
             elements: vec![
@@ -2215,7 +2348,7 @@ mod tests {
                 Expression::Literal(Literal::Int(3)),
             ],
         };
-        
+
         let result_type = analyzer.analyze_expression(&expr);
         match result_type {
             Type::Array { ty, size } => {
@@ -2230,7 +2363,7 @@ mod tests {
     #[test]
     fn test_semantic_analyzer_tuple_literal() {
         use crate::ast::{Expression, Literal};
-        
+
         let mut analyzer = SemanticAnalyzer::new();
         let expr = Expression::TupleLit {
             elements: vec![
@@ -2238,7 +2371,7 @@ mod tests {
                 Expression::Literal(Literal::Bool(true)),
             ],
         };
-        
+
         let result_type = analyzer.analyze_expression(&expr);
         match result_type {
             Type::Tuple { types } => {
@@ -2253,17 +2386,17 @@ mod tests {
 
     #[test]
     fn test_semantic_analyzer_type_mismatch_binary() {
-        use crate::ast::{Expression, BinaryOp, Literal};
-        
+        use crate::ast::{BinaryOp, Expression, Literal};
+
         let mut analyzer = SemanticAnalyzer::new();
         let expr = Expression::Binary {
             op: BinaryOp::Add,
             left: Box::new(Expression::Literal(Literal::Int(1))),
             right: Box::new(Expression::Literal(Literal::Bool(true))),
         };
-        
+
         analyzer.analyze_expression(&expr);
-        
+
         // Should detect type mismatch
         assert_eq!(analyzer.errors().len(), 1);
         assert_eq!(analyzer.errors()[0].kind, SemanticErrorKind::TypeMismatch);
@@ -2272,62 +2405,80 @@ mod tests {
     #[test]
     fn test_semantic_analyzer_unsupported_union() {
         let mut analyzer = SemanticAnalyzer::new();
-        
+
         analyzer.check_union_usage("MyUnion");
-        
+
         // Should detect unsupported union
         assert_eq!(analyzer.errors().len(), 1);
-        assert_eq!(analyzer.errors()[0].kind, SemanticErrorKind::UnsupportedFeature);
-        assert!(analyzer.errors()[0].message.contains("unions are not supported"));
+        assert_eq!(
+            analyzer.errors()[0].kind,
+            SemanticErrorKind::UnsupportedFeature
+        );
+        assert!(analyzer.errors()[0]
+            .message
+            .contains("unions are not supported"));
         assert!(analyzer.errors()[0].message.contains("MyUnion"));
     }
 
     #[test]
     fn test_semantic_analyzer_unsupported_goto() {
         let mut analyzer = SemanticAnalyzer::new();
-        
+
         analyzer.check_goto_usage("my_label");
-        
+
         // Should detect unsupported goto
         assert_eq!(analyzer.errors().len(), 1);
-        assert_eq!(analyzer.errors()[0].kind, SemanticErrorKind::UnsupportedFeature);
-        assert!(analyzer.errors()[0].message.contains("goto statements are not supported"));
+        assert_eq!(
+            analyzer.errors()[0].kind,
+            SemanticErrorKind::UnsupportedFeature
+        );
+        assert!(analyzer.errors()[0]
+            .message
+            .contains("goto statements are not supported"));
         assert!(analyzer.errors()[0].message.contains("my_label"));
     }
 
     #[test]
     fn test_semantic_analyzer_unsupported_include() {
         let mut analyzer = SemanticAnalyzer::new();
-        
+
         analyzer.check_include_usage("stdio.h");
-        
+
         // Should detect unsupported #include
         assert_eq!(analyzer.errors().len(), 1);
-        assert_eq!(analyzer.errors()[0].kind, SemanticErrorKind::UnsupportedFeature);
-        assert!(analyzer.errors()[0].message.contains("#include directives are not supported"));
+        assert_eq!(
+            analyzer.errors()[0].kind,
+            SemanticErrorKind::UnsupportedFeature
+        );
+        assert!(analyzer.errors()[0]
+            .message
+            .contains("#include directives are not supported"));
         assert!(analyzer.errors()[0].message.contains("stdio.h"));
     }
 
     #[test]
     fn test_semantic_analyzer_multiple_unsupported_features() {
         let mut analyzer = SemanticAnalyzer::new();
-        
+
         analyzer.check_union_usage("Data");
         analyzer.check_goto_usage("error_handler");
         analyzer.check_include_usage("stdlib.h");
-        
+
         // Should detect all three unsupported features
         assert_eq!(analyzer.errors().len(), 3);
-        assert!(analyzer.errors().iter().all(|e| e.kind == SemanticErrorKind::UnsupportedFeature));
+        assert!(analyzer
+            .errors()
+            .iter()
+            .all(|e| e.kind == SemanticErrorKind::UnsupportedFeature));
     }
 
     // Property-based tests
-    
+
     #[cfg(test)]
     mod property_tests {
         use super::*;
+        use crate::ast::{BinaryOp, Expression, Literal, PrimitiveType};
         use proptest::prelude::*;
-        use crate::ast::{Expression, Literal, BinaryOp, PrimitiveType};
 
         // Property 28: Type checking matches Rust semantics
         // Validates: Requirements 18.9
@@ -2338,16 +2489,16 @@ mod tests {
                 b in 0i64..100,
             ) {
                 let mut analyzer = SemanticAnalyzer::new();
-                
+
                 // Test arithmetic operations
                 let expr = Expression::Binary {
                     op: BinaryOp::Add,
                     left: Box::new(Expression::Literal(Literal::Int(a))),
                     right: Box::new(Expression::Literal(Literal::Int(b))),
                 };
-                
+
                 let result_type = analyzer.analyze_expression(&expr);
-                
+
                 // Should infer i32 type (matching Rust's default integer type)
                 prop_assert!(matches!(result_type, Type::Primitive(PrimitiveType::I32)));
                 prop_assert_eq!(analyzer.errors().len(), 0);
@@ -2359,16 +2510,16 @@ mod tests {
                 b in 0i64..100,
             ) {
                 let mut analyzer = SemanticAnalyzer::new();
-                
+
                 // Test comparison operations
                 let expr = Expression::Binary {
                     op: BinaryOp::Lt,
                     left: Box::new(Expression::Literal(Literal::Int(a))),
                     right: Box::new(Expression::Literal(Literal::Int(b))),
                 };
-                
+
                 let result_type = analyzer.analyze_expression(&expr);
-                
+
                 // Comparisons should always return bool (matching Rust semantics)
                 prop_assert!(matches!(result_type, Type::Primitive(PrimitiveType::Bool)));
                 prop_assert_eq!(analyzer.errors().len(), 0);
@@ -2379,16 +2530,16 @@ mod tests {
                 size in 1usize..10,
             ) {
                 let mut analyzer = SemanticAnalyzer::new();
-                
+
                 // Create array with all integer elements
                 let elements: Vec<Expression> = (0..size)
                     .map(|i| Expression::Literal(Literal::Int(i as i64)))
                     .collect();
-                
+
                 let expr = Expression::ArrayLit { elements };
-                
+
                 let result_type = analyzer.analyze_expression(&expr);
-                
+
                 // Should infer array type with correct size
                 match result_type {
                     Type::Array { ty, size: arr_size } => {
@@ -2406,7 +2557,7 @@ mod tests {
                 bool_val in proptest::bool::ANY,
             ) {
                 let mut analyzer = SemanticAnalyzer::new();
-                
+
                 // Create tuple with different types
                 let expr = Expression::TupleLit {
                     elements: vec![
@@ -2414,9 +2565,9 @@ mod tests {
                         Expression::Literal(Literal::Bool(bool_val)),
                     ],
                 };
-                
+
                 let result_type = analyzer.analyze_expression(&expr);
-                
+
                 // Tuple should preserve element types (matching Rust semantics)
                 match result_type {
                     Type::Tuple { types } => {

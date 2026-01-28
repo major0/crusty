@@ -453,9 +453,11 @@ impl Block {
     pub fn new(statements: Vec<Statement>) -> Self {
         Self { statements }
     }
-    
+
     pub fn empty() -> Self {
-        Self { statements: Vec::new() }
+        Self {
+            statements: Vec::new(),
+        }
     }
 }
 
@@ -473,7 +475,7 @@ mod tests {
     fn test_create_block() {
         let block = Block::new(vec![]);
         assert_eq!(block.statements.len(), 0);
-        
+
         let empty_block = Block::empty();
         assert_eq!(empty_block.statements.len(), 0);
     }
@@ -489,7 +491,7 @@ mod tests {
             doc_comments: vec![],
             attributes: vec![],
         };
-        
+
         assert_eq!(func.name.name, "main");
         assert_eq!(func.params.len(), 0);
         assert!(func.return_type.is_none());
@@ -515,7 +517,7 @@ mod tests {
             doc_comments: vec![],
             attributes: vec![],
         };
-        
+
         assert_eq!(func.params.len(), 2);
         assert_eq!(func.params[0].name.name, "a");
         assert_eq!(func.params[1].name.name, "b");
@@ -547,7 +549,7 @@ mod tests {
             doc_comments: vec![],
             attributes: vec![],
         };
-        
+
         assert_eq!(struct_def.name.name, "Point");
         assert_eq!(struct_def.fields.len(), 2);
         assert_eq!(struct_def.fields[0].name.name, "x");
@@ -576,7 +578,7 @@ mod tests {
             doc_comments: vec![],
             attributes: vec![],
         };
-        
+
         assert_eq!(enum_def.name.name, "Color");
         assert_eq!(enum_def.variants.len(), 3);
         assert_eq!(enum_def.variants[0].name.name, "Red");
@@ -591,9 +593,14 @@ mod tests {
             init: Some(Expression::Literal(Literal::Int(42))),
             mutable: false,
         };
-        
+
         match stmt {
-            Statement::Let { name, ty, init, mutable } => {
+            Statement::Let {
+                name,
+                ty,
+                init,
+                mutable,
+            } => {
                 assert_eq!(name.name, "x");
                 assert!(ty.is_some());
                 assert!(init.is_some());
@@ -610,10 +617,17 @@ mod tests {
             then_block: Block::empty(),
             else_block: None,
         };
-        
+
         match stmt {
-            Statement::If { condition, then_block, else_block } => {
-                assert!(matches!(condition, Expression::Literal(Literal::Bool(true))));
+            Statement::If {
+                condition,
+                then_block,
+                else_block,
+            } => {
+                assert!(matches!(
+                    condition,
+                    Expression::Literal(Literal::Bool(true))
+                ));
                 assert_eq!(then_block.statements.len(), 0);
                 assert!(else_block.is_none());
             }
@@ -628,11 +642,18 @@ mod tests {
             condition: Expression::Literal(Literal::Bool(true)),
             body: Block::empty(),
         };
-        
+
         match stmt {
-            Statement::While { label, condition, body } => {
+            Statement::While {
+                label,
+                condition,
+                body,
+            } => {
                 assert!(label.is_none());
-                assert!(matches!(condition, Expression::Literal(Literal::Bool(true))));
+                assert!(matches!(
+                    condition,
+                    Expression::Literal(Literal::Bool(true))
+                ));
                 assert_eq!(body.statements.len(), 0);
             }
             _ => panic!("Expected While statement"),
@@ -646,7 +667,7 @@ mod tests {
             left: Box::new(Expression::Literal(Literal::Int(1))),
             right: Box::new(Expression::Literal(Literal::Int(2))),
         };
-        
+
         match expr {
             Expression::Binary { op, left, right } => {
                 assert!(matches!(op, BinaryOp::Add));
@@ -663,7 +684,7 @@ mod tests {
             op: UnaryOp::Neg,
             expr: Box::new(Expression::Literal(Literal::Int(42))),
         };
-        
+
         match expr {
             Expression::Unary { op, expr } => {
                 assert!(matches!(op, UnaryOp::Neg));
@@ -682,7 +703,7 @@ mod tests {
                 Expression::Literal(Literal::Int(2)),
             ],
         };
-        
+
         match expr {
             Expression::Call { func, args } => {
                 assert!(matches!(*func, Expression::Ident(_)));
@@ -701,7 +722,7 @@ mod tests {
                 Expression::Literal(Literal::Int(3)),
             ],
         };
-        
+
         match expr {
             Expression::ArrayLit { elements } => {
                 assert_eq!(elements.len(), 3);
@@ -718,7 +739,7 @@ mod tests {
                 Expression::Literal(Literal::String("test".to_string())),
             ],
         };
-        
+
         match expr {
             Expression::TupleLit { elements } => {
                 assert_eq!(elements.len(), 2);
@@ -742,7 +763,7 @@ mod tests {
             Type::Primitive(PrimitiveType::Char),
             Type::Primitive(PrimitiveType::Void),
         ];
-        
+
         assert_eq!(types.len(), 11);
     }
 
@@ -752,7 +773,7 @@ mod tests {
             ty: Box::new(Type::Primitive(PrimitiveType::I32)),
             mutable: true,
         };
-        
+
         match ty {
             Type::Pointer { ty, mutable } => {
                 assert!(matches!(*ty, Type::Primitive(PrimitiveType::I32)));
@@ -768,7 +789,7 @@ mod tests {
             ty: Box::new(Type::Primitive(PrimitiveType::I32)),
             mutable: false,
         };
-        
+
         match ty {
             Type::Reference { ty, mutable } => {
                 assert!(matches!(*ty, Type::Primitive(PrimitiveType::I32)));
@@ -784,7 +805,7 @@ mod tests {
             ty: Box::new(Type::Primitive(PrimitiveType::I32)),
             size: Some(10),
         };
-        
+
         match ty {
             Type::Array { ty, size } => {
                 assert!(matches!(*ty, Type::Primitive(PrimitiveType::I32)));
@@ -802,7 +823,7 @@ mod tests {
                 Type::Primitive(PrimitiveType::Bool),
             ],
         };
-        
+
         match ty {
             Type::Tuple { types } => {
                 assert_eq!(types.len(), 2);
@@ -816,7 +837,7 @@ mod tests {
         let ident1 = Ident::new("test");
         let ident2 = Ident::new("test");
         let ident3 = Ident::new("other");
-        
+
         assert_eq!(ident1, ident2);
         assert_ne!(ident1, ident3);
     }
@@ -832,7 +853,7 @@ mod tests {
             doc_comments: vec![],
             attributes: vec![],
         };
-        
+
         let cloned = original.clone();
         assert_eq!(original, cloned);
     }
@@ -846,7 +867,7 @@ mod tests {
             Literal::Char('a'),
             Literal::Bool(true),
         ];
-        
+
         assert_eq!(literals.len(), 5);
     }
 
@@ -854,7 +875,7 @@ mod tests {
     fn test_visibility_variants() {
         let public = Visibility::Public;
         let private = Visibility::Private;
-        
+
         assert_ne!(public, private);
     }
 
@@ -880,7 +901,7 @@ mod tests {
             BinaryOp::Shl,
             BinaryOp::Shr,
         ];
-        
+
         assert_eq!(ops.len(), 18);
     }
 
@@ -896,7 +917,7 @@ mod tests {
             UnaryOp::PostInc,
             UnaryOp::PostDec,
         ];
-        
+
         assert_eq!(ops.len(), 8);
     }
 }
