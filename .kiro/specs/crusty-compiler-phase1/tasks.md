@@ -139,7 +139,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Verify example builds and runs successfully in CI
     - _Requirements: 6.14, 6.15, 6.16_
   
-  - [ ]2.7.5 Add advanced example files
+  - [x]2.7.5 Add advanced example files
     - Create example/src/structs.crst with struct examples
     - Create example/src/methods.crst with struct method examples
     - Create example/src/generics.crst with generic type parameter examples
@@ -149,7 +149,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Create example/src/slices.crst with slice examples
     - _Requirements: 6.17-6.24_
   
-  - [ ]2.7.6 Update example README with advanced features
+  - [x]2.7.6 Update example README with advanced features
     - Update example/README.md with new examples
     - Document advanced features demonstrated
     - Add build and run instructions for each example

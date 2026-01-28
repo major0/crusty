@@ -1,0 +1,89 @@
+// Copyright (c) 2024 Crusty Programming Language
+// Licensed under the MIT License. See LICENSE.txt in the project root.
+
+/// Example demonstrating the __rust__ escape hatch for embedding raw Rust code
+
+void main() {
+    __println__("=== __rust__ Escape Hatch ===\n");
+    
+    // Example 1: Using __rust__ for pattern matching
+    __println__("1. Pattern matching with __rust__:");
+    
+    __rust__ {
+        let value = Some(42);
+        match value {
+            Some(x) => println!("  Got value: {}", x),
+            None => println!("  No value"),
+        }
+    }
+    
+    // Example 2: Using __rust__ for closures with complex trait bounds
+    __println__("\n2. Complex closures:");
+    
+    __rust__ {
+        let numbers = vec![1, 2, 3, 4, 5];
+        let sum: i32 = numbers.iter().map(|x| x * 2).sum();
+        println!("  Sum of doubled numbers: {}", sum);
+    }
+    
+    // Example 3: Using __rust__ for type expressions
+    __println__("\n3. Complex type expressions:");
+    
+    __rust__ {
+        let callback: Box<dyn Fn(i32) -> i32> = Box::new(|x| x + 10);
+        let result = callback(5);
+        println!("  Callback result: {}", result);
+    }
+    
+    // Example 4: Using __rust__ for advanced iterators
+    __println__("\n4. Advanced iterator chains:");
+    
+    __rust__ {
+        let data = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        let filtered: Vec<i32> = data
+            .iter()
+            .filter(|&&x| x % 2 == 0)
+            .map(|&x| x * x)
+            .collect();
+        println!("  Squared even numbers: {:?}", filtered);
+    }
+    
+    // Example 5: Using __rust__ for async/await (if needed)
+    __println__("\n5. Rust-specific features:");
+    
+    __rust__ {
+        // Example of using Rust's ? operator with Result
+        fn divide(a: i32, b: i32) -> Result<i32, String> {
+            if b == 0 {
+                Err("Division by zero".to_string())
+            } else {
+                Ok(a / b)
+            }
+        }
+        
+        match divide(10, 2) {
+            Ok(result) => println!("  10 / 2 = {}", result),
+            Err(e) => println!("  Error: {}", e),
+        }
+    }
+    
+    // Example 6: Mixing Crusty and __rust__ code
+    __println__("\n6. Mixing Crusty and Rust:");
+    
+    int crusty_value = 100;
+    
+    __rust__ {
+        // Can access variables from Crusty scope
+        let rust_value = crusty_value + 50;
+        println!("  Crusty value: {}", crusty_value);
+        println!("  Rust value: {}", rust_value);
+    }
+    
+    __println__("\n7. Use cases for __rust__:");
+    __println__("  - Pattern matching (not yet in Crusty)");
+    __println__("  - Complex trait bounds");
+    __println__("  - Advanced iterator chains");
+    __println__("  - Async/await syntax");
+    __println__("  - Rust-specific macros and features");
+    __println__("  - Temporary workarounds for missing Crusty features");
+}
