@@ -66,9 +66,9 @@ The `@` prefix with `->` notation distinguishes type-scoped (static) calls from 
 
 ### Macro Invocations
 ```c
-__println__!("Hello, world!");
-__vec__![1, 2, 3];
-__format__!("Value: {}", x);
+__println__("Hello, world!");
+__vec__[1, 2, 3];
+__format__("Value: {}", x);
 ```
 Translates to:
 ```rust
@@ -77,7 +77,7 @@ vec![1, 2, 3];
 format!("Value: {}", x);
 ```
 
-Crusty macros use double-underscore naming (`__name__!`) to visually distinguish them from regular function calls. The transpiler strips the underscores when generating Rust code.
+Crusty macros use double-underscore naming (`__name__`) without the `!` suffix. The `!` is Rust-specific syntax and is added during transpilation.
 
 ## Formal Grammar
 
@@ -94,5 +94,5 @@ unary      = ("!" | "-" | "&" | "*" | "++" | "--") unary | primary ;
 primary    = literal | IDENT | call | field_access | index
            | type_scoped_call | macro_call | "(" expr ")" ;
 type_scoped_call = "@" IDENT "->" IDENT ["(" [args] ")"] ;
-macro_call = "__" IDENT "__" "!" ("(" args ")" | "[" args "]" | "{" args "}") ;
+macro_call = "__" IDENT "__" ("(" args ")" | "[" args "]" | "{" args "}") ;
 ```
