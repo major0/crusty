@@ -9,10 +9,27 @@ mod semantic;
 mod codegen;
 mod error;
 mod utils;
+mod pretty;
+
+use cli::{CompilerOptions, run_compiler};
+use std::process;
 
 fn main() {
-    println!("Crusty Compiler - Phase 1");
-    println!("Infrastructure setup complete!");
+    // Parse command-line arguments
+    let options = CompilerOptions::parse_args();
+
+    // Run the compiler
+    match run_compiler(&options) {
+        Ok(()) => {
+            if options.verbose {
+                println!("Compilation completed successfully");
+            }
+        }
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            process::exit(1);
+        }
+    }
 }
 
 #[cfg(test)]
