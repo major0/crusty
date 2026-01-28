@@ -10,15 +10,15 @@ Crusty programs use Rust's standard library directly:
 
 ```crusty
 // Use Vec from std with type-scoped call syntax
-Vec<int> numbers = __vec__![1, 2, 3];
+Vec<int> numbers = __vec__[1, 2, 3];
 numbers.push(4);
 
 // Use String with type-scoped call syntax
 String s = @String->from("hello");
 s.push_str(" world");
 
-// Use println! macro with double-underscore naming
-__println__!("Result: {}", result);
+// Use println macro with double-underscore naming (no ! in Crusty)
+__println__("Result: {}", result);
 ```
 
 ## Cargo Integration

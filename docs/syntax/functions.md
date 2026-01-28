@@ -29,7 +29,7 @@ pub fn add(a: i32, b: i32) -> i32 {
 
 ```crusty
 void greet(char* name) {
-    __println__!("Hello, {}!", name);
+    __println__("Hello, {}!", name);
 }
 ```
 
