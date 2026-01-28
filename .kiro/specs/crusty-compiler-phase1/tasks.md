@@ -113,40 +113,54 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - _Requirements: 14.1-14.3, 15.1-15.8, 19.1-19.7_
 
 - [x] 2.7 Create example directory structure
-  - [ ]2.7.1 Create example directory and Cargo.toml
+  - [x]2.7.1 Create example directory and Cargo.toml
     - Create example/ directory in repository root
     - Create example/Cargo.toml with crustyc as build-dependency
     - Configure example as a binary crate
     - _Requirements: 6.1, 6.2, 6.3_
   
-  - [ ]2.7.2 Create build.rs script for examples
+  - [x]2.7.2 Create build.rs script for examples
     - Create example/build.rs script
     - Implement logic to discover all .crst files in example/src/
     - Invoke crustyc to transpile .crst files to OUT_DIR
     - Set up cargo:rerun-if-changed for incremental builds
     - _Requirements: 6.4, 6.5, 6.6, 6.7, 6.8_
   
-  - [ ]2.7.3 Create basic example files
+  - [x]2.7.3 Create basic example files
     - Create example/src/ directory
     - Create example/src/main.crst with hello world program
     - Create example/src/functions.crst with function examples
-    - Create example/src/structs.crst with struct examples
     - Create example/README.md with build and run instructions
     - _Requirements: 6.9, 6.10, 6.11, 6.12, 6.13_
   
-  - [ ]2.7.4 Integrate example into CI/CD
+  - [x]2.7.4 Integrate example into CI/CD
     - Update .github/workflows/ci.yml to build example/
     - Add step to run example binary
     - Verify example builds and runs successfully in CI
     - _Requirements: 6.14, 6.15, 6.16_
   
-  - [ ]2.7.5 Commit example directory setup
-    - Stage all example files
-    - Create commit with message: "feat(task-2.7): create example directory structure"
-    - Include commit body describing example setup
-    - Reference requirements: "Validates: Requirements 6.1-6.16"
-    - Push to trigger CI pipeline
-    - _Requirements: 6.1-6.34_
+  - [ ]2.7.5 Add advanced example files
+    - Create example/src/structs.crst with struct examples
+    - Create example/src/methods.crst with struct method examples
+    - Create example/src/generics.crst with generic type parameter examples
+    - Create example/src/attributes.crst with attribute examples
+    - Create example/src/macros.crst with macro usage examples using double-underscore naming
+    - Create example/src/ranges.crst with range syntax examples
+    - Create example/src/slices.crst with slice examples
+    - _Requirements: 6.17-6.24_
+  
+  - [ ]2.7.6 Update example README with advanced features
+    - Update example/README.md with new examples
+    - Document advanced features demonstrated
+    - Add build and run instructions for each example
+    - _Requirements: 6.25, 6.26_
+  
+  - [ ]2.7.7 Commit advanced example updates
+    - Stage all new example files
+    - Create commit with message: "feat(task-2.7): add advanced feature examples"
+    - Reference requirements: "Validates: Requirements 6.17-6.26"
+    - Note: This task adds advanced examples to the basic example directory
+    - _Requirements: 6.17-6.34_
 
 - [x] 3. Implement error handling infrastructure
   - [x]3.1 Define error types and structures

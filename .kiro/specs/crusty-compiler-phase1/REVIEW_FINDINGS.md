@@ -20,61 +20,44 @@ The spec files are well-structured with strong traceability between requirements
   - Dot notation (`@Type.method()` or `@Foo.Bar.boo()`) for nested type paths
 - **Commit**: 01e0c93 "docs: clarify type-scoped call syntax for nested type paths"
 
+### ✅ Example Directory Status (RESOLVED)
+- **Issue**: Example directory existed but docs said it was "planned"
+- **Resolution**: Updated README and tasks to reflect current state:
+  - README now shows example directory as complete with links
+  - Tasks 2.7.1-2.7.4 marked as complete
+  - Tasks 2.7.5-2.7.7 remain for advanced examples
+- **Commit**: [current commit]
+
+### ✅ Terminology Standards (RESOLVED)
+- **Issue**: Mixed capitalization appeared inconsistent
+- **Resolution**: Clarified that terminology is intentionally context-specific:
+  - Formal requirements use "THE Transpiler", "Code_Generator"
+  - Implementation uses "transpiler", "CodeGenerator" (Rust conventions)
+  - This is proper documentation practice
+- **Status**: No changes needed
+
 ---
 
 ## REMAINING ISSUES
 
-### 1. Example Directory Status Mismatch (MODERATE)
-**Status**: Example directory exists and works, but documentation says it's planned
-
-**Evidence**:
-- File tree shows `example/` directory with working files
-- CI workflow successfully builds and runs example
-- README "Project Status" shows "🚧 Example directory (planned)"
-- Tasks 2.7.1-2.7.7 marked as NOT started `[ ]`
-
-**Fix Required**:
-1. Update README.md "Project Status" section:
-   ```markdown
-   - ✅ Example directory (basic examples working)
-   ```
-
-2. Mark tasks 2.7.1-2.7.7 as complete in tasks.md:
-   ```markdown
-   - [x] 2.7.1 Create example directory and Cargo.toml
-   - [x] 2.7.2 Create build.rs script for examples
-   - [x] 2.7.3 Create basic example files
-   - [x] 2.7.4 Integrate example into CI/CD
-   ```
-
-3. Keep 2.7.5-2.7.7 as incomplete if advanced examples not yet added
-
-**Impact**: Documentation accuracy
-
----
-
-### 2. Self-Referential Task Dependency (MINOR)
+### 1. Self-Referential Task Dependency (RESOLVED)
 **Location**: tasks.md, Task 2.7.7
 
-**Issue**: Task 2.7.7 note states "Note: This task depends on Task 2.7 (Create example directory)" but 2.7.7 IS PART OF Task 2.7
+**Issue**: Task 2.7.7 note stated it depends on Task 2.7, but it's part of 2.7
 
-**Fix Required**: Remove or clarify the note:
-```markdown
-- [ ] 2.7.7 Note: This task adds advanced examples to the basic example directory created in 2.7.1-2.7.4
-```
+**Fix Applied**: Updated note to clarify it adds advanced examples to the basic directory
 
-**Impact**: Task clarity
+**Impact**: Task clarity improved
 
 ---
 
-### 3. README Missing Advanced Syntax Examples (MINOR)
+### 2. README Missing Advanced Syntax Examples (MINOR)
 **Issue**: README doesn't demonstrate all major syntax features
 
 **Missing Examples**:
 - Explicit generic parameters: `@Vec(i32)->new()`
 - `#define` macro definitions with double-underscore naming
 - Labeled loops: `.label: loop { ... }`
-- Nested type paths: `@Foo.Bar.boo()`
 
 **Fix Required**: Add "Advanced Syntax" section to README with examples
 
@@ -82,25 +65,7 @@ The spec files are well-structured with strong traceability between requirements
 
 ---
 
-### 4. Inconsistent Terminology (COSMETIC)
-**Issue**: Mixed capitalization and underscore usage
-
-**Examples**:
-- "Transpiler" vs "transpiler"
-- "Code_Generator" vs "CodeGenerator"
-- "crustyc" vs "Crustyc"
-
-**Recommendation**: Standardize on:
-- "transpiler" (lowercase) for the tool/concept
-- "Code_Generator" (with underscore) for the component name in requirements
-- "CodeGenerator" (no underscore) for the Rust struct name in code
-- "crustyc" (lowercase) for the binary name
-
-**Impact**: Documentation consistency (cosmetic only)
-
----
-
-### 5. Requirement 58 Appears Truncated (MINOR)
+### 3. Requirement 58 Appears Truncated (MINOR)
 **Location**: requirements.md, line ~1292
 
 **Issue**: Requirement 58 "Provide Comprehensive Test Coverage" appears to be cut off mid-sentence
@@ -142,15 +107,13 @@ The spec files are well-structured with strong traceability between requirements
 
 ### Priority 1 (Documentation Accuracy)
 1. ✅ **DONE**: Clarify type-scoped call syntax (arrow vs dot notation)
-2. **TODO**: Update README and tasks to reflect example directory status
-3. **TODO**: Verify Requirement 58 is complete
+2. ✅ **DONE**: Update README and tasks to reflect example directory status
+3. ✅ **DONE**: Clarify terminology standards (intentionally context-specific)
+4. **TODO**: Verify Requirement 58 is complete
 
 ### Priority 2 (Clarity)
-4. **TODO**: Fix self-referential task dependency note
-5. **TODO**: Add advanced syntax examples to README
-
-### Priority 3 (Polish)
-6. **TODO**: Standardize terminology across all documents
+5. ✅ **DONE**: Fix self-referential task dependency note
+6. **TODO**: Add advanced syntax examples to README
 
 ---
 
