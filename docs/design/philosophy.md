@@ -10,6 +10,9 @@ Many developers are comfortable with C syntax but want Rust's safety features. R
 
 ## Core Principles
 
+### C-Like Function Syntax
+Crusty uses C-style function declarations with return types before function names. There is no `fn` keyword — functions are declared as `int add(int a, int b)` rather than Rust's `fn add(a: i32, b: i32) -> i32`. The `static` keyword controls visibility: static functions are private, non-static functions are public.
+
 ### Syntax-Only Transpilation
 Crusty is a syntax layer over Rust, not a semantic transformation. The transpiler translates syntax constructs one-to-one without changing program semantics. What you write in Crusty maps directly to what you get in Rust.
 
