@@ -90,15 +90,15 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - **Validates: Requirements 6.2, 10.1**
     - Commit with message: "test(task-3.2): add property test for error reporting"
 
-- [ ] 4. Implement lexer for tokenization
-  - [ ]4.1 Define token types and lexer structure
+- [x] 4. Implement lexer for tokenization
+  - [x]4.1 Define token types and lexer structure
     - Create TokenKind enum with all keywords, operators, delimiters, literals, identifiers
     - Create Token struct with kind, span, and text fields
     - Create Lexer struct with source, position, line, column fields
     - Commit with message: "feat(task-4.1): define token types and lexer structure"
     - _Requirements: 6.1, 6.4-6.19_
   
-  - [ ]4.2 Implement lexer methods
+  - [x]4.2 Implement lexer methods
     - Implement Lexer::new() constructor
     - Implement next_token() for advancing through source
     - Implement peek_token() for lookahead
@@ -107,7 +107,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Commit with message: "feat(task-4.2): implement lexer methods"
     - _Requirements: 6.1, 49.4_
   
-  - [ ]4.3 Write unit tests for lexer
+  - [x]4.3 Write unit tests for lexer
     - Test tokenization of keywords, operators, literals
     - Test error cases (unterminated strings, invalid characters)
     - Test comment handling
