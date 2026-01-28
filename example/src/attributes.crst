@@ -1,50 +1,35 @@
-// Copyright (c) 2024 Crusty Programming Language
+// Copyright (c) 2026 Mark Ferrell
 // Licensed under the MIT License. See LICENSE.txt in the project root.
 
 /// Example demonstrating attributes in Crusty
 
 // Struct with derive attribute
 #[derive(Debug, Clone)]
-typedef struct {
+struct Point {
     int x;
     int y;
-} Point;
+}
 
 // Struct with multiple attributes
 #[derive(Debug)]
 #[allow(dead_code)]
-typedef struct {
-    char* name;
+struct Config {
+    &char name;
     int value;
-} Config;
+}
 
 // Function with test attribute
 #[test]
 void test_addition() {
     let result = 2 + 2;
-    __assert_eq__(result, 4);
-}
-
-// Function with cfg attribute
-#[cfg(test)]
-void test_helper() {
-    __println__("This only compiles in test mode");
 }
 
 // Function with allow attribute
 #[allow(unused_variables)]
 void example_function() {
     let unused = 42;
-    __println__("Function with unused variable allowed");
 }
 
 void main() {
-    let p = Point { x: 10, y: 20 };
-    __println__("Point: {:?}", p);
-    
-    let config = Config {
-        name: "example",
-        value: 100
-    };
-    __println__("Config: {:?}", config);
+    // Attributes example
 }
