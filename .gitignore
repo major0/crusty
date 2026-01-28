@@ -44,3 +44,6 @@ Thumbs.db
 # Example builds (keep source, ignore builds)
 example/target/
 example/Cargo.lock
+
+# Review and analysis files (local only)
+**/REVIEW_FINDINGS.md
