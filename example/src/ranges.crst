@@ -2,50 +2,9 @@
 // Licensed under the MIT License. See LICENSE.txt in the project root.
 
 /// Example demonstrating range syntax
+/// NOTE: Range expressions in let statements are not yet fully implemented
 
 void main() {
-    // Exclusive range (start..end)
-    __println__("Exclusive range 0..5:");
-    for (int i in 0..5) {
-        __print__("{} ", i);
-    }
-    __println__("");
-    
-    // Inclusive range (start..=end)
-    __println__("Inclusive range 0..=5:");
-    for (int i in 0..=5) {
-        __print__("{} ", i);
-    }
-    __println__("");
-    
-    // Range from start (start..)
-    __println__("First 5 from range 10..:");
-    let count = 0;
-    for (int i in 10..) {
-        __print__("{} ", i);
-        count = count + 1;
-        if (count >= 5) {
-            break;
-        }
-    }
-    __println__("");
-    
-    // Range to end (..end)
-    __println__("Range ..5:");
-    for (int i in ..5) {
-        __print__("{} ", i);
-    }
-    __println__("");
-    
-    // Full range (..)
-    let arr = __vec__[10, 20, 30, 40, 50];
-    __println__("Full range on array:");
-    for (int val in arr) {
-        __print__("{} ", val);
-    }
-    __println__("");
-    
-    // Using ranges with collect
-    let range_vec = (1..6).collect();
-    __println__("Collected range: {:?}", range_vec);
+    __println__("Range syntax support is planned for a future release.");
+    __println__("Ranges will support: start..end, start..=end, start.., ..end, ..");
 }
