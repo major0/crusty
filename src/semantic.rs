@@ -116,6 +116,7 @@ impl SymbolTable {
     }
 
     /// Lookup a symbol only in the current scope
+    #[allow(dead_code)]
     pub fn lookup_in_current_scope(&self, name: &str) -> Option<&Symbol> {
         self.scopes.last().and_then(|scope| scope.lookup(name))
     }
@@ -1498,6 +1499,7 @@ impl SemanticAnalyzer {
     }
 
     /// Check for unsupported C union feature
+    #[allow(dead_code)]
     pub fn check_union_usage(&mut self, name: &str) {
         self.errors.push(SemanticError::new(
             Span::new(
@@ -1513,6 +1515,7 @@ impl SemanticAnalyzer {
     }
 
     /// Check for unsupported goto statement
+    #[allow(dead_code)]
     pub fn check_goto_usage(&mut self, label: &str) {
         self.errors.push(SemanticError::new(
             Span::new(
@@ -1528,6 +1531,7 @@ impl SemanticAnalyzer {
     }
 
     /// Check for unsupported #include directive
+    #[allow(dead_code)]
     pub fn check_include_usage(&mut self, path: &str) {
         self.errors.push(SemanticError::new(
             Span::new(

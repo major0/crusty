@@ -12,6 +12,7 @@ pub struct File {
 
 /// Top-level items in a program
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum Item {
     Function(Function),
     Struct(Struct),
@@ -135,6 +136,7 @@ pub struct MacroDefinition {
 
 /// Statement types
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum Statement {
     Let {
         name: Ident,
@@ -188,6 +190,7 @@ pub enum Statement {
 
 /// Expression types
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum Expression {
     Literal(Literal),
     Ident(Ident),
@@ -269,6 +272,7 @@ pub enum Expression {
 
 /// Type expressions
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum Type {
     Primitive(PrimitiveType),
     Ident(Ident),
@@ -328,6 +332,7 @@ pub struct Token {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum TokenKind {
     Ident,
     Literal,
@@ -377,6 +382,7 @@ pub enum Visibility {
 
 /// Binary operators
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum BinaryOp {
     // Arithmetic
     Add,
@@ -454,6 +460,7 @@ impl Block {
         Self { statements }
     }
 
+    #[allow(dead_code)]
     pub fn empty() -> Self {
         Self {
             statements: Vec::new(),
