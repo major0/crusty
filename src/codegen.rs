@@ -163,9 +163,34 @@ impl CodeGenerator {
                     if i > 0 {
                         self.write(", ");
                     }
-                    self.write(&param.name.name);
-                    self.write(": ");
-                    self.write(&self.generate_type_string(&param.ty));
+                    
+                    // Special handling for self parameters to use idiomatic Rust syntax
+                    if param.name.name == "self" {
+                        match &param.ty {
+                            Type::Reference { ty: _, mutable } => {
+                                // &self or &mut self
+                                if *mutable {
+                                    self.write("&mut self");
+                                } else {
+                                    self.write("&self");
+                                }
+                            }
+                            Type::Ident(ident) if ident.name == "Self" => {
+                                // self (by value)
+                                self.write("self");
+                            }
+                            _ => {
+                                // Fallback to regular parameter syntax
+                                self.write(&param.name.name);
+                                self.write(": ");
+                                self.write(&self.generate_type_string(&param.ty));
+                            }
+                        }
+                    } else {
+                        self.write(&param.name.name);
+                        self.write(": ");
+                        self.write(&self.generate_type_string(&param.ty));
+                    }
                 }
 
                 self.write(")");
@@ -1730,6 +1755,115 @@ mod tests {
         assert!(output.contains("pub struct Point"));
         assert!(output.contains("impl Point"));
         assert!(output.contains("pub fn new() -> Self"));
+    }
+
+    #[test]
+    fn test_generate_struct_with_self_parameter() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let method = Function {
+            visibility: Visibility::Public,
+            name: Ident::new("get_x"),
+            params: vec![Param {
+                name: Ident::new("self"),
+                ty: Type::Reference {
+                    ty: Box::new(Type::Ident(Ident::new("Self"))),
+                    mutable: false,
+                },
+            }],
+            return_type: Some(Type::Primitive(PrimitiveType::I32)),
+            body: Block::empty(),
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let struct_def = Struct {
+            visibility: Visibility::Public,
+            name: Ident::new("Point"),
+            fields: vec![],
+            methods: vec![method],
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let file = File {
+            items: vec![Item::Struct(struct_def)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("pub struct Point"));
+        assert!(output.contains("impl Point"));
+        assert!(output.contains("pub fn get_x(&self) -> i32"));
+    }
+
+    #[test]
+    fn test_generate_struct_with_mut_self_parameter() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let method = Function {
+            visibility: Visibility::Public,
+            name: Ident::new("set_x"),
+            params: vec![
+                Param {
+                    name: Ident::new("self"),
+                    ty: Type::Reference {
+                        ty: Box::new(Type::Ident(Ident::new("Self"))),
+                        mutable: true,
+                    },
+                },
+                Param {
+                    name: Ident::new("new_x"),
+                    ty: Type::Primitive(PrimitiveType::I32),
+                },
+            ],
+            return_type: None,
+            body: Block::empty(),
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let struct_def = Struct {
+            visibility: Visibility::Public,
+            name: Ident::new("Point"),
+            fields: vec![],
+            methods: vec![method],
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let file = File {
+            items: vec![Item::Struct(struct_def)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("pub struct Point"));
+        assert!(output.contains("impl Point"));
+        assert!(output.contains("pub fn set_x(&mut self, new_x: i32)"));
+    }
+
+    #[test]
+    fn test_generate_struct_with_static_method() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let method = Function {
+            visibility: Visibility::Private,
+            name: Ident::new("origin"),
+            params: vec![],
+            return_type: Some(Type::Ident(Ident::new("Self"))),
+            body: Block::empty(),
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let struct_def = Struct {
+            visibility: Visibility::Public,
+            name: Ident::new("Point"),
+            fields: vec![],
+            methods: vec![method],
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let file = File {
+            items: vec![Item::Struct(struct_def)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("pub struct Point"));
+        assert!(output.contains("impl Point"));
+        assert!(output.contains("fn origin() -> Self"));
+        assert!(!output.contains("pub fn origin"));
     }
 
     #[test]

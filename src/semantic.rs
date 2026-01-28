@@ -1229,8 +1229,15 @@ impl SemanticAnalyzer {
             } => {
                 let obj_type = self.analyze_expression(obj_expr);
 
+                // Dereference if it's a reference type
+                let actual_type = match &obj_type {
+                    Type::Reference { ty, .. } => ty.as_ref().clone(),
+                    Type::Pointer { ty, .. } => ty.as_ref().clone(),
+                    other => other.clone(),
+                };
+
                 // Look up field in struct type
-                match obj_type {
+                match actual_type {
                     Type::Ident(ref type_ident) => {
                         if let Some(type_info) = self.type_env.get_type(&type_ident.name) {
                             match &type_info.kind {
