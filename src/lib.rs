@@ -11,5 +11,8 @@ mod codegen_properties;
 pub mod error;
 pub mod lexer;
 pub mod parser;
+pub mod pretty;
+#[cfg(test)]
+mod pretty_properties;
 pub mod semantic;
 pub mod utils;
