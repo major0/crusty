@@ -1,1 +1,46 @@
+# Rust build artifacts
 /target
+Cargo.lock
+
+# Generated Rust files from Crusty sources
+*.rs.bk
+*.crst.rs
+
+# Test artifacts
+proptest-regressions/
+*.profraw
+*.profdata
+
+# Documentation builds
+/doc
+/docs/_build
+
+# Editor/IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS-specific
+.DS_Store
+Thumbs.db
+.Spotlight-V100
+.Trashes
+
+# Build system
+/build
+/dist
+*.egg-info
+
+# Pre-commit
+.pre-commit-config.yaml.bak
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Example builds (keep source, ignore builds)
+example/target/
+example/Cargo.lock
