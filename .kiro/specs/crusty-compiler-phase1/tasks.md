@@ -209,20 +209,20 @@ The implementation follows a bottom-up approach, building core infrastructure fi
 
 
 - [x] 7. Implement symbol table and type environment
-  - [ ]7.1 Create symbol table structure
+  - [x]7.1 Create symbol table structure
     - Create SymbolTable struct with scopes stack
     - Create Scope struct with symbols HashMap
     - Create Symbol struct with name, type, kind, mutable fields
     - Implement enter_scope(), exit_scope(), insert(), lookup() methods
     - _Requirements: 2.1, 2.2, 2.3_
   
-  - [ ]7.2 Create type environment structure
+  - [x]7.2 Create type environment structure
     - Create TypeEnvironment struct with types HashMap
     - Create TypeInfo struct with name and kind fields
     - Implement register_type(), get_type(), is_compatible() methods
     - _Requirements: 2.2, 13.9_
   
-  - [ ]7.3 Write unit tests for symbol table
+  - [x]7.3 Write unit tests for symbol table
     - Test scope management
     - Test symbol insertion and lookup
     - Test duplicate detection
