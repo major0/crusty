@@ -1,0 +1,35 @@
+# Design Philosophy
+
+## Introduction
+
+Crusty is a C-like programming language that transpiles to Rust. It aims to provide the familiar syntax of C while leveraging Rust's safety guarantees, type system, and ecosystem.
+
+## Rationale
+
+Many developers are comfortable with C syntax but want Rust's safety features. Rather than learning an entirely new syntax, Crusty lets developers write in a C-like style and get valid, safe Rust code. The transpiler handles the mechanical translation, letting developers focus on logic rather than syntax.
+
+## Core Principles
+
+### Syntax-Only Transpilation
+Crusty is a syntax layer over Rust, not a semantic transformation. The transpiler translates syntax constructs one-to-one without changing program semantics. What you write in Crusty maps directly to what you get in Rust.
+
+### Safety First
+C features that cannot be safely represented in Rust are rejected at compile time:
+- **No unions** — Use Rust enums instead
+- **No goto** — Use structured control flow
+- **No #include** — Use Crusty's module system
+
+### Rust Standard Library
+Crusty programs use Rust's standard library directly. There are no wrapper types or compatibility layers. `println!`, `Vec`, `String`, and all other std types work as-is.
+
+### Escape Hatch
+When Crusty's syntax doesn't cover a Rust feature, the `rust!` macro allows embedding raw Rust code directly. This ensures developers are never blocked by transpiler limitations.
+
+## Unsupported C Features
+
+| Feature | Reason | Alternative |
+|---------|--------|-------------|
+| `union` | Violates Rust memory safety | Use `enum` |
+| `goto` | No Rust equivalent | Use loops with `break`/`continue` |
+| `#include` | Incompatible with Rust modules | Use `#import`/`#export` |
+| Raw pointers (unrestricted) | Unsafe by default | Use references, or `unsafe` blocks |
