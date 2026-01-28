@@ -23,7 +23,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
 ## Tasks
 
 - [x] 1. Set up development infrastructure
-  - [ ]1.1 Create GitHub CI/CD pipeline
+  - [x]1.1 Create GitHub CI/CD pipeline
     - Create .github/workflows/ci.yml file
     - Configure workflow to trigger on push and pull requests to main branch
     - Add job matrix for Linux, macOS, and Windows
@@ -33,7 +33,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Add build status badge to README.md
     - _Requirements: 1.1-1.18_
   
-  - [ ]1.2 Set up pre-commit hooks
+  - [x]1.2 Set up pre-commit hooks
     - Create .pre-commit-config.yaml file
     - Add hook for crustyc syntax validation on .crst files
     - Add hook for cargo fmt check on .rs files
@@ -42,14 +42,14 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Test hooks locally before committing
     - _Requirements: 3.1-3.18_
   
-  - [ ]1.3 Add MIT License
+  - [x]1.3 Add MIT License
     - Create LICENSE.txt file with MIT License text
     - Add copyright notice with project name and year
     - Add copyright headers to all source files
     - Update README.md to mention MIT License
     - _Requirements: 4.1-4.8_
   
-  - [ ]1.4 Create EditorConfig
+  - [x]1.4 Create EditorConfig
     - Create .editorconfig file in root directory
     - Add formatting rules for .crst files (4 spaces, UTF-8, LF)
     - Add formatting rules for .rs files (4 spaces, UTF-8, LF)
@@ -59,7 +59,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Document EditorConfig support in README.md
     - _Requirements: 5.1-5.16_
   
-  - [ ]1.5 Commit infrastructure setup
+  - [x]1.5 Commit infrastructure setup
     - Stage all infrastructure files
     - Create commit with message: "chore(task-1): set up development infrastructure"
     - Include commit body describing CI/CD, pre-commit, license, and EditorConfig setup
@@ -77,7 +77,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
   - _Requirements: All (foundational)_
 
 - [x] 3. Implement error handling infrastructure
-  - [ ]3.1 Define error types and structures
+  - [x]3.1 Define error types and structures
     - Create CompilerError enum with variants for Lex, Parse, Semantic, CodeGen, Io, RustcInvocation
     - Create LexError, ParseError, SemanticError structs with span and message fields
     - Create Span and Position structs for source location tracking
