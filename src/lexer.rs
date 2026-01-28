@@ -148,11 +148,11 @@ impl Token {
 
 /// Lexer for tokenizing Crusty source code
 pub struct Lexer<'a> {
-    source: &'a str,
-    chars: std::iter::Peekable<std::str::CharIndices<'a>>,
-    position: usize,
-    line: usize,
-    column: usize,
+    pub(crate) source: &'a str,
+    pub(crate) chars: std::iter::Peekable<std::str::CharIndices<'a>>,
+    pub(crate) position: usize,
+    pub(crate) line: usize,
+    pub(crate) column: usize,
 }
 
 impl<'a> Lexer<'a> {

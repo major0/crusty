@@ -432,15 +432,15 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Test error message handling
     - _Requirements: 4.1, 4.2, 4.3_
 
-- [ ] 14. Implement advanced parsing features
-  - [ ]14.1 Add support for struct methods
+- [x] 14. Implement advanced parsing features
+  - [x]14.1 Add support for struct methods
     - Parse C++-style method definitions within structs
     - Parse self, &self, &var self parameters
     - Parse static methods (no self parameter)
     - Parse type-scoped static method calls with @ prefix (@Type.method())
     - _Requirements: 16.1-16.7, 21.7, 21.8_
   
-  - [ ]14.2 Add support for explicit generic type parameters
+  - [x]14.2 Add support for explicit generic type parameters
     - Parse explicit generic type parameters using parentheses syntax (@Type(T))
     - Parse nested generic type parameters using alternating parentheses and brackets (@Type(Inner[T]))
     - Parse multiple type parameters separated by commas (@Type(T1, T2))
@@ -451,38 +451,38 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Validate that the number of type parameters matches the generic type definition
     - _Requirements: 38.1-38.28_
   
-  - [ ]14.3 Add support for attributes
+  - [x]14.3 Add support for attributes
     - Parse #[attribute] syntax
     - Parse #[derive(...)] for trait derivation
     - Parse #[test], #[cfg(...)] attributes
     - Support attributes on structs, enums, functions, fields
     - _Requirements: 19.1-19.9_
   
-  - [ ]14.4 Add support for macros
+  - [x]14.4 Add support for macros
     - Parse Crusty macro invocation syntax with ! suffix (macro_name!(args), macro_name![args], macro_name!{args})
     - Support common macros with ! suffix (println!(...), vec![...], assert!(...), panic!(...))
     - Parse macro invocations in expression and statement contexts
     - Use ! suffix exclusively for macros (@ prefix is exclusively for type-scoped calls)
     - _Requirements: 23.1-23.6_
   
-  - [ ]14.5 Add support for ranges and slices
+  - [x]14.5 Add support for ranges and slices
     - Parse range syntax (start..end, start..=end, .., start.., ..end)
     - Parse slice type syntax (&[Type], &var [Type])
     - Parse slice indexing (arr[start..end])
     - _Requirements: 20.1-20.11_
   
-  - [ ]14.6 Add support for array and tuple literals
+  - [x]14.6 Add support for array and tuple literals
     - Parse array literal syntax [value1, value2, value3]
     - Parse array initialization syntax [value; count]
     - Parse tuple literal syntax (value1, value2, value3)
     - Parse tuple indexing (.0, .1, .2)
     - _Requirements: 14.1-14.10, 15.1-15.6_
 
-  - [ ]14.7 Write property test for explicit generic parameters
+  - [x]14.7 Write property test for explicit generic parameters
     - **Property 24: Explicit generic parameters translate correctly**
     - **Validates: Requirements 38.18, 38.19, 38.20, 38.21**
 
-  - [ ]14.8 Write unit tests for advanced parsing
+  - [x]14.8 Write unit tests for advanced parsing
     - Test struct method parsing
     - Test explicit generic parameter parsing with parentheses and brackets
     - Test generic parameter nesting and alternation
