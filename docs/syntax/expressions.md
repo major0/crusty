@@ -49,6 +49,36 @@ Translates to:
 let size = std::mem::size_of::<i32>();
 ```
 
+### Type-Scoped Static Calls
+```c
+let v = @Vector->new();
+let none = @Option->None;
+let s = @String->from("hello");
+```
+Translates to:
+```rust
+let v = Vector::new();
+let none = Option::None;
+let s = String::from("hello");
+```
+
+The `@` prefix with `->` notation distinguishes type-scoped (static) calls from instance method calls. Instance methods use dot notation as usual: `v.len()`, `v.get(0)`.
+
+### Macro Invocations
+```c
+__println__!("Hello, world!");
+__vec__![1, 2, 3];
+__format__!("Value: {}", x);
+```
+Translates to:
+```rust
+println!("Hello, world!");
+vec![1, 2, 3];
+format!("Value: {}", x);
+```
+
+Crusty macros use double-underscore naming (`__name__!`) to visually distinguish them from regular function calls. The transpiler strips the underscores when generating Rust code.
+
 ## Formal Grammar
 
 ```ebnf
@@ -61,5 +91,8 @@ comparison = addition (("<" | ">" | "<=" | ">=") addition)* ;
 addition   = multiply (("+" | "-") multiply)* ;
 multiply   = unary (("*" | "/" | "%") unary)* ;
 unary      = ("!" | "-" | "&" | "*" | "++" | "--") unary | primary ;
-primary    = literal | IDENT | call | field_access | index | "(" expr ")" ;
+primary    = literal | IDENT | call | field_access | index
+           | type_scoped_call | macro_call | "(" expr ")" ;
+type_scoped_call = "@" IDENT "->" IDENT ["(" [args] ")"] ;
+macro_call = "__" IDENT "__" "!" ("(" args ")" | "[" args "]" | "{" args "}") ;
 ```
