@@ -87,6 +87,30 @@ str.len();
 vec.push(42);
 ```
 
+### Type-Scoped Calls
+
+Type-scoped calls (static methods/associated functions) use the `@` prefix with `->` notation:
+
+```crusty
+// Type-scoped calls - ALWAYS require @ prefix with -> notation
+let v = @Vec->new();
+let none = @Option->None;
+let s = @String->from("hello");
+
+// With explicit generic parameters
+let opt = @Option(i32)->None;
+let v = @Vec(i32)->new();
+```
+
+This syntax makes it immediately clear whether a call is:
+- **Type-scoped** (`@Type->method()`): Calling a static method on the type itself
+- **Instance-scoped** (`obj.method()`): Calling a method on an instance
+
+Translation to Rust:
+- `@Vec->new()` → `Vec::new()`
+- `@Option->None` → `Option::None`
+- `@String->from("hello")` → `String::from("hello")`
+
 ## Formal Grammar
 
 ```ebnf

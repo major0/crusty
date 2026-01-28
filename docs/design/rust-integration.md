@@ -9,16 +9,16 @@ Crusty is designed to integrate seamlessly with the Rust ecosystem.
 Crusty programs use Rust's standard library directly:
 
 ```crusty
-// Use Vec from std
-Vec<int> numbers = vec![1, 2, 3];
+// Use Vec from std with type-scoped call syntax
+Vec<int> numbers = __vec__![1, 2, 3];
 numbers.push(4);
 
-// Use String
-String s = String::from("hello");
+// Use String with type-scoped call syntax
+String s = @String->from("hello");
 s.push_str(" world");
 
-// Use println! macro
-println!("Result: {}", result);
+// Use println! macro with double-underscore naming
+__println__!("Result: {}", result);
 ```
 
 ## Cargo Integration
