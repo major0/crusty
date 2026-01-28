@@ -6,6 +6,8 @@
 pub mod ast;
 pub mod cli;
 pub mod codegen;
+#[cfg(test)]
+mod codegen_properties;
 pub mod error;
 pub mod lexer;
 pub mod parser;

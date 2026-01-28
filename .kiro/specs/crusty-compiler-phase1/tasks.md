@@ -274,14 +274,14 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Test unsupported feature detection
     - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
-- [ ] 9. Implement Rust code generator
-  - [ ]9.1 Create code generator structure
+- [x] 9. Implement Rust code generator
+  - [x]9.1 Create code generator structure
     - Create CodeGenerator struct with target language and indent level
     - Implement generate() method that produces Rust source from AST
     - Implement helper methods for indentation and formatting
     - _Requirements: 3.1, 3.2_
   
-  - [ ]9.2 Implement item code generation
+  - [x]9.2 Implement item code generation
     - Implement generate_item() to dispatch to specific generators
     - Implement generate_function() for function definitions
     - Translate C-style function syntax to Rust syntax
@@ -290,7 +290,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Translate non-static functions to public Rust functions
     - _Requirements: 3.3, 3.4, 3.5, 3.6, 3.7, 3.8_
   
-  - [ ]9.3 Implement statement code generation
+  - [x]9.3 Implement statement code generation
     - Implement generate_statement() for all statement types
     - Translate let, var, const declarations to Rust
     - Translate if/else-if/else to Rust syntax
@@ -301,7 +301,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Translate labeled break/continue (break .label to break 'label, continue .label to continue 'label)
     - _Requirements: 3.9, 3.10, 3.11, 3.12, 3.13, 6.13, 6.14, 6.15, 29.7, 29.8, 29.9, 38.3-38.11_
   
-  - [ ]9.4 Implement expression code generation
+  - [x]9.4 Implement expression code generation
     - Implement generate_expression() for all expression types
     - Translate binary and unary operators
     - Translate function calls and method calls
@@ -312,7 +312,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Translate type-scoped static calls (@Type.method()) to Rust Type::method()
     - _Requirements: 3.13, 21.5, 21.13, 22.6, 23.10-23.13_
   
-  - [ ]9.5 Implement type code generation
+  - [x]9.5 Implement type code generation
     - Implement generate_type() for all type variants
     - Translate primitive types
     - Translate pointer types to references where safe
@@ -322,7 +322,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Translate generic types (pass through unchanged)
     - _Requirements: 3.14, 3.15, 14.7, 30.10, 30.11, 32.7_
   
-  - [ ]9.6 Implement struct and enum code generation
+  - [x]9.6 Implement struct and enum code generation
     - Implement generate_struct() for struct definitions
     - Translate struct fields with visibility
     - Translate struct methods to impl blocks
@@ -331,7 +331,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - _Requirements: 3.14, 16.8, 26.8, 26.9_
 
 
-  - [ ]9.7 Write property tests for code generation
+  - [x]9.7 Write property tests for code generation
     - **Property 4: Generated Rust code is syntactically valid**
     - **Validates: Requirements 8.1**
     - **Property 6: Transparent syntax preservation**
@@ -343,7 +343,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - **Property 23: Label syntax translates correctly**
     - **Validates: Requirements 6.13, 6.14, 6.15**
   
-  - [ ]9.8 Write unit tests for code generation
+  - [x]9.8 Write unit tests for code generation
     - Test generation of functions, structs, enums
     - Test generation of statements and expressions
     - Test generation of types
