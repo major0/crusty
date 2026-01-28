@@ -350,23 +350,23 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Test specific translation rules
     - _Requirements: 3.1, 3.2, 3.3-3.16_
 
-- [ ] 10. Implement pretty printer and formatting
-  - [ ]10.1 Integrate prettyplease for Rust formatting
+- [x] 10. Implement pretty printer and formatting
+  - [x]10.1 Integrate prettyplease for Rust formatting
     - Use prettyplease crate to format generated Rust code
     - Ensure output follows Rust style conventions
     - _Requirements: 3.16_
   
-  - [ ]10.2 Implement Crusty pretty printer
+  - [x]10.2 Implement Crusty pretty printer
     - Create PrettyPrinter for Crusty source code
     - Implement formatting rules for Crusty syntax
     - Support round-trip: AST → Crusty source → AST
     - _Requirements: 11.1_
   
-  - [ ]10.3 Write property test for pretty printing
+  - [x]10.3 Write property test for pretty printing
     - **Property 27: Pretty-print then parse is identity (CRITICAL)**
     - **Validates: Requirements 16.1, 16.2**
   
-  - [ ]10.4 Write property test for formatting
+  - [x]10.4 Write property test for formatting
     - **Property 5: Generated Rust code follows formatting conventions**
     - **Validates: Requirements 8.16**
 
