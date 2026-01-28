@@ -581,43 +581,44 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Test array and tuple literal parsing
     - _Requirements: 14.1-14.10, 15.1-15.7, 16.1-16.7, 18.1-18.6, 19.1-19.9, 20.1-20.11, 38.1-38.28_
 
-- [ ] 14.9 Update example directory with advanced features
-  - [ ]14.9.1 Add struct method examples
+- [x] 14.9 Update example directory with advanced features
+  - [x]14.9.1 Add struct method examples
     - Create example/src/methods.crst with struct method examples
     - Include static method calls using @Type.method() syntax
     - Include instance method calls
     - _Requirements: 6.17, 6.18_
   
-  - [ ]14.9.2 Add generic type parameter examples
+  - [x]14.9.2 Add generic type parameter examples
     - Create example/src/generics.crst with generic examples
     - Include explicit generic parameters using parentheses/brackets syntax
     - Include type inference examples
     - _Requirements: 6.19, 6.20_
   
-  - [ ]14.9.3 Add attribute and macro examples
+  - [x]14.9.3 Add attribute and macro examples
     - Create example/src/attributes.crst with attribute examples
     - Create example/src/macros.crst with macro usage examples using double-underscore naming
     - Include __println__, __vec__, __assert__ examples (no ! suffix in Crusty)
     - _Requirements: 6.21, 6.22_
   
-  - [ ]14.9.4 Add range and slice examples
+  - [x]14.9.4 Add range and slice examples
     - Create example/src/ranges.crst with range syntax examples
     - Create example/src/slices.crst with slice examples
     - _Requirements: 6.23, 6.24_
   
-  - [ ]14.9.5 Update example README
+  - [x]14.9.5 Update example README
     - Update example/README.md with new examples
     - Document advanced features demonstrated
     - Add build and run instructions for each example
     - _Requirements: 6.25, 6.26_
   
-  - [ ]14.9.6 Commit example updates
+  - [x]14.9.6 Commit example updates
     - Stage all new example files
     - Create commit with message: "feat(task-14.9): add advanced feature examples"
     - Reference requirements: "Validates: Requirements 6.17-6.26"
     - _Requirements: 6.17-6.34_
   
-  - [ ]14.9.7 Note: This task depends on Task 2.7 (Create example directory)
+  - [x]14.9.7 Note: This task depends on Task 2.7 (Create example directory)
+    - Note: Completed as part of Task 2.7.5-2.7.7
 
 - [ ] 15. Implement #define macro support
   - [ ]15.1 Add #define parsing
