@@ -405,7 +405,10 @@ impl CodeGenerator {
         // Generate type alias
         // typedef int MyInt; → pub type MyInt = i32;
         let type_str = self.generate_type_string(&typedef.target);
-        self.write_line(&format!("{}type {} = {};", visibility, typedef.name.name, type_str));
+        self.write_line(&format!(
+            "{}type {} = {};",
+            visibility, typedef.name.name, type_str
+        ));
     }
 
     fn generate_namespace(&mut self, _namespace: &Namespace) {
