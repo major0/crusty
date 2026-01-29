@@ -1145,12 +1145,14 @@ impl<'a> Parser<'a> {
         // If the initializer is a struct initializer with Type::Auto,
         // and we have a type annotation, update the struct initializer type
         if let Some(ref var_type) = ty {
-            if let Some(ref mut init_expr) = init {
-                if let Expression::StructInit { ty: struct_ty, fields: _ } = init_expr {
-                    if matches!(struct_ty, Type::Auto) {
-                        // Replace Type::Auto with the variable type
-                        *struct_ty = var_type.clone();
-                    }
+            if let Some(Expression::StructInit {
+                ty: struct_ty,
+                fields: _,
+            }) = init.as_mut()
+            {
+                if matches!(struct_ty, Type::Auto) {
+                    // Replace Type::Auto with the variable type
+                    *struct_ty = var_type.clone();
                 }
             }
         }
@@ -3821,7 +3823,7 @@ fn test_parse_struct_initializer() {
                 Statement::Let { init, ty, .. } => {
                     // Check that type is specified
                     assert!(ty.is_some());
-                    
+
                     if let Some(Expression::StructInit { ty, fields }) = init {
                         // Check type - should be Point (resolved from variable type)
                         match ty {
@@ -3851,19 +3853,17 @@ fn test_parse_struct_initializer_partial() {
 
     assert_eq!(file.items.len(), 1);
     match &file.items[0] {
-        Item::Function(func) => {
-            match &func.body.statements[0] {
-                Statement::Let { init, .. } => {
-                    if let Some(Expression::StructInit { fields, .. }) = init {
-                        assert_eq!(fields.len(), 1);
-                        assert_eq!(fields[0].0.name, "x");
-                    } else {
-                        panic!("Expected StructInit expression");
-                    }
+        Item::Function(func) => match &func.body.statements[0] {
+            Statement::Let { init, .. } => {
+                if let Some(Expression::StructInit { fields, .. }) = init {
+                    assert_eq!(fields.len(), 1);
+                    assert_eq!(fields[0].0.name, "x");
+                } else {
+                    panic!("Expected StructInit expression");
                 }
-                _ => panic!("Expected Let statement"),
             }
-        }
+            _ => panic!("Expected Let statement"),
+        },
         _ => panic!("Expected Function"),
     }
 }
@@ -3876,18 +3876,16 @@ fn test_parse_struct_initializer_trailing_comma() {
 
     assert_eq!(file.items.len(), 1);
     match &file.items[0] {
-        Item::Function(func) => {
-            match &func.body.statements[0] {
-                Statement::Let { init, .. } => {
-                    if let Some(Expression::StructInit { fields, .. }) = init {
-                        assert_eq!(fields.len(), 2);
-                    } else {
-                        panic!("Expected StructInit expression");
-                    }
+        Item::Function(func) => match &func.body.statements[0] {
+            Statement::Let { init, .. } => {
+                if let Some(Expression::StructInit { fields, .. }) = init {
+                    assert_eq!(fields.len(), 2);
+                } else {
+                    panic!("Expected StructInit expression");
                 }
-                _ => panic!("Expected Let statement"),
             }
-        }
+            _ => panic!("Expected Let statement"),
+        },
         _ => panic!("Expected Function"),
     }
 }
@@ -3907,10 +3905,13 @@ fn test_parse_struct_initializer_nested() {
                         assert_eq!(fields.len(), 2);
                         assert_eq!(fields[0].0.name, "origin");
                         assert_eq!(fields[1].0.name, "size");
-                        
+
                         // Check nested struct initializers
                         match &fields[0].1 {
-                            Expression::StructInit { fields: nested_fields, .. } => {
+                            Expression::StructInit {
+                                fields: nested_fields,
+                                ..
+                            } => {
                                 assert_eq!(nested_fields.len(), 2);
                             }
                             _ => panic!("Expected nested StructInit"),
