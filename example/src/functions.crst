@@ -1,0 +1,86 @@
+// Copyright (c) 2024 Crusty Programming Language
+// Licensed under the MIT License. See LICENSE.txt in the project root.
+
+/// Example demonstrating various function declaration styles in Crusty
+
+/// A public function that returns an integer
+int get_answer() {
+    return 42;
+}
+
+/// A static (private) function
+static int helper_function(int x) {
+    return x * 2;
+}
+
+/// A function with no return value (void)
+void print_greeting(char* name) {
+    __println__("Hello, {}!", name);
+}
+
+/// A function with multiple parameters
+int multiply(int a, int b) {
+    return a * b;
+}
+
+/// A function demonstrating early return
+int absolute_value(int n) {
+    if (n < 0) {
+        return -n;
+    }
+    return n;
+}
+
+/// A function with nested control flow
+int factorial(int n) {
+    if (n <= 1) {
+        return 1;
+    }
+    
+    int result = 1;
+    int i = 2;
+    while (i <= n) {
+        result = result * i;
+        i = i + 1;
+    }
+    
+    return result;
+}
+
+/// A function demonstrating for loops
+int sum_range(int start, int end) {
+    int total = 0;
+    
+    for (int i = start; i <= end; i = i + 1) {
+        total = total + i;
+    }
+    
+    return total;
+}
+
+/// A function with boolean return type
+bool is_even(int n) {
+    return (n % 2) == 0;
+}
+
+/// A function demonstrating break and continue
+int count_evens(int limit) {
+    int count = 0;
+    int i = 0;
+    
+    while (i < limit) {
+        i = i + 1;
+        
+        if (i % 2 != 0) {
+            continue;  // Skip odd numbers
+        }
+        
+        count = count + 1;
+        
+        if (count >= 10) {
+            break;  // Stop after finding 10 even numbers
+        }
+    }
+    
+    return count;
+}
