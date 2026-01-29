@@ -1,0 +1,35 @@
+// Copyright (c) 2026 Mark Ferrell
+// Licensed under the MIT License. See LICENSE.txt in the project root.
+
+/// Example demonstrating attributes in Crusty
+
+// Struct with derive attribute
+#[derive(Debug, Clone)]
+struct Point {
+    int x;
+    int y;
+}
+
+// Struct with multiple attributes
+#[derive(Debug)]
+#[allow(dead_code)]
+struct Config {
+    &char name;
+    int value;
+}
+
+// Function with test attribute
+#[test]
+void test_addition() {
+    let result = 2 + 2;
+}
+
+// Function with allow attribute
+#[allow(unused_variables)]
+void example_function() {
+    let unused = 42;
+}
+
+void main() {
+    // Attributes example
+}

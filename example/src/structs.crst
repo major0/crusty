@@ -1,0 +1,19 @@
+// Copyright (c) 2026 Mark Ferrell
+// Licensed under the MIT License. See LICENSE.txt in the project root.
+
+/// Example demonstrating struct definitions in Crusty
+
+// Basic struct definition
+struct Point {
+    int x;
+    int y;
+}
+
+// Simple function
+int add(int a, int b) {
+    return a + b;
+}
+
+void main() {
+    let result = add(2, 3);
+}
