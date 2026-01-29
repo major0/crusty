@@ -11,7 +11,7 @@ Crusty is a C-like programming language that transpiles to Rust, providing famil
 - **Familiar C syntax**: Write code with C-style function declarations, control flow, and data structures
 - **Type-scoped calls**: Use `@Type` prefix with dot notation: `@Vec.new()`, `@Option.None`
 - **Macro system**: Double-underscore naming for macros: `__println__("Hello")`, `__vec__[1, 2, 3]`
-- **Closures**: K&R style nested functions that capture outer scope (transpile to Rust closures)
+- **Closures**: Nested functions that capture outer scope (transpile to Rust closures)
 - **Escape hatch**: Use `__rust__` to embed raw Rust code for advanced features
 - **Rust compatibility**: All Crusty code transpiles to safe, idiomatic Rust
 
@@ -251,11 +251,11 @@ void main() {
 
 **Note**: The `__rust__` macro provides an escape hatch for using Rust features not yet supported by Crusty syntax. The contents are passed directly to rustc without validation by crustyc. Use this when you need access to advanced Rust features like pattern matching, closures, or complex trait bounds.
 
-#### Closures with K&R Style Nested Functions
+#### Closures with Nested Functions
 ```crusty
 void main() {
-    // Crusty supports K&R C style nested functions as closures
-    // This feature existed in original C (circa 1971) before being removed in ANSI C
+    // Crusty supports nested functions as closures
+    // Functions defined within functions can capture variables from outer scope
     
     int outer_value = 42;
     
@@ -288,7 +288,7 @@ void main() {
     
     increment();
     increment();
-    __println__("Counter: {}", counter);  // Prints 3
+    __println__("Counter: {}", counter);  // Prints 2
 }
 ```
 
@@ -307,11 +307,9 @@ pub fn main() {
 }
 ```
 
-**Historical Note**: Nested functions were a feature of the original C language (K&R C, circa 1971) that allowed defining functions within functions, providing a form of closure with access to the outer function's scope. This feature was removed in the ANSI C standardization. Crusty revives this syntax as a more familiar way to write closures for C programmers, while transpiling to Rust's closure syntax.
+**Note**: Nested functions provide a familiar C-style syntax for closures. They can capture variables from the enclosing scope and are translated to Rust closures (`Fn`, `FnMut`, or `FnOnce` depending on how they use captured variables).
 
-**References**:
-- GNU C supports nested functions as an extension: https://gcc.gnu.org/onlinedocs/gcc/Nested-Functions.html
-- Historical context of C language features and their evolution
+**Reference**: GNU C supports nested functions as an extension: https://gcc.gnu.org/onlinedocs/gcc/Nested-Functions.html
 
 #### Implementation Blocks with typedef
 ```crusty
@@ -513,7 +511,7 @@ The hooks will automatically run:
 - Type-scoped calls with dot notation (`@Type.method()`)
 - Macro invocations with double-underscore naming (`__macro_name__`)
 - Raw Rust code embedding with `__rust__` escape hatch
-- Closures with K&R style nested functions
+- Closures with nested functions
 - Control flow statements
 - Memory management and ownership
 - Module system and visibility
