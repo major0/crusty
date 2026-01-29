@@ -9,6 +9,7 @@ This section documents Crusty's language syntax.
 - [Variables](variables.md) - Variable declarations and types
 - [Control Flow](control-flow.md) - Control flow statements
 - [Types](types.md) - Type system and declarations
+- [Typedef](typedef.md) - Typedef syntax for structs and impl blocks
 - [Expressions](expressions.md) - Operators and expressions
 - [Macros](macros.md) - Macro definitions and usage
 
