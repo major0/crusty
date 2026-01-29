@@ -78,28 +78,41 @@ static int helper(int n) {
 
 ### Structs and Methods
 ```crusty
-struct Point {
+// Define a struct type
+typedef struct {
     int x;
     int y;
+} Point;
+
+// Add implementation block with methods
+typedef struct {
+    // Static method (constructor)
+    Point new(int x, int y) {
+        return Point { x: x, y: y };
+    }
     
     // Instance method
     int distance_squared(&self) {
         return self.x * self.x + self.y * self.y;
     }
-    
-    // Static method
-    static Point origin() {
+} @Point;
+
+// Implement Default trait
+typedef default {
+    Point default() {
         return Point { x: 0, y: 0 };
     }
-}
+} @Point;
 
 void main() {
     // Type-scoped call with arrow notation (@ prefix required)
-    let origin = @Point->origin();
+    let p1 = @Point->new(3, 4);
+    
+    // Use Default trait
+    let origin = @Point->default();
     
     // Instance method call (no @ prefix)
-    let p = Point { x: 3, y: 4 };
-    __println__("Distance²: {}", p.distance_squared());
+    __println__("Distance²: {}", p1.distance_squared());
     
     // Nested type paths use dot notation after @
     // Example: @std.collections.HashMap->new()
@@ -194,6 +207,46 @@ void main() {
             continue inner;  // Continue inner loop (no dot in continue)
         }
     }
+}
+```
+
+#### Implementation Blocks with typedef
+```crusty
+// Define a struct type
+typedef struct {
+    int width;
+    int height;
+} Rectangle;
+
+// Add implementation block
+typedef struct {
+    Rectangle new(int w, int h) {
+        return Rectangle { width: w, height: h };
+    }
+    
+    int area(&self) {
+        return self.width * self.height;
+    }
+} @Rectangle;
+
+// Implement Default trait
+typedef default {
+    Rectangle default() {
+        return Rectangle { width: 0, height: 0 };
+    }
+} @Rectangle;
+
+// Named implementation block (for organization)
+typedef struct {
+    void print(&self) {
+        __println__("Rectangle: {}x{}", self.width, self.height);
+    }
+} @Rectangle->display;
+
+void main() {
+    let rect = @Rectangle->new(10, 20);
+    __println__("Area: {}", rect.area());
+    rect.print();
 }
 ```
 
@@ -350,7 +403,9 @@ The hooks will automatically run:
 
 ### Language Reference
 - Function declarations and definitions
-- Struct and enum types
+- Struct and enum types with typedef syntax
+- Implementation blocks (typedef struct @Type)
+- Trait implementations (typedef default @Type)
 - Type-scoped calls with arrow notation (`@Type->method()`)
 - Macro invocations with double-underscore naming (`__macro_name__`)
 - Control flow statements
