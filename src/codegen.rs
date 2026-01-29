@@ -2612,3 +2612,96 @@ mod tests {
         assert_eq!(result, "(ptr = Option::None)");
     }
 }
+
+#[cfg(test)]
+mod struct_init_tests {
+    use super::*;
+    use crate::ast::*;
+
+    #[test]
+    fn test_generate_struct_initializer() {
+        let mut codegen = CodeGenerator::new(TargetLanguage::Rust);
+        
+        let struct_init = Expression::StructInit {
+            ty: Type::Ident(Ident::new("Point")),
+            fields: vec![
+                (Ident::new("x"), Expression::Literal(Literal::Int(10))),
+                (Ident::new("y"), Expression::Literal(Literal::Int(20))),
+            ],
+        };
+        
+        let result = codegen.generate_expression_string(&struct_init);
+        assert_eq!(result, "Point { x: 10, y: 20 }");
+    }
+
+    #[test]
+    fn test_generate_struct_initializer_partial() {
+        let mut codegen = CodeGenerator::new(TargetLanguage::Rust);
+        
+        let struct_init = Expression::StructInit {
+            ty: Type::Ident(Ident::new("Point")),
+            fields: vec![
+                (Ident::new("x"), Expression::Literal(Literal::Int(10))),
+            ],
+        };
+        
+        let result = codegen.generate_expression_string(&struct_init);
+        assert_eq!(result, "Point { x: 10 }");
+    }
+
+    #[test]
+    fn test_generate_struct_initializer_nested() {
+        let mut codegen = CodeGenerator::new(TargetLanguage::Rust);
+        
+        let struct_init = Expression::StructInit {
+            ty: Type::Ident(Ident::new("Rect")),
+            fields: vec![
+                (
+                    Ident::new("origin"),
+                    Expression::StructInit {
+                        ty: Type::Ident(Ident::new("Point")),
+                        fields: vec![
+                            (Ident::new("x"), Expression::Literal(Literal::Int(0))),
+                            (Ident::new("y"), Expression::Literal(Literal::Int(0))),
+                        ],
+                    },
+                ),
+                (
+                    Ident::new("size"),
+                    Expression::StructInit {
+                        ty: Type::Ident(Ident::new("Size")),
+                        fields: vec![
+                            (Ident::new("w"), Expression::Literal(Literal::Int(10))),
+                            (Ident::new("h"), Expression::Literal(Literal::Int(20))),
+                        ],
+                    },
+                ),
+            ],
+        };
+        
+        let result = codegen.generate_expression_string(&struct_init);
+        assert_eq!(result, "Rect { origin: Point { x: 0, y: 0 }, size: Size { w: 10, h: 20 } }");
+    }
+
+    #[test]
+    fn test_generate_struct_initializer_with_auto_type() {
+        let mut codegen = CodeGenerator::new(TargetLanguage::Rust);
+        
+        // When type is Auto, it should be inferred from context
+        // For now, we'll just generate the type as-is
+        let struct_init = Expression::StructInit {
+            ty: Type::Auto,
+            fields: vec![
+                (Ident::new("x"), Expression::Literal(Literal::Int(10))),
+                (Ident::new("y"), Expression::Literal(Literal::Int(20))),
+            ],
+        };
+        
+        let result = codegen.generate_expression_string(&struct_init);
+        // Auto type should be omitted in Rust (type inference)
+        // But for struct initializers, we need the type name
+        // This is a limitation - we'll need semantic analysis to resolve Auto types
+        assert!(result.contains("x: 10"));
+        assert!(result.contains("y: 20"));
+    }
+}

@@ -1416,6 +1416,9 @@ impl SemanticAnalyzer {
                     self.analyze_expression(field_expr);
                 }
 
+                // If type is Auto, try to infer from context
+                // For now, just return the type as-is
+                // TODO: Implement type inference from context
                 ty.clone()
             }
 
