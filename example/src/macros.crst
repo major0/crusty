@@ -1,0 +1,39 @@
+// Copyright (c) 2024 Crusty Programming Language
+// Licensed under the MIT License. See LICENSE.txt in the project root.
+
+/// Example demonstrating macro usage with double-underscore naming
+
+void main() {
+    // Print macros (no ! suffix in Crusty)
+    __println__("Hello from Crusty!");
+    __println__("Formatted: {}", 42);
+    __println__("Multiple: {} and {}", "first", "second");
+    
+    // Vector macro
+    let v = __vec__[1, 2, 3, 4, 5];
+    __println__("Vector: {:?}", v);
+    
+    // Format macro
+    let message = __format__("The answer is {}", 42);
+    __println__("{}", message);
+    
+    // Assert macros
+    __assert__(2 + 2 == 4);
+    __assert_eq__(10, 5 + 5);
+    __assert_ne__(1, 2);
+    
+    // Debug print
+    let point = (10, 20);
+    __dbg__(point);
+    
+    // Panic macro (commented out to avoid crashing)
+    // __panic__("This would panic!");
+    
+    // Print without newline
+    __print__("This is ");
+    __print__("on the ");
+    __println__("same line");
+    
+    // eprintln for stderr
+    __eprintln__("This goes to stderr");
+}
