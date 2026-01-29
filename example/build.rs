@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Crusty Programming Language
+// Copyright (c) 2026 Mark Ferrell
 // Licensed under the MIT License. See LICENSE.txt in the project root.
 
 use std::env;

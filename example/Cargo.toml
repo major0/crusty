@@ -2,7 +2,7 @@
 name = "crusty-example"
 version = "0.1.0"
 edition = "2021"
-authors = ["Crusty Programming Language"]
+authors = ["Mark Ferrell"]
 license = "MIT"
 description = "Example Crusty programs demonstrating language features"
 
