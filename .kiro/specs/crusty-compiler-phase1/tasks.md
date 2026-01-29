@@ -733,7 +733,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - **Property 24: Explicit generic parameters translate correctly**
     - **Validates: Requirements 38.18, 38.19, 38.20, 38.21**
   
-  - [ ]16.9 Write unit tests for advanced code generation
+  - [x]16.9 Write unit tests for advanced code generation
     - Test NULL and Option translation
     - Test struct initializer translation
     - Test switch statement translation
