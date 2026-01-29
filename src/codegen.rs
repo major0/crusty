@@ -109,7 +109,7 @@ impl CodeGenerator {
             self.write_indent();
             self.write("#[");
             self.write(&attr.name.name);
-            
+
             // Generate attribute arguments if present
             if !attr.args.is_empty() {
                 self.write("(");
@@ -133,7 +133,7 @@ impl CodeGenerator {
                 }
                 self.write(")");
             }
-            
+
             self.write("]\n");
         }
 
@@ -218,7 +218,7 @@ impl CodeGenerator {
             self.write_indent();
             self.write("#[");
             self.write(&attr.name.name);
-            
+
             if !attr.args.is_empty() {
                 self.write("(");
                 for (i, arg) in attr.args.iter().enumerate() {
@@ -241,7 +241,7 @@ impl CodeGenerator {
                 }
                 self.write(")");
             }
-            
+
             self.write("]\n");
         }
 
@@ -307,7 +307,7 @@ impl CodeGenerator {
             self.write_indent();
             self.write("#[");
             self.write(&attr.name.name);
-            
+
             if !attr.args.is_empty() {
                 self.write("(");
                 for (i, arg) in attr.args.iter().enumerate() {
@@ -330,7 +330,7 @@ impl CodeGenerator {
                 }
                 self.write(")");
             }
-            
+
             self.write("]\n");
         }
 
@@ -397,7 +397,9 @@ impl CodeGenerator {
     fn generate_macro_definition(&mut self, macro_def: &MacroDefinition) {
         // Translate #define to Rust macro_rules!
         // Remove double-underscore prefix and suffix from macro name
-        let rust_name = macro_def.name.name
+        let rust_name = macro_def
+            .name
+            .name
             .trim_start_matches("__")
             .trim_end_matches("__")
             .to_lowercase();
@@ -1828,16 +1830,14 @@ mod tests {
         let macro_def = MacroDefinition {
             name: Ident::new("__MAX__".to_string()),
             params: vec![],
-            body: vec![
-                crate::lexer::Token::new(
-                    crate::lexer::TokenKind::IntLiteral("100".to_string()),
-                    crate::error::Span::new(
-                        crate::error::Position::new(1, 1),
-                        crate::error::Position::new(1, 4),
-                    ),
-                    "100".to_string(),
+            body: vec![crate::lexer::Token::new(
+                crate::lexer::TokenKind::IntLiteral("100".to_string()),
+                crate::error::Span::new(
+                    crate::error::Position::new(1, 1),
+                    crate::error::Position::new(1, 4),
                 ),
-            ],
+                "100".to_string(),
+            )],
         };
 
         let file = File {
@@ -1962,7 +1962,7 @@ mod tests {
 
         let output = gen.generate(&file);
         assert!(output.contains("macro_rules! debug"));
-        assert!(output.contains("println!"));  // __println__ should become println!
+        assert!(output.contains("println!")); // __println__ should become println!
         assert!(output.contains("$msg"));
     }
 }

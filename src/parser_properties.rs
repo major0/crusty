@@ -39,17 +39,17 @@ mod tests {
         )| {
             // Attempt to parse the invalid syntax
             let parse_result = Parser::new(&invalid_pattern);
-            
+
             // The parser should either fail during construction or during parsing
             match parse_result {
                 Err(err) => {
                     // Verify error has location information
                     prop_assert!(err.span.start.line > 0, "Error should have line number");
                     prop_assert!(err.span.start.column > 0, "Error should have column number");
-                    
+
                     // Verify error has a descriptive message
                     prop_assert!(!err.message.is_empty(), "Error should have a message");
-                    
+
                     // Verify error message is meaningful (not just a generic error)
                     prop_assert!(
                         err.message.len() > 5,
@@ -64,15 +64,15 @@ mod tests {
                         file_result.is_err(),
                         "Invalid syntax should produce parse error"
                     );
-                    
+
                     if let Err(err) = file_result {
                         // Verify error has location information
                         prop_assert!(err.span.start.line > 0, "Error should have line number");
                         prop_assert!(err.span.start.column > 0, "Error should have column number");
-                        
+
                         // Verify error has a descriptive message
                         prop_assert!(!err.message.is_empty(), "Error should have a message");
-                        
+
                         // Verify error message is meaningful
                         prop_assert!(
                             err.message.len() > 5,
@@ -96,7 +96,7 @@ mod tests {
             ]
         )| {
             let (invalid_code, _expected_token) = missing_token;
-            
+
             let parse_result = Parser::new(invalid_code);
             match parse_result {
                 Err(err) => {
@@ -126,20 +126,20 @@ mod tests {
         )| {
             // Generate code with error at specific location
             let mut code = String::new();
-            
+
             // Add lines before the error
             for _ in 1..line_num {
                 code.push_str("int x = 5;\n");
             }
-            
+
             // Add spaces before the error on the target line
             for _ in 1..col_num {
                 code.push(' ');
             }
-            
+
             // Add invalid syntax
             code.push_str("@@@");
-            
+
             let parse_result = Parser::new(&code);
             match parse_result {
                 Err(err) => {
@@ -180,9 +180,9 @@ mod tests {
         )| {
             // Create code with unterminated string
             let code = format!("int main() {{\n    {}\"{};\n}}", prefix, content);
-            
+
             let parse_result = Parser::new(&code);
-            
+
             // Should produce an error (either during lexing or parsing)
             match parse_result {
                 Err(err) => {
@@ -214,7 +214,7 @@ mod tests {
             ]
         )| {
             let parse_result = Parser::new(extra_braces);
-            
+
             match parse_result {
                 Err(err) => {
                     prop_assert!(err.span.start.line > 0);
@@ -227,7 +227,7 @@ mod tests {
                         file_result.is_err(),
                         "Mismatched braces should produce error"
                     );
-                    
+
                     if let Err(err) = file_result {
                         prop_assert!(err.span.start.line > 0);
                         prop_assert!(!err.message.is_empty());

@@ -152,7 +152,7 @@ impl<'a> Parser<'a> {
                     line: self.lexer.line,
                     column: self.lexer.column,
                 };
-                
+
                 // Try to read the next token
                 if let Ok(token) = temp_lexer.next_token() {
                     matches!(token.kind, TokenKind::LBracket)
@@ -160,12 +160,12 @@ impl<'a> Parser<'a> {
                     false
                 }
             };
-            
+
             // If not an attribute, stop parsing attributes
             if !is_attribute {
                 break;
             }
-            
+
             self.advance()?;
             self.expect(TokenKind::LBracket)?;
 
@@ -972,7 +972,7 @@ impl<'a> Parser<'a> {
     fn parse_define(&mut self) -> Result<Item, ParseError> {
         // Expect # token
         self.expect(TokenKind::Hash)?;
-        
+
         // Expect define keyword
         self.expect(TokenKind::Define)?;
 
@@ -1043,7 +1043,7 @@ impl<'a> Parser<'a> {
         let mut body = Vec::new();
         let start_line = self.current_token.span.start.line;
 
-        while !self.is_at_end() 
+        while !self.is_at_end()
             && self.current_token.span.start.line == start_line
             && !self.check(&TokenKind::Semicolon)
         {
@@ -3393,95 +3393,95 @@ fn test_parse_generic_type() {
     }
 }
 
-    #[test]
-    fn test_parse_define_simple_macro() {
-        let source = "#define __MAX__ 100";
-        let mut parser = Parser::new(source).unwrap();
-        let file = parser.parse_file().unwrap();
+#[test]
+fn test_parse_define_simple_macro() {
+    let source = "#define __MAX__ 100";
+    let mut parser = Parser::new(source).unwrap();
+    let file = parser.parse_file().unwrap();
 
-        assert_eq!(file.items.len(), 1);
-        match &file.items[0] {
-            Item::MacroDefinition(mac) => {
-                assert_eq!(mac.name.name, "__MAX__");
-                assert_eq!(mac.params.len(), 0);
-                assert!(mac.body.len() > 0);
-            }
-            _ => panic!("Expected MacroDefinition"),
+    assert_eq!(file.items.len(), 1);
+    match &file.items[0] {
+        Item::MacroDefinition(mac) => {
+            assert_eq!(mac.name.name, "__MAX__");
+            assert_eq!(mac.params.len(), 0);
+            assert!(mac.body.len() > 0);
         }
+        _ => panic!("Expected MacroDefinition"),
     }
+}
 
-    #[test]
-    fn test_parse_define_with_params() {
-        let source = "#define __ADD__(a, b) ((a) + (b))";
-        let mut parser = Parser::new(source).unwrap();
-        let file = parser.parse_file().unwrap();
+#[test]
+fn test_parse_define_with_params() {
+    let source = "#define __ADD__(a, b) ((a) + (b))";
+    let mut parser = Parser::new(source).unwrap();
+    let file = parser.parse_file().unwrap();
 
-        assert_eq!(file.items.len(), 1);
-        match &file.items[0] {
-            Item::MacroDefinition(mac) => {
-                assert_eq!(mac.name.name, "__ADD__");
-                assert_eq!(mac.params.len(), 2);
-                assert_eq!(mac.params[0].name, "a");
-                assert_eq!(mac.params[1].name, "b");
-                assert!(mac.body.len() > 0);
-            }
-            _ => panic!("Expected MacroDefinition"),
+    assert_eq!(file.items.len(), 1);
+    match &file.items[0] {
+        Item::MacroDefinition(mac) => {
+            assert_eq!(mac.name.name, "__ADD__");
+            assert_eq!(mac.params.len(), 2);
+            assert_eq!(mac.params[0].name, "a");
+            assert_eq!(mac.params[1].name, "b");
+            assert!(mac.body.len() > 0);
         }
+        _ => panic!("Expected MacroDefinition"),
     }
+}
 
-    #[test]
-    fn test_parse_define_invalid_name_no_prefix() {
-        let source = "#define MAX__ 100";
-        let mut parser = Parser::new(source).unwrap();
-        let result = parser.parse_file();
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert!(err.message.contains("double-underscore"));
-    }
+#[test]
+fn test_parse_define_invalid_name_no_prefix() {
+    let source = "#define MAX__ 100";
+    let mut parser = Parser::new(source).unwrap();
+    let result = parser.parse_file();
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(err.message.contains("double-underscore"));
+}
 
-    #[test]
-    fn test_parse_define_invalid_name_no_suffix() {
-        let source = "#define __MAX 100";
-        let mut parser = Parser::new(source).unwrap();
-        let result = parser.parse_file();
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert!(err.message.contains("double-underscore"));
-    }
+#[test]
+fn test_parse_define_invalid_name_no_suffix() {
+    let source = "#define __MAX 100";
+    let mut parser = Parser::new(source).unwrap();
+    let result = parser.parse_file();
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(err.message.contains("double-underscore"));
+}
 
-    #[test]
-    fn test_parse_define_with_semicolon() {
-        let source = "#define __PI__ 3.14159;";
-        let mut parser = Parser::new(source).unwrap();
-        let file = parser.parse_file().unwrap();
+#[test]
+fn test_parse_define_with_semicolon() {
+    let source = "#define __PI__ 3.14159;";
+    let mut parser = Parser::new(source).unwrap();
+    let file = parser.parse_file().unwrap();
 
-        assert_eq!(file.items.len(), 1);
-        match &file.items[0] {
-            Item::MacroDefinition(mac) => {
-                assert_eq!(mac.name.name, "__PI__");
-                assert_eq!(mac.params.len(), 0);
-            }
-            _ => panic!("Expected MacroDefinition"),
+    assert_eq!(file.items.len(), 1);
+    match &file.items[0] {
+        Item::MacroDefinition(mac) => {
+            assert_eq!(mac.name.name, "__PI__");
+            assert_eq!(mac.params.len(), 0);
         }
+        _ => panic!("Expected MacroDefinition"),
     }
+}
 
-    #[test]
-    fn test_parse_define_multiline_not_supported() {
-        // Macro body should only be on same line
-        let source = "#define __MACRO__\n    some_body";
-        let mut parser = Parser::new(source).unwrap();
-        let file = parser.parse_file().unwrap();
+#[test]
+fn test_parse_define_multiline_not_supported() {
+    // Macro body should only be on same line
+    let source = "#define __MACRO__\n    some_body";
+    let mut parser = Parser::new(source).unwrap();
+    let file = parser.parse_file().unwrap();
 
-        assert_eq!(file.items.len(), 1);
-        match &file.items[0] {
-            Item::MacroDefinition(mac) => {
-                assert_eq!(mac.name.name, "__MACRO__");
-                // Body should be empty or minimal since newline ends the macro
-                // (The parser might capture tokens on the same line before newline)
-            }
-            _ => panic!("Expected MacroDefinition"),
+    assert_eq!(file.items.len(), 1);
+    match &file.items[0] {
+        Item::MacroDefinition(mac) => {
+            assert_eq!(mac.name.name, "__MACRO__");
+            // Body should be empty or minimal since newline ends the macro
+            // (The parser might capture tokens on the same line before newline)
         }
+        _ => panic!("Expected MacroDefinition"),
     }
+}
 
 #[cfg(test)]
 mod property_tests {
