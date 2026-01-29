@@ -446,6 +446,14 @@ impl CodeGenerator {
             .trim_end_matches("__")
             .to_lowercase();
 
+        // Check if the converted name is a Rust keyword
+        // If so, add a suffix to avoid conflicts
+        let rust_name = if is_rust_keyword(&rust_name) {
+            format!("{}_macro", rust_name)
+        } else {
+            rust_name
+        };
+
         self.write_line(&format!("macro_rules! {} {{", rust_name));
         self.indent();
 
@@ -1334,6 +1342,63 @@ impl CodeGenerator {
             },
         }
     }
+}
+
+/// Check if a string is a Rust keyword
+fn is_rust_keyword(s: &str) -> bool {
+    matches!(
+        s,
+        "as" | "break"
+            | "const"
+            | "continue"
+            | "crate"
+            | "else"
+            | "enum"
+            | "extern"
+            | "false"
+            | "fn"
+            | "for"
+            | "if"
+            | "impl"
+            | "in"
+            | "let"
+            | "loop"
+            | "match"
+            | "mod"
+            | "move"
+            | "mut"
+            | "pub"
+            | "ref"
+            | "return"
+            | "self"
+            | "Self"
+            | "static"
+            | "struct"
+            | "super"
+            | "trait"
+            | "true"
+            | "type"
+            | "unsafe"
+            | "use"
+            | "where"
+            | "while"
+            | "async"
+            | "await"
+            | "dyn"
+            | "abstract"
+            | "become"
+            | "box"
+            | "do"
+            | "final"
+            | "macro"
+            | "override"
+            | "priv"
+            | "typeof"
+            | "unsized"
+            | "virtual"
+            | "yield"
+            | "try"
+    )
 }
 
 #[cfg(test)]
@@ -2616,11 +2681,11 @@ mod tests {
 #[cfg(test)]
 mod struct_init_tests {
     use super::*;
-    use crate::ast::*;
+    
 
     #[test]
     fn test_generate_struct_initializer() {
-        let mut codegen = CodeGenerator::new(TargetLanguage::Rust);
+        let codegen = CodeGenerator::new(TargetLanguage::Rust);
 
         let struct_init = Expression::StructInit {
             ty: Type::Ident(Ident::new("Point")),
@@ -2636,7 +2701,7 @@ mod struct_init_tests {
 
     #[test]
     fn test_generate_struct_initializer_partial() {
-        let mut codegen = CodeGenerator::new(TargetLanguage::Rust);
+        let codegen = CodeGenerator::new(TargetLanguage::Rust);
 
         let struct_init = Expression::StructInit {
             ty: Type::Ident(Ident::new("Point")),
@@ -2649,7 +2714,7 @@ mod struct_init_tests {
 
     #[test]
     fn test_generate_struct_initializer_nested() {
-        let mut codegen = CodeGenerator::new(TargetLanguage::Rust);
+        let codegen = CodeGenerator::new(TargetLanguage::Rust);
 
         let struct_init = Expression::StructInit {
             ty: Type::Ident(Ident::new("Rect")),
@@ -2686,7 +2751,7 @@ mod struct_init_tests {
 
     #[test]
     fn test_generate_struct_initializer_with_auto_type() {
-        let mut codegen = CodeGenerator::new(TargetLanguage::Rust);
+        let codegen = CodeGenerator::new(TargetLanguage::Rust);
 
         // When type is Auto, it should be inferred from context
         // For now, we'll just generate the type as-is
