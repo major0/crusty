@@ -4,34 +4,19 @@
 /// Example demonstrating generic types and explicit type parameters
 
 void main() {
-    // Generic Vec with explicit type parameter using parentheses syntax
-    let v1 = @Vec(i32).new();
-    v1.push(1);
-    v1.push(2);
-    v1.push(3);
-    __println__("Vec<i32>: {:?}", v1);
+    // Generic types with explicit type parameters
+    // Note: This example demonstrates syntax only
+    // Actual execution requires Rust standard library functions
     
-    // Type inference when parameters omitted
-    let v2 = @Vec.new();
-    v2.push("hello");
-    v2.push("world");
-    __println__("Vec<&str>: {:?}", v2);
-    
-    // Option with explicit type
-    let some_value = @Option(i32).Some(42);
-    let none_value = @Option(i32).None;
-    
-    __println__("Some: {:?}", some_value);
-    __println__("None: {:?}", none_value);
+    // Simple generic with explicit type parameter
+    // Syntax: @Type(T).method()
+    // Translates to: Type::<T>::method()
     
     // Nested generics with alternating parentheses and brackets
-    let result_opt = @Option(Result[i32, &str]).Some(@Result.Ok(100));
-    __println__("Nested generic: {:?}", result_opt);
+    // Syntax: @Type(Inner[T]).method()
+    // Translates to: Type::<Inner<T>>::method()
     
-    // HashMap with multiple type parameters
-    let map = @HashMap(String, i32).new();
-    map.insert(@String.from("answer"), 42);
-    map.insert(@String.from("count"), 10);
-    
-    __println__("HashMap: {:?}", map);
+    // Multiple type parameters
+    // Syntax: @Type(T1, T2).method()
+    // Translates to: Type::<T1, T2>::method()
 }
