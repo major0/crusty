@@ -46,7 +46,7 @@ cargo install --path .
 ### Your First Crusty Program
 
 Create `hello.crst`:
-```crusty
+```c
 void main() {
     __println__("Hello, Crusty!");
 }
@@ -61,7 +61,7 @@ crustyc hello.crst --emit=binary -o hello
 ## Syntax Examples
 
 ### Functions and Types
-```crusty
+```c
 // C-style function declarations
 int add(int a, int b) {
     return a + b;
@@ -79,7 +79,7 @@ static int helper(int n) {
 ```
 
 ### Structs and Methods
-```crusty
+```c
 // Define a struct type
 typedef struct {
     int x;
@@ -128,7 +128,7 @@ void main() {
 ```
 
 ### Control Flow
-```crusty
+```c
 int fibonacci(int n) {
     if (n <= 1) {
         return n;
@@ -144,7 +144,7 @@ void count_to_ten() {
 ```
 
 ### Macros and Type-Scoped Calls
-```crusty
+```c
 void main() {
     // Macros use double-underscore naming (no ! suffix in Crusty)
     __println__("Creating a vector...");
@@ -163,7 +163,7 @@ void main() {
 ### Advanced Syntax
 
 #### Module Imports with #use
-```crusty
+```c
 // Import Rust standard library modules
 // Dot notation in module paths (no @ prefix for imports)
 #use std.collections.HashMap;
@@ -177,7 +177,7 @@ void main() {
 ```
 
 #### Explicit Generic Type Parameters
-```crusty
+```c
 void main() {
     // Explicit type parameters with parentheses/brackets syntax
     let v = @Vec(i32).new();
@@ -193,7 +193,7 @@ void main() {
 ```
 
 #### Defining Macros with #define
-```crusty
+```c
 // Define macros with double-underscore naming
 #define __MAX__(a, b) ((a) > (b) ? (a) : (b))
 #define __SQUARE__(x) ((x) * (x))
@@ -206,7 +206,7 @@ void main() {
 ```
 
 #### Labeled Loops
-```crusty
+```c
 void main() {
     // Labels use dot prefix (. is not part of the label name)
     .outer: loop {
@@ -221,7 +221,7 @@ void main() {
 ```
 
 #### Embedding Raw Rust Code with __rust__
-```crusty
+```c
 void main() {
     // Use __rust__ as an escape hatch for Rust-specific features
     // The contents are passed directly to the Rust compiler
@@ -252,7 +252,7 @@ void main() {
 **Note**: The `__rust__` macro provides an escape hatch for using Rust features not yet supported by Crusty syntax. The contents are passed directly to rustc without validation by crustyc. Use this when you need access to advanced Rust features like pattern matching, closures, or complex trait bounds.
 
 #### Closures with Nested Functions
-```crusty
+```c
 void main() {
     // Crusty supports nested functions as closures
     // Functions defined within functions can capture variables from outer scope
@@ -330,7 +330,7 @@ pub fn main() {
 **Reference**: GNU C supports nested functions as an extension: https://gcc.gnu.org/onlinedocs/gcc/Nested-Functions.html
 
 #### Implementation Blocks with typedef
-```crusty
+```c
 // Define a struct type
 typedef struct {
     int width;
