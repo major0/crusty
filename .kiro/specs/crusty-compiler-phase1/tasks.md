@@ -622,7 +622,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
   - [x]14.9.7 Note: This task depends on Task 2.7 (Create example directory)
     - Note: Completed as part of Task 2.7.5-2.7.7
 
-- [ ] 15. Implement #define macro support
+- [~] 15. Implement #define macro support
   - [x]15.1 Add #define parsing
     - Parse #define directive with double-underscore macro names (__MACRO_NAME__)
     - Parse macro parameters
@@ -707,7 +707,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - _Requirements: 46.8, 46.9, 46.10 (updated to syntax-only)_
     - _Note: Crusty follows transparent syntax transpilation - only syntax transforms, not semantics_
   
-  - [ ]16.8 Write property tests for advanced code generation
+  - [x]16.8 Write property tests for advanced code generation
     - **Property 9: Type casts translate to 'as' operator**
     - **Validates: Requirements 27.5**
     - **Property 10: Sizeof translates to std::mem functions**
