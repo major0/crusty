@@ -231,11 +231,27 @@ The build.rs script automatically transpiles your Crusty code to Rust during the
 
 ### Example Project
 
-See the `example/` directory for a complete working example with:
-- Cargo.toml configuration
-- build.rs integration
-- Sample Crusty programs demonstrating language features
-- README with build and run instructions
+The repository includes a complete working example demonstrating Crusty language features and build system integration. See the [example/](example/) directory for:
+- [example/Cargo.toml](example/Cargo.toml) - Project configuration
+- [example/build.rs](example/build.rs) - Build script that transpiles .crst files
+- [example/src/](example/src/) - Sample Crusty programs
+- [example/README.md](example/README.md) - Build and run instructions
+
+The example demonstrates:
+- Function declarations and control flow
+- Struct definitions with methods
+- Type-scoped static method calls (`@Type->method()`)
+- Macro usage with double-underscore naming (`__println__`, `__vec__`)
+- Build system integration with Cargo
+
+To run the example:
+```bash
+cd example
+cargo build
+cargo run
+```
+
+The example is automatically built and tested in the CI/CD pipeline to ensure the transpiler works correctly.
 
 ## Development
 
@@ -332,9 +348,9 @@ Current progress:
 - ✅ Core transpiler (lexer, parser, AST, semantic analysis)
 - ✅ Code generation (Crusty → Rust)
 - ✅ Advanced parsing (structs, methods, generics, macros)
-- 🚧 Example directory (planned)
+- ✅ Example directory with working samples ([see example/](example/))
+- ✅ Build system integration (build.rs support)
 - 🚧 Bidirectional transpilation (Rust → Crusty)
-- 🚧 Build system integration
 - 🚧 Documentation generator (crustydoc)
 
 See [tasks.md](/.kiro/specs/crusty-compiler-phase1/tasks.md) for detailed implementation progress.
