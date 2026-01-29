@@ -128,9 +128,9 @@ Validates: Requirements 6.13, 6.14, 6.15
 ```
 
 ```
-fix(codegen): correct arrow notation in type-scoped calls
+fix(codegen): correct dot notation in type-scoped calls
 
-Changed @Type.method() to @Type->method() in code generation.
+Changed @Type.method() syntax to properly translate to Rust Type::method().
 
 Fixes: #42
 ```

@@ -9,7 +9,7 @@ Crusty is a C-like programming language that transpiles to Rust, providing famil
 
 ### C-like Syntax with Rust Safety
 - **Familiar C syntax**: Write code with C-style function declarations, control flow, and data structures
-- **Type-scoped calls**: Use arrow notation for static methods: `@Vec->new()`, `@Option->None`
+- **Type-scoped calls**: Use `@Type` prefix with dot notation: `@Vec.new()`, `@Option.None`
 - **Macro system**: Double-underscore naming for macros: `__println__("Hello")`, `__vec__[1, 2, 3]`
 - **Rust compatibility**: All Crusty code transpiles to safe, idiomatic Rust
 
@@ -94,16 +94,23 @@ struct Point {
 }
 
 void main() {
-    // Type-scoped call with arrow notation (@ prefix required)
-    let origin = @Point->origin();
+    // Type-scoped call with @ prefix and dot notation
+    // Dot (.) replaces Rust's :: for type-scoped access
+    let p1 = @Point.new(3, 4);
+    
+    // Use Default trait
+    let origin = @Point.default();
     
     // Instance method call (no @ prefix)
-    let p = Point { x: 3, y: 4 };
-    __println__("Distance²: {}", p.distance_squared());
+    __println__("Distance²: {}", p1.distance_squared());
     
-    // Nested type paths use dot notation after @
-    // Example: @std.collections.HashMap->new()
+    // Nested type paths: dot replaces :: for type-scoped access
+    // @std.collections.HashMap.new()
     // Translates to: std::collections::HashMap::new()
+    
+    // Method calls on type-scoped values use arrow
+    // @Foo.BAR->boo()  where BAR is a constant, boo() is a method
+    // Translates to: Foo::BAR.boo()
 }
 ```
 
@@ -129,8 +136,8 @@ void main() {
     // Macros use double-underscore naming (no ! suffix in Crusty)
     __println__("Creating a vector...");
     
-    // Type-scoped calls use @ prefix with arrow notation
-    let v = @Vec->new();
+    // Type-scoped calls use @ prefix with dot notation
+    let v = @Vec.new();
     v.push(1);
     v.push(2);
     v.push(3);
@@ -145,11 +152,13 @@ void main() {
 #### Module Imports with #use
 ```crusty
 // Import Rust standard library modules
+// Dot notation in module paths (no @ prefix for imports)
 #use std.collections.HashMap;
 #use std.io.Write;
 
 void main() {
-    let map = @HashMap->new();
+    // Type-scoped call with @ prefix uses dot notation
+    let map = @HashMap.new();
     map.insert("key", "value");
 }
 ```
@@ -158,14 +167,15 @@ void main() {
 ```crusty
 void main() {
     // Explicit type parameters with parentheses/brackets syntax
-    let v = @Vec(i32)->new();
+    let v = @Vec(i32).new();
     v.push(42);
     
     // Nested generics alternate parentheses and brackets
-    let opt = @Option(Result[String, std.io.Error])->None;
+    // Dot notation for type-scoped access
+    let opt = @Option(Result[String, std.io.Error]).None;
     
     // Type inference when parameters omitted
-    let v2 = @Vec->new();  // Type inferred from usage
+    let v2 = @Vec.new();  // Type inferred from usage
 }
 ```
 
@@ -194,6 +204,47 @@ void main() {
             continue inner;  // Continue inner loop (no dot in continue)
         }
     }
+}
+```
+
+#### Implementation Blocks with typedef
+```crusty
+// Define a struct type
+typedef struct {
+    int width;
+    int height;
+} Rectangle;
+
+// Add implementation block
+typedef struct {
+    Rectangle new(int w, int h) {
+        return Rectangle { width: w, height: h };
+    }
+    
+    int area(&self) {
+        return self.width * self.height;
+    }
+} @Rectangle;
+
+// Implement Default trait
+typedef default {
+    Rectangle default() {
+        return Rectangle { width: 0, height: 0 };
+    }
+} @Rectangle;
+
+// Named implementation block (for organization)
+typedef struct {
+    void print(&self) {
+        __println__("Rectangle: {}x{}", self.width, self.height);
+    }
+} @Rectangle.display;
+
+void main() {
+    // Type-scoped call with @ prefix and dot notation
+    let rect = @Rectangle.new(10, 20);
+    __println__("Area: {}", rect.area());
+    rect.print();
 }
 ```
 
@@ -297,7 +348,7 @@ The repository includes a complete working example demonstrating Crusty language
 The example demonstrates:
 - Function declarations and control flow
 - Struct definitions with methods
-- Type-scoped static method calls (`@Type->method()`)
+- Type-scoped static method calls (`@Type.method()`)
 - Macro usage with double-underscore naming (`__println__`, `__vec__`)
 - Build system integration with Cargo
 
@@ -347,8 +398,10 @@ For detailed documentation, see the [docs/](docs/) directory.
 
 ### Language Reference
 - Function declarations and definitions
-- Struct and enum types
-- Type-scoped calls with arrow notation (`@Type->method()`)
+- Struct and enum types with typedef syntax
+- Implementation blocks (typedef struct @Type)
+- Trait implementations (typedef default @Type)
+- Type-scoped calls with dot notation (`@Type.method()`)
 - Macro invocations with double-underscore naming (`__macro_name__`)
 - Control flow statements
 - Memory management and ownership
