@@ -88,6 +88,11 @@ impl<'a> Parser<'a> {
 
     /// Parse a top-level item
     fn parse_item(&mut self) -> Result<Item, ParseError> {
+        // Check for #define directive first
+        if self.check(&TokenKind::Hash) {
+            return self.parse_define();
+        }
+
         // Parse attributes first
         let attributes = self.parse_attributes()?;
 
@@ -123,6 +128,7 @@ impl<'a> Parser<'a> {
                     "struct".to_string(),
                     "enum".to_string(),
                     "typedef".to_string(),
+                    "#define".to_string(),
                 ],
                 format!("{:?}", self.current_token.kind),
             )),
@@ -933,6 +939,101 @@ impl<'a> Parser<'a> {
             name,
             target,
             doc_comments: Vec::new(),
+        }))
+    }
+
+    /// Parse a #define macro definition
+    fn parse_define(&mut self) -> Result<Item, ParseError> {
+        // Expect # token
+        self.expect(TokenKind::Hash)?;
+        
+        // Expect define keyword
+        self.expect(TokenKind::Define)?;
+
+        // Parse macro name (must have double-underscore prefix and suffix)
+        let name = match &self.current_token.kind {
+            TokenKind::Ident(n) => {
+                // Validate double-underscore naming convention
+                if !n.starts_with("__") || !n.ends_with("__") {
+                    return Err(ParseError::new(
+                        self.current_token.span,
+                        format!(
+                            "macro name '{}' must have double-underscore prefix and suffix (e.g., __MACRO_NAME__)",
+                            n
+                        ),
+                        vec!["__MACRO_NAME__".to_string()],
+                        n.clone(),
+                    ));
+                }
+                let ident = Ident::new(n.clone());
+                self.advance()?;
+                ident
+            }
+            _ => {
+                return Err(ParseError::new(
+                    self.current_token.span,
+                    "expected macro name",
+                    vec!["__MACRO_NAME__".to_string()],
+                    format!("{:?}", self.current_token.kind),
+                ));
+            }
+        };
+
+        // Parse optional parameter list
+        let mut params = Vec::new();
+        if self.check(&TokenKind::LParen) {
+            self.advance()?;
+
+            // Parse parameters
+            if !self.check(&TokenKind::RParen) {
+                loop {
+                    match &self.current_token.kind {
+                        TokenKind::Ident(param_name) => {
+                            params.push(Ident::new(param_name.clone()));
+                            self.advance()?;
+                        }
+                        _ => {
+                            return Err(ParseError::new(
+                                self.current_token.span,
+                                "expected parameter name",
+                                vec!["identifier".to_string()],
+                                format!("{:?}", self.current_token.kind),
+                            ));
+                        }
+                    }
+
+                    if self.check(&TokenKind::Comma) {
+                        self.advance()?;
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            self.expect(TokenKind::RParen)?;
+        }
+
+        // Parse macro body as token sequence until end of line or semicolon
+        let mut body = Vec::new();
+        let start_line = self.current_token.span.start.line;
+
+        while !self.is_at_end() 
+            && self.current_token.span.start.line == start_line
+            && !self.check(&TokenKind::Semicolon)
+        {
+            body.push(self.current_token.clone());
+            self.advance()?;
+        }
+
+        // Optional semicolon at end
+        if self.check(&TokenKind::Semicolon) {
+            self.advance()?;
+        }
+
+        Ok(Item::MacroDefinition(MacroDefinition {
+            name,
+            params,
+            body,
         }))
     }
 
@@ -3265,6 +3366,96 @@ fn test_parse_generic_type() {
         _ => panic!("Expected function"),
     }
 }
+
+    #[test]
+    fn test_parse_define_simple_macro() {
+        let source = "#define __MAX__ 100";
+        let mut parser = Parser::new(source).unwrap();
+        let file = parser.parse_file().unwrap();
+
+        assert_eq!(file.items.len(), 1);
+        match &file.items[0] {
+            Item::MacroDefinition(mac) => {
+                assert_eq!(mac.name.name, "__MAX__");
+                assert_eq!(mac.params.len(), 0);
+                assert!(mac.body.len() > 0);
+            }
+            _ => panic!("Expected MacroDefinition"),
+        }
+    }
+
+    #[test]
+    fn test_parse_define_with_params() {
+        let source = "#define __ADD__(a, b) ((a) + (b))";
+        let mut parser = Parser::new(source).unwrap();
+        let file = parser.parse_file().unwrap();
+
+        assert_eq!(file.items.len(), 1);
+        match &file.items[0] {
+            Item::MacroDefinition(mac) => {
+                assert_eq!(mac.name.name, "__ADD__");
+                assert_eq!(mac.params.len(), 2);
+                assert_eq!(mac.params[0].name, "a");
+                assert_eq!(mac.params[1].name, "b");
+                assert!(mac.body.len() > 0);
+            }
+            _ => panic!("Expected MacroDefinition"),
+        }
+    }
+
+    #[test]
+    fn test_parse_define_invalid_name_no_prefix() {
+        let source = "#define MAX__ 100";
+        let mut parser = Parser::new(source).unwrap();
+        let result = parser.parse_file();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.message.contains("double-underscore"));
+    }
+
+    #[test]
+    fn test_parse_define_invalid_name_no_suffix() {
+        let source = "#define __MAX 100";
+        let mut parser = Parser::new(source).unwrap();
+        let result = parser.parse_file();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.message.contains("double-underscore"));
+    }
+
+    #[test]
+    fn test_parse_define_with_semicolon() {
+        let source = "#define __PI__ 3.14159;";
+        let mut parser = Parser::new(source).unwrap();
+        let file = parser.parse_file().unwrap();
+
+        assert_eq!(file.items.len(), 1);
+        match &file.items[0] {
+            Item::MacroDefinition(mac) => {
+                assert_eq!(mac.name.name, "__PI__");
+                assert_eq!(mac.params.len(), 0);
+            }
+            _ => panic!("Expected MacroDefinition"),
+        }
+    }
+
+    #[test]
+    fn test_parse_define_multiline_not_supported() {
+        // Macro body should only be on same line
+        let source = "#define __MACRO__\n    some_body";
+        let mut parser = Parser::new(source).unwrap();
+        let file = parser.parse_file().unwrap();
+
+        assert_eq!(file.items.len(), 1);
+        match &file.items[0] {
+            Item::MacroDefinition(mac) => {
+                assert_eq!(mac.name.name, "__MACRO__");
+                // Body should be empty or minimal since newline ends the macro
+                // (The parser might capture tokens on the same line before newline)
+            }
+            _ => panic!("Expected MacroDefinition"),
+        }
+    }
 
 #[cfg(test)]
 mod property_tests {

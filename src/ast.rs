@@ -131,7 +131,7 @@ pub struct Static {
 pub struct MacroDefinition {
     pub name: Ident,
     pub params: Vec<Ident>,
-    pub body: Vec<Token>,
+    pub body: Vec<crate::lexer::Token>,
 }
 
 /// Statement types
