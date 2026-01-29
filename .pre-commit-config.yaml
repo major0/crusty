@@ -10,10 +10,10 @@ repos:
       
       - id: cargo-fmt
         name: Cargo Format Check
-        entry: cargo fmt --
+        entry: cargo fmt -- --check
         language: system
         files: \.rs$
-        pass_filenames: true
+        pass_filenames: false
       
       - id: cargo-clippy
         name: Cargo Clippy
