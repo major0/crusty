@@ -50,14 +50,14 @@ format!("{} + {} = {}", a, b, a + b);
 ### Distinguishing Macros from Type-Scoped Calls
 
 The parser distinguishes between type-scoped calls and macro invocations:
-- **Type-scoped call**: `@Type->method()` - uses `@` prefix with `->` separator
+- **Type-scoped call**: `@Type.method()` - uses `@` prefix with `.` separator
 - **Macro invocation**: `__macro_name__(...)` - uses double-underscore prefix/suffix (no `!`)
 
 Examples:
 ```crusty
-@Vec->new()              // Type-scoped call → Vec::new()
+@Vec.new()               // Type-scoped call → Vec::new()
 __vec__[1, 2, 3]         // Macro invocation → vec![1, 2, 3]
-@Option->None            // Type-scoped call → Option::None
+@Option.None             // Type-scoped call → Option::None
 __println__("hello")     // Macro invocation → println!("hello")
 ```
 

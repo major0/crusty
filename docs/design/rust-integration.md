@@ -14,7 +14,7 @@ Vec<int> numbers = __vec__[1, 2, 3];
 numbers.push(4);
 
 // Use String with type-scoped call syntax
-String s = @String->from("hello");
+String s = @String.from("hello");
 s.push_str(" world");
 
 // Use println macro with double-underscore naming (no ! in Crusty)
@@ -40,7 +40,7 @@ struct User {
 
 void process_user(User* user) {
     // Use external crate functions
-    let json = @serde_json->to_string(user)?;
+    let json = @serde_json.to_string(user)?;
     __println__("{}", json);
 }
 ```

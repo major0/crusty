@@ -84,7 +84,7 @@ impl Default for Point {
 }
 ```
 
-### Named Implementation Blocks (@Type->name)
+### Named Implementation Blocks (@Type.name)
 
 Use named impl blocks to organize methods:
 
@@ -94,14 +94,14 @@ typedef struct {
     void print(&self) {
         __println__("Point({}, {})", self.x, self.y);
     }
-} @Point->display;
+} @Point.display;
 
 // Another named impl block for debug methods
 typedef struct {
     void debug(&self) {
         __println__("Point {{ x: {}, y: {} }}", self.x, self.y);
     }
-} @Point->debug;
+} @Point.debug;
 ```
 
 Both translate to Rust (merged into single impl):
@@ -124,11 +124,11 @@ impl Point {
 | `typedef struct { ... } Type;` | Define a new struct type |
 | `typedef struct { methods } @Type;` | Add impl block for existing type |
 | `typedef default { fn default() { ... } } @Type;` | Implement Default trait |
-| `typedef struct { methods } @Type->name;` | Named impl block (for organization) |
+| `typedef struct { methods } @Type.name;` | Named impl block (for organization) |
 
 Key points:
 - The `@` prefix indicates the type already exists
-- The `->name` suffix is optional and used for organizing multiple impl blocks
+- The `.name` suffix is optional and used for organizing multiple impl blocks
 - All named impl blocks for the same type are merged in the generated Rust code
 
 ## Translation Rules
@@ -137,7 +137,7 @@ Key points:
 |--------|------|
 | `typedef struct @Type` | `impl Type` |
 | `typedef default @Type` | `impl Default for Type` |
-| `typedef struct @Type->name` | `impl Type` (name is for organization only) |
+| `typedef struct @Type.name` | `impl Type` (name is for organization only) |
 
 ## Formal Grammar
 
@@ -146,5 +146,5 @@ typedef_stmt    ::= 'typedef' typedef_kind '{' typedef_body '}' typedef_target '
 typedef_kind    ::= 'struct' | 'default'
 typedef_body    ::= field_list | method_list
 typedef_target  ::= identifier | '@' identifier impl_name?
-impl_name       ::= '->' identifier
+impl_name       ::= '.' identifier
 ```
