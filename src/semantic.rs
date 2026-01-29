@@ -3,11 +3,9 @@
 
 //! Semantic analysis module for type checking and validation.
 
-use crate::ast::Type;
+use crate::ast::{Ident, Type};
 use crate::error::{SemanticError, SemanticErrorKind, Span};
 
-#[cfg(test)]
-use crate::ast::Ident;
 use std::collections::HashMap;
 
 /// Symbol kind classification
@@ -1058,6 +1056,14 @@ impl SemanticAnalyzer {
                     },
                     Literal::Char(_) => Type::Primitive(PrimitiveType::Char),
                     Literal::Bool(_) => Type::Primitive(PrimitiveType::Bool),
+                    Literal::Null => {
+                        // NULL is typed as Option<_> where _ is inferred from context
+                        // For now, we'll use a generic Option type
+                        Type::Generic {
+                            base: Box::new(Type::Ident(Ident::new("Option"))),
+                            args: vec![Type::Auto],
+                        }
+                    }
                 }
             }
 

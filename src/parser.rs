@@ -2040,6 +2040,10 @@ impl<'a> Parser<'a> {
                 self.advance()?;
                 Ok(Expression::Literal(Literal::Bool(val)))
             }
+            TokenKind::Null => {
+                self.advance()?;
+                Ok(Expression::Literal(Literal::Null))
+            }
             TokenKind::LParen => {
                 // Parenthesized expression or tuple literal
                 self.advance()?;
@@ -3103,6 +3107,31 @@ mod tests {
                         assert_eq!(var.name, "i");
                     }
                     _ => panic!("Expected for-in statement"),
+                }
+            }
+            _ => panic!("Expected function"),
+        }
+    }
+
+    #[test]
+    fn test_parse_null_literal() {
+        let source = "int main() { let ptr = NULL; }";
+        let mut parser = Parser::new(source).unwrap();
+
+        let file = parser.parse_file().unwrap();
+        match &file.items[0] {
+            Item::Function(func) => {
+                assert_eq!(func.body.statements.len(), 1);
+                match &func.body.statements[0] {
+                    Statement::Let { init, .. } => {
+                        match init {
+                            Some(Expression::Literal(Literal::Null)) => {
+                                // Success
+                            }
+                            _ => panic!("Expected NULL literal"),
+                        }
+                    }
+                    _ => panic!("Expected let statement"),
                 }
             }
             _ => panic!("Expected function"),

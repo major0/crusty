@@ -5,3 +5,4 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc 7730ae05a60127bc8a44923c93d9affd811af5188bc5da2a47c425e996a66f97 # shrinks to struct_def = Struct { visibility: Public, name: Ident { name: "do" }, fields: [], methods: [], doc_comments: [] }
+cc 3ad0c32107920805a330bc48476e2dcc63aadf677d8e007687489514b1ca5fab # shrinks to macro_def = MacroDefinition { name: Ident { name: "__FN__" }, params: [], body: [Token { kind: IntLiteral("100"), span: Span { start: Position { line: 1, column: 1 }, end: Position { line: 1, column: 4 } }, text: "100" }] }
