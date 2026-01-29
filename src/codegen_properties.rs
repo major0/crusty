@@ -405,20 +405,18 @@ mod tests {
     fn arb_simple_macro_definition() -> impl Strategy<Value = MacroDefinition> {
         use crate::error::{Position, Span};
         use crate::lexer::{Token, TokenKind};
-        
+
         (arb_macro_name(), prop::collection::vec(arb_ident(), 0..3)).prop_map(|(name, params)| {
             // Create a simple macro body with some tokens
-            let body = vec![
-                Token {
-                    kind: TokenKind::IntLiteral("100".to_string()),
-                    span: Span {
-                        start: Position { line: 1, column: 1 },
-                        end: Position { line: 1, column: 4 },
-                    },
-                    text: "100".to_string(),
+            let body = vec![Token {
+                kind: TokenKind::IntLiteral("100".to_string()),
+                span: Span {
+                    start: Position { line: 1, column: 1 },
+                    end: Position { line: 1, column: 4 },
                 },
-            ];
-            
+                text: "100".to_string(),
+            }];
+
             MacroDefinition {
                 name: Ident::new(name),
                 params,
@@ -440,7 +438,7 @@ mod tests {
             let output = gen.generate(&file);
 
             // Should contain macro_rules!
-            prop_assert!(output.contains("macro_rules!"), 
+            prop_assert!(output.contains("macro_rules!"),
                 "Generated code should contain macro_rules!: {}", output);
 
             // Should remove double-underscore prefix and suffix from macro name
@@ -448,21 +446,21 @@ mod tests {
                 .trim_start_matches("__")
                 .trim_end_matches("__")
                 .to_lowercase();
-            prop_assert!(output.contains(&rust_name), 
+            prop_assert!(output.contains(&rust_name),
                 "Generated code should contain macro name '{}': {}", rust_name, output);
 
             // If macro has parameters, should translate to pattern variables
             if !macro_def.params.is_empty() {
                 for param in &macro_def.params {
                     let pattern_var = format!("${}:expr", param.name);
-                    prop_assert!(output.contains(&pattern_var), 
+                    prop_assert!(output.contains(&pattern_var),
                         "Generated code should contain pattern variable '{}': {}", pattern_var, output);
                 }
             }
 
             // Generated code should be syntactically valid Rust
             let parse_result = syn::parse_file(&output);
-            prop_assert!(parse_result.is_ok(), 
+            prop_assert!(parse_result.is_ok(),
                 "Generated macro should be syntactically valid: {}", output);
         }
     }
