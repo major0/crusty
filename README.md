@@ -94,12 +94,16 @@ struct Point {
 }
 
 void main() {
-    // Type-scoped call with arrow notation
+    // Type-scoped call with arrow notation (@ prefix required)
     let origin = @Point->origin();
     
-    // Instance method call
+    // Instance method call (no @ prefix)
     let p = Point { x: 3, y: 4 };
     __println__("Distance²: {}", p.distance_squared());
+    
+    // Nested type paths use dot notation after @
+    // Example: @std.collections.HashMap->new()
+    // Translates to: std::collections::HashMap::new()
 }
 ```
 

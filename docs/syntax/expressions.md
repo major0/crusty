@@ -62,7 +62,13 @@ let none = Option::None;
 let s = String::from("hello");
 ```
 
-The `@` prefix with `->` notation distinguishes type-scoped (static) calls from instance method calls. Instance methods use dot notation as usual: `v.len()`, `v.get(0)`.
+The `@` prefix distinguishes type-scoped (static) calls from instance method calls. Use `->` for simple calls and `.` for nested type paths:
+```c
+@std.collections.HashMap->new()   // std::collections::HashMap::new()
+@Foo.Bar.boo()                    // Foo::Bar.boo()
+```
+
+Instance methods use dot notation as usual: `v.len()`, `v.get(0)`.
 
 ### Macro Invocations
 ```c
@@ -93,6 +99,6 @@ multiply   = unary (("*" | "/" | "%") unary)* ;
 unary      = ("!" | "-" | "&" | "*" | "++" | "--") unary | primary ;
 primary    = literal | IDENT | call | field_access | index
            | type_scoped_call | macro_call | "(" expr ")" ;
-type_scoped_call = "@" IDENT "->" IDENT ["(" [args] ")"] ;
+type_scoped_call = "@" IDENT ("." IDENT)* ["->" IDENT] ["(" [args] ")"] ;
 macro_call = "__" IDENT "__" ("(" args ")" | "[" args "]" | "{" args "}") ;
 ```
