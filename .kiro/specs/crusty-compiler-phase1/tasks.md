@@ -684,7 +684,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Translate NULL comparisons to is_none()/is_some()
     - _Requirements: 28.4, 28.5, 28.6, 28.7, 28.8_
   
-  - [ ]16.5 Add struct initializer code generation
+  - [x]16.5 Add struct initializer code generation
     - Translate C-style designated initializers to Rust struct literals
     - Handle partial initialization
     - Handle nested struct initialization

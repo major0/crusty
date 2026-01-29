@@ -1135,12 +1135,25 @@ impl<'a> Parser<'a> {
         };
 
         // Parse optional initializer
-        let init = if self.check(&TokenKind::Assign) {
+        let mut init = if self.check(&TokenKind::Assign) {
             self.advance()?;
             Some(self.parse_expression_stub()?)
         } else {
             None
         };
+
+        // If the initializer is a struct initializer with Type::Auto,
+        // and we have a type annotation, update the struct initializer type
+        if let Some(ref var_type) = ty {
+            if let Some(ref mut init_expr) = init {
+                if let Expression::StructInit { ty: struct_ty, fields: _ } = init_expr {
+                    if matches!(struct_ty, Type::Auto) {
+                        // Replace Type::Auto with the variable type
+                        *struct_ty = var_type.clone();
+                    }
+                }
+            }
+        }
 
         self.expect(TokenKind::Semicolon)?;
 
@@ -1998,6 +2011,82 @@ impl<'a> Parser<'a> {
         Ok(tokens)
     }
 
+    /// Check if the current position looks like a struct initializer
+    /// Struct initializers have the pattern: { .field = value, ... }
+    /// Assumes current token is LBrace
+    fn is_struct_initializer(&self) -> Result<bool, ParseError> {
+        // Create a temporary lexer for lookahead
+        let mut temp_lexer = Lexer {
+            source: self.lexer.source,
+            chars: self.lexer.source[self.lexer.position..]
+                .char_indices()
+                .peekable(),
+            position: self.lexer.position,
+            line: self.lexer.line,
+            column: self.lexer.column,
+        };
+
+        // Check if next token is a dot (designated initializer syntax)
+        if let Ok(token) = temp_lexer.next_token() {
+            Ok(matches!(token.kind, TokenKind::Dot))
+        } else {
+            Ok(false)
+        }
+    }
+
+    /// Parse a struct initializer: { .field = value, ... }
+    fn parse_struct_initializer(&mut self, ty: Type) -> Result<Expression, ParseError> {
+        self.expect(TokenKind::LBrace)?;
+
+        let mut fields = Vec::new();
+
+        // Parse field initializers
+        while !self.check(&TokenKind::RBrace) {
+            // Expect .field syntax
+            self.expect(TokenKind::Dot)?;
+
+            // Parse field name
+            let field_name = match &self.current_token.kind {
+                TokenKind::Ident(name) => {
+                    let ident = Ident::new(name.clone());
+                    self.advance()?;
+                    ident
+                }
+                _ => {
+                    return Err(ParseError::new(
+                        self.current_token.span,
+                        "expected field name after '.'",
+                        vec!["identifier".to_string()],
+                        format!("{:?}", self.current_token.kind),
+                    ));
+                }
+            };
+
+            // Expect =
+            self.expect(TokenKind::Assign)?;
+
+            // Parse field value
+            let field_value = self.parse_expression()?;
+
+            fields.push((field_name, field_value));
+
+            // Check for comma
+            if self.check(&TokenKind::Comma) {
+                self.advance()?;
+                // Allow trailing comma
+                if self.check(&TokenKind::RBrace) {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+
+        self.expect(TokenKind::RBrace)?;
+
+        Ok(Expression::StructInit { ty, fields })
+    }
+
     /// Parse primary expressions (literals, identifiers, parenthesized expressions, type-scoped calls)
     fn parse_primary(&mut self) -> Result<Expression, ParseError> {
         match &self.current_token.kind {
@@ -2210,6 +2299,26 @@ impl<'a> Parser<'a> {
                 let ident = Ident::new(n.clone());
                 self.advance()?;
                 Ok(Expression::Ident(ident))
+            }
+            TokenKind::LBrace => {
+                // Struct initializer: { .field = value, ... }
+                // Check if this looks like a struct initializer
+                if self.is_struct_initializer()? {
+                    // Parse as struct initializer with inferred type
+                    // The type will be inferred from context (variable declaration type)
+                    self.parse_struct_initializer(Type::Auto)
+                } else {
+                    Err(ParseError::new(
+                        self.current_token.span,
+                        "expected expression",
+                        vec![
+                            "literal".to_string(),
+                            "identifier".to_string(),
+                            "(".to_string(),
+                        ],
+                        format!("{:?}", self.current_token.kind),
+                    ))
+                }
             }
             _ => Err(ParseError::new(
                 self.current_token.span,
@@ -3695,5 +3804,124 @@ mod property_tests {
                 assert!(e.span.start.line > 0, "Error should have line information");
             }
         }
+    }
+}
+
+#[test]
+fn test_parse_struct_initializer() {
+    let source = "int main() { let p: Point = { .x = 10, .y = 20 }; }";
+    let mut parser = Parser::new(source).unwrap();
+    let file = parser.parse_file().unwrap();
+
+    assert_eq!(file.items.len(), 1);
+    match &file.items[0] {
+        Item::Function(func) => {
+            assert_eq!(func.body.statements.len(), 1);
+            match &func.body.statements[0] {
+                Statement::Let { init, ty, .. } => {
+                    // Check that type is specified
+                    assert!(ty.is_some());
+                    
+                    if let Some(Expression::StructInit { ty, fields }) = init {
+                        // Check type - should be Point (resolved from variable type)
+                        match ty {
+                            Type::Ident(ident) => assert_eq!(ident.name, "Point"),
+                            _ => panic!("Expected Type::Ident for struct initializer"),
+                        }
+                        // Check fields
+                        assert_eq!(fields.len(), 2);
+                        assert_eq!(fields[0].0.name, "x");
+                        assert_eq!(fields[1].0.name, "y");
+                    } else {
+                        panic!("Expected StructInit expression");
+                    }
+                }
+                _ => panic!("Expected Let statement"),
+            }
+        }
+        _ => panic!("Expected Function"),
+    }
+}
+
+#[test]
+fn test_parse_struct_initializer_partial() {
+    let source = "int main() { let p: Point = { .x = 10 }; }";
+    let mut parser = Parser::new(source).unwrap();
+    let file = parser.parse_file().unwrap();
+
+    assert_eq!(file.items.len(), 1);
+    match &file.items[0] {
+        Item::Function(func) => {
+            match &func.body.statements[0] {
+                Statement::Let { init, .. } => {
+                    if let Some(Expression::StructInit { fields, .. }) = init {
+                        assert_eq!(fields.len(), 1);
+                        assert_eq!(fields[0].0.name, "x");
+                    } else {
+                        panic!("Expected StructInit expression");
+                    }
+                }
+                _ => panic!("Expected Let statement"),
+            }
+        }
+        _ => panic!("Expected Function"),
+    }
+}
+
+#[test]
+fn test_parse_struct_initializer_trailing_comma() {
+    let source = "int main() { let p: Point = { .x = 10, .y = 20, }; }";
+    let mut parser = Parser::new(source).unwrap();
+    let file = parser.parse_file().unwrap();
+
+    assert_eq!(file.items.len(), 1);
+    match &file.items[0] {
+        Item::Function(func) => {
+            match &func.body.statements[0] {
+                Statement::Let { init, .. } => {
+                    if let Some(Expression::StructInit { fields, .. }) = init {
+                        assert_eq!(fields.len(), 2);
+                    } else {
+                        panic!("Expected StructInit expression");
+                    }
+                }
+                _ => panic!("Expected Let statement"),
+            }
+        }
+        _ => panic!("Expected Function"),
+    }
+}
+
+#[test]
+fn test_parse_struct_initializer_nested() {
+    let source = "int main() { let r: Rect = { .origin = { .x = 0, .y = 0 }, .size = { .w = 10, .h = 20 } }; }";
+    let mut parser = Parser::new(source).unwrap();
+    let file = parser.parse_file().unwrap();
+
+    assert_eq!(file.items.len(), 1);
+    match &file.items[0] {
+        Item::Function(func) => {
+            match &func.body.statements[0] {
+                Statement::Let { init, .. } => {
+                    if let Some(Expression::StructInit { fields, .. }) = init {
+                        assert_eq!(fields.len(), 2);
+                        assert_eq!(fields[0].0.name, "origin");
+                        assert_eq!(fields[1].0.name, "size");
+                        
+                        // Check nested struct initializers
+                        match &fields[0].1 {
+                            Expression::StructInit { fields: nested_fields, .. } => {
+                                assert_eq!(nested_fields.len(), 2);
+                            }
+                            _ => panic!("Expected nested StructInit"),
+                        }
+                    } else {
+                        panic!("Expected StructInit expression");
+                    }
+                }
+                _ => panic!("Expected Let statement"),
+            }
+        }
+        _ => panic!("Expected Function"),
     }
 }
