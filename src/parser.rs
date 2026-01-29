@@ -637,13 +637,14 @@ impl<'a> Parser<'a> {
         // - return_type method_name(params) { body }
         // - void method_name(params) { body }
         // - static return_type method_name(params) { body }
+        // - TypeName method_name(params) { body } (custom types)
 
         // Check for static keyword
         if self.check(&TokenKind::Static) {
             return Ok(true);
         }
 
-        // Check for type keyword followed by identifier and then (
+        // Check for type keyword (primitive or custom identifier) followed by identifier and then (
         let is_type_keyword = matches!(
             self.current_token.kind,
             TokenKind::Int
@@ -657,6 +658,7 @@ impl<'a> Parser<'a> {
                 | TokenKind::Bool
                 | TokenKind::Char
                 | TokenKind::Void
+                | TokenKind::Ident(_) // Allow custom type names
         );
 
         if !is_type_keyword {
@@ -674,7 +676,7 @@ impl<'a> Parser<'a> {
             column: self.lexer.column,
         };
 
-        // Read the next token (should be identifier)
+        // Read the next token (should be identifier for method name)
         if let Ok(token) = temp_lexer.next_token() {
             if !matches!(token.kind, TokenKind::Ident(_)) {
                 return Ok(false);
