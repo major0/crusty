@@ -2621,7 +2621,7 @@ mod struct_init_tests {
     #[test]
     fn test_generate_struct_initializer() {
         let mut codegen = CodeGenerator::new(TargetLanguage::Rust);
-        
+
         let struct_init = Expression::StructInit {
             ty: Type::Ident(Ident::new("Point")),
             fields: vec![
@@ -2629,7 +2629,7 @@ mod struct_init_tests {
                 (Ident::new("y"), Expression::Literal(Literal::Int(20))),
             ],
         };
-        
+
         let result = codegen.generate_expression_string(&struct_init);
         assert_eq!(result, "Point { x: 10, y: 20 }");
     }
@@ -2637,14 +2637,12 @@ mod struct_init_tests {
     #[test]
     fn test_generate_struct_initializer_partial() {
         let mut codegen = CodeGenerator::new(TargetLanguage::Rust);
-        
+
         let struct_init = Expression::StructInit {
             ty: Type::Ident(Ident::new("Point")),
-            fields: vec![
-                (Ident::new("x"), Expression::Literal(Literal::Int(10))),
-            ],
+            fields: vec![(Ident::new("x"), Expression::Literal(Literal::Int(10)))],
         };
-        
+
         let result = codegen.generate_expression_string(&struct_init);
         assert_eq!(result, "Point { x: 10 }");
     }
@@ -2652,7 +2650,7 @@ mod struct_init_tests {
     #[test]
     fn test_generate_struct_initializer_nested() {
         let mut codegen = CodeGenerator::new(TargetLanguage::Rust);
-        
+
         let struct_init = Expression::StructInit {
             ty: Type::Ident(Ident::new("Rect")),
             fields: vec![
@@ -2678,15 +2676,18 @@ mod struct_init_tests {
                 ),
             ],
         };
-        
+
         let result = codegen.generate_expression_string(&struct_init);
-        assert_eq!(result, "Rect { origin: Point { x: 0, y: 0 }, size: Size { w: 10, h: 20 } }");
+        assert_eq!(
+            result,
+            "Rect { origin: Point { x: 0, y: 0 }, size: Size { w: 10, h: 20 } }"
+        );
     }
 
     #[test]
     fn test_generate_struct_initializer_with_auto_type() {
         let mut codegen = CodeGenerator::new(TargetLanguage::Rust);
-        
+
         // When type is Auto, it should be inferred from context
         // For now, we'll just generate the type as-is
         let struct_init = Expression::StructInit {
@@ -2696,7 +2697,7 @@ mod struct_init_tests {
                 (Ident::new("y"), Expression::Literal(Literal::Int(20))),
             ],
         };
-        
+
         let result = codegen.generate_expression_string(&struct_init);
         // Auto type should be omitted in Rust (type inference)
         // But for struct initializers, we need the type name
