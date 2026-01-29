@@ -417,10 +417,17 @@ mod tests {
                 text: "100".to_string(),
             }];
 
+            let delimiter = if params.is_empty() {
+                MacroDelimiter::None
+            } else {
+                MacroDelimiter::Parens
+            };
+
             MacroDefinition {
                 name: Ident::new(name),
                 params,
                 body,
+                delimiter,
             }
         })
     }
@@ -589,7 +596,7 @@ mod tests {
             for variant in &enum_def.variants {
                 prop_assert!(output.contains(&variant.name.name),
                     "Generated code should contain variant '{}': {}", variant.name.name, output);
-                
+
                 // If variant has explicit value, should contain = value
                 if let Some(value) = variant.value {
                     let discriminant = format!("= {}", value);

@@ -2144,6 +2144,7 @@ mod tests {
                 ),
                 "100".to_string(),
             )],
+            delimiter: MacroDelimiter::None,
         };
 
         let file = File {
@@ -2204,6 +2205,7 @@ mod tests {
                     ")".to_string(),
                 ),
             ],
+            delimiter: MacroDelimiter::Parens,
         };
 
         let file = File {
@@ -2259,6 +2261,7 @@ mod tests {
                     ")".to_string(),
                 ),
             ],
+            delimiter: MacroDelimiter::Parens,
         };
 
         let file = File {
@@ -2336,6 +2339,7 @@ mod tests {
                     "b".to_string(),
                 ),
             ],
+            delimiter: MacroDelimiter::Parens,
         };
 
         let file = File {
@@ -2365,6 +2369,7 @@ mod tests {
                 ),
                 "42".to_string(),
             )],
+            delimiter: MacroDelimiter::None,
         };
 
         let file = File {
@@ -2385,6 +2390,7 @@ mod tests {
             name: Ident::new("__EMPTY__".to_string()),
             params: vec![],
             body: vec![],
+            delimiter: MacroDelimiter::None,
         };
 
         let file = File {

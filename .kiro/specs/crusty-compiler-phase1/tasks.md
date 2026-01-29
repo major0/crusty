@@ -622,42 +622,57 @@ The implementation follows a bottom-up approach, building core infrastructure fi
   - [x]14.9.7 Note: This task depends on Task 2.7 (Create example directory)
     - Note: Completed as part of Task 2.7.5-2.7.7
 
-- [~] 15. Implement #define macro support
-  - [x]15.1 Add #define parsing
+- [ ] 15. Implement #define macro support
+  - [x]15.1 Add #define parsing with delimiter types
     - Parse #define directive with double-underscore macro names (__MACRO_NAME__)
-    - Parse macro parameters
+    - Parse macro parameters with different delimiter types (parentheses, brackets, braces, none)
+    - Detect and store delimiter type (MacroDelimiter::None, Parens, Brackets, Braces)
     - Parse macro body as token sequence
     - Support macros with and without parameters
-    - Create MacroDefinition AST node
+    - Create MacroDefinition AST node with delimiter field
     - Validate macro names have double-underscore prefix and suffix
-    - _Requirements: 24.1, 24.2, 24.3, 24.4, 24.5, 24.6_
+    - _Requirements: 26.1, 26.2, 26.3, 26.4, 26.5, 26.6, 26.7, 26.8_
   
-  - [x]15.2 Implement #define to macro_rules! translation
+  - [ ]15.2 Implement macro invocation parsing
+    - Recognize double-underscore pattern in identifiers as potential macro invocations
+    - Build macro registry during parsing to track delimiter types
+    - Parse macro invocations with correct delimiter based on #define declaration
+    - Create Expression::MacroCall for macro invocations, NOT Expression::Call
+    - Report error when macro is invoked with wrong delimiter type
+    - _Requirements: 26.12, 26.13, 26.14_
+  
+  - [x]15.3 Implement #define to macro_rules! translation
     - Translate double-underscore macro name to Rust snake_case macro_rules! name (removing underscores, adding !)
     - Translate parameters to Rust pattern variables ($param:expr)
     - Wrap macro body in Rust macro syntax
+    - Translate delimiter type to appropriate Rust macro invocation syntax
     - Translate ternary operators to if-else expressions
     - Translate macro invocations in body (remove __, add !)
-    - _Requirements: 24.7, 24.8, 24.9_
+    - _Requirements: 26.15, 26.16, 26.17, 26.18, 26.19_
   
-  - [x]15.3 Add macro validation
+  - [x]15.4 Add macro validation
     - Validate #define syntax
     - Verify macro names have double-underscore prefix and suffix
     - Verify macro parameters are used consistently
     - Check for valid macro body structure
     - Prohibit function definitions with double-underscore pattern (reserved for macros)
-    - _Requirements: 24.10, 24.11_
+    - Skip type checking for Expression::MacroCall nodes in semantic analyzer
+    - _Requirements: 26.20, 26.21, 26.22, 26.23, 26.24_
   
-  - [x]15.4 Write property test for #define translation
+  - [x]15.5 Write property test for #define translation
     - **Property 22: #define macros translate to macro_rules!**
-    - **Validates: Requirements 24.7, 24.8, 24.9**
+    - **Validates: Requirements 26.15, 26.16, 26.17**
   
-  - [x]15.5 Write unit tests for #define macros
+  - [ ]15.6 Write unit tests for #define macros with delimiter types
     - Test parsing of simple macros with double-underscores
+    - Test parsing of macros with different delimiter types (parens, brackets, braces, none)
     - Test parsing of macros with parameters
     - Test translation to macro_rules! (removing double-underscores)
     - Test macro invocations within macro bodies
-    - _Requirements: 24.1-24.13_
+    - Test error when function uses double-underscore pattern
+    - Test macro invocation parsing with correct delimiter types
+    - Test error when macro invoked with wrong delimiter type
+    - _Requirements: 26.1-26.26_
 
 - [x] 16. Implement advanced code generation features
   - [x]16.1 Add struct method code generation

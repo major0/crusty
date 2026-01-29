@@ -755,39 +755,62 @@ This allows natural mapping to Rust's nested type paths while maintaining the `@
 
 **Defining Macros with #define**:
 
-Crusty supports defining macros using the `#define` directive, which translates to Rust's `macro_rules!` system:
+Crusty supports defining macros using the `#define` directive with explicit delimiter types, which translates to Rust's `macro_rules!` system:
 
 ```crusty
-// Simple macro definitions with double-underscore naming
+// Macro definitions with different delimiter types (all use double-underscore naming)
+
+// Parentheses delimiter - function-like macros
 #define __MAX__(a, b) ((a) > (b) ? (a) : (b))
 #define __SQUARE__(x) ((x) * (x))
-#define __DEBUG_PRINT__(msg) __println__("DEBUG: {}", msg)
 
-// Translates to Rust macro_rules! (removing double-underscores)
+// Brackets delimiter - collection-like macros (like vec![])
+#define __VEC__[items] { vec![items] }
+
+// Braces delimiter - block-like macros
+#define __BLOCK__{code} { code }
+
+// No delimiter - constant macros
+#define __PI__ 3.14159
+
+// Translates to Rust macro_rules! (removing double-underscores, adding !)
 macro_rules! max {
     ($a:expr, $b:expr) => {
         if $a > $b { $a } else { $b }
     };
 }
 
-macro_rules! square {
-    ($x:expr) => {
-        ($x) * ($x)
-    };
-}
-
-macro_rules! debug_print {
-    ($msg:expr) => {
-        println!("DEBUG: {}", $msg)
+macro_rules! vec_macro {
+    ($items:expr) => {
+        vec![$items]
     };
 }
 ```
 
+**Macro Invocation Syntax**:
+
+The delimiter type is determined by the `#define` declaration, not by the invocation:
+
+```crusty
+// Invocations must match the delimiter type from #define
+let max_val = __MAX__(10, 20);        // Parentheses - matches #define __MAX__(a, b)
+let my_vec = __VEC__[1, 2, 3];        // Brackets - matches #define __VEC__[items]
+let result = __BLOCK__{ x + y };      // Braces - matches #define __BLOCK__{code}
+let pi = __PI__;                      // No delimiter - matches #define __PI__
+
+// ERROR: Wrong delimiter type
+let wrong = __MAX__[10, 20];          // ERROR - __MAX__ expects parentheses
+```
+
 **#define Parsing Rules**:
-- The parser recognizes `#define __MACRO_NAME__(params) body` syntax with double-underscore prefix and suffix
+- The parser recognizes `#define __MACRO_NAME__` syntax with double-underscore prefix and suffix
 - Macro names MUST have double-underscores as prefix and suffix
-- Macro parameters are parsed as identifiers
+- The delimiter type (None, Parens, Brackets, Braces) is determined by what follows the macro name
+- Macro parameters are parsed as identifiers within the delimiters
 - The macro body is parsed as a token sequence
+- The delimiter type is stored in the MacroDefinition AST node
+- When parsing macro invocations, the parser checks the macro's delimiter type
+- Macro invocations create Expression::MacroCall, NOT Expression::Call
 - When generating Rust, double-underscores are removed and name is converted to snake_case, and `!` is added
 - Macro invocations within the body are also translated (double-underscores removed, `!` added)
 - The parser does not perform full semantic analysis on macro bodies
@@ -811,11 +834,18 @@ int __compute__() { }       // ERROR - reserved for macros
 ```
 
 **#define to macro_rules! Translation**:
-- Macro name is preserved
+- Macro name is preserved (with double-underscores removed)
 - Parameters become pattern variables (`$param:expr`)
 - The body is wrapped in appropriate Rust macro syntax
+- The delimiter type determines the Rust macro invocation syntax
 - Ternary operators are translated to if-else expressions
-- Macro invocations (`macro!`) are passed through unchanged to Rust
+- Macro invocations are translated (double-underscores removed, `!` added)
+
+**Semantic Analysis of Macros**:
+- The Semantic_Analyzer validates #define syntax and naming conventions
+- The Semantic_Analyzer does NOT validate macro invocations as function calls
+- Expression::MacroCall nodes return Type::Auto and skip type checking
+- Macros are compile-time constructs expanded by the Rust compiler, not runtime symbols
 
 **Label Syntax for Loops**:
 

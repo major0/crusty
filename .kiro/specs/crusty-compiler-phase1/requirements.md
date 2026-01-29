@@ -674,27 +674,36 @@ impl Point {
 
 ### Requirement 26: Support Defining Macros with #define
 
-**User Story:** As a Crusty programmer, I want to define macros using #define syntax with double-underscore naming convention, so that I can create reusable code patterns that translate to Rust macro_rules!
+**User Story:** As a Crusty programmer, I want to define macros using #define syntax with double-underscore naming convention and explicit delimiter types, so that I can create reusable code patterns that translate to Rust macro_rules!
 
 #### Acceptance Criteria
 
 1. THE Parser SHALL support #define directive for macro definitions
 2. THE Parser SHALL require macro names to have double-underscores as prefix and suffix (e.g., __MACRO_NAME__)
 3. THE Parser SHALL prohibit #define from defining macros without double-underscore prefix and suffix characters
-4. THE Parser SHALL support #define with macro name and parameter list (#define __MACRO_NAME__(param1, param2) body)
-5. THE Parser SHALL support #define with macro name only for simple macros (#define __MACRO_NAME__ body)
-6. THE Parser SHALL support macro bodies containing expressions, statements, and code blocks
-7. THE Parser SHALL support macro parameters in the macro body
-8. THE Parser SHALL parse the macro body as a token sequence without full semantic analysis
-9. WHEN generating Rust code, THE Code_Generator SHALL translate #define macros to Rust macro_rules! definitions
-10. WHEN generating Rust code, THE Code_Generator SHALL remove double-underscore prefix and suffix from macro names (e.g., __MACRO_NAME__ becomes macro_name)
-11. WHEN generating Rust code, THE Code_Generator SHALL translate macro parameters to Rust macro pattern variables ($param:expr)
-12. WHEN generating Rust code, THE Code_Generator SHALL wrap the macro body in appropriate Rust macro syntax
-13. THE Semantic_Analyzer SHALL validate that #define macros have valid syntax
-14. THE Semantic_Analyzer SHALL verify that macro names follow the double-underscore prefix and suffix convention
-15. THE Semantic_Analyzer SHALL verify that macro parameters are used consistently in the macro body
-16. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust macro_rules! definitions to Crusty #define syntax with double-underscore prefix and suffix
-17. WHEN a Rust macro_rules! is too complex to represent as #define, THE Transpiler SHALL preserve it as __rust__! { macro_rules! ... }
+4. THE Parser SHALL support #define with parentheses delimiter for function-like macros (#define __MACRO_NAME__(param1, param2) body)
+5. THE Parser SHALL support #define with brackets delimiter for collection-like macros (#define __MACRO_NAME__[items] body)
+6. THE Parser SHALL support #define with braces delimiter for block-like macros (#define __MACRO_NAME__{code} body)
+7. THE Parser SHALL support #define with no delimiter for constant macros (#define __MACRO_NAME__ body)
+8. THE Parser SHALL record the delimiter type (None, Parens, Brackets, Braces) in the MacroDefinition AST node
+9. THE Parser SHALL support macro bodies containing expressions, statements, and code blocks
+10. THE Parser SHALL support macro parameters in the macro body
+11. THE Parser SHALL parse the macro body as a token sequence without full semantic analysis
+12. WHEN parsing macro invocations, THE Parser SHALL check the macro's delimiter type and parse accordingly
+13. WHEN a macro is invoked with the wrong delimiter type, THE Parser SHALL report an error
+14. THE Parser SHALL create Expression::MacroCall for macro invocations, NOT Expression::Call
+15. WHEN generating Rust code, THE Code_Generator SHALL translate #define macros to Rust macro_rules! definitions
+16. WHEN generating Rust code, THE Code_Generator SHALL remove double-underscore prefix and suffix from macro names (e.g., __MACRO_NAME__ becomes macro_name)
+17. WHEN generating Rust code, THE Code_Generator SHALL translate macro parameters to Rust macro pattern variables ($param:expr)
+18. WHEN generating Rust code, THE Code_Generator SHALL wrap the macro body in appropriate Rust macro syntax
+19. WHEN generating Rust code, THE Code_Generator SHALL translate delimiter types to appropriate Rust macro invocation syntax (! with (), [], or {})
+20. THE Semantic_Analyzer SHALL validate that #define macros have valid syntax
+21. THE Semantic_Analyzer SHALL verify that macro names follow the double-underscore prefix and suffix convention
+22. THE Semantic_Analyzer SHALL verify that macro parameters are used consistently in the macro body
+23. THE Semantic_Analyzer SHALL NOT validate macro invocations as function calls
+24. THE Semantic_Analyzer SHALL skip type checking for Expression::MacroCall nodes
+25. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust macro_rules! definitions to Crusty #define syntax with double-underscore prefix and suffix
+26. WHEN a Rust macro_rules! is too complex to represent as #define, THE Transpiler SHALL preserve it as __rust__! { macro_rules! ... }
 
 ### Requirement 27: Support Attributes
 
