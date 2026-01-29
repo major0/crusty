@@ -17,8 +17,8 @@ Crusty transforms only syntax, not semantics. Method names, function names, and 
 - **Simplicity**: Less magic, fewer surprises
 
 ### What IS Transformed (Syntax Only)
-- `Type!` → `Result<Type, Box<dyn std::error::Error>>` (fallible return types)
-- `expr!` → `expr?` (error propagation operator)
+- `Type?` → `Result<Type, Box<dyn std::error::Error>>` (fallible return types)
+- `expr?` → `expr?` (error propagation operator - pass through)
 - `@Type.method()` → `Type::method()` (type-scoped calls)
 - `.label:` → `'label:` (loop labels)
 - `NULL` → `Option::None` (special case - see below)
@@ -180,12 +180,12 @@ void count_to_ten() {
 }
 ```
 
-### Error Handling with Type!
+### Error Handling with Type?
 ```c
-// Fallible return type: Type! → Result<Type, Box<dyn std::error::Error>>
-int! parse_number(char* str) {
-    // Error propagation: expr! → expr?
-    let num = str.parse()!;  // Propagates error if parse fails
+// Fallible return type: Type? → Result<Type, Box<dyn std::error::Error>>
+int? parse_number(char* str) {
+    // Error propagation: expr? → expr? (pass through)
+    let num = str.parse()?;  // Propagates error if parse fails
     return Ok(num);          // Use Rust's Ok() directly (not transformed)
 }
 
@@ -203,7 +203,7 @@ void main() {
 }
 ```
 
-**Note**: Only `Type!` and `!` operator are transformed. Method names (`.is_err()`, `.is_ok()`, `.unwrap()`) and function names (`Ok()`, `Err()`) pass through unchanged. This preserves transparency and avoids conflicts with user-defined functions.
+**Note**: Only `Type?` is transformed to `Result<Type, E>`. The `expr?` operator and method names (`.is_err()`, `.is_ok()`, `.unwrap()`) pass through unchanged to Rust. This preserves transparency and avoids conflicts with user-defined functions.
 
 ### NULL Handling (Special Case)
 ```c
@@ -601,10 +601,30 @@ The hooks will automatically run:
 
 ## Documentation
 
+### Getting Started
+- [Quick Start](#quick-start) - Install and run your first Crusty program
+- [Syntax Examples](#syntax-examples) - Learn Crusty syntax with examples
+- [Example Programs](example/README.md) - Working examples with build integration
+
+### Core Concepts
+- [Philosophy](#philosophy) - Understand syntax-only transpilation
+- [SYNTAX_PHILOSOPHY.md](.kiro/specs/crusty-compiler-phase1/SYNTAX_PHILOSOPHY.md) - Detailed rationale and design principles
+- [Error Handling](#error-handling-with-type) - Using Type? and expr? operator
+- [NULL Handling](#null-handling-special-case) - The ONLY semantic exception
+
+### Integration
+- [Build System Integration](#build-integration) - Using Crusty with Cargo
+- [Build.rs Guide](docs/build-rs-integration.md) - Comprehensive build integration guide
+- [Command-Line Usage](#usage) - crustyc command-line options
+
+### Contributing
+- [Contributing Guide](CONTRIBUTING.md) - How to contribute to the project
+- [Development Workflow](#development) - Running tests, formatting, linting
+
 ### Specification Documents
-- [Requirements](/.kiro/specs/crusty-compiler-phase1/requirements.md) - Detailed requirements and acceptance criteria
-- [Design](/.kiro/specs/crusty-compiler-phase1/design.md) - Architecture and component design
-- [Implementation Tasks](/.kiro/specs/crusty-compiler-phase1/tasks.md) - Development task breakdown and progress
+- [Requirements](.kiro/specs/crusty-compiler-phase1/requirements.md) - Detailed requirements and acceptance criteria
+- [Design](.kiro/specs/crusty-compiler-phase1/design.md) - Architecture and component design
+- [Implementation Tasks](.kiro/specs/crusty-compiler-phase1/tasks.md) - Development task breakdown and progress
 
 ### Language Reference
 - Function declarations and definitions
