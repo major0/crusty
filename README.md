@@ -5,6 +5,43 @@
 
 Crusty is a C-like programming language that transpiles to Rust, providing familiar C syntax while guaranteeing Rust's safety and performance. The Crusty transpiler enables bidirectional translation between Crusty and Rust source code, allowing seamless integration with the Rust ecosystem.
 
+## Philosophy
+
+**Crusty is a syntactic transpilation layer, not a semantic one.**
+
+Crusty transforms only syntax, not semantics. Method names, function names, and identifiers pass through unchanged between Crusty and Rust. This design principle ensures:
+
+- **Transparent transpilation**: You know exactly what Rust code will be generated
+- **Bidirectional conversion**: True Crusty ↔ Rust round-trip transpilation
+- **No conflicts**: Won't hijack your user-defined functions
+- **Simplicity**: Less magic, fewer surprises
+
+### What IS Transformed (Syntax Only)
+- `Type!` → `Result<Type, Box<dyn std::error::Error>>` (fallible return types)
+- `expr!` → `expr?` (error propagation operator)
+- `@Type.method()` → `Type::method()` (type-scoped calls)
+- `.label:` → `'label:` (loop labels)
+- `NULL` → `Option::None` (special case - see below)
+
+### What is NOT Transformed (Pass Through)
+- Method names: `.is_err()`, `.is_ok()`, `.unwrap()` (unchanged)
+- Function names: `Ok()`, `Err()` (unchanged)
+- User-defined identifiers (unchanged)
+
+### The NULL Exception
+
+`NULL` is the **ONLY** semantic transformation in Crusty. It's a C keyword with no direct Rust equivalent, so it requires special handling:
+
+```c
+void* ptr = NULL;        // → let ptr: Option<&()> = Option::None;
+if (ptr == NULL) { }     // → if ptr.is_none() { }
+if (ptr != NULL) { }     // → if ptr.is_some() { }
+```
+
+For all other cases, use Rust's standard API directly.
+
+**See**: [SYNTAX_PHILOSOPHY.md](.kiro/specs/crusty-compiler-phase1/SYNTAX_PHILOSOPHY.md) for detailed rationale.
+
 ## Features
 
 ### C-like Syntax with Rust Safety
@@ -142,6 +179,54 @@ void count_to_ten() {
     }
 }
 ```
+
+### Error Handling with Type!
+```c
+// Fallible return type: Type! → Result<Type, Box<dyn std::error::Error>>
+int! parse_number(char* str) {
+    // Error propagation: expr! → expr?
+    let num = str.parse()!;  // Propagates error if parse fails
+    return Ok(num);          // Use Rust's Ok() directly (not transformed)
+}
+
+void main() {
+    let result = parse_number("42");
+    
+    // Use Rust's Result API directly (method names NOT transformed)
+    if (result.is_err()) {              // NOT .is_error()
+        __println__("Parse failed");
+        return;
+    }
+    
+    let value = result.unwrap();        // Pass through unchanged
+    __println__("Parsed: {}", value);
+}
+```
+
+**Note**: Only `Type!` and `!` operator are transformed. Method names (`.is_err()`, `.is_ok()`, `.unwrap()`) and function names (`Ok()`, `Err()`) pass through unchanged. This preserves transparency and avoids conflicts with user-defined functions.
+
+### NULL Handling (Special Case)
+```c
+// NULL is the ONLY semantic transformation in Crusty
+void process_optional(int* ptr) {
+    // NULL → Option::None
+    if (ptr == NULL) {              // → if ptr.is_none()
+        __println__("No value");
+        return;
+    }
+    
+    if (ptr != NULL) {              // → if ptr.is_some()
+        __println__("Has value");
+    }
+}
+
+void main() {
+    int* ptr = NULL;                // → let ptr: Option<&i32> = Option::None;
+    process_optional(ptr);
+}
+```
+
+**Note**: NULL is the ONLY exception to Crusty's syntax-only philosophy. It's a C keyword with no direct Rust equivalent, so it requires special handling to map to Rust's `Option` type.
 
 ### Macros and Type-Scoped Calls
 ```c
