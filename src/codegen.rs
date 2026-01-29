@@ -163,7 +163,7 @@ impl CodeGenerator {
                     if i > 0 {
                         self.write(", ");
                     }
-                    
+
                     // Special handling for self parameters to use idiomatic Rust syntax
                     if param.name.name == "self" {
                         match &param.ty {
