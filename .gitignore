@@ -41,6 +41,11 @@ Thumbs.db
 *.temp
 *.log
 
+# Test files (generated during test runs)
+test_*.crst
+test_*.rs
+test_*_*/
+
 # Example builds (keep source, ignore builds)
 example/target/
 example/Cargo.lock
