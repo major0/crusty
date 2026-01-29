@@ -15,6 +15,8 @@ pub mod lexer;
 pub mod parser;
 #[cfg(test)]
 mod parser_advanced_tests;
+#[cfg(test)]
+mod parser_properties;
 pub mod pretty;
 #[cfg(test)]
 mod pretty_properties;
