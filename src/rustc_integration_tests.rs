@@ -44,9 +44,8 @@ int main() {
         if result.is_ok() {
             // Compilation succeeded - rustc is available
             assert!(result.is_ok());
-        } else {
+        } else if let Err(err) = result {
             // Check that it's a rustc invocation error (rustc not found)
-            let err = result.unwrap_err();
             assert!(matches!(
                 err,
                 crate::error::CompilerError::RustcInvocation(_)
@@ -224,8 +223,7 @@ int test_func() {
 
         // If rustc is available, this should succeed
         // If not, we should get a RustcInvocation error
-        if result.is_err() {
-            let err = result.unwrap_err();
+        if let Err(err) = result {
             // Should be either RustcInvocation or another error type
             assert!(
                 matches!(err, crate::error::CompilerError::RustcInvocation(_))

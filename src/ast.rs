@@ -868,9 +868,9 @@ mod tests {
 
     #[test]
     fn test_literal_types() {
-        let literals = vec![
+        let literals = [
             Literal::Int(42),
-            Literal::Float(3.14),
+            Literal::Float(2.5),
             Literal::String("hello".to_string()),
             Literal::Char('a'),
             Literal::Bool(true),
@@ -915,7 +915,7 @@ mod tests {
 
     #[test]
     fn test_unary_operators() {
-        let ops = vec![
+        let ops = [
             UnaryOp::Not,
             UnaryOp::Neg,
             UnaryOp::Ref,

@@ -38,7 +38,7 @@ mod tests {
             ]
         )| {
             // Attempt to parse the invalid syntax
-            let parse_result = Parser::new(&invalid_pattern);
+            let parse_result = Parser::new(invalid_pattern);
 
             // The parser should either fail during construction or during parsing
             match parse_result {

@@ -2681,7 +2681,6 @@ mod tests {
 #[cfg(test)]
 mod struct_init_tests {
     use super::*;
-    
 
     #[test]
     fn test_generate_struct_initializer() {

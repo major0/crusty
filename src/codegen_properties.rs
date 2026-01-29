@@ -69,7 +69,7 @@ mod tests {
                         | "try"
                 )
             })
-            .prop_map(|s| Ident::new(s))
+            .prop_map(Ident::new)
     }
 
     fn arb_primitive_type() -> impl Strategy<Value = Type> {
