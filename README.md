@@ -260,13 +260,17 @@ void main() {
     int outer_value = 42;
     
     // Define a nested function that captures outer scope
+    // Can only capture variables defined BEFORE the nested function
     int add_to_outer(int x) {
-        return x + outer_value;  // Captures outer_value
+        return x + outer_value;  // Captures outer_value (defined above)
     }
     
     // Use the nested function
     let result = add_to_outer(10);  // Returns 52
     __println__("Result: {}", result);
+    
+    // Variables defined after the nested function are NOT accessible
+    int later_value = 100;  // add_to_outer cannot access this
     
     // Nested functions can be passed as function parameters
     void apply_twice(int (*func)(int), int value) {
@@ -283,12 +287,20 @@ void main() {
     int counter = 0;
     
     void increment() {
-        counter = counter + 1;
+        counter = counter + 1;  // Mutably captures counter
     }
     
     increment();
     increment();
     __println__("Counter: {}", counter);  // Prints 2
+    
+    // Multiple nested functions can capture the same variables
+    void reset() {
+        counter = 0;
+    }
+    
+    reset();
+    __println__("Counter after reset: {}", counter);  // Prints 0
 }
 ```
 
@@ -306,6 +318,12 @@ pub fn main() {
     println!("Result: {}", result);
 }
 ```
+
+**Scoping Rules**:
+- Nested functions can only capture variables defined **before** the nested function declaration
+- Variables defined **after** a nested function are not accessible to that function
+- Multiple nested functions can capture and share the same outer variables
+- Captures can be immutable (read-only) or mutable (read-write)
 
 **Note**: Nested functions provide a familiar C-style syntax for closures. They can capture variables from the enclosing scope and are translated to Rust closures (`Fn`, `FnMut`, or `FnOnce` depending on how they use captured variables).
 
