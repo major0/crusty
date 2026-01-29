@@ -5,17 +5,39 @@ This directory contains example Crusty programs that demonstrate the language fe
 ## Overview
 
 The examples showcase:
-- **main.crst**: Basic hello world program with arithmetic and control flow
+- **main.crst**: Basic program with arithmetic
 - **functions.crst**: Various function declaration styles and patterns
-- **structs.crst**: Struct definitions and usage
-- **methods.crst**: Struct methods and impl blocks with type-scoped calls
-- **generics.crst**: Generic types with explicit type parameters
+- **structs.crst**: Struct definitions
+- **methods.crst**: Struct methods with self parameters
+- **generics.crst**: Generic type syntax (documentation only)
 - **attributes.crst**: Attribute usage (#[derive], #[test], etc.)
-- **macros.crst**: Macro invocations with double-underscore naming
-- **ranges.crst**: Range syntax and operations
-- **slices.crst**: Slice types and operations
-- **closures.crst**: Nested functions (closures) with capture semantics
-- **rust_escape.crst**: Using the __rust__ escape hatch for raw Rust code
+- **macros.crst**: Macro syntax documentation
+- **defines.crst**: #define macro definitions (translates to macro_rules!)
+- **ranges.crst**: Range syntax (planned feature)
+- **slices.crst**: Slice types (planned feature)
+- **closures.crst**: Nested functions (planned feature)
+- **rust_escape.crst**: __rust__ escape hatch (planned feature)
+
+## Current Implementation Status
+
+### ✅ Fully Implemented
+- C-style function declarations (`int add(int a, int b)`)
+- Struct definitions
+- Struct methods with `&self` parameters
+- Attributes (#[derive], #[test], #[cfg], etc.)
+- #define macro definitions (translates to Rust macro_rules!)
+- Variable declarations (let, var, const)
+- Control flow (if/else, while, for loops)
+- Basic expressions and operators
+
+### 📋 Planned Features
+- Macro invocations (__println__, __vec__, etc.) - requires semantic analyzer support
+- Range syntax (start..end, start..=end, etc.)
+- Slice operations with ranges
+- Nested functions (closures)
+- __rust__ escape hatch for raw Rust code
+- Type-scoped calls with @ prefix (@Type.method())
+- Explicit generic parameters
 
 ## Building the Examples
 
@@ -103,10 +125,8 @@ This ensures crustyc is available during the build process.
 ### main.crst
 
 Demonstrates:
-- C-style function declarations (`int main()`, `int add(int a, int b)`)
+- C-style function declarations (`int add(int a, int b)`)
 - Variable declarations with type annotations
-- Macro invocations with double-underscore naming (`__println__`)
-- Control flow (if/else, while loops)
 - Function calls and return values
 
 ### functions.crst
@@ -117,95 +137,56 @@ Demonstrates:
 - Void functions
 - Multiple parameters
 - Early returns
-- Nested control flow
-- For loops
 - Boolean return types
-- Break and continue statements
 
 ### structs.crst
 
 Demonstrates:
-- Struct definitions
-- Field access with dot notation
-- Struct initialization
-- Nested structures
-- Functions operating on structs
+- Basic struct definitions
+- Field declarations with types
+- Simple functions
 
 ### methods.crst
 
 Demonstrates:
-- Struct methods with self parameters
-- Static methods (associated functions)
-- Type-scoped static method calls using @Type.method() syntax
-- Instance method calls with -> operator
-- Multiple impl blocks for the same type
+- Struct methods with &self parameters
+- Instance method definitions within structs
 
 ### generics.crst
 
-Demonstrates:
-- Generic type parameters with explicit syntax using parentheses
-- Type-scoped calls with generic parameters (@Type(T).method())
-- Nested generic parameters with alternating parentheses/brackets
-- Multiple type parameters
-- Type inference when generic parameters are omitted
+Demonstrates (syntax documentation only):
+- Generic type parameter syntax with parentheses
+- Type-scoped calls with @ prefix
+- Nested generic parameters
 
 ### attributes.crst
 
 Demonstrates:
 - #[derive(...)] for automatic trait implementations
 - #[test] for unit tests
-- #[cfg(...)] for conditional compilation
-- Attributes on structs, functions, and fields
+- #[allow(...)] for suppressing warnings
+- Attributes on structs and functions
 - Multiple attributes on the same item
 
 ### macros.crst
 
-Demonstrates:
-- Macro invocations with double-underscore naming (no ! suffix)
-- __println__, __vec__, __assert__, __format__ macros
-- Different macro delimiters (parentheses, brackets, braces)
-- Macros in expression and statement contexts
-- Note: Crusty macros use __name__ syntax, transpiled to Rust name! syntax
+Demonstrates (syntax documentation only):
+- Macro invocation syntax with double-underscore naming
+- Translation from __name__ to Rust name! syntax
+- Note: Macro invocations require semantic analyzer support
 
-### ranges.crst
+### defines.crst
 
 Demonstrates:
-- Range syntax (start..end, start..=end)
-- Open-ended ranges (.., start.., ..end)
-- Range usage in for loops
-- Range expressions
-- Inclusive vs exclusive ranges
+- #define macro definitions with double-underscore naming
+- Simple constant macros
+- Macros with parameters
+- Ternary operator in macro bodies
+- Translation to Rust macro_rules!
 
-### slices.crst
+### ranges.crst, slices.crst, closures.crst, rust_escape.crst
 
-Demonstrates:
-- Slice types (&[Type], &var [Type])
-- Slice indexing with ranges
-- Slice operations (len, is_empty)
-- Mutable slices
-- Array to slice conversion
-
-### closures.crst
-
-Demonstrates:
-- Nested function definitions within functions
-- Immutable capture (Fn trait)
-- Mutable capture (FnMut trait)
-- Multiple captures in a single nested function
-- Passing nested functions as parameters
-- Scoping rules (only variables defined before are accessible)
-- Multiple nested functions sharing captures
-
-### rust_escape.crst
-
-Demonstrates:
-- Using __rust__ { ... } to embed raw Rust code
-- Pattern matching with match expressions
-- Complex closures with trait bounds
-- Advanced iterator chains
-- Rust-specific features not yet in Crusty
-- Mixing Crusty and Rust code in the same function
-- Use cases for the escape hatch
+These files document planned features with syntax examples in comments.
 
 ## Crusty Syntax Highlights
 
@@ -220,8 +201,8 @@ int add(int a, int b) {
 }
 
 // void for no return value
-void print_message(char* msg) {
-    __println__("{}", msg);
+void print_message() {
+    // function body
 }
 
 // static for private functions
@@ -230,96 +211,55 @@ static int helper(int x) {
 }
 ```
 
-### Macros
+### #define Macros
 
-Crusty macros use double-underscore naming (no `!` suffix):
+Crusty supports #define for macro definitions with double-underscore naming:
 
-```c
-__println__("Hello, world!");
-__vec__[1, 2, 3];
-__format__("Value: {}", x);
+```crusty
+// Simple constant macro
+#define __MAX_SIZE__ 100
+
+// Macro with parameters
+#define __ADD__(a, b) ((a) + (b))
+
+// Macro with ternary operator
+#define __MAX__(x, y) ((x) > (y) ? (x) : (y))
 ```
 
-These transpile to Rust macros with `!`:
+These transpile to Rust macro_rules!:
 
 ```rust
-println!("Hello, world!");
-vec![1, 2, 3];
-format!("Value: {}", x);
-```
+macro_rules! max_size {
+    () => {{ 100 }};
+}
 
-### Type-Scoped Calls
+macro_rules! add {
+    ($a:expr, $b:expr) => {{ (($a) + ($b)) }};
+}
 
-Crusty uses @ prefix and dot notation for type-scoped static method calls:
-
-```c
-// Type-scoped static method call
-int value = @Option.Some(42);
-
-// With explicit generic parameters (parentheses syntax)
-@Vec(int).new();
-
-// Nested type paths
-@Foo.Bar.boo();  // Translates to Rust's Foo::Bar.boo()
-```
-
-These transpile to Rust's :: syntax:
-
-```rust
-let value = Option::Some(42);
-Vec::<i32>::new();
-Foo::Bar.boo();
-```
-
-### Nested Functions (Closures)
-
-Crusty supports defining functions within functions:
-
-```c
-void outer() {
-    int captured = 42;
-    
-    int inner(int x) {
-        return x + captured;  // Captures 'captured' immutably
-    }
-    
-    __println__("{}", inner(10));
+macro_rules! max {
+    ($x:expr, $y:expr) => {{
+        if $x > $y { $x } else { $y }
+    }};
 }
 ```
 
-These transpile to Rust closures:
+### Attributes
 
-```rust
-fn outer() {
-    let captured = 42;
-    
-    let inner = |x: i32| -> i32 {
-        x + captured
-    };
-    
-    println!("{}", inner(10));
+Crusty supports Rust-style attributes:
+
+```crusty
+#[derive(Debug, Clone)]
+struct Point {
+    int x;
+    int y;
+}
+
+#[test]
+void test_addition() {
+    let result = 2 + 2;
 }
 ```
-
-Scoping rule: Nested functions can only capture variables defined BEFORE the function declaration.
-
-### __rust__ Escape Hatch
-
-For Rust-specific features not yet in Crusty, use the __rust__ macro:
-
-```c
-void example() {
-    __rust__ {
-        // Raw Rust code here
-        match some_value {
-            Some(x) => println!("Got {}", x),
-            None => println!("Nothing"),
-        }
-    }
-}
-```
-
-The __rust__ block contents are emitted directly as Rust code without translation.
 
 ### Control Flow
 

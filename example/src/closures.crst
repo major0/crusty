@@ -2,9 +2,12 @@
 // Licensed under the MIT License. See LICENSE.txt in the project root.
 
 /// Example demonstrating nested functions (closures) in Crusty
-/// NOTE: This feature is not yet implemented in the transpiler
+/// NOTE: This feature is planned for future implementation
 
 void main() {
-    __println__("Nested functions (closures) are planned for a future release.");
-    __println__("They will support immutable and mutable captures.");
+    // Nested functions (closures) will support:
+    // - Immutable captures (Fn trait)
+    // - Mutable captures (FnMut trait)
+    // - Move semantics (FnOnce trait)
+    // - Passing as function parameters
 }

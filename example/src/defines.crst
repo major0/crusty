@@ -1,0 +1,25 @@
+// Copyright (c) 2026 Mark Ferrell
+// Licensed under the MIT License. See LICENSE.txt in the project root.
+
+/// Example demonstrating #define macro definitions in Crusty
+/// NOTE: Macro invocations require semantic analyzer support (planned)
+
+// Simple constant macro
+#define __MAX_SIZE__ 100
+
+// Macro with parameters  
+#define __ADD__(a, b) ((a) + (b))
+
+// Macro with multiple parameters
+#define __MAX__(x, y) ((x) > (y) ? (x) : (y))
+
+// These #define directives translate to Rust macro_rules!
+// __MAX_SIZE__ becomes macro_rules! max_size
+// __ADD__(a, b) becomes macro_rules! add with parameters
+// __MAX__(x, y) becomes macro_rules! max with ternary translated to if-else
+
+void main() {
+    // Macro invocations will be supported in future releases
+    // let size = __MAX_SIZE__;
+    // let sum = __ADD__(10, 20);
+}

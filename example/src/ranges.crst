@@ -2,9 +2,13 @@
 // Licensed under the MIT License. See LICENSE.txt in the project root.
 
 /// Example demonstrating range syntax
-/// NOTE: Range expressions in let statements are not yet fully implemented
+/// NOTE: This is a placeholder - ranges are planned for future implementation
 
 void main() {
-    __println__("Range syntax support is planned for a future release.");
-    __println__("Ranges will support: start..end, start..=end, start.., ..end, ..");
+    // Range syntax will support:
+    // start..end (exclusive)
+    // start..=end (inclusive)
+    // start.. (unbounded)
+    // ..end (from start)
+    // .. (full range)
 }
