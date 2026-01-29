@@ -6,6 +6,8 @@ This implementation plan breaks down the Crusty transpiler (crustyc) development
 
 The implementation follows a bottom-up approach, building core infrastructure first, then adding language features incrementally, and finally implementing bidirectional transpilation and advanced features.
 
+**Core Principle**: Crusty is a **syntactic transpilation layer, not a semantic one**. See [SYNTAX_PHILOSOPHY.md](SYNTAX_PHILOSOPHY.md) for detailed rationale on what is and isn't transformed.
+
 **Important**: Each task and sub-task should be committed using Conventional Commits format:
 - Format: `type(scope): subject`
 - Types: feat, fix, docs, test, refactor, chore
@@ -698,8 +700,8 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - _Requirements: 45.7, 45.8, 45.9, 45.10_
   
   - [x]16.7 Add error handling code generation
-    - Translate Type! to Result<Type, E> (syntax transformation)
-    - Translate ! operator to Rust ? operator (syntax transformation)
+    - Translate Type? to Result<Type, E> (syntax transformation)
+    - expr? passes through to Rust ? operator (no transformation needed)
     - Method names pass through unchanged (.is_err(), .is_ok(), .unwrap())
     - Function names pass through unchanged (Ok(), Err())
     - _Requirements: 46.8, 46.9, 46.10 (updated to syntax-only)_
@@ -888,8 +890,8 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Translate Rust match expressions to switch statements
     - Translate Rust impl blocks to struct methods
     - Translate Rust traits to VTable structs
-    - Translate Rust Result<T,E> to Type!
-    - Translate Rust ? operator to ! operator
+    - Translate Rust Result<T,E> to Type?
+    - Rust ? operator passes through as expr? (no transformation needed)
     - Translate Rust Type::method() to Crusty @Type.method()
     - Translate Rust macro_name! to Crusty __macro_name__ (adding double-underscores, removing !)
     - _Requirements: 47.5, 47.6, 47.7, 47.8, 47.9, 47.10, 47.11, 21.18_
@@ -1293,3 +1295,14 @@ The implementation follows a bottom-up approach, building core infrastructure fi
 - The transpiler uses Rust's standard library directly without wrappers
 - All generated Rust code must be valid and compile with rustc
 - All tasks are required for comprehensive implementation
+
+
+---
+
+## See Also
+
+- [SYNTAX_PHILOSOPHY.md](SYNTAX_PHILOSOPHY.md) - Core principle: syntax-only transpilation
+- [requirements.md](requirements.md) - Detailed feature requirements
+- [design.md](design.md) - Architecture and component design
+- [README.md](../../../README.md) - Project overview and quick start guide
+- [CONTRIBUTING.md](../../../CONTRIBUTING.md) - How to contribute

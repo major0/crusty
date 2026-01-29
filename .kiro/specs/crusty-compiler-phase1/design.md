@@ -4,6 +4,8 @@
 
 The Crusty transpiler (crustyc) is a bidirectional tool that translates between Crusty (a C-like language) and Rust source code. This phase 1 implementation establishes the core transpiler infrastructure and determines which C language features can be preserved while maintaining Rust compatibility.
 
+**Core Philosophy**: Crusty is a **syntactic transpilation layer, not a semantic one**. This design document follows the principles outlined in [SYNTAX_PHILOSOPHY.md](SYNTAX_PHILOSOPHY.md): method names, function names, and identifiers pass through unchanged, with NULL being the ONLY semantic exception.
+
 The transpiler follows a traditional multi-phase architecture:
 1. **Lexical Analysis**: Tokenize source code
 2. **Parsing**: Build Abstract Syntax Tree (AST)
@@ -20,7 +22,8 @@ The design supports bidirectional transpilation, meaning the same AST representa
 - **Rust Standard Library**: Crusty programs use Rust's std library directly without wrappers
 - **Safety First**: Reject C features that violate Rust's safety guarantees
 - **Familiar Syntax**: Provide C-like syntax that maps cleanly to Rust semantics
-- **Escape Hatch**: Support rust! macro for embedding raw Rust code when needed
+- **Syntax-Only Transformations**: Transform only syntax (Type?, @Type.method()), not semantics (expr? and method/function names pass through)
+- **Escape Hatch**: Support __rust__ macro for embedding raw Rust code when needed
 
 ## Development Workflow and Infrastructure
 
@@ -1849,8 +1852,8 @@ Property 19: Switch statements translate to match expressions
 **Validates: Requirements 45.7**
 
 Property 20: Error handling syntax translates correctly
-*For any* fallible return type (Type!) in the AST, the generated Rust code should use Result<Type, E>; for any error(value) expression, the generated Rust code should use Err(value); for any error propagation operator (!), the generated Rust code should use the ? operator.
-**Validates: Requirements 46.8, 46.9, 46.10**
+*For any* fallible return type (Type?) in the AST, the generated Rust code should use Result<Type, E>; the expr? operator passes through unchanged to Rust's ? operator.
+**Validates: Requirements 46.8, 46.10**
 
 Property 21: Module directives translate correctly
 *For any* #use directive in the AST, the generated Rust code should create a corresponding use statement; for any namespace declaration, the generated Rust code should create a corresponding mod block.
@@ -2137,3 +2140,14 @@ For property-based tests, we'll implement generators for:
 - **Procedural Macros**: Crusty syntax for defining procedural macros
 - **IDE Integration**: Language server protocol (LSP) support
 - **Debugger Integration**: Map Crusty source locations to Rust for debugging
+
+
+---
+
+## See Also
+
+- [SYNTAX_PHILOSOPHY.md](SYNTAX_PHILOSOPHY.md) - Core principle: syntax-only transpilation
+- [requirements.md](requirements.md) - Detailed feature requirements
+- [tasks.md](tasks.md) - Implementation plan and progress
+- [README.md](../../../README.md) - Project overview and quick start guide
+- [CONTRIBUTING.md](../../../CONTRIBUTING.md) - How to contribute

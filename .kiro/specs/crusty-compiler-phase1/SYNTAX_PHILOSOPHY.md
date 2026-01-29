@@ -14,13 +14,13 @@ Method names, function names, and identifiers pass through unchanged between Cru
 These are pure syntax changes that don't affect semantics:
 
 ### 1. Type Syntax
-- `Type!` → `Result<Type, Box<dyn std::error::Error>>`
+- `Type?` → `Result<Type, Box<dyn std::error::Error>>`
 - `int` → `i32`
 - `float` → `f64`
 - `void` → `()` (no return annotation)
 
 ### 2. Operator Syntax
-- `expr!` → `expr?` (error propagation)
+- `expr?` → `expr?` (error propagation - pass through)
 - `@Type.method()` → `Type::method()` (type-scoped calls)
 - `.label:` → `'label:` (loop labels)
 
@@ -57,8 +57,8 @@ These are pure syntax changes that don't affect semantics:
 ### Error Handling (Requirement 49)
 
 **Syntax Transformations Only:**
-- `Type!` → `Result<Type, Box<dyn std::error::Error>>`
-- `expr!` → `expr?`
+- `Type?` → `Result<Type, Box<dyn std::error::Error>>`
+- `expr?` → `expr?` (pass through to Rust)
 
 **Users Must Use Rust API Directly:**
 - `.is_err()`, `.is_ok()`, `.unwrap()`, `.unwrap_or()`
@@ -80,8 +80,8 @@ This is the ONLY place where we do semantic transformation, because NULL is a C 
 ## Implementation Status
 
 ✅ **Correctly Implemented:**
-- Type! → Result<Type, E>
-- expr! → expr?
+- Type? → Result<Type, E>
+- expr? → expr? (pass through)
 - NULL → Option::None
 - Method names pass through unchanged
 - Function names pass through unchanged
@@ -96,3 +96,12 @@ This is the ONLY place where we do semantic transformation, because NULL is a C 
 2. Update design.md to clarify syntax-only philosophy
 3. Update tasks.md task 16.7 description to remove method renaming
 4. Keep implementation as-is (already correct)
+
+
+## See Also
+
+- [README.md](../../../README.md) - Project overview with syntax examples
+- [requirements.md](requirements.md) - Detailed feature requirements
+- [design.md](design.md) - Architecture and design decisions
+- [tasks.md](tasks.md) - Implementation plan and progress
+- [CONTRIBUTING.md](../../../CONTRIBUTING.md) - How to contribute to the project

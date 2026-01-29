@@ -4,6 +4,8 @@
 
 Crusty is a C-like programming language that transpiles to Rust, enabling developers to write code with familiar C syntax while leveraging the safety and performance of the Rust ecosystem. Phase 1 focuses on building two tools: `crustyc` (a bidirectional transpiler that translates between Crusty and Rust source code) and `crustydoc` (a documentation generator that leverages rustdoc for generating high-quality documentation).
 
+**Core Philosophy**: Crusty is a **syntactic transpilation layer, not a semantic one**. Method names, function names, and identifiers pass through unchanged between Crusty and Rust. See [SYNTAX_PHILOSOPHY.md](SYNTAX_PHILOSOPHY.md) for detailed rationale on what transformations are allowed and why NULL is the ONLY semantic exception.
+
 Crusty is designed for transparent integration with the Rust ecosystem:
 - **Use Rust crates**: Crusty code can import and use any existing Rust crate or module
 - **Create Rust-compatible modules**: Crusty projects can be compiled into crates that native Rust projects can depend on
@@ -171,7 +173,7 @@ This phase serves as an experimental platform to determine which C language feat
 12. THE example .crst files SHALL demonstrate #define macro definitions with double-underscore naming
 13. THE example .crst files SHALL demonstrate variable declarations (const, var, let, static)
 14. THE example .crst files SHALL demonstrate references and borrowing (&, &var, &mut)
-15. THE example .crst files SHALL demonstrate error handling with fallible return types (Type!)
+15. THE example .crst files SHALL demonstrate error handling with fallible return types (Type?)
 16. THE example .crst files SHALL demonstrate NULL and Option type mapping
 17. THE example .crst files SHALL demonstrate #use directives for importing Rust standard library modules
 18. THE example .crst files SHALL demonstrate generic types with explicit type parameters
@@ -1202,28 +1204,32 @@ fn process<T>(value: T) -> Option<T> { ... }
 
 **User Story:** As a Crusty programmer, I want to handle errors with type-safe fallible return types, so that I can write robust code with clear error propagation.
 
+**Note**: This requirement follows Crusty's syntax-only transpilation philosophy. Only Type? is transformed; expr? and method names pass through unchanged to Rust.
+
 #### Acceptance Criteria
 
-1. THE Parser SHALL support ! suffix on return types to indicate fallible functions (Type!)
-2. THE Parser SHALL support error(value) syntax for returning errors
-3. THE Parser SHALL support ! operator for error propagation (similar to Rust's ? operator)
-4. THE Parser SHALL support .is_error() method calls on fallible return values
-5. THE Parser SHALL support .is_ok() method calls on fallible return values
-6. THE Parser SHALL support .unwrap() method calls to extract success values
-7. THE Parser SHALL support .unwrap_or(default) method calls to provide default values on error
-8. WHEN generating Rust code, THE Code_Generator SHALL translate Type! to Result<Type, ErrorType>
-9. WHEN generating Rust code, THE Code_Generator SHALL translate error(value) to Err(value)
-10. WHEN generating Rust code, THE Code_Generator SHALL translate ! operator to Rust ? operator
-11. WHEN generating Rust code, THE Code_Generator SHALL translate .is_error() to .is_err()
-12. WHEN generating Rust code, THE Code_Generator SHALL translate .is_ok() to .is_ok()
-13. WHEN generating Rust code, THE Code_Generator SHALL translate .unwrap() and .unwrap_or() to corresponding Rust methods
+1. THE Parser SHALL support ? suffix on return types to indicate fallible functions (Type?)
+2. ~~THE Parser SHALL support error(value) syntax for returning errors~~ (REMOVED - use Rust's Err() directly)
+3. THE Parser SHALL support ? operator for error propagation (passes through to Rust's ? operator)
+4. ~~THE Parser SHALL support .is_error() method calls on fallible return values~~ (REMOVED - use Rust's .is_err() directly)
+5. ~~THE Parser SHALL support .is_ok() method calls on fallible return values~~ (REMOVED - use Rust's .is_ok() directly)
+6. ~~THE Parser SHALL support .unwrap() method calls to extract success values~~ (REMOVED - use Rust's .unwrap() directly)
+7. ~~THE Parser SHALL support .unwrap_or(default) method calls to provide default values on error~~ (REMOVED - use Rust's .unwrap_or() directly)
+8. WHEN generating Rust code, THE Code_Generator SHALL translate Type? to Result<Type, Box<dyn std::error::Error>>
+9. ~~WHEN generating Rust code, THE Code_Generator SHALL translate error(value) to Err(value)~~ (REMOVED - semantic transformation)
+10. WHEN generating Rust code, THE Code_Generator SHALL pass through ? operator unchanged to Rust ? operator
+11. ~~WHEN generating Rust code, THE Code_Generator SHALL translate .is_error() to .is_err()~~ (REMOVED - semantic transformation)
+12. ~~WHEN generating Rust code, THE Code_Generator SHALL translate .is_ok() to .is_ok()~~ (REMOVED - semantic transformation)
+13. ~~WHEN generating Rust code, THE Code_Generator SHALL translate .unwrap() and .unwrap_or() to corresponding Rust methods~~ (REMOVED - semantic transformation)
 14. THE Semantic_Analyzer SHALL verify that fallible function calls are properly handled (propagated, checked, or unwrapped)
-15. THE Semantic_Analyzer SHALL verify that ! operator is only used in functions with fallible return types
-16. THE Parser SHALL support string literals as error values
-17. THE Parser SHALL support enum values as error types
-18. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Result<T, E> to Type!
-19. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate ? operator to ! operator
-20. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Err(value) to error(value)
+15. THE Semantic_Analyzer SHALL verify that ? operator is only used in functions with fallible return types or in contexts that can propagate errors
+16. ~~THE Parser SHALL support string literals as error values~~ (REMOVED - use Rust's Err() directly)
+17. ~~THE Parser SHALL support enum values as error types~~ (REMOVED - use Rust's error types directly)
+18. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Result<T, E> to Type?
+19. WHEN reverse transpiling from Rust, THE Code_Generator SHALL pass through ? operator unchanged
+20. ~~WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Err(value) to error(value)~~ (REMOVED - semantic transformation)
+
+**Summary of Changes**: Removed all semantic transformations (error(), .is_error(), method renaming). Users must use Rust's standard API directly: Ok(), Err(), .is_err(), .is_ok(), .unwrap(), .unwrap_or(). Only Type? → Result<Type, E> is transformed.
 
 ## Module System and Visibility
 
@@ -1491,7 +1497,7 @@ pub fn outer_function() {
 5. THE test suite SHALL include tests for all control flow structures (if/else-if/else, while, for variants, switch, break, continue)
 6. THE test suite SHALL include tests for all operators (arithmetic, comparison, logical, bitwise, assignment, increment/decrement, ternary, member access, array subscript, address-of, dereference)
 7. THE test suite SHALL include tests for pointer arithmetic within Rust constraints
-8. THE test suite SHALL include tests for error handling syntax (Type!, error(), ! operator, unwrap methods)
+8. THE test suite SHALL include tests for error handling syntax (Type?, expr? operator, Rust Result API)
 9. THE test suite SHALL include tests for NULL and Option type mapping
 10. THE test suite SHALL include tests for string types (String, &str, char arrays)
 11. THE test suite SHALL include tests for #use directives importing standard Rust modules (std.collections, std.io, std.fs, etc.)
@@ -1510,3 +1516,14 @@ pub fn outer_function() {
 24. THE test suite SHALL include positive tests for #define macro definitions and their translation to Rust macro_rules!
 25. WHEN a syntax feature is added or modified, THE test suite SHALL be updated to include corresponding tests
 26. THE test suite SHALL achieve at least 90% code coverage of the Parser, Semantic_Analyzer, and Code_Generator components
+
+
+---
+
+## See Also
+
+- [SYNTAX_PHILOSOPHY.md](SYNTAX_PHILOSOPHY.md) - Core principle: syntax-only transpilation
+- [design.md](design.md) - Architecture and component design
+- [tasks.md](tasks.md) - Implementation plan and progress
+- [README.md](../../../README.md) - Project overview and quick start guide
+- [CONTRIBUTING.md](../../../CONTRIBUTING.md) - How to contribute
