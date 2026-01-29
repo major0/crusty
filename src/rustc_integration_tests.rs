@@ -47,7 +47,10 @@ int main() {
         } else {
             // Check that it's a rustc invocation error (rustc not found)
             let err = result.unwrap_err();
-            assert!(matches!(err, crate::error::CompilerError::RustcInvocation(_)));
+            assert!(matches!(
+                err,
+                crate::error::CompilerError::RustcInvocation(_)
+            ));
         }
     }
 

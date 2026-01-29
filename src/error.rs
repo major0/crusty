@@ -309,10 +309,7 @@ mod tests {
 
     #[test]
     fn test_compiler_error_conversion() {
-        let lex_error = LexError::new(
-            Span::new(Position::new(1, 1), Position::new(1, 1)),
-            "test",
-        );
+        let lex_error = LexError::new(Span::new(Position::new(1, 1), Position::new(1, 1)), "test");
         let compiler_error: CompilerError = lex_error.into();
         assert!(matches!(compiler_error, CompilerError::Lex(_)));
     }

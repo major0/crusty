@@ -1,18 +1,18 @@
 // Copyright (c) 2026 Mark Ferrell
 // Licensed under the MIT License. See LICENSE.txt in the project root.
 
-mod cli;
-mod lexer;
-mod parser;
 mod ast;
-mod semantic;
+mod cli;
 mod codegen;
 mod error;
-mod utils;
+mod lexer;
+mod parser;
 mod pretty;
 mod rustc;
+mod semantic;
+mod utils;
 
-use cli::{CompilerOptions, run_compiler};
+use cli::{run_compiler, CompilerOptions};
 use std::process;
 
 fn main() {

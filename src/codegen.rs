@@ -111,13 +111,13 @@ impl CodeGenerator {
 
         // Generate function signature
         self.write_indent();
-        
+
         match self.target {
             TargetLanguage::Rust => {
                 // Rust syntax: pub fn name(params) -> return_type { }
                 match func.visibility {
                     Visibility::Public => self.write("pub "),
-                    Visibility::Private => {}, // No keyword for private
+                    Visibility::Private => {} // No keyword for private
                 }
 
                 self.write("fn ");
@@ -189,7 +189,7 @@ impl CodeGenerator {
         self.write_indent();
         match struct_def.visibility {
             Visibility::Public => self.write("pub "),
-            Visibility::Private => {},
+            Visibility::Private => {}
         }
         self.write("struct ");
         self.write(&struct_def.name.name);
@@ -204,7 +204,7 @@ impl CodeGenerator {
             self.write_indent();
             match field.visibility {
                 Visibility::Public => self.write("pub "),
-                Visibility::Private => {},
+                Visibility::Private => {}
             }
             self.write(&field.name.name);
             self.write(": ");
@@ -246,7 +246,7 @@ impl CodeGenerator {
         self.write_indent();
         match enum_def.visibility {
             Visibility::Public => self.write("pub "),
-            Visibility::Private => {},
+            Visibility::Private => {}
         }
         self.write("enum ");
         self.write(&enum_def.name.name);
@@ -306,11 +306,11 @@ impl CodeGenerator {
     fn generate_block(&mut self, block: &Block) {
         self.write("{\n");
         self.indent();
-        
+
         for stmt in &block.statements {
             self.generate_statement(stmt);
         }
-        
+
         self.dedent();
         self.write_indent();
         self.write("}");
@@ -319,7 +319,12 @@ impl CodeGenerator {
     /// Generate a statement
     fn generate_statement(&mut self, stmt: &Statement) {
         match stmt {
-            Statement::Let { name, ty, init, mutable } => {
+            Statement::Let {
+                name,
+                ty,
+                init,
+                mutable,
+            } => {
                 self.write_indent();
                 match self.target {
                     TargetLanguage::Rust => {
@@ -425,7 +430,11 @@ impl CodeGenerator {
                 }
                 self.write(";\n");
             }
-            Statement::If { condition, then_block, else_block } => {
+            Statement::If {
+                condition,
+                then_block,
+                else_block,
+            } => {
                 self.write_indent();
                 self.write("if ");
                 match self.target {
@@ -446,7 +455,11 @@ impl CodeGenerator {
                 }
                 self.write("\n");
             }
-            Statement::While { label, condition, body } => {
+            Statement::While {
+                label,
+                condition,
+                body,
+            } => {
                 self.write_indent();
                 if let Some(ref label) = label {
                     match self.target {
@@ -478,7 +491,13 @@ impl CodeGenerator {
                 self.generate_block(body);
                 self.write("\n");
             }
-            Statement::For { label, init, condition, increment, body } => {
+            Statement::For {
+                label,
+                init,
+                condition,
+                increment,
+                body,
+            } => {
                 // C-style for loop translates to Rust loop with break
                 self.write_indent();
                 if let Some(ref label) = label {
@@ -495,40 +514,40 @@ impl CodeGenerator {
                         }
                     }
                 }
-                
+
                 match self.target {
                     TargetLanguage::Rust => {
                         self.write("{\n");
                         self.indent();
-                        
+
                         // Init statement
                         self.generate_statement(init);
-                        
+
                         // Loop
                         self.write_indent();
                         self.write("loop {\n");
                         self.indent();
-                        
+
                         // Condition check
                         self.write_indent();
                         self.write("if !(");
                         self.write(&self.generate_expression_string(condition));
                         self.write(") { break; }\n");
-                        
+
                         // Body
                         for stmt in &body.statements {
                             self.generate_statement(stmt);
                         }
-                        
+
                         // Increment
                         self.write_indent();
                         self.write(&self.generate_expression_string(increment));
                         self.write(";\n");
-                        
+
                         self.dedent();
                         self.write_indent();
                         self.write("}\n");
-                        
+
                         self.dedent();
                         self.write_indent();
                         self.write("}\n");
@@ -573,7 +592,12 @@ impl CodeGenerator {
                     }
                 }
             }
-            Statement::ForIn { label, var, iter, body } => {
+            Statement::ForIn {
+                label,
+                var,
+                iter,
+                body,
+            } => {
                 self.write_indent();
                 if let Some(ref label) = label {
                     match self.target {
@@ -597,7 +621,11 @@ impl CodeGenerator {
                 self.generate_block(body);
                 self.write("\n");
             }
-            Statement::Switch { expr, cases, default } => {
+            Statement::Switch {
+                expr,
+                cases,
+                default,
+            } => {
                 self.write_indent();
                 match self.target {
                     TargetLanguage::Rust => {
@@ -605,7 +633,7 @@ impl CodeGenerator {
                         self.write(&self.generate_expression_string(expr));
                         self.write(" {\n");
                         self.indent();
-                        
+
                         for case in cases {
                             self.write_indent();
                             for (i, value) in case.values.iter().enumerate() {
@@ -618,14 +646,14 @@ impl CodeGenerator {
                             self.generate_block(&case.body);
                             self.write(",\n");
                         }
-                        
+
                         if let Some(ref default) = default {
                             self.write_indent();
                             self.write("_ => ");
                             self.generate_block(default);
                             self.write(",\n");
                         }
-                        
+
                         self.dedent();
                         self.write_indent();
                         self.write("}\n");
@@ -635,7 +663,7 @@ impl CodeGenerator {
                         self.write(&self.generate_expression_string(expr));
                         self.write(") {\n");
                         self.indent();
-                        
+
                         for case in cases {
                             self.write_indent();
                             self.write("case ");
@@ -649,14 +677,14 @@ impl CodeGenerator {
                             self.generate_block(&case.body);
                             self.write("\n");
                         }
-                        
+
                         if let Some(ref default) = default {
                             self.write_indent();
                             self.write("default: ");
                             self.generate_block(default);
                             self.write("\n");
                         }
-                        
+
                         self.dedent();
                         self.write_indent();
                         self.write("}\n");
@@ -715,9 +743,7 @@ impl CodeGenerator {
                     self.generate_expression_string(right)
                 )
             }
-            Expression::Unary { op, expr } => {
-                self.generate_unary_expression_string(op, expr)
-            }
+            Expression::Unary { op, expr } => self.generate_unary_expression_string(op, expr),
             Expression::Call { func, args } => {
                 let mut result = self.generate_expression_string(func);
                 result.push('(');
@@ -731,11 +757,7 @@ impl CodeGenerator {
                 result
             }
             Expression::FieldAccess { expr, field } => {
-                format!(
-                    "{}.{}",
-                    self.generate_expression_string(expr),
-                    field.name
-                )
+                format!("{}.{}", self.generate_expression_string(expr), field.name)
             }
             Expression::Index { expr, index } => {
                 format!(
@@ -754,7 +776,11 @@ impl CodeGenerator {
             Expression::Sizeof { ty } => {
                 format!("std::mem::size_of::<{}>()", self.generate_type_string(ty))
             }
-            Expression::Ternary { condition, then_expr, else_expr } => {
+            Expression::Ternary {
+                condition,
+                then_expr,
+                else_expr,
+            } => {
                 format!(
                     "if {} {{ {} }} else {{ {} }}",
                     self.generate_expression_string(condition),
@@ -798,7 +824,11 @@ impl CodeGenerator {
                 result.push(')');
                 result
             }
-            Expression::Range { start, end, inclusive } => {
+            Expression::Range {
+                start,
+                end,
+                inclusive,
+            } => {
                 let mut result = String::new();
                 if let Some(ref start) = start {
                     result.push_str(&self.generate_expression_string(start));
@@ -837,7 +867,11 @@ impl CodeGenerator {
             Expression::ErrorProp { expr } => {
                 format!("{}?", self.generate_expression_string(expr))
             }
-            Expression::MethodCall { receiver, method, args } => {
+            Expression::MethodCall {
+                receiver,
+                method,
+                args,
+            } => {
                 let mut result = self.generate_expression_string(receiver);
                 result.push('.');
                 result.push_str(&method.name);
@@ -866,7 +900,12 @@ impl CodeGenerator {
                 result.push(')');
                 result
             }
-            Expression::ExplicitGenericCall { ty, generics, method, args } => {
+            Expression::ExplicitGenericCall {
+                ty,
+                generics,
+                method,
+                args,
+            } => {
                 // Translate @Type(T).method() to Type::<T>::method()
                 let mut result = self.generate_type_string(ty);
                 result.push_str("::<");
@@ -940,25 +979,33 @@ impl CodeGenerator {
             UnaryOp::Deref => format!("*({})", self.generate_expression_string(expr)),
             UnaryOp::PreInc => {
                 // ++x translates to { x += 1; x }
-                format!("{{ let __tmp = &mut ({}); *__tmp += 1; *__tmp }}", 
-                    self.generate_expression_string(expr))
+                format!(
+                    "{{ let __tmp = &mut ({}); *__tmp += 1; *__tmp }}",
+                    self.generate_expression_string(expr)
+                )
             }
             UnaryOp::PreDec => {
                 // --x translates to { x -= 1; x }
-                format!("{{ let __tmp = &mut ({}); *__tmp -= 1; *__tmp }}", 
-                    self.generate_expression_string(expr))
+                format!(
+                    "{{ let __tmp = &mut ({}); *__tmp -= 1; *__tmp }}",
+                    self.generate_expression_string(expr)
+                )
             }
             UnaryOp::PostInc => {
                 // x++ translates to { let tmp = x; x += 1; tmp }
-                format!("{{ let __old = ({}); let __tmp = &mut ({}); *__tmp += 1; __old }}", 
+                format!(
+                    "{{ let __old = ({}); let __tmp = &mut ({}); *__tmp += 1; __old }}",
                     self.generate_expression_string(expr),
-                    self.generate_expression_string(expr))
+                    self.generate_expression_string(expr)
+                )
             }
             UnaryOp::PostDec => {
                 // x-- translates to { let tmp = x; x -= 1; tmp }
-                format!("{{ let __old = ({}); let __tmp = &mut ({}); *__tmp -= 1; __old }}", 
+                format!(
+                    "{{ let __old = ({}); let __tmp = &mut ({}); *__tmp -= 1; __old }}",
                     self.generate_expression_string(expr),
-                    self.generate_expression_string(expr))
+                    self.generate_expression_string(expr)
+                )
             }
         }
     }
@@ -1017,7 +1064,10 @@ impl CodeGenerator {
                 result.push('>');
                 result
             }
-            Type::Function { params, return_type } => {
+            Type::Function {
+                params,
+                return_type,
+            } => {
                 let mut result = String::from("fn(");
                 for (i, param) in params.iter().enumerate() {
                     if i > 0 {
@@ -1030,7 +1080,10 @@ impl CodeGenerator {
                 result
             }
             Type::Fallible { ty } => {
-                format!("Result<{}, Box<dyn std::error::Error>>", self.generate_type_string(ty))
+                format!(
+                    "Result<{}, Box<dyn std::error::Error>>",
+                    self.generate_type_string(ty)
+                )
             }
             Type::Auto => String::from("_"),
         }
@@ -1106,19 +1159,19 @@ mod tests {
     fn test_indentation() {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         assert_eq!(gen.indent_level, 0);
-        
+
         gen.indent();
         assert_eq!(gen.indent_level, 1);
-        
+
         gen.indent();
         assert_eq!(gen.indent_level, 2);
-        
+
         gen.dedent();
         assert_eq!(gen.indent_level, 1);
-        
+
         gen.dedent();
         assert_eq!(gen.indent_level, 0);
-        
+
         // Should not go below 0
         gen.dedent();
         assert_eq!(gen.indent_level, 0);
@@ -1134,7 +1187,7 @@ mod tests {
             return_type: None,
             body: Block::empty(),
             doc_comments: vec![],
-        attributes: vec![],
+            attributes: vec![],
         };
         let file = File {
             items: vec![Item::Function(func)],
@@ -1156,7 +1209,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::Void)),
             body: Block::empty(),
             doc_comments: vec![],
-        attributes: vec![],
+            attributes: vec![],
         };
         let file = File {
             items: vec![Item::Function(func)],
@@ -1187,7 +1240,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::I32)),
             body: Block::empty(),
             doc_comments: vec![],
-        attributes: vec![],
+            attributes: vec![],
         };
         let file = File {
             items: vec![Item::Function(func)],
@@ -1207,7 +1260,7 @@ mod tests {
             return_type: None,
             body: Block::empty(),
             doc_comments: vec![],
-        attributes: vec![],
+            attributes: vec![],
         };
         let file = File {
             items: vec![Item::Function(func)],
@@ -1234,7 +1287,7 @@ mod tests {
             return_type: None,
             body: Block::new(vec![stmt]),
             doc_comments: vec![],
-        attributes: vec![],
+            attributes: vec![],
         };
         let file = File {
             items: vec![Item::Function(func)],
@@ -1259,7 +1312,7 @@ mod tests {
             return_type: None,
             body: Block::new(vec![stmt]),
             doc_comments: vec![],
-        attributes: vec![],
+            attributes: vec![],
         };
         let file = File {
             items: vec![Item::Function(func)],
@@ -1284,7 +1337,7 @@ mod tests {
             return_type: None,
             body: Block::new(vec![stmt]),
             doc_comments: vec![],
-        attributes: vec![],
+            attributes: vec![],
         };
         let file = File {
             items: vec![Item::Function(func)],
@@ -1309,7 +1362,7 @@ mod tests {
             return_type: None,
             body: Block::new(vec![stmt]),
             doc_comments: vec![],
-        attributes: vec![],
+            attributes: vec![],
         };
         let file = File {
             items: vec![Item::Function(func)],
@@ -1334,7 +1387,7 @@ mod tests {
             return_type: None,
             body: Block::new(vec![stmt]),
             doc_comments: vec![],
-        attributes: vec![],
+            attributes: vec![],
         };
         let file = File {
             items: vec![Item::Function(func)],
@@ -1355,7 +1408,7 @@ mod tests {
             return_type: None,
             body: Block::new(vec![stmt]),
             doc_comments: vec![],
-        attributes: vec![],
+            attributes: vec![],
         };
         let file = File {
             items: vec![Item::Function(func)],
@@ -1376,7 +1429,7 @@ mod tests {
             return_type: None,
             body: Block::new(vec![stmt]),
             doc_comments: vec![],
-        attributes: vec![],
+            attributes: vec![],
         };
         let file = File {
             items: vec![Item::Function(func)],
@@ -1456,19 +1509,19 @@ mod tests {
                     name: Ident::new("x"),
                     ty: Type::Primitive(PrimitiveType::I32),
                     doc_comments: vec![],
-                attributes: vec![],
+                    attributes: vec![],
                 },
                 Field {
                     visibility: Visibility::Public,
                     name: Ident::new("y"),
                     ty: Type::Primitive(PrimitiveType::I32),
                     doc_comments: vec![],
-                attributes: vec![],
+                    attributes: vec![],
                 },
             ],
             methods: vec![],
             doc_comments: vec![],
-        attributes: vec![],
+            attributes: vec![],
         };
         let file = File {
             items: vec![Item::Struct(struct_def)],
@@ -1490,7 +1543,7 @@ mod tests {
             return_type: Some(Type::Ident(Ident::new("Self"))),
             body: Block::empty(),
             doc_comments: vec![],
-        attributes: vec![],
+            attributes: vec![],
         };
         let struct_def = Struct {
             visibility: Visibility::Public,
@@ -1498,7 +1551,7 @@ mod tests {
             fields: vec![],
             methods: vec![method],
             doc_comments: vec![],
-        attributes: vec![],
+            attributes: vec![],
         };
         let file = File {
             items: vec![Item::Struct(struct_def)],
@@ -1531,7 +1584,7 @@ mod tests {
                 },
             ],
             doc_comments: vec![],
-        attributes: vec![],
+            attributes: vec![],
         };
         let file = File {
             items: vec![Item::Enum(enum_def)],
@@ -1547,17 +1600,50 @@ mod tests {
     #[test]
     fn test_generate_primitive_types() {
         let gen = CodeGenerator::new(TargetLanguage::Rust);
-        assert_eq!(gen.generate_type_string(&Type::Primitive(PrimitiveType::Int)), "i32");
-        assert_eq!(gen.generate_type_string(&Type::Primitive(PrimitiveType::I32)), "i32");
-        assert_eq!(gen.generate_type_string(&Type::Primitive(PrimitiveType::I64)), "i64");
-        assert_eq!(gen.generate_type_string(&Type::Primitive(PrimitiveType::U32)), "u32");
-        assert_eq!(gen.generate_type_string(&Type::Primitive(PrimitiveType::U64)), "u64");
-        assert_eq!(gen.generate_type_string(&Type::Primitive(PrimitiveType::Float)), "f64");
-        assert_eq!(gen.generate_type_string(&Type::Primitive(PrimitiveType::F32)), "f32");
-        assert_eq!(gen.generate_type_string(&Type::Primitive(PrimitiveType::F64)), "f64");
-        assert_eq!(gen.generate_type_string(&Type::Primitive(PrimitiveType::Bool)), "bool");
-        assert_eq!(gen.generate_type_string(&Type::Primitive(PrimitiveType::Char)), "char");
-        assert_eq!(gen.generate_type_string(&Type::Primitive(PrimitiveType::Void)), "()");
+        assert_eq!(
+            gen.generate_type_string(&Type::Primitive(PrimitiveType::Int)),
+            "i32"
+        );
+        assert_eq!(
+            gen.generate_type_string(&Type::Primitive(PrimitiveType::I32)),
+            "i32"
+        );
+        assert_eq!(
+            gen.generate_type_string(&Type::Primitive(PrimitiveType::I64)),
+            "i64"
+        );
+        assert_eq!(
+            gen.generate_type_string(&Type::Primitive(PrimitiveType::U32)),
+            "u32"
+        );
+        assert_eq!(
+            gen.generate_type_string(&Type::Primitive(PrimitiveType::U64)),
+            "u64"
+        );
+        assert_eq!(
+            gen.generate_type_string(&Type::Primitive(PrimitiveType::Float)),
+            "f64"
+        );
+        assert_eq!(
+            gen.generate_type_string(&Type::Primitive(PrimitiveType::F32)),
+            "f32"
+        );
+        assert_eq!(
+            gen.generate_type_string(&Type::Primitive(PrimitiveType::F64)),
+            "f64"
+        );
+        assert_eq!(
+            gen.generate_type_string(&Type::Primitive(PrimitiveType::Bool)),
+            "bool"
+        );
+        assert_eq!(
+            gen.generate_type_string(&Type::Primitive(PrimitiveType::Char)),
+            "char"
+        );
+        assert_eq!(
+            gen.generate_type_string(&Type::Primitive(PrimitiveType::Void)),
+            "()"
+        );
     }
 
     #[test]
@@ -1638,7 +1724,7 @@ mod tests {
     #[test]
     fn test_generate_range_expression() {
         let gen = CodeGenerator::new(TargetLanguage::Rust);
-        
+
         // 0..10
         let range = Expression::Range {
             start: Some(Box::new(Expression::Literal(Literal::Int(0)))),
@@ -1656,4 +1742,3 @@ mod tests {
         assert_eq!(gen.generate_expression_string(&range_inclusive), "0..=10");
     }
 }
-

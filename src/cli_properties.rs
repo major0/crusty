@@ -19,7 +19,7 @@ mod tests {
     fn property_29_valid_file_paths_read_successfully() {
         proptest!(|(content in ".*")| {
             // Generate a unique temporary file path
-            let test_path = PathBuf::from(format!("test_prop_29_{}.tmp", 
+            let test_path = PathBuf::from(format!("test_prop_29_{}.tmp",
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap()
