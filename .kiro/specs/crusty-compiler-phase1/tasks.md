@@ -659,7 +659,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Test macro invocations within macro bodies
     - _Requirements: 24.1-24.13_
 
-- [ ] 16. Implement advanced code generation features
+- [x] 16. Implement advanced code generation features
   - [x]16.1 Add struct method code generation
     - Translate struct methods to Rust impl blocks
     - Translate self parameters correctly
