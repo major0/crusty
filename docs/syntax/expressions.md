@@ -51,9 +51,9 @@ let size = std::mem::size_of::<i32>();
 
 ### Type-Scoped Static Calls
 ```c
-let v = @Vector->new();
-let none = @Option->None;
-let s = @String->from("hello");
+let v = @Vector.new();
+let none = @Option.None;
+let s = @String.from("hello");
 ```
 Translates to:
 ```rust
@@ -62,10 +62,11 @@ let none = Option::None;
 let s = String::from("hello");
 ```
 
-The `@` prefix distinguishes type-scoped (static) calls from instance method calls. Use `->` for simple calls and `.` for nested type paths:
+The `@` prefix distinguishes type-scoped (static) calls from instance method calls. Dot notation after `@Type` replaces Rust's `::`:
 ```c
-@std.collections.HashMap->new()   // std::collections::HashMap::new()
-@Foo.Bar.boo()                    // Foo::Bar.boo()
+@std.collections.HashMap.new()   // std::collections::HashMap::new()
+@Foo.Bar.boo()                   // Foo::Bar.boo()
+@Foo.BAR->boo()                  // Foo::BAR.boo() (method call on constant value)
 ```
 
 Instance methods use dot notation as usual: `v.len()`, `v.get(0)`.

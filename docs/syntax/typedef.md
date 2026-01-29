@@ -73,9 +73,9 @@ typedef struct {
     void print(&self) {
         __println__("Point({}, {})", self.x, self.y);
     }
-} @Point->display;
+} @Point.display;
 ```
-Named blocks are organizational — multiple `@Type->name` blocks for the same type are merged into a single `impl Type` block in the generated Rust code.
+Named blocks are organizational — multiple `@Type.name` blocks for the same type are merged into a single `impl Type` block in the generated Rust code.
 
 ## Formal Grammar
 
@@ -84,7 +84,7 @@ typedef_stmt  = "typedef" typedef_kind "{" member_list "}" typedef_target ";" ;
 typedef_kind  = "struct" | "default" ;
 typedef_target = IDENT                    (* new type definition *)
                | "@" IDENT               (* impl block for existing type *)
-               | "@" IDENT "->" IDENT    (* named impl block *) ;
+               | "@" IDENT "." IDENT     (* named impl block *) ;
 member_list   = (field_decl | method_decl)* ;
 ```
 
@@ -93,6 +93,6 @@ member_list   = (field_decl | method_decl)* ;
 - `typedef struct { ... } Type;` — define a new struct type
 - `typedef struct { methods } @Type;` — add an impl block for an existing type
 - `typedef default { fn default() { ... } } @Type;` — implement the Default trait
-- `typedef struct { methods } @Type->name;` — named impl block (for organization)
+- `typedef struct { methods } @Type.name;` — named impl block (for organization)
 - The `@` prefix indicates the type already exists
-- The `->name` suffix is optional, used for organizing multiple impl blocks
+- The `.name` suffix is optional, used for organizing multiple impl blocks
