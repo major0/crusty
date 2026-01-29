@@ -45,6 +45,12 @@ pub struct Scope {
     symbols: HashMap<String, Symbol>,
 }
 
+impl Default for Scope {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Scope {
     pub fn new() -> Self {
         Self {
@@ -344,8 +350,6 @@ impl SemanticAnalyzer {
 
     /// Analyze a function declaration
     fn analyze_function(&mut self, func: &crate::ast::Function) {
-        use crate::ast::Visibility;
-        
         // Register function in symbol table
         let func_type = if let Some(ref return_type) = func.return_type {
             Type::Function {
@@ -1194,7 +1198,7 @@ impl SemanticAnalyzer {
                 ty.clone()
             }
 
-            Expression::Sizeof { ty } => {
+            Expression::Sizeof { ty: _ } => {
                 // sizeof returns usize (u64 in our case)
                 Type::Primitive(PrimitiveType::U64)
             }
@@ -1326,7 +1330,7 @@ impl SemanticAnalyzer {
             }
 
             Expression::MethodCall { receiver, method: _, args } => {
-                let receiver_type = self.analyze_expression(receiver);
+                let _receiver_type = self.analyze_expression(receiver);
                 
                 // Analyze arguments
                 for arg in args {
