@@ -3552,7 +3552,7 @@ fn test_parse_multiple_defines() {
     let file = parser.parse_file().unwrap();
 
     assert_eq!(file.items.len(), 3);
-    
+
     match &file.items[0] {
         Item::MacroDefinition(mac) => {
             assert_eq!(mac.name.name, "__PI__");
@@ -3560,7 +3560,7 @@ fn test_parse_multiple_defines() {
         }
         _ => panic!("Expected MacroDefinition"),
     }
-    
+
     match &file.items[1] {
         Item::MacroDefinition(mac) => {
             assert_eq!(mac.name.name, "__E__");
@@ -3568,7 +3568,7 @@ fn test_parse_multiple_defines() {
         }
         _ => panic!("Expected MacroDefinition"),
     }
-    
+
     match &file.items[2] {
         Item::MacroDefinition(mac) => {
             assert_eq!(mac.name.name, "__MAX__");
