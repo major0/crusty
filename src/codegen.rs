@@ -2186,4 +2186,88 @@ mod tests {
         assert!(output.contains("println!")); // __println__ should become println!
         assert!(output.contains("$msg"));
     }
+
+    #[test]
+    fn test_explicit_generic_simple() {
+        // Test: Type(T) → Type::<T>
+        let gen = CodeGenerator::new(TargetLanguage::Rust);
+        let expr = Expression::ExplicitGenericCall {
+            ty: Type::Ident(Ident::new("Vec")),
+            generics: vec![Type::Primitive(PrimitiveType::I32)],
+            method: Ident::new("new"),
+            args: vec![],
+        };
+        let result = gen.generate_expression_string(&expr);
+        assert_eq!(result, "Vec::<i32>::new()");
+    }
+
+    #[test]
+    fn test_explicit_generic_nested() {
+        // Test: Type(Inner[T]) → Type::<Inner<T>>
+        let gen = CodeGenerator::new(TargetLanguage::Rust);
+        let inner_generic = Type::Generic {
+            base: Box::new(Type::Ident(Ident::new("Inner"))),
+            args: vec![Type::Ident(Ident::new("T"))],
+        };
+        let expr = Expression::ExplicitGenericCall {
+            ty: Type::Ident(Ident::new("Outer")),
+            generics: vec![inner_generic],
+            method: Ident::new("create"),
+            args: vec![],
+        };
+        let result = gen.generate_expression_string(&expr);
+        assert_eq!(result, "Outer::<Inner<T>>::create()");
+    }
+
+    #[test]
+    fn test_explicit_generic_multiple_params() {
+        // Test: Type(T1, T2) → Type::<T1, T2>
+        let gen = CodeGenerator::new(TargetLanguage::Rust);
+        let expr = Expression::ExplicitGenericCall {
+            ty: Type::Ident(Ident::new("HashMap")),
+            generics: vec![
+                Type::Ident(Ident::new("String")),
+                Type::Primitive(PrimitiveType::I32),
+            ],
+            method: Ident::new("new"),
+            args: vec![],
+        };
+        let result = gen.generate_expression_string(&expr);
+        assert_eq!(result, "HashMap::<String, i32>::new()");
+    }
+
+    #[test]
+    fn test_explicit_generic_with_args() {
+        // Test: Type(T).method(arg1, arg2) → Type::<T>::method(arg1, arg2)
+        let gen = CodeGenerator::new(TargetLanguage::Rust);
+        let expr = Expression::ExplicitGenericCall {
+            ty: Type::Ident(Ident::new("Vec")),
+            generics: vec![Type::Primitive(PrimitiveType::I32)],
+            method: Ident::new("from_iter"),
+            args: vec![Expression::Ident(Ident::new("iter"))],
+        };
+        let result = gen.generate_expression_string(&expr);
+        assert_eq!(result, "Vec::<i32>::from_iter(iter)");
+    }
+
+    #[test]
+    fn test_explicit_generic_deeply_nested() {
+        // Test: Type(Result[String, Error]) → Type::<Result<String, Error>>
+        let gen = CodeGenerator::new(TargetLanguage::Rust);
+        let result_generic = Type::Generic {
+            base: Box::new(Type::Ident(Ident::new("Result"))),
+            args: vec![
+                Type::Ident(Ident::new("String")),
+                Type::Ident(Ident::new("Error")),
+            ],
+        };
+        let expr = Expression::ExplicitGenericCall {
+            ty: Type::Ident(Ident::new("Option")),
+            generics: vec![result_generic],
+            method: Ident::new("Some"),
+            args: vec![],
+        };
+        let result = gen.generate_expression_string(&expr);
+        assert_eq!(result, "Option::<Result<String, Error>>::Some()");
+    }
 }
