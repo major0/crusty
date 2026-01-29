@@ -1134,6 +1134,7 @@ mod tests {
             return_type: None,
             body: Block::empty(),
             doc_comments: vec![],
+        attributes: vec![],
         };
         let file = File {
             items: vec![Item::Function(func)],
@@ -1155,6 +1156,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::Void)),
             body: Block::empty(),
             doc_comments: vec![],
+        attributes: vec![],
         };
         let file = File {
             items: vec![Item::Function(func)],
@@ -1185,6 +1187,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::I32)),
             body: Block::empty(),
             doc_comments: vec![],
+        attributes: vec![],
         };
         let file = File {
             items: vec![Item::Function(func)],
@@ -1204,6 +1207,7 @@ mod tests {
             return_type: None,
             body: Block::empty(),
             doc_comments: vec![],
+        attributes: vec![],
         };
         let file = File {
             items: vec![Item::Function(func)],
@@ -1230,6 +1234,7 @@ mod tests {
             return_type: None,
             body: Block::new(vec![stmt]),
             doc_comments: vec![],
+        attributes: vec![],
         };
         let file = File {
             items: vec![Item::Function(func)],
@@ -1254,6 +1259,7 @@ mod tests {
             return_type: None,
             body: Block::new(vec![stmt]),
             doc_comments: vec![],
+        attributes: vec![],
         };
         let file = File {
             items: vec![Item::Function(func)],
@@ -1278,6 +1284,7 @@ mod tests {
             return_type: None,
             body: Block::new(vec![stmt]),
             doc_comments: vec![],
+        attributes: vec![],
         };
         let file = File {
             items: vec![Item::Function(func)],
@@ -1302,6 +1309,7 @@ mod tests {
             return_type: None,
             body: Block::new(vec![stmt]),
             doc_comments: vec![],
+        attributes: vec![],
         };
         let file = File {
             items: vec![Item::Function(func)],
@@ -1326,6 +1334,7 @@ mod tests {
             return_type: None,
             body: Block::new(vec![stmt]),
             doc_comments: vec![],
+        attributes: vec![],
         };
         let file = File {
             items: vec![Item::Function(func)],
@@ -1346,6 +1355,7 @@ mod tests {
             return_type: None,
             body: Block::new(vec![stmt]),
             doc_comments: vec![],
+        attributes: vec![],
         };
         let file = File {
             items: vec![Item::Function(func)],
@@ -1366,6 +1376,7 @@ mod tests {
             return_type: None,
             body: Block::new(vec![stmt]),
             doc_comments: vec![],
+        attributes: vec![],
         };
         let file = File {
             items: vec![Item::Function(func)],
@@ -1445,16 +1456,19 @@ mod tests {
                     name: Ident::new("x"),
                     ty: Type::Primitive(PrimitiveType::I32),
                     doc_comments: vec![],
+                attributes: vec![],
                 },
                 Field {
                     visibility: Visibility::Public,
                     name: Ident::new("y"),
                     ty: Type::Primitive(PrimitiveType::I32),
                     doc_comments: vec![],
+                attributes: vec![],
                 },
             ],
             methods: vec![],
             doc_comments: vec![],
+        attributes: vec![],
         };
         let file = File {
             items: vec![Item::Struct(struct_def)],
@@ -1476,6 +1490,7 @@ mod tests {
             return_type: Some(Type::Ident(Ident::new("Self"))),
             body: Block::empty(),
             doc_comments: vec![],
+        attributes: vec![],
         };
         let struct_def = Struct {
             visibility: Visibility::Public,
@@ -1483,6 +1498,7 @@ mod tests {
             fields: vec![],
             methods: vec![method],
             doc_comments: vec![],
+        attributes: vec![],
         };
         let file = File {
             items: vec![Item::Struct(struct_def)],
@@ -1515,6 +1531,7 @@ mod tests {
                 },
             ],
             doc_comments: vec![],
+        attributes: vec![],
         };
         let file = File {
             items: vec![Item::Enum(enum_def)],
