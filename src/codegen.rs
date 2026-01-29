@@ -2814,6 +2814,68 @@ mod tests {
         assert!(output.contains("1 => {"));
         assert!(output.contains("break;"));
     }
+
+    #[test]
+    fn test_generate_fallible_type() {
+        let gen = CodeGenerator::new(TargetLanguage::Rust);
+        let fallible_type = Type::Fallible {
+            ty: Box::new(Type::Primitive(PrimitiveType::I32)),
+        };
+        let result = gen.generate_type_string(&fallible_type);
+        assert_eq!(result, "Result<i32, Box<dyn std::error::Error>>");
+    }
+
+    #[test]
+    fn test_generate_error_prop_operator() {
+        let gen = CodeGenerator::new(TargetLanguage::Rust);
+        let expr = Expression::ErrorProp {
+            expr: Box::new(Expression::Call {
+                func: Box::new(Expression::Ident(Ident::new("read_file"))),
+                args: vec![],
+            }),
+        };
+        let result = gen.generate_expression_string(&expr);
+        assert_eq!(result, "read_file()?");
+    }
+
+    #[test]
+    fn test_generate_fallible_function_return() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let func = Function {
+            visibility: Visibility::Public,
+            name: Ident::new("read_config"),
+            params: vec![],
+            return_type: Some(Type::Fallible {
+                ty: Box::new(Type::Ident(Ident::new("Config"))),
+            }),
+            body: Block::empty(),
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let file = File {
+            items: vec![Item::Function(func)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+
+        assert!(output.contains("fn read_config()"));
+        assert!(output.contains("-> Result<Config, Box<dyn std::error::Error>>"));
+    }
+
+    #[test]
+    fn test_generate_nested_error_prop() {
+        let gen = CodeGenerator::new(TargetLanguage::Rust);
+        let expr = Expression::ErrorProp {
+            expr: Box::new(Expression::ErrorProp {
+                expr: Box::new(Expression::Call {
+                    func: Box::new(Expression::Ident(Ident::new("parse"))),
+                    args: vec![],
+                }),
+            }),
+        };
+        let result = gen.generate_expression_string(&expr);
+        assert_eq!(result, "parse()??");
+    }
 }
 
 #[cfg(test)]
