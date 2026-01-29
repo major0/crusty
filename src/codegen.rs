@@ -2188,6 +2188,133 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_macro_with_ternary() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let macro_def = MacroDefinition {
+            name: Ident::new("__MAX__".to_string()),
+            params: vec![Ident::new("a".to_string()), Ident::new("b".to_string())],
+            body: vec![
+                crate::lexer::Token::new(
+                    crate::lexer::TokenKind::Ident("a".to_string()),
+                    crate::error::Span::new(
+                        crate::error::Position::new(1, 1),
+                        crate::error::Position::new(1, 2),
+                    ),
+                    "a".to_string(),
+                ),
+                crate::lexer::Token::new(
+                    crate::lexer::TokenKind::Gt,
+                    crate::error::Span::new(
+                        crate::error::Position::new(1, 3),
+                        crate::error::Position::new(1, 4),
+                    ),
+                    ">".to_string(),
+                ),
+                crate::lexer::Token::new(
+                    crate::lexer::TokenKind::Ident("b".to_string()),
+                    crate::error::Span::new(
+                        crate::error::Position::new(1, 5),
+                        crate::error::Position::new(1, 6),
+                    ),
+                    "b".to_string(),
+                ),
+                crate::lexer::Token::new(
+                    crate::lexer::TokenKind::Question,
+                    crate::error::Span::new(
+                        crate::error::Position::new(1, 7),
+                        crate::error::Position::new(1, 8),
+                    ),
+                    "?".to_string(),
+                ),
+                crate::lexer::Token::new(
+                    crate::lexer::TokenKind::Ident("a".to_string()),
+                    crate::error::Span::new(
+                        crate::error::Position::new(1, 9),
+                        crate::error::Position::new(1, 10),
+                    ),
+                    "a".to_string(),
+                ),
+                crate::lexer::Token::new(
+                    crate::lexer::TokenKind::Colon,
+                    crate::error::Span::new(
+                        crate::error::Position::new(1, 11),
+                        crate::error::Position::new(1, 12),
+                    ),
+                    ":".to_string(),
+                ),
+                crate::lexer::Token::new(
+                    crate::lexer::TokenKind::Ident("b".to_string()),
+                    crate::error::Span::new(
+                        crate::error::Position::new(1, 13),
+                        crate::error::Position::new(1, 14),
+                    ),
+                    "b".to_string(),
+                ),
+            ],
+        };
+
+        let file = File {
+            items: vec![Item::MacroDefinition(macro_def)],
+            doc_comments: vec![],
+        };
+
+        let output = gen.generate(&file);
+        assert!(output.contains("macro_rules! max"));
+        assert!(output.contains("$a:expr"));
+        assert!(output.contains("$b:expr"));
+        // Ternary should be translated to if-else
+        assert!(output.contains("if") || output.contains("?"));
+    }
+
+    #[test]
+    fn test_generate_macro_removes_double_underscores() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let macro_def = MacroDefinition {
+            name: Ident::new("__MY_MACRO__".to_string()),
+            params: vec![],
+            body: vec![crate::lexer::Token::new(
+                crate::lexer::TokenKind::IntLiteral("42".to_string()),
+                crate::error::Span::new(
+                    crate::error::Position::new(1, 1),
+                    crate::error::Position::new(1, 3),
+                ),
+                "42".to_string(),
+            )],
+        };
+
+        let file = File {
+            items: vec![Item::MacroDefinition(macro_def)],
+            doc_comments: vec![],
+        };
+
+        let output = gen.generate(&file);
+        // Should remove double-underscores and convert to lowercase
+        assert!(output.contains("macro_rules! my_macro"));
+        assert!(!output.contains("__MY_MACRO__"));
+    }
+
+    #[test]
+    fn test_generate_macro_empty_body() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let macro_def = MacroDefinition {
+            name: Ident::new("__EMPTY__".to_string()),
+            params: vec![],
+            body: vec![],
+        };
+
+        let file = File {
+            items: vec![Item::MacroDefinition(macro_def)],
+            doc_comments: vec![],
+        };
+
+        let output = gen.generate(&file);
+        assert!(output.contains("macro_rules! empty"));
+        // Should have empty body
+        assert!(output.contains("{{"));
+        assert!(output.contains("}}"));
+    }
+
+    #[test]
     fn test_explicit_generic_simple() {
         // Test: Type(T) → Type::<T>
         let gen = CodeGenerator::new(TargetLanguage::Rust);

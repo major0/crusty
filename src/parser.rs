@@ -3485,6 +3485,117 @@ fn test_parse_define_multiline_not_supported() {
     }
 }
 
+#[test]
+fn test_parse_define_with_ternary() {
+    let source = "#define __MAX__(a, b) ((a) > (b) ? (a) : (b))";
+    let mut parser = Parser::new(source).unwrap();
+    let file = parser.parse_file().unwrap();
+
+    assert_eq!(file.items.len(), 1);
+    match &file.items[0] {
+        Item::MacroDefinition(mac) => {
+            assert_eq!(mac.name.name, "__MAX__");
+            assert_eq!(mac.params.len(), 2);
+            assert_eq!(mac.params[0].name, "a");
+            assert_eq!(mac.params[1].name, "b");
+            // Should contain ternary operator tokens
+            assert!(mac.body.len() > 0);
+        }
+        _ => panic!("Expected MacroDefinition"),
+    }
+}
+
+#[test]
+fn test_parse_define_with_multiple_params() {
+    let source = "#define __CLAMP__(x, min, max) ((x) < (min) ? (min) : (x) > (max) ? (max) : (x))";
+    let mut parser = Parser::new(source).unwrap();
+    let file = parser.parse_file().unwrap();
+
+    assert_eq!(file.items.len(), 1);
+    match &file.items[0] {
+        Item::MacroDefinition(mac) => {
+            assert_eq!(mac.name.name, "__CLAMP__");
+            assert_eq!(mac.params.len(), 3);
+            assert_eq!(mac.params[0].name, "x");
+            assert_eq!(mac.params[1].name, "min");
+            assert_eq!(mac.params[2].name, "max");
+        }
+        _ => panic!("Expected MacroDefinition"),
+    }
+}
+
+#[test]
+fn test_parse_define_with_arithmetic() {
+    let source = "#define __SQUARE__(x) ((x) * (x))";
+    let mut parser = Parser::new(source).unwrap();
+    let file = parser.parse_file().unwrap();
+
+    assert_eq!(file.items.len(), 1);
+    match &file.items[0] {
+        Item::MacroDefinition(mac) => {
+            assert_eq!(mac.name.name, "__SQUARE__");
+            assert_eq!(mac.params.len(), 1);
+            assert_eq!(mac.params[0].name, "x");
+        }
+        _ => panic!("Expected MacroDefinition"),
+    }
+}
+
+#[test]
+fn test_parse_multiple_defines() {
+    let source = r#"
+        #define __PI__ 3.14159
+        #define __E__ 2.71828
+        #define __MAX__(a, b) ((a) > (b) ? (a) : (b))
+    "#;
+    let mut parser = Parser::new(source).unwrap();
+    let file = parser.parse_file().unwrap();
+
+    assert_eq!(file.items.len(), 3);
+    
+    match &file.items[0] {
+        Item::MacroDefinition(mac) => {
+            assert_eq!(mac.name.name, "__PI__");
+            assert_eq!(mac.params.len(), 0);
+        }
+        _ => panic!("Expected MacroDefinition"),
+    }
+    
+    match &file.items[1] {
+        Item::MacroDefinition(mac) => {
+            assert_eq!(mac.name.name, "__E__");
+            assert_eq!(mac.params.len(), 0);
+        }
+        _ => panic!("Expected MacroDefinition"),
+    }
+    
+    match &file.items[2] {
+        Item::MacroDefinition(mac) => {
+            assert_eq!(mac.name.name, "__MAX__");
+            assert_eq!(mac.params.len(), 2);
+        }
+        _ => panic!("Expected MacroDefinition"),
+    }
+}
+
+#[test]
+fn test_parse_define_empty_body() {
+    let source = "#define __EMPTY__";
+    let mut parser = Parser::new(source).unwrap();
+    let file = parser.parse_file().unwrap();
+
+    assert_eq!(file.items.len(), 1);
+    match &file.items[0] {
+        Item::MacroDefinition(mac) => {
+            assert_eq!(mac.name.name, "__EMPTY__");
+            assert_eq!(mac.params.len(), 0);
+            // Body should be empty
+            assert_eq!(mac.body.len(), 0);
+        }
+        _ => panic!("Expected MacroDefinition"),
+    }
+}
+
 #[cfg(test)]
 mod property_tests {
     use super::*;
