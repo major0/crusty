@@ -310,20 +310,23 @@ impl<'a> Lexer<'a> {
             if ch.is_ascii_digit() {
                 self.advance();
             } else if ch == '.' && !is_float {
-                // Check if next char is a digit (not .. operator)
-                self.advance();
-                if let Some(next) = self.peek() {
-                    if next.is_ascii_digit() {
+                // Peek ahead to see if there's a digit after the dot
+                // We need to look at the source directly without consuming
+                let dot_pos = self.position;
+                
+                // Check if there's a character after the dot and if it's a digit
+                if dot_pos + 1 < self.source.len() {
+                    let next_char = self.source.as_bytes()[dot_pos + 1] as char;
+                    if next_char.is_ascii_digit() {
+                        // It's a float literal like 3.14
+                        self.advance(); // consume the dot
                         is_float = true;
                     } else {
-                        // Put the dot back by moving position back
-                        self.position -= 1;
-                        self.column -= 1;
+                        // Not a float - could be .. operator or method call
                         break;
                     }
                 } else {
-                    self.position -= 1;
-                    self.column -= 1;
+                    // End of source after dot
                     break;
                 }
             } else {

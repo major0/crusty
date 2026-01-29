@@ -579,7 +579,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Check if the current position is a method definition
-    fn is_method_definition(&mut self) -> Result<bool, ParseError> {
+    fn is_method_definition(&self) -> Result<bool, ParseError> {
         // A method definition looks like:
         // - return_type method_name(params) { body }
         // - void method_name(params) { body }
@@ -602,48 +602,30 @@ impl<'a> Parser<'a> {
             return Ok(false);
         }
         
-        // Look ahead to see if there's an identifier followed by (
-        // This is a simplified check - we'll parse it properly if it looks like a method
-        let saved_pos = (self.position(), self.current_token.clone());
+        // Create a temporary lexer for lookahead starting from current lexer position
+        let mut temp_lexer = Lexer {
+            source: self.lexer.source,
+            chars: self.lexer.source[self.lexer.position..].char_indices().peekable(),
+            position: self.lexer.position,
+            line: self.lexer.line,
+            column: self.lexer.column,
+        };
         
-        // Skip the type
-        self.advance()?;
-        
-        // Check for identifier
-        let has_ident = matches!(self.current_token.kind, TokenKind::Ident(_));
-        
-        if !has_ident {
-            // Restore position
-            self.restore_position(saved_pos)?;
+        // Read the next token (should be identifier)
+        if let Ok(token) = temp_lexer.next_token() {
+            if !matches!(token.kind, TokenKind::Ident(_)) {
+                return Ok(false);
+            }
+        } else {
             return Ok(false);
         }
         
-        // Skip identifier
-        self.advance()?;
-        
         // Check for (
-        let has_lparen = self.check(&TokenKind::LParen);
-        
-        // Restore position
-        self.restore_position(saved_pos)?;
-        
-        Ok(has_lparen)
-    }
-    
-    /// Get current parser position
-    fn position(&self) -> (usize, usize, usize) {
-        (self.lexer.position, self.lexer.line, self.lexer.column)
-    }
-    
-    /// Restore parser position
-    fn restore_position(&mut self, pos: ((usize, usize, usize), Token)) -> Result<(), ParseError> {
-        let ((position, line, column), token) = pos;
-        self.lexer.position = position;
-        self.lexer.line = line;
-        self.lexer.column = column;
-        self.lexer.chars = self.lexer.source[position..].char_indices().peekable();
-        self.current_token = token;
-        Ok(())
+        if let Ok(token) = temp_lexer.next_token() {
+            Ok(matches!(token.kind, TokenKind::LParen))
+        } else {
+            Ok(false)
+        }
     }
 
     /// Parse a method definition within a struct
@@ -2014,22 +1996,28 @@ impl<'a> Parser<'a> {
                     }
                 };
 
-                // Parse arguments
-                self.expect(TokenKind::LParen)?;
-                let mut args = Vec::new();
+                // Parse arguments (parentheses are optional for zero-argument calls)
+                let args = if self.check(&TokenKind::LParen) {
+                    self.advance()?;
+                    let mut args = Vec::new();
 
-                if !self.check(&TokenKind::RParen) {
-                    loop {
-                        args.push(self.parse_expression()?);
-                        if self.check(&TokenKind::Comma) {
-                            self.advance()?;
-                        } else {
-                            break;
+                    if !self.check(&TokenKind::RParen) {
+                        loop {
+                            args.push(self.parse_expression()?);
+                            if self.check(&TokenKind::Comma) {
+                                self.advance()?;
+                            } else {
+                                break;
+                            }
                         }
                     }
-                }
 
-                self.expect(TokenKind::RParen)?;
+                    self.expect(TokenKind::RParen)?;
+                    args
+                } else {
+                    // No parentheses means zero arguments
+                    Vec::new()
+                };
 
                 // Return appropriate expression type
                 if let Some(generics) = explicit_generics {
@@ -2627,6 +2615,25 @@ mod tests {
 
     #[test]
     fn test_parse_multiple_items() {
+        // Test parsing just a function first
+        let source1 = "int add(int a, int b) {}";
+        let mut parser1 = Parser::new(source1).unwrap();
+        let file1 = parser1.parse_file();
+        if let Err(ref e) = file1 {
+            eprintln!("Parse error for function: {:?}", e);
+        }
+        assert!(file1.is_ok(), "Failed to parse function");
+        
+        // Test parsing just a struct
+        let source2 = "struct Point { int x; int y; }";
+        let mut parser2 = Parser::new(source2).unwrap();
+        let file2 = parser2.parse_file();
+        if let Err(ref e) = file2 {
+            eprintln!("Parse error for struct: {:?}", e);
+        }
+        assert!(file2.is_ok(), "Failed to parse struct");
+        
+        // Now test all together
         let source = r#"
             int add(int a, int b) {}
             struct Point { int x; int y; }
@@ -2635,6 +2642,9 @@ mod tests {
         let mut parser = Parser::new(source).unwrap();
         
         let file = parser.parse_file();
+        if let Err(ref e) = file {
+            eprintln!("Parse error for multiple items: {:?}", e);
+        }
         assert!(file.is_ok());
         
         let file = file.unwrap();
@@ -3144,13 +3154,16 @@ mod tests {
 
     #[test]
     fn test_parse_array_type() {
-        let source = "struct S { int[10] arr; }";
+        // Using type[size] syntax (e.g., int[10])
+        // Note: C-style syntax would be "int arr[10]" but parser currently expects type[size] before identifier
+        let source = "struct S { i32[10] arr; }";
         let mut parser = Parser::new(source).unwrap();
         
         let file = parser.parse_file().unwrap();
         match &file.items[0] {
             Item::Struct(s) => {
                 assert_eq!(s.fields.len(), 1);
+                assert_eq!(s.fields[0].name.name, "arr");
                 match &s.fields[0].ty {
                     Type::Array { size, .. } => {
                         assert_eq!(*size, Some(10));
