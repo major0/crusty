@@ -105,17 +105,52 @@ fn main() {
 
 ## Module Resolution
 
-When encountering a `#use` directive for a local module:
+Module resolution in Crusty is handled by Rust's module system (rustc), not by crustyc. This design keeps the transpiler simple and leverages Rust's mature module resolution capabilities.
+
+### How It Works
+
+When encountering a `#use` directive:
 
 ```crusty
 #use crate.utils.helpers;
 ```
 
-The transpiler:
-1. Resolves the module path to a file: `src/utils/helpers.crst`
-2. Parses the referenced file if not already parsed
-3. Resolves symbols across module boundaries
-4. Generates appropriate Rust `use` statements
+Crusty's role is simply to:
+1. Translate `#use` directives to Rust `use` statements
+2. Transpile `.crst` files to `.rs` files
+3. Preserve directory structure in the output
+
+Rust's module system (rustc) handles:
+- Resolving module imports
+- Building dependency graphs
+- Symbol resolution across module boundaries
+- Locating source files
+
+### Example
+
+```crusty
+// src/main.crst
+#use crate.utils.helpers;
+
+int main() {
+    helpers.do_something();
+    return 0;
+}
+```
+
+Transpiles to:
+
+```rust
+// target/generated/main.rs
+use crate::utils::helpers;
+
+fn main() -> i32 {
+    helpers::do_something();
+    0
+}
+```
+
+The generated Rust code is then compiled by rustc, which resolves the `use crate::utils::helpers` statement using standard Rust module resolution rules.
 
 ## Example Project Structure
 
