@@ -1148,6 +1148,10 @@ impl CodeGenerator {
             Literal::String(s) => format!("\"{}\"", s.escape_default()),
             Literal::Char(c) => format!("'{}'", c.escape_default()),
             Literal::Bool(b) => b.to_string(),
+            Literal::Null => match self.target {
+                TargetLanguage::Rust => "Option::None".to_string(),
+                TargetLanguage::Crusty => "NULL".to_string(),
+            },
         }
     }
 
@@ -2534,5 +2538,77 @@ mod tests {
         };
         let result = gen.generate_expression_string(&expr);
         assert_eq!(result, "Option::<Result<String, Error>>::Some()");
+    }
+
+    #[test]
+    fn test_generate_null_literal_to_rust() {
+        // Test: NULL → Option::None
+        let gen = CodeGenerator::new(TargetLanguage::Rust);
+        let lit = Literal::Null;
+        let result = gen.generate_literal_string(&lit);
+        assert_eq!(result, "Option::None");
+    }
+
+    #[test]
+    fn test_generate_null_literal_to_crusty() {
+        // Test: NULL → NULL (when generating Crusty)
+        let gen = CodeGenerator::new(TargetLanguage::Crusty);
+        let lit = Literal::Null;
+        let result = gen.generate_literal_string(&lit);
+        assert_eq!(result, "NULL");
+    }
+
+    #[test]
+    fn test_generate_null_in_expression() {
+        // Test: NULL in expression context
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let stmt = Statement::Let {
+            name: Ident::new("ptr"),
+            ty: None,
+            init: Some(Expression::Literal(Literal::Null)),
+            mutable: false,
+        };
+        let func = Function {
+            visibility: Visibility::Public,
+            name: Ident::new("test"),
+            params: vec![],
+            return_type: None,
+            body: Block::new(vec![stmt]),
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let file = File {
+            items: vec![Item::Function(func)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("let ptr = Option::None;"));
+    }
+
+    #[test]
+    fn test_generate_null_comparison() {
+        // Test: ptr == NULL → ptr.is_none() (future enhancement)
+        // For now, just test that NULL generates correctly
+        let gen = CodeGenerator::new(TargetLanguage::Rust);
+        let expr = Expression::Binary {
+            op: BinaryOp::Eq,
+            left: Box::new(Expression::Ident(Ident::new("ptr"))),
+            right: Box::new(Expression::Literal(Literal::Null)),
+        };
+        let result = gen.generate_expression_string(&expr);
+        assert_eq!(result, "(ptr == Option::None)");
+    }
+
+    #[test]
+    fn test_generate_null_assignment() {
+        // Test: ptr = NULL
+        let gen = CodeGenerator::new(TargetLanguage::Rust);
+        let expr = Expression::Binary {
+            op: BinaryOp::Assign,
+            left: Box::new(Expression::Ident(Ident::new("ptr"))),
+            right: Box::new(Expression::Literal(Literal::Null)),
+        };
+        let result = gen.generate_expression_string(&expr);
+        assert_eq!(result, "(ptr = Option::None)");
     }
 }

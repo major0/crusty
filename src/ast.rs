@@ -435,6 +435,7 @@ pub enum Literal {
     String(String),
     Char(char),
     Bool(bool),
+    Null,
 }
 
 /// Identifier
