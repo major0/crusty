@@ -89,10 +89,10 @@ vec.push(42);
 
 ### Type-Scoped Calls
 
-Type-scoped calls (static methods/associated functions) use the `@` prefix with `->` notation:
+Type-scoped calls (static methods/associated functions) use the `@` prefix:
 
 ```crusty
-// Type-scoped calls - ALWAYS require @ prefix with -> notation
+// Type-scoped calls - ALWAYS require @ prefix
 let v = @Vec->new();
 let none = @Option->None;
 let s = @String->from("hello");
@@ -102,14 +102,32 @@ let opt = @Option(i32)->None;
 let v = @Vec(i32)->new();
 ```
 
+**Arrow vs Dot Notation**:
+
+After the `@` prefix, you can use either:
+- **Arrow notation (`->`)**: For simple type-scoped calls
+- **Dot notation (`.`)**: For nested type paths (matching Rust's `::` followed by `.`)
+
+```crusty
+// Arrow notation for simple calls
+@Vec->new()
+@Option->None
+
+// Dot notation for nested type paths
+@Foo.Bar.boo()                    // → Foo::Bar.boo()
+@std.collections.HashMap->new()   // → std::collections::HashMap::new()
+```
+
 This syntax makes it immediately clear whether a call is:
-- **Type-scoped** (`@Type->method()`): Calling a static method on the type itself
+- **Type-scoped** (`@Type->method()` or `@Type.method()`): Calling a static method on the type itself
 - **Instance-scoped** (`obj.method()`): Calling a method on an instance
 
 Translation to Rust:
 - `@Vec->new()` → `Vec::new()`
 - `@Option->None` → `Option::None`
 - `@String->from("hello")` → `String::from("hello")`
+- `@Foo.Bar.boo()` → `Foo::Bar.boo()`
+- `@std.collections.HashMap->new()` → `std::collections::HashMap::new()`
 
 ## Formal Grammar
 
