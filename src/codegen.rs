@@ -2676,6 +2676,144 @@ mod tests {
         let result = gen.generate_expression_string(&expr);
         assert_eq!(result, "(ptr = Option::None)");
     }
+
+    #[test]
+    fn test_generate_switch_simple() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let stmt = Statement::Switch {
+            expr: Expression::Ident(Ident::new("x")),
+            cases: vec![
+                SwitchCase {
+                    values: vec![Expression::Literal(Literal::Int(1))],
+                    body: Block::new(vec![Statement::Expr(Expression::Literal(Literal::Int(10)))]),
+                },
+                SwitchCase {
+                    values: vec![Expression::Literal(Literal::Int(2))],
+                    body: Block::new(vec![Statement::Expr(Expression::Literal(Literal::Int(20)))]),
+                },
+            ],
+            default: None,
+        };
+        let func = Function {
+            visibility: Visibility::Public,
+            name: Ident::new("test"),
+            params: vec![],
+            return_type: None,
+            body: Block::new(vec![stmt]),
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let file = File {
+            items: vec![Item::Function(func)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+
+        assert!(output.contains("match x {"));
+        assert!(output.contains("1 => {"));
+        assert!(output.contains("2 => {"));
+    }
+
+    #[test]
+    fn test_generate_switch_with_default() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let stmt = Statement::Switch {
+            expr: Expression::Ident(Ident::new("x")),
+            cases: vec![SwitchCase {
+                values: vec![Expression::Literal(Literal::Int(1))],
+                body: Block::new(vec![Statement::Expr(Expression::Literal(Literal::Int(10)))]),
+            }],
+            default: Some(Block::new(vec![Statement::Expr(Expression::Literal(
+                Literal::Int(0),
+            ))])),
+        };
+        let func = Function {
+            visibility: Visibility::Public,
+            name: Ident::new("test"),
+            params: vec![],
+            return_type: None,
+            body: Block::new(vec![stmt]),
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let file = File {
+            items: vec![Item::Function(func)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+
+        assert!(output.contains("match x {"));
+        assert!(output.contains("1 => {"));
+        assert!(output.contains("_ => {"));
+    }
+
+    #[test]
+    fn test_generate_switch_with_multiple_values() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let stmt = Statement::Switch {
+            expr: Expression::Ident(Ident::new("x")),
+            cases: vec![SwitchCase {
+                values: vec![
+                    Expression::Literal(Literal::Int(1)),
+                    Expression::Literal(Literal::Int(2)),
+                    Expression::Literal(Literal::Int(3)),
+                ],
+                body: Block::new(vec![Statement::Expr(Expression::Literal(Literal::Int(10)))]),
+            }],
+            default: None,
+        };
+        let func = Function {
+            visibility: Visibility::Public,
+            name: Ident::new("test"),
+            params: vec![],
+            return_type: None,
+            body: Block::new(vec![stmt]),
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let file = File {
+            items: vec![Item::Function(func)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+
+        assert!(output.contains("match x {"));
+        assert!(output.contains("1 | 2 | 3 => {"));
+    }
+
+    #[test]
+    fn test_generate_switch_with_break() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let stmt = Statement::Switch {
+            expr: Expression::Ident(Ident::new("x")),
+            cases: vec![SwitchCase {
+                values: vec![Expression::Literal(Literal::Int(1))],
+                body: Block::new(vec![
+                    Statement::Expr(Expression::Literal(Literal::Int(10))),
+                    Statement::Break(None),
+                ]),
+            }],
+            default: None,
+        };
+        let func = Function {
+            visibility: Visibility::Public,
+            name: Ident::new("test"),
+            params: vec![],
+            return_type: None,
+            body: Block::new(vec![stmt]),
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let file = File {
+            items: vec![Item::Function(func)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+
+        assert!(output.contains("match x {"));
+        assert!(output.contains("1 => {"));
+        assert!(output.contains("break;"));
+    }
 }
 
 #[cfg(test)]
