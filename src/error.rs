@@ -106,6 +106,7 @@ impl std::error::Error for ParseError {}
 
 /// Semantic analysis error kinds
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum SemanticErrorKind {
     UndefinedVariable,
     TypeMismatch,

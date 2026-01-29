@@ -7,10 +7,12 @@ use crate::ast::*;
 use crate::codegen::{CodeGenerator, TargetLanguage};
 
 /// Pretty printer for formatting source code
+#[allow(dead_code)]
 pub struct PrettyPrinter {
     target: TargetLanguage,
 }
 
+#[allow(dead_code)]
 impl PrettyPrinter {
     /// Create a new pretty printer for the specified target language
     pub fn new(target: TargetLanguage) -> Self {

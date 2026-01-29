@@ -7,6 +7,7 @@ use crate::error::{LexError, Position, Span};
 
 /// Token kinds in Crusty
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum TokenKind {
     // Keywords
     Let,
@@ -637,6 +638,7 @@ impl<'a> Lexer<'a> {
         ))
     }
 
+    #[allow(dead_code)]
     pub fn peek_token(&mut self) -> Result<Token, LexError> {
         let saved_state = (
             self.position,

@@ -7,6 +7,7 @@ use crate::ast::*;
 
 /// Target language for code generation
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum TargetLanguage {
     Rust,
     Crusty,

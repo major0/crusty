@@ -47,6 +47,7 @@ impl RustcResult {
     }
 
     /// Parse rustc error messages and extract structured error information
+    #[allow(dead_code)]
     pub fn parse_errors(&self) -> Vec<RustcError> {
         if self.success {
             return Vec::new();
@@ -79,6 +80,7 @@ impl RustcResult {
 
 /// Structured rustc error information
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(dead_code)]
 pub struct RustcError {
     pub error_code: Option<String>,
     pub message: String,
@@ -87,6 +89,7 @@ pub struct RustcError {
 
 /// Location information for rustc errors
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(dead_code)]
 pub struct ErrorLocation {
     pub file: String,
     pub line: usize,
@@ -95,6 +98,7 @@ pub struct ErrorLocation {
 
 impl RustcError {
     /// Parse a rustc error from a single line
+    #[allow(dead_code)]
     fn parse_from_line(line: &str) -> Self {
         // Try to extract error code like "error[E0425]:"
         let error_code = if let Some(start) = line.find("error[") {
@@ -122,6 +126,7 @@ impl RustcError {
     }
 
     /// Format the error for display
+    #[allow(dead_code)]
     pub fn format(&self) -> String {
         let mut result = String::new();
 
@@ -193,6 +198,7 @@ pub fn invoke_rustc(
 /// # Returns
 /// * `Ok(RustcResult)` - Compilation result with stdout/stderr
 /// * `Err(String)` - Error message if rustc could not be executed
+#[allow(dead_code)]
 pub fn invoke_rustc_with_flags(
     rust_file: &Path,
     output_binary: &Path,
