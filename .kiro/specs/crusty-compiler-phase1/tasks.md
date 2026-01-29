@@ -650,7 +650,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - **Property 22: #define macros translate to macro_rules!**
     - **Validates: Requirements 24.7, 24.8, 24.9**
   
-  - [ ]15.5 Write unit tests for #define macros
+  - [x]15.5 Write unit tests for #define macros
     - Test parsing of simple macros with double-underscores
     - Test parsing of macros with parameters
     - Test translation to macro_rules! (removing double-underscores)
