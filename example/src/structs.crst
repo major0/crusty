@@ -1,51 +1,19 @@
-// Copyright (c) 2024 Crusty Programming Language
+// Copyright (c) 2026 Mark Ferrell
 // Licensed under the MIT License. See LICENSE.txt in the project root.
 
 /// Example demonstrating struct definitions in Crusty
 
 // Basic struct definition
-typedef struct {
+struct Point {
     int x;
     int y;
-} Point;
+}
 
-// Struct with different types
-typedef struct {
-    char* name;
-    int age;
-    float height;
-} Person;
-
-// Nested struct
-typedef struct {
-    Point top_left;
-    Point bottom_right;
-} Rectangle;
+// Simple function
+int add(int a, int b) {
+    return a + b;
+}
 
 void main() {
-    // Create struct instances
-    let p1 = Point { x: 10, y: 20 };
-    let p2 = Point { x: 30, y: 40 };
-    
-    __println__("Point 1: ({}, {})", p1.x, p1.y);
-    __println__("Point 2: ({}, {})", p2.x, p2.y);
-    
-    // Create person
-    let person = Person {
-        name: "Alice",
-        age: 30,
-        height: 5.6
-    };
-    
-    __println__("Person: {} is {} years old", person.name, person.age);
-    
-    // Nested struct
-    let rect = Rectangle {
-        top_left: Point { x: 0, y: 0 },
-        bottom_right: Point { x: 100, y: 100 }
-    };
-    
-    __println__("Rectangle from ({}, {}) to ({}, {})",
-        rect.top_left.x, rect.top_left.y,
-        rect.bottom_right.x, rect.bottom_right.y);
+    let result = add(2, 3);
 }

@@ -1,61 +1,19 @@
-// Copyright (c) 2024 Crusty Programming Language
+// Copyright (c) 2026 Mark Ferrell
 // Licensed under the MIT License. See LICENSE.txt in the project root.
 
-/// Example demonstrating struct methods and implementation blocks
+/// Example demonstrating struct methods
 
-// Define a Point struct
-typedef struct {
+// Define a Point struct with methods
+struct Point {
     int x;
     int y;
-} Point;
-
-// Add methods to Point using typedef struct @Type
-typedef struct {
-    // Static method (constructor)
-    Point new(int x, int y) {
-        return Point { x: x, y: y };
-    }
     
     // Instance method with &self
     int distance_squared(&self) {
         return self.x * self.x + self.y * self.y;
     }
-    
-    // Instance method that modifies self
-    void translate(&var self, int dx, int dy) {
-        self.x = self.x + dx;
-        self.y = self.y + dy;
-    }
-    
-    // Instance method
-    void print(&self) {
-        __println__("Point({}, {})", self.x, self.y);
-    }
-} @Point;
-
-// Implement Default trait
-typedef default {
-    Point default() {
-        return Point { x: 0, y: 0 };
-    }
-} @Point;
+}
 
 void main() {
-    // Use type-scoped static method with @ prefix and dot notation
-    let p1 = @Point.new(3, 4);
-    p1.print();
-    
-    __println__("Distance squared: {}", p1.distance_squared());
-    
-    // Use Default trait
-    let origin = @Point.default();
-    origin.print();
-    
-    // Mutable instance
-    let var p2 = @Point.new(10, 20);
-    p2.print();
-    
-    p2.translate(5, 5);
-    __println__("After translation:");
-    p2.print();
+    // Methods example
 }
