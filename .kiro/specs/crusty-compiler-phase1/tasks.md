@@ -680,9 +680,9 @@ The implementation follows a bottom-up approach, building core infrastructure fi
   
   - [x]16.4 Add NULL and Option code generation
     - Translate NULL to @Option.None (which becomes Option::None in Rust)
-    - Translate nullable pointer types to Option<&T>
-    - Translate NULL comparisons to is_none()/is_some()
+    - Translate NULL comparisons to is_none()/is_some() (special case transformation)
     - _Requirements: 28.4, 28.5, 28.6, 28.7, 28.8_
+    - _Note: NULL is the ONLY semantic transformation - it's a C keyword with no Rust equivalent_
   
   - [x]16.5 Add struct initializer code generation
     - Translate C-style designated initializers to Rust struct literals
@@ -698,11 +698,12 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - _Requirements: 45.7, 45.8, 45.9, 45.10_
   
   - [x]16.7 Add error handling code generation
-    - Translate Type! to Result<Type, E>
-    - Translate error(value) to Err(value)
-    - Translate ! operator to Rust ? operator
-    - Translate .is_error(), .is_ok(), .unwrap() methods
-    - _Requirements: 46.8, 46.9, 46.10, 46.11, 46.12, 46.13_
+    - Translate Type! to Result<Type, E> (syntax transformation)
+    - Translate ! operator to Rust ? operator (syntax transformation)
+    - Method names pass through unchanged (.is_err(), .is_ok(), .unwrap())
+    - Function names pass through unchanged (Ok(), Err())
+    - _Requirements: 46.8, 46.9, 46.10 (updated to syntax-only)_
+    - _Note: Crusty follows transparent syntax transpilation - only syntax transforms, not semantics_
   
   - [ ]16.8 Write property tests for advanced code generation
     - **Property 9: Type casts translate to 'as' operator**
