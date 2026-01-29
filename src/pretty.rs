@@ -133,6 +133,7 @@ return a+b;
             return_type: None,
             body: Block::empty(),
             doc_comments: vec![],
+        attributes: vec![],
         };
         let file = File {
             items: vec![Item::Function(func)],

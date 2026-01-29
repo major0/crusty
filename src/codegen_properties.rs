@@ -74,6 +74,7 @@ mod tests {
                 return_type: Some(ret_type),
                 body: Block::empty(),
                 doc_comments: vec![],
+                attributes: vec![],
             }
         })
     }
@@ -86,6 +87,7 @@ mod tests {
                 fields: vec![],
                 methods: vec![],
                 doc_comments: vec![],
+                attributes: vec![],
             }
         })
     }
@@ -106,6 +108,7 @@ mod tests {
                     },
                 ],
                 doc_comments: vec![],
+                attributes: vec![],
             }
         })
     }
@@ -173,6 +176,7 @@ mod tests {
                 return_type: None,
                 body: Block::new(vec![stmt]),
                 doc_comments: vec![],
+            attributes: vec![],
             };
             let file = File {
                 items: vec![Item::Function(func)],
@@ -205,6 +209,7 @@ mod tests {
                 return_type: None,
                 body: Block::new(vec![stmt]),
                 doc_comments: vec![],
+            attributes: vec![],
             };
             let file = File {
                 items: vec![Item::Function(func)],
@@ -257,6 +262,7 @@ mod tests {
                 return_type: None,
                 body: Block::new(vec![stmt]),
                 doc_comments: vec![],
+            attributes: vec![],
             };
             let file = File {
                 items: vec![Item::Function(func)],
@@ -280,6 +286,7 @@ mod tests {
                 return_type: None,
                 body: Block::new(vec![stmt]),
                 doc_comments: vec![],
+            attributes: vec![],
             };
             let file = File {
                 items: vec![Item::Function(func)],
@@ -307,6 +314,7 @@ mod tests {
                 return_type: None,
                 body: Block::new(vec![stmt]),
                 doc_comments: vec![],
+            attributes: vec![],
             };
             let file = File {
                 items: vec![Item::Function(func)],
