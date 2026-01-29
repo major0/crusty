@@ -11,3 +11,4 @@ Crusty provides a C-like syntax that transpiles to Rust, giving developers famil
 - [Control Flow](control-flow.md) - If/else, loops, switch, break, continue
 - [Types](types.md) - Primitive types, structs, enums, pointers, references
 - [Expressions](expressions.md) - Operators, precedence, and special expressions
+- [Typedef](typedef.md) - Typedef syntax for structs, impl blocks, and trait implementations
