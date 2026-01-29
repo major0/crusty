@@ -1,0 +1,16 @@
+[package]
+name = "crusty-example"
+version = "0.1.0"
+edition = "2021"
+authors = ["Crusty Programming Language"]
+license = "MIT"
+description = "Example Crusty programs demonstrating language features"
+
+[[bin]]
+name = "crusty-example"
+path = "src/main.rs"
+
+[build-dependencies]
+crustyc = { path = ".." }
+
+[dependencies]
