@@ -464,4 +464,41 @@ mod tests {
                 "Generated macro should be syntactically valid: {}", output);
         }
     }
+
+    // Property 12: Typedef translates to type alias
+    // Validates: Requirements 31.9
+    proptest! {
+        #[test]
+        fn prop_typedef_translates_to_type_alias(name in arb_ident()) {
+            let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+            let typedef = Typedef {
+                visibility: Visibility::Public,
+                name: Ident::new(name.name.clone()),
+                target: Type::Primitive(PrimitiveType::Int),
+                doc_comments: vec![],
+            };
+            let file = File {
+                items: vec![Item::Typedef(typedef)],
+                doc_comments: vec![],
+            };
+            let output = gen.generate(&file);
+
+            // Should contain 'type' keyword
+            prop_assert!(output.contains("type"),
+                "Generated code should contain 'type' keyword: {}", output);
+
+            // Should contain the typedef name
+            prop_assert!(output.contains(&name.name),
+                "Generated code should contain typedef name '{}': {}", name.name, output);
+
+            // Should contain '=' for type alias
+            prop_assert!(output.contains("="),
+                "Generated code should contain '=' for type alias: {}", output);
+
+            // Should be syntactically valid Rust
+            let parse_result = syn::parse_file(&output);
+            prop_assert!(parse_result.is_ok(),
+                "Generated typedef should be syntactically valid: {}", output);
+        }
+    }
 }
