@@ -16,20 +16,37 @@ The example project uses Cargo with a `build.rs` script that automatically trans
 ### Prerequisites
 
 - Rust toolchain (rustc, cargo)
-- crustyc transpiler (built from parent directory)
+- crustyc transpiler installed and available in PATH
+
+### Installing crustyc
+
+First, install the crustyc transpiler:
+
+```bash
+# From the repository root
+cargo install --path .
+```
+
+This will install `crustyc` to your Cargo bin directory (typically `~/.cargo/bin`), which should be in your PATH.
+
+Alternatively, for development:
+
+```bash
+# Build crustyc in release mode
+cargo build --release
+
+# Add to PATH temporarily
+export PATH="$PWD/target/release:$PATH"
+```
 
 ### Build Steps
 
-1. Build the crustyc transpiler first (from repository root):
-   ```bash
-   cargo build --release
-   ```
+Once crustyc is installed and in your PATH:
 
-2. Build the example project:
-   ```bash
-   cd example
-   cargo build
-   ```
+```bash
+cd example
+cargo build
+```
 
 The build process will:
 1. Discover all `.crst` files in `src/`

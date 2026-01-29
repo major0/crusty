@@ -50,6 +50,11 @@ jobs:
       - name: Check formatting
         run: cargo fmt -- --check
       
+      - name: Install crustyc
+        run: |
+          cargo build --release --bin crustyc
+          echo "${{ github.workspace }}/target/release" >> $GITHUB_PATH
+      
       - name: Build example project
         run: |
           cd example
