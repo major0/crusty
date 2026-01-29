@@ -501,4 +501,389 @@ mod tests {
                 "Generated typedef should be syntactically valid: {}", output);
         }
     }
+
+    // Property 9: Type casts translate to 'as' operator
+    // Validates: Requirements 27.5
+    proptest! {
+        #[test]
+        fn prop_type_cast_translates_to_as(expr in arb_simple_expression(), target_ty in arb_primitive_type()) {
+            let gen = CodeGenerator::new(TargetLanguage::Rust);
+            let cast_expr = Expression::Cast {
+                expr: Box::new(expr),
+                ty: target_ty,
+            };
+            let output = gen.generate_expression_string(&cast_expr);
+
+            // Should contain 'as' keyword
+            prop_assert!(output.contains(" as "),
+                "Generated code should contain ' as ' operator: {}", output);
+        }
+    }
+
+    // Property 10: Sizeof translates to std::mem functions
+    // Validates: Requirements 28.6
+    proptest! {
+        #[test]
+        fn prop_sizeof_translates_to_std_mem(ty in arb_primitive_type()) {
+            let gen = CodeGenerator::new(TargetLanguage::Rust);
+            let sizeof_expr = Expression::Sizeof { ty };
+            let output = gen.generate_expression_string(&sizeof_expr);
+
+            // Should contain std::mem::size_of
+            prop_assert!(output.contains("std::mem::size_of"),
+                "Generated code should contain 'std::mem::size_of': {}", output);
+        }
+    }
+
+    // Property 11: Increment/decrement operators translate with correct semantics
+    // Validates: Requirements 29.10, 29.11
+    proptest! {
+        #[test]
+        fn prop_increment_translates_correctly(var in arb_ident()) {
+            let gen = CodeGenerator::new(TargetLanguage::Rust);
+            // Pre-increment: ++x translates to { x += 1; x }
+            let pre_inc = Expression::Unary {
+                op: UnaryOp::PreInc,
+                expr: Box::new(Expression::Ident(var.clone())),
+            };
+            let output = gen.generate_expression_string(&pre_inc);
+
+            // Should contain += 1
+            prop_assert!(output.contains("+=") && output.contains("1"),
+                "Pre-increment should translate to += 1: {}", output);
+        }
+
+        #[test]
+        fn prop_decrement_translates_correctly(var in arb_ident()) {
+            let gen = CodeGenerator::new(TargetLanguage::Rust);
+            // Pre-decrement: --x translates to { x -= 1; x }
+            let pre_dec = Expression::Unary {
+                op: UnaryOp::PreDec,
+                expr: Box::new(Expression::Ident(var.clone())),
+            };
+            let output = gen.generate_expression_string(&pre_dec);
+
+            // Should contain -= 1
+            prop_assert!(output.contains("-=") && output.contains("1"),
+                "Pre-decrement should translate to -= 1: {}", output);
+        }
+    }
+
+    // Property 13: C-style enums translate to Rust enums with discriminants
+    // Validates: Requirements 32.8
+    proptest! {
+        #[test]
+        fn prop_enum_with_discriminants(enum_def in arb_simple_enum()) {
+            let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+            let file = File {
+                items: vec![Item::Enum(enum_def.clone())],
+                doc_comments: vec![],
+            };
+            let output = gen.generate(&file);
+
+            // Should contain enum keyword
+            prop_assert!(output.contains("enum "),
+                "Generated code should contain 'enum' keyword: {}", output);
+
+            // Should contain variant names
+            for variant in &enum_def.variants {
+                prop_assert!(output.contains(&variant.name.name),
+                    "Generated code should contain variant '{}': {}", variant.name.name, output);
+                
+                // If variant has explicit value, should contain = value
+                if let Some(value) = variant.value {
+                    let discriminant = format!("= {}", value);
+                    prop_assert!(output.contains(&discriminant),
+                        "Generated code should contain discriminant '{}': {}", discriminant, output);
+                }
+            }
+        }
+    }
+
+    // Property 14: NULL translates to Option types
+    // Validates: Requirements 34.4, 34.5
+    proptest! {
+        #[test]
+        fn prop_null_translates_to_option_none(_dummy in 0..1u8) {
+            let gen = CodeGenerator::new(TargetLanguage::Rust);
+            let null_expr = Expression::Literal(Literal::Null);
+            let output = gen.generate_expression_string(&null_expr);
+
+            // Should translate to Option::None
+            prop_assert!(output.contains("Option::None") || output.contains("None"),
+                "NULL should translate to Option::None: {}", output);
+        }
+    }
+
+    // Property 15: Struct initializers translate to Rust struct literals
+    // Validates: Requirements 39.6
+    proptest! {
+        #[test]
+        fn prop_struct_init_translates(struct_name in arb_ident(), field_name in arb_ident()) {
+            let gen = CodeGenerator::new(TargetLanguage::Rust);
+            let struct_init = Expression::StructInit {
+                ty: Type::Ident(struct_name.clone()),
+                fields: vec![(field_name.clone(), Expression::Literal(Literal::Int(42)))],
+            };
+            let output = gen.generate_expression_string(&struct_init);
+
+            // Should contain struct name
+            prop_assert!(output.contains(&struct_name.name),
+                "Generated code should contain struct name '{}': {}", struct_name.name, output);
+
+            // Should contain field name
+            prop_assert!(output.contains(&field_name.name),
+                "Generated code should contain field name '{}': {}", field_name.name, output);
+
+            // Should contain braces
+            prop_assert!(output.contains('{') && output.contains('}'),
+                "Generated code should contain braces: {}", output);
+        }
+    }
+
+    // Property 16: Struct methods translate to impl blocks
+    // Validates: Requirements 21.9
+    proptest! {
+        #[test]
+        fn prop_struct_methods_translate_to_impl(struct_name in arb_ident(), method_name in arb_ident()) {
+            let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+            let method = Function {
+                visibility: Visibility::Public,
+                name: method_name.clone(),
+                params: vec![Param {
+                    name: Ident::new("self"),
+                    ty: Type::Reference {
+                        ty: Box::new(Type::Ident(Ident::new("Self"))),
+                        mutable: false,
+                    },
+                }],
+                return_type: None,
+                body: Block::empty(),
+                doc_comments: vec![],
+                attributes: vec![],
+            };
+            let struct_def = Struct {
+                visibility: Visibility::Public,
+                name: struct_name.clone(),
+                fields: vec![],
+                methods: vec![method],
+                doc_comments: vec![],
+                attributes: vec![],
+            };
+            let file = File {
+                items: vec![Item::Struct(struct_def)],
+                doc_comments: vec![],
+            };
+            let output = gen.generate(&file);
+
+            // Should contain impl keyword
+            prop_assert!(output.contains("impl "),
+                "Generated code should contain 'impl' keyword: {}", output);
+
+            // Should contain struct name in impl block
+            let impl_line = format!("impl {}", struct_name.name);
+            prop_assert!(output.contains(&impl_line),
+                "Generated code should contain 'impl {}': {}", struct_name.name, output);
+
+            // Should contain method name
+            prop_assert!(output.contains(&method_name.name),
+                "Generated code should contain method name '{}': {}", method_name.name, output);
+        }
+    }
+
+    // Property 18: For loops translate appropriately
+    // Validates: Requirements 38.4, 38.5, 38.7
+    proptest! {
+        #[test]
+        fn prop_for_in_loop_translates(var in arb_ident(), iter_var in arb_ident()) {
+            let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+            let for_in = Statement::ForIn {
+                label: None,
+                var: var.clone(),
+                iter: Expression::Ident(iter_var.clone()),
+                body: Block::empty(),
+            };
+            let func = Function {
+                visibility: Visibility::Public,
+                name: Ident::new("test"),
+                params: vec![],
+                return_type: None,
+                body: Block::new(vec![for_in]),
+                doc_comments: vec![],
+                attributes: vec![],
+            };
+            let file = File {
+                items: vec![Item::Function(func)],
+                doc_comments: vec![],
+            };
+            let output = gen.generate(&file);
+
+            // Should contain 'for' keyword
+            prop_assert!(output.contains("for "),
+                "Generated code should contain 'for' keyword: {}", output);
+
+            // Should contain 'in' keyword
+            prop_assert!(output.contains(" in "),
+                "Generated code should contain 'in' keyword: {}", output);
+
+            // Should contain loop variable
+            prop_assert!(output.contains(&var.name),
+                "Generated code should contain loop variable '{}': {}", var.name, output);
+        }
+
+        #[test]
+        fn prop_c_style_for_loop_translates(var in arb_ident()) {
+            let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+            let c_for = Statement::For {
+                label: None,
+                init: Box::new(Statement::Let {
+                    name: var.clone(),
+                    ty: Some(Type::Primitive(PrimitiveType::I32)),
+                    init: Some(Expression::Literal(Literal::Int(0))),
+                    mutable: true,
+                }),
+                condition: Expression::Binary {
+                    op: BinaryOp::Lt,
+                    left: Box::new(Expression::Ident(var.clone())),
+                    right: Box::new(Expression::Literal(Literal::Int(10))),
+                },
+                increment: Expression::Unary {
+                    op: UnaryOp::PostInc,
+                    expr: Box::new(Expression::Ident(var.clone())),
+                },
+                body: Block::empty(),
+            };
+            let func = Function {
+                visibility: Visibility::Public,
+                name: Ident::new("test"),
+                params: vec![],
+                return_type: None,
+                body: Block::new(vec![c_for]),
+                doc_comments: vec![],
+                attributes: vec![],
+            };
+            let file = File {
+                items: vec![Item::Function(func)],
+                doc_comments: vec![],
+            };
+            let output = gen.generate(&file);
+
+            // C-style for loops should translate to while loops in Rust
+            // Should contain loop variable initialization
+            prop_assert!(output.contains(&var.name),
+                "Generated code should contain loop variable '{}': {}", var.name, output);
+        }
+    }
+
+    // Property 19: Switch statements translate to match expressions
+    // Validates: Requirements 45.7
+    proptest! {
+        #[test]
+        fn prop_switch_translates_to_match(var in arb_ident()) {
+            let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+            let switch = Statement::Switch {
+                expr: Expression::Ident(var.clone()),
+                cases: vec![
+                    SwitchCase {
+                        values: vec![Expression::Literal(Literal::Int(1))],
+                        body: Block::empty(),
+                    },
+                    SwitchCase {
+                        values: vec![Expression::Literal(Literal::Int(2))],
+                        body: Block::empty(),
+                    },
+                ],
+                default: Some(Block::empty()),
+            };
+            let func = Function {
+                visibility: Visibility::Public,
+                name: Ident::new("test"),
+                params: vec![],
+                return_type: None,
+                body: Block::new(vec![switch]),
+                doc_comments: vec![],
+                attributes: vec![],
+            };
+            let file = File {
+                items: vec![Item::Function(func)],
+                doc_comments: vec![],
+            };
+            let output = gen.generate(&file);
+
+            // Should contain 'match' keyword
+            prop_assert!(output.contains("match "),
+                "Switch should translate to 'match': {}", output);
+
+            // Should contain the switch expression variable
+            prop_assert!(output.contains(&var.name),
+                "Generated code should contain switch variable '{}': {}", var.name, output);
+
+            // Should contain wildcard pattern for default case
+            prop_assert!(output.contains("_"),
+                "Generated code should contain wildcard pattern for default: {}", output);
+        }
+    }
+
+    // Property 20: Error handling syntax translates correctly
+    // Validates: Requirements 46.8, 46.9, 46.10
+    proptest! {
+        #[test]
+        fn prop_fallible_type_translates(inner_ty in arb_primitive_type()) {
+            let gen = CodeGenerator::new(TargetLanguage::Rust);
+            let fallible_ty = Type::Fallible {
+                ty: Box::new(inner_ty),
+            };
+            let output = gen.generate_type_string(&fallible_ty);
+
+            // Type? should translate to Result<Type, E> or similar
+            // The exact translation depends on implementation, but should contain Result
+            prop_assert!(output.contains("Result") || output.contains("Option"),
+                "Fallible type should translate to Result or Option: {}", output);
+        }
+
+        #[test]
+        fn prop_error_propagation_translates(expr in arb_simple_expression()) {
+            let gen = CodeGenerator::new(TargetLanguage::Rust);
+            let error_prop = Expression::ErrorProp {
+                expr: Box::new(expr),
+            };
+            let output = gen.generate_expression_string(&error_prop);
+
+            // expr? should pass through to Rust ? operator
+            prop_assert!(output.contains('?'),
+                "Error propagation should contain '?' operator: {}", output);
+        }
+    }
+
+    // Property 24: Explicit generic parameters translate correctly
+    // Validates: Requirements 38.18, 38.19, 38.20, 38.21
+    proptest! {
+        #[test]
+        fn prop_explicit_generic_call_translates(
+            type_name in arb_ident(),
+            method_name in arb_ident(),
+            generic_ty in arb_primitive_type()
+        ) {
+            let gen = CodeGenerator::new(TargetLanguage::Rust);
+            let explicit_generic = Expression::ExplicitGenericCall {
+                ty: Type::Ident(type_name.clone()),
+                generics: vec![generic_ty],
+                method: method_name.clone(),
+                args: vec![],
+            };
+            let output = gen.generate_expression_string(&explicit_generic);
+
+            // Should contain type name
+            prop_assert!(output.contains(&type_name.name),
+                "Generated code should contain type name '{}': {}", type_name.name, output);
+
+            // Should contain method name
+            prop_assert!(output.contains(&method_name.name),
+                "Generated code should contain method name '{}': {}", method_name.name, output);
+
+            // Should contain turbofish syntax ::< >
+            prop_assert!(output.contains("::<"),
+                "Explicit generic parameters should use turbofish syntax: {}", output);
+        }
+    }
 }
