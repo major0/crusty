@@ -105,6 +105,39 @@ impl CodeGenerator {
     }
 
     fn generate_function(&mut self, func: &Function) {
+        // Generate attributes
+        for attr in &func.attributes {
+            self.write_indent();
+            self.write("#[");
+            self.write(&attr.name.name);
+            
+            // Generate attribute arguments if present
+            if !attr.args.is_empty() {
+                self.write("(");
+                for (i, arg) in attr.args.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    match arg {
+                        AttributeArg::Ident(ident) => {
+                            self.write(&ident.name);
+                        }
+                        AttributeArg::Literal(lit) => {
+                            self.write(&self.generate_literal_string(lit));
+                        }
+                        AttributeArg::NameValue { name, value } => {
+                            self.write(&name.name);
+                            self.write(" = ");
+                            self.write(&self.generate_literal_string(value));
+                        }
+                    }
+                }
+                self.write(")");
+            }
+            
+            self.write("]\n");
+        }
+
         // Generate doc comments
         for comment in &func.doc_comments {
             self.write_line(&format!("/// {}", comment));
@@ -181,6 +214,38 @@ impl CodeGenerator {
     }
 
     fn generate_struct(&mut self, struct_def: &Struct) {
+        // Generate attributes
+        for attr in &struct_def.attributes {
+            self.write_indent();
+            self.write("#[");
+            self.write(&attr.name.name);
+            
+            if !attr.args.is_empty() {
+                self.write("(");
+                for (i, arg) in attr.args.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    match arg {
+                        AttributeArg::Ident(ident) => {
+                            self.write(&ident.name);
+                        }
+                        AttributeArg::Literal(lit) => {
+                            self.write(&self.generate_literal_string(lit));
+                        }
+                        AttributeArg::NameValue { name, value } => {
+                            self.write(&name.name);
+                            self.write(" = ");
+                            self.write(&self.generate_literal_string(value));
+                        }
+                    }
+                }
+                self.write(")");
+            }
+            
+            self.write("]\n");
+        }
+
         // Generate doc comments
         for comment in &struct_def.doc_comments {
             self.write_line(&format!("/// {}", comment));
@@ -238,6 +303,38 @@ impl CodeGenerator {
     }
 
     fn generate_enum(&mut self, enum_def: &Enum) {
+        // Generate attributes
+        for attr in &enum_def.attributes {
+            self.write_indent();
+            self.write("#[");
+            self.write(&attr.name.name);
+            
+            if !attr.args.is_empty() {
+                self.write("(");
+                for (i, arg) in attr.args.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    match arg {
+                        AttributeArg::Ident(ident) => {
+                            self.write(&ident.name);
+                        }
+                        AttributeArg::Literal(lit) => {
+                            self.write(&self.generate_literal_string(lit));
+                        }
+                        AttributeArg::NameValue { name, value } => {
+                            self.write(&name.name);
+                            self.write(" = ");
+                            self.write(&self.generate_literal_string(value));
+                        }
+                    }
+                }
+                self.write(")");
+            }
+            
+            self.write("]\n");
+        }
+
         // Generate doc comments
         for comment in &enum_def.doc_comments {
             self.write_line(&format!("/// {}", comment));
