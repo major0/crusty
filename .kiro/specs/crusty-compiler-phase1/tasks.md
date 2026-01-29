@@ -690,7 +690,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Handle nested struct initialization
     - _Requirements: 33.6, 33.7, 33.8, 33.9_
   
-  - [ ]16.6 Add switch statement code generation
+  - [x]16.6 Add switch statement code generation
     - Translate switch statements to Rust match expressions
     - Translate case labels to match arms
     - Translate multiple case values to OR patterns
