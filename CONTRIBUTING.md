@@ -6,6 +6,10 @@ Thank you for your interest in contributing to Crusty! This document provides gu
 
 By participating in this project, you agree to maintain a respectful and inclusive environment for all contributors.
 
+## Understanding Crusty's Philosophy
+
+Before contributing, please read [SYNTAX_PHILOSOPHY.md](.kiro/specs/crusty-compiler-phase1/SYNTAX_PHILOSOPHY.md) to understand Crusty's core principle: **syntactic transpilation, not semantic transformation**. This philosophy guides all implementation decisions.
+
 ## Getting Started
 
 ### Prerequisites
@@ -325,3 +329,14 @@ Contributors will be recognized in:
 - Project documentation (future)
 
 Thank you for contributing to Crusty!
+
+
+---
+
+## See Also
+
+- [SYNTAX_PHILOSOPHY.md](.kiro/specs/crusty-compiler-phase1/SYNTAX_PHILOSOPHY.md) - Core principle: syntax-only transpilation
+- [requirements.md](.kiro/specs/crusty-compiler-phase1/requirements.md) - Detailed feature requirements
+- [design.md](.kiro/specs/crusty-compiler-phase1/design.md) - Architecture and component design
+- [tasks.md](.kiro/specs/crusty-compiler-phase1/tasks.md) - Implementation plan and progress
+- [README.md](README.md) - Project overview and quick start guide

@@ -21,7 +21,7 @@ Method names, function names, and identifiers pass through unchanged between Cru
 Allowed syntax transformations:
 - Type syntax: `int` → `i32`, `float` → `f64`, `void` → `()`
 - Error types: `Type?` → `Result<Type, Box<dyn std::error::Error>>`
-- Error propagation: `expr?` → `expr?`
+- Error propagation: `expr?` → `expr?` (pass through to Rust)
 - Type-scoped calls: `@Type.method()` → `Type::method()`
 - Loop labels: `.label:` → `'label:`
 - NULL keyword: `NULL` → `Option::None` (the only semantic transformation)
