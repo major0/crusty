@@ -395,8 +395,7 @@ fn main() {
         let _ = fs::remove_file(&output_path);
 
         // This test will only pass if rustc is installed
-        if result.is_ok() {
-            let rustc_result = result.unwrap();
+        if let Ok(rustc_result) = result {
             assert!(rustc_result.is_success());
             assert!(rustc_result.error_message().is_none());
             assert_eq!(rustc_result.parse_errors().len(), 0);
@@ -424,8 +423,7 @@ fn main() {
         let _ = fs::remove_file(&output_path);
 
         // This test will only pass if rustc is installed
-        if result.is_ok() {
-            let rustc_result = result.unwrap();
+        if let Ok(rustc_result) = result {
             // The code should fail to compile due to missing semicolon
             if rustc_result.is_success() {
                 // If it somehow succeeded, that's okay - rustc behavior may vary
@@ -450,8 +448,7 @@ fn main() {
         let result = invoke_rustc(&input_path, &output_path, false);
 
         // This test will only pass if rustc is installed
-        if result.is_ok() {
-            let rustc_result = result.unwrap();
+        if let Ok(rustc_result) = result {
             assert!(!rustc_result.is_success());
             assert!(rustc_result.error_message().is_some());
         }
@@ -478,8 +475,7 @@ fn main() {
         let _ = fs::remove_file(&output_path);
 
         // This test will only pass if rustc is installed
-        if result.is_ok() {
-            let rustc_result = result.unwrap();
+        if let Ok(rustc_result) = result {
             assert!(rustc_result.is_success());
         }
     }

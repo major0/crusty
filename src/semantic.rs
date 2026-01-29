@@ -1832,7 +1832,7 @@ mod tests {
 
     #[test]
     fn test_symbol_kinds() {
-        let kinds = vec![
+        let kinds = [
             SymbolKind::Variable,
             SymbolKind::Function,
             SymbolKind::Type,

@@ -3546,7 +3546,7 @@ fn test_parse_define_simple_macro() {
         Item::MacroDefinition(mac) => {
             assert_eq!(mac.name.name, "__MAX__");
             assert_eq!(mac.params.len(), 0);
-            assert!(mac.body.len() > 0);
+            assert!(!mac.body.is_empty());
         }
         _ => panic!("Expected MacroDefinition"),
     }
@@ -3565,7 +3565,7 @@ fn test_parse_define_with_params() {
             assert_eq!(mac.params.len(), 2);
             assert_eq!(mac.params[0].name, "a");
             assert_eq!(mac.params[1].name, "b");
-            assert!(mac.body.len() > 0);
+            assert!(!mac.body.is_empty());
         }
         _ => panic!("Expected MacroDefinition"),
     }
@@ -3639,7 +3639,7 @@ fn test_parse_define_with_ternary() {
             assert_eq!(mac.params[0].name, "a");
             assert_eq!(mac.params[1].name, "b");
             // Should contain ternary operator tokens
-            assert!(mac.body.len() > 0);
+            assert!(!mac.body.is_empty());
         }
         _ => panic!("Expected MacroDefinition"),
     }
