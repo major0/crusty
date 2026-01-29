@@ -390,9 +390,22 @@ impl CodeGenerator {
         self.write_line("}");
     }
 
-    fn generate_typedef(&mut self, _typedef: &Typedef) {
-        // Placeholder
-        self.write_line("// TODO: generate_typedef");
+    fn generate_typedef(&mut self, typedef: &Typedef) {
+        // Generate doc comments
+        for comment in &typedef.doc_comments {
+            self.write_line(&format!("///{}", comment));
+        }
+
+        // Generate visibility
+        let visibility = match typedef.visibility {
+            Visibility::Public => "pub ",
+            Visibility::Private => "",
+        };
+
+        // Generate type alias
+        // typedef int MyInt; → pub type MyInt = i32;
+        let type_str = self.generate_type_string(&typedef.target);
+        self.write_line(&format!("{}type {} = {};", visibility, typedef.name.name, type_str));
     }
 
     fn generate_namespace(&mut self, _namespace: &Namespace) {
@@ -2312,6 +2325,128 @@ mod tests {
         // Should have empty body
         assert!(output.contains("{{"));
         assert!(output.contains("}}"));
+    }
+
+    #[test]
+    fn test_generate_typedef_simple() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let typedef = Typedef {
+            visibility: Visibility::Public,
+            name: Ident::new("MyInt".to_string()),
+            target: Type::Primitive(PrimitiveType::Int),
+            doc_comments: vec![],
+        };
+
+        let file = File {
+            items: vec![Item::Typedef(typedef)],
+            doc_comments: vec![],
+        };
+
+        let output = gen.generate(&file);
+        assert!(output.contains("pub type MyInt = i32;"));
+    }
+
+    #[test]
+    fn test_generate_typedef_with_pointer() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let typedef = Typedef {
+            visibility: Visibility::Public,
+            name: Ident::new("IntPtr".to_string()),
+            target: Type::Pointer {
+                ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                mutable: false,
+            },
+            doc_comments: vec![],
+        };
+
+        let file = File {
+            items: vec![Item::Typedef(typedef)],
+            doc_comments: vec![],
+        };
+
+        let output = gen.generate(&file);
+        assert!(output.contains("pub type IntPtr = *const i32;"));
+    }
+
+    #[test]
+    fn test_generate_typedef_with_reference() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let typedef = Typedef {
+            visibility: Visibility::Public,
+            name: Ident::new("IntRef".to_string()),
+            target: Type::Reference {
+                ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                mutable: false,
+            },
+            doc_comments: vec![],
+        };
+
+        let file = File {
+            items: vec![Item::Typedef(typedef)],
+            doc_comments: vec![],
+        };
+
+        let output = gen.generate(&file);
+        assert!(output.contains("pub type IntRef = &i32;"));
+    }
+
+    #[test]
+    fn test_generate_typedef_private() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let typedef = Typedef {
+            visibility: Visibility::Private,
+            name: Ident::new("PrivateInt".to_string()),
+            target: Type::Primitive(PrimitiveType::Int),
+            doc_comments: vec![],
+        };
+
+        let file = File {
+            items: vec![Item::Typedef(typedef)],
+            doc_comments: vec![],
+        };
+
+        let output = gen.generate(&file);
+        assert!(output.contains("type PrivateInt = i32;"));
+        assert!(!output.contains("pub type"));
+    }
+
+    #[test]
+    fn test_generate_typedef_with_doc_comments() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let typedef = Typedef {
+            visibility: Visibility::Public,
+            name: Ident::new("MyInt".to_string()),
+            target: Type::Primitive(PrimitiveType::Int),
+            doc_comments: vec![" A custom integer type".to_string()],
+        };
+
+        let file = File {
+            items: vec![Item::Typedef(typedef)],
+            doc_comments: vec![],
+        };
+
+        let output = gen.generate(&file);
+        assert!(output.contains("/// A custom integer type"));
+        assert!(output.contains("pub type MyInt = i32;"));
+    }
+
+    #[test]
+    fn test_generate_typedef_struct_pattern() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let typedef = Typedef {
+            visibility: Visibility::Public,
+            name: Ident::new("Point".to_string()),
+            target: Type::Ident(Ident::new("PointStruct".to_string())),
+            doc_comments: vec![],
+        };
+
+        let file = File {
+            items: vec![Item::Typedef(typedef)],
+            doc_comments: vec![],
+        };
+
+        let output = gen.generate(&file);
+        assert!(output.contains("pub type Point = PointStruct;"));
     }
 
     #[test]
