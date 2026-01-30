@@ -37,6 +37,9 @@ C features that cannot be safely represented in Rust are rejected at compile tim
 ### Rust Standard Library
 Crusty programs use Rust's standard library directly. There are no wrapper types or compatibility layers. `println!`, `Vec`, `String`, and all other std types work as-is.
 
+### Conditional Compilation
+Crusty supports `#ifdef`, `#ifndef`, and `#endif` directives for conditional compilation, which translate to Rust's `cfg` attributes. Other C preprocessor conditionals like `#if`, `#elif`, `#else` are not supported.
+
 ### Escape Hatch
 When Crusty's syntax doesn't cover a Rust feature, the `rust!` macro allows embedding raw Rust code directly. This ensures developers are never blocked by transpiler limitations.
 
