@@ -10,3 +10,4 @@ Documentation for the Crusty compiler architecture and internal components.
 - [Semantic Analyzer](semantic.md) - Type checking and validation
 - [Code Generator](codegen.md) - Emitting Rust source from the AST
 - [Build Integration](build-integration.md) - Cargo and build.rs integration
+- [Error Handling](error-handling.md) - Compiler error hierarchy and reporting
