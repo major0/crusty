@@ -1331,36 +1331,16 @@ impl<'a> Parser<'a> {
             }
         };
 
-        // Parse optional type annotation
-        let ty = if self.check(&TokenKind::Colon) {
-            self.advance()?;
-            Some(self.parse_type()?)
-        } else {
-            None
-        };
+        // No type annotation support - use C-style casting or type inference
+        let ty = None;
 
         // Parse optional initializer
-        let mut init = if self.check(&TokenKind::Assign) {
+        let init = if self.check(&TokenKind::Assign) {
             self.advance()?;
             Some(self.parse_expression_stub()?)
         } else {
             None
         };
-
-        // If the initializer is a struct initializer with Type::Auto,
-        // and we have a type annotation, update the struct initializer type
-        if let Some(ref var_type) = ty {
-            if let Some(Expression::StructInit {
-                ty: struct_ty,
-                fields: _,
-            }) = init.as_mut()
-            {
-                if matches!(struct_ty, Type::Auto) {
-                    // Replace Type::Auto with the variable type
-                    *struct_ty = var_type.clone();
-                }
-            }
-        }
 
         self.expect(TokenKind::Semicolon)?;
 
@@ -1393,13 +1373,8 @@ impl<'a> Parser<'a> {
             }
         };
 
-        // Parse optional type annotation
-        let ty = if self.check(&TokenKind::Colon) {
-            self.advance()?;
-            Some(self.parse_type()?)
-        } else {
-            None
-        };
+        // No type annotation support - use C-style casting or type inference
+        let ty = None;
 
         // Parse optional initializer
         let init = if self.check(&TokenKind::Assign) {
