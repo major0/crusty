@@ -186,7 +186,7 @@ This phase serves as an experimental platform to determine which C language feat
 14. THE example .crst files SHALL demonstrate references and borrowing (&, &var, &mut)
 15. THE example .crst files SHALL demonstrate error handling with fallible return types (Type?)
 16. THE example .crst files SHALL demonstrate NULL and Option type mapping
-17. THE example .crst files SHALL demonstrate #use directives for importing Rust standard library modules
+17. THE example .crst files SHALL demonstrate #import and #export directives for importing Rust standard library modules
 18. THE example .crst files SHALL demonstrate generic types with explicit type parameters
 19. THE example .crst files SHALL demonstrate attributes (#[derive(Debug)], #[test], etc.)
 20. THE example .crst files SHALL demonstrate namespace declarations
@@ -388,8 +388,8 @@ This phase serves as an experimental platform to determine which C language feat
 
 1. THE crustyc SHALL support compiling projects with multiple source files
 2. THE crustyc SHALL support --out-dir option to specify where generated Rust files should be written
-3. THE crustyc SHALL resolve module imports across multiple files using #use directives
-4. WHEN a #use directive references a local module, THE crustyc SHALL locate the corresponding source file
+3. THE crustyc SHALL resolve module imports across multiple files using #import directives
+4. WHEN a #import directive references a local module, THE crustyc SHALL locate the corresponding source file
 5. THE crustyc SHALL support both src/main.crst for binary projects and src/lib.crst for library projects
 6. THE crustyc SHALL maintain module hierarchy based on directory structure
 7. WHEN generating Rust code for multi-file projects, THE Code_Generator SHALL create corresponding .rs files in the output directory
@@ -959,21 +959,21 @@ impl Point {
 1. CRUSTY SHALL NOT provide its own standard library implementation
 2. THE crustyc SHALL rely entirely on Rust's standard library (std) for all standard functionality
 3. CRUSTY programs SHALL have full access to the Rust ecosystem through direct imports
-4. WHEN Crusty code uses #use directives, THE Code_Generator SHALL translate them directly to Rust use statements
-5. THE Parser SHALL support importing any Rust standard library module via #use (e.g., #use std.collections.HashMap)
-6. THE Parser SHALL support importing Rust types, functions, and traits from std modules
+4. WHEN Crusty code uses #import or #export directives, THE Code_Generator SHALL translate them to Rust use statements with appropriate visibility
+5. THE Parser SHALL support importing any Rust standard library module via #import (e.g., #import std.collections.HashMap)
+6. THE Parser SHALL support exporting any Rust standard library module via #export (e.g., #export std.collections.HashMap)
 7. WHEN generating code, THE Code_Generator SHALL preserve all Rust std module references unchanged
 8. THE Semantic_Analyzer SHALL validate that imported Rust std types and functions are used correctly
 9. THE crustyc documentation SHALL reference Rust's standard library documentation for available functionality
-10. WHEN a Crusty programmer needs I/O functionality, THEY SHALL use std.io via #use std.io
-11. WHEN a Crusty programmer needs collections, THEY SHALL use std.collections via #use std.collections
-12. WHEN a Crusty programmer needs file operations, THEY SHALL use std.fs via #use std.fs
+10. WHEN a Crusty programmer needs I/O functionality, THEY SHALL use std.io via #import std.io
+11. WHEN a Crusty programmer needs collections, THEY SHALL use std.collections via #import std.collections
+12. WHEN a Crusty programmer needs file operations, THEY SHALL use std.fs via #import std.fs
 13. WHEN a Crusty programmer needs string operations, THEY SHALL use Rust's String and &str types directly
-14. WHEN a Crusty programmer needs memory allocation, THEY SHALL use Rust's Box, Rc, Arc, Vec types via #use std.boxed, std.rc, std.sync, std.vec
+14. WHEN a Crusty programmer needs memory allocation, THEY SHALL use Rust's Box, Rc, Arc, Vec types via #import std.boxed, std.rc, std.sync, std.vec
 15. THE crustyc SHALL NOT wrap, abstract, or modify Rust standard library functionality
 16. CRUSTY projects SHALL be able to depend on any Rust crate from crates.io
 17. CRUSTY projects SHALL be able to publish crates that native Rust projects can use
-18. WHEN reverse transpiling from Rust, THE Code_Generator SHALL preserve all std module imports as Crusty #use directives
+18. WHEN reverse transpiling from Rust, THE Code_Generator SHALL preserve all std module imports as Crusty #import or #export directives based on visibility
 
 ### Requirement 40: Support Rust Ecosystem Integration
 
@@ -1253,26 +1253,29 @@ fn process<T>(value: T) -> Option<T> { ... }
 
 ## Module System and Visibility
 
-### Requirement 50: Support Module Imports and Conditional Compilation
+### Requirement 50: Support Module Imports and Exports
 
-**User Story:** As a Crusty programmer, I want to import modules and use conditional compilation, so that I can organize code and support multiple platforms.
+**User Story:** As a Crusty programmer, I want to import modules and export symbols, so that I can organize code and control the public API of my modules.
 
 #### Acceptance Criteria
 
-1. THE Parser SHALL support #use directives for module imports
-2. WHEN a #use directive is encountered, THE Parser SHALL parse the module path
-3. THE Parser SHALL support the optional `static` keyword before #use directives to control visibility
-4. WHEN a #use directive has the `static` keyword (#use static module.item), THE Code_Generator SHALL translate it to a private Rust use statement (use module::item)
-5. WHEN a #use directive does NOT have the `static` keyword (#use module.item), THE Code_Generator SHALL translate it to a public Rust use statement (pub use module::item)
-6. WHEN generating code, THE Code_Generator SHALL translate #use directives to Rust use statements with appropriate visibility
-7. THE Parser SHALL support #ifdef directives for conditional compilation
-8. THE Parser SHALL support #ifndef directives for conditional compilation
-9. THE Parser SHALL support #endif directives to close conditional blocks
-10. WHEN conditional compilation directives are encountered, THE Code_Generator SHALL translate them to Rust cfg attributes
-11. THE Parser SHALL support nested conditional compilation blocks
-12. WHEN #include is encountered, THE Parser SHALL reject it with an error message explaining to use #use instead
-13. WHEN #define is encountered, THE Parser SHALL parse it as a macro definition
-14. WHEN generating Rust code, THE Code_Generator SHALL translate #define macros to Rust macro_rules! definitions
+1. THE Parser SHALL support #import directives for importing modules into the current context
+2. WHEN a #import directive is encountered, THE Parser SHALL parse the module path
+3. WHEN generating code, THE Code_Generator SHALL translate #import directives to private Rust use statements (use module;)
+4. THE Parser SHALL support #export directives for re-exporting symbols from imported modules
+5. WHEN a #export directive is encountered, THE Parser SHALL parse the module path and symbol
+6. WHEN generating code, THE Code_Generator SHALL translate #export directives to public Rust use statements (pub use module::symbol;)
+7. THE #import directive SHALL support importing entire modules (#import mymodule)
+8. THE #export directive SHALL support exporting specific symbols from modules (#export mymodule.method)
+9. THE Parser SHALL support #ifdef directives for conditional compilation
+10. THE Parser SHALL support #ifndef directives for conditional compilation
+11. THE Parser SHALL support #endif directives to close conditional blocks
+12. WHEN conditional compilation directives are encountered, THE Code_Generator SHALL translate them to Rust cfg attributes
+13. THE Parser SHALL support nested conditional compilation blocks
+14. WHEN #include is encountered, THE Parser SHALL reject it with an error message explaining to use #import instead
+15. WHEN #use is encountered, THE Parser SHALL reject it with an error message explaining to use #import or #export instead
+16. WHEN #define is encountered, THE Parser SHALL parse it as a macro definition
+17. WHEN generating Rust code, THE Code_Generator SHALL translate #define macros to Rust macro_rules! definitions
 
 ### Requirement 51: Support Namespace Declarations for Module Organization
 
@@ -1395,7 +1398,7 @@ fn process<T>(value: T) -> Option<T> { ... }
 6. WHEN generating Crusty code from Rust, THE Code_Generator SHALL translate Rust pub functions to non-static Crusty functions
 7. WHEN generating Crusty code from Rust, THE Code_Generator SHALL translate Rust private functions to static Crusty functions or underscore-prefixed names
 8. WHEN generating Crusty code from Rust, THE Code_Generator SHALL translate Rust match expressions to Crusty switch statements
-9. WHEN generating Crusty code from Rust, THE Code_Generator SHALL translate Rust use statements to Crusty #use directives
+9. WHEN generating Crusty code from Rust, THE Code_Generator SHALL translate Rust use statements to Crusty #import or #export directives based on visibility
 10. WHEN generating Crusty code from Rust, THE Code_Generator SHALL translate Rust const declarations to Crusty const declarations
 11. WHEN generating Crusty code from Rust, THE Code_Generator SHALL translate Rust cfg attributes to Crusty #ifdef directives
 12. WHEN generating Crusty code from Rust, THE Code_Generator SHALL preserve Rust doc comments in Crusty-compatible format
@@ -1523,8 +1526,8 @@ pub fn outer_function() {
 8. THE test suite SHALL include tests for error handling syntax (Type?, expr? operator, Rust Result API)
 9. THE test suite SHALL include tests for NULL and Option type mapping
 10. THE test suite SHALL include tests for string types (String, &str, char arrays)
-11. THE test suite SHALL include tests for #use directives importing standard Rust modules (std.collections, std.io, std.fs, etc.)
-12. THE test suite SHALL validate that #use directives correctly map to Rust use statements for cross-tool compatibility
+11. THE test suite SHALL include tests for #import and #export directives importing standard Rust modules (std.collections, std.io, std.fs, etc.)
+12. THE test suite SHALL validate that #import and #export directives correctly map to Rust use statements for cross-tool compatibility
 13. THE test suite SHALL include tests for conditional compilation directives (#ifdef, #ifndef, #endif)
 14. THE test suite SHALL include tests for namespace declarations and nested namespaces
 15. THE test suite SHALL include tests for symbol visibility (static functions, underscore-prefixed symbols)

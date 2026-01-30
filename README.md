@@ -32,7 +32,7 @@ Crusty does NOT support the following C features, as they are incompatible with 
 - **unions** - Use Rust enum types for tagged unions instead
 - **goto statements** - Use structured control flow (loops, match, early returns)
 - **Unsafe pointer arithmetic** - Use Rust's slice indexing or iterators
-- **#include directives** - Use `#use` for Rust's module system
+- **#include directives** - Use `#import` for Rust's module system
 - **Preprocessor conditionals** - Use Rust's `cfg` attributes
 
 ### Syntax Stability Warning
@@ -312,16 +312,19 @@ void main() {
 
 ### Advanced Syntax
 
-#### Module Imports with #use
+#### Module Imports and Exports
 ```c
-// Import Rust standard library modules
-// Dot notation in module paths (no @ prefix for imports)
+// Import modules into current context (private)
+// Translates to: use std::collections::HashMap;
+#import std.collections.HashMap;
 
-// Public re-export (default) - translates to: pub use std::collections::HashMap;
-#use std.collections.HashMap;
+// Export symbols for public API (public re-export)
+// Translates to: pub use std::io::Write;
+#export std.io.Write;
 
-// Private import - translates to: use std::io::Write;
-#use static std.io.Write;
+// Import entire module
+// Translates to: use std::fs;
+#import std.fs;
 
 void main() {
     // Type-scoped call with @ prefix uses dot notation
@@ -330,9 +333,11 @@ void main() {
 }
 ```
 
-**Visibility Control:**
-- `#use module.item;` → `pub use module::item;` (public re-export, default)
-- `#use static module.item;` → `use module::item;` (private import)
+**Import vs Export:**
+- `#import module;` → `use module;` (private import into current context)
+- `#export module.symbol;` → `pub use module::symbol;` (public re-export for API)
+- Use `#import` to bring modules/symbols into scope for internal use
+- Use `#export` to make imported symbols part of your public API
 
 #### Explicit Generic Type Parameters
 ```c

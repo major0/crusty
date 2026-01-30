@@ -19,7 +19,8 @@ pub enum Item {
     Enum(Enum),
     Typedef(Typedef),
     Namespace(Namespace),
-    Use(Use),
+    Import(Import),
+    Export(Export),
     Extern(Extern),
     Const(Const),
     Static(Static),
@@ -91,10 +92,16 @@ pub struct Namespace {
     pub doc_comments: Vec<String>,
 }
 
-/// Use/import directive
+/// Import directive (#import)
 #[derive(Debug, Clone, PartialEq)]
-pub struct Use {
-    pub visibility: Visibility,
+pub struct Import {
+    pub path: Vec<Ident>,
+    pub alias: Option<Ident>,
+}
+
+/// Export directive (#export)
+#[derive(Debug, Clone, PartialEq)]
+pub struct Export {
     pub path: Vec<Ident>,
     pub alias: Option<Ident>,
 }

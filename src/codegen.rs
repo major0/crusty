@@ -96,7 +96,8 @@ impl CodeGenerator {
             Item::Enum(enum_def) => self.generate_enum(enum_def),
             Item::Typedef(typedef) => self.generate_typedef(typedef),
             Item::Namespace(namespace) => self.generate_namespace(namespace),
-            Item::Use(use_item) => self.generate_use(use_item),
+            Item::Import(import_item) => self.generate_import(import_item),
+            Item::Export(export_item) => self.generate_export(export_item),
             Item::Extern(extern_block) => self.generate_extern(extern_block),
             Item::Const(const_item) => self.generate_const(const_item),
             Item::Static(static_item) => self.generate_static(static_item),
@@ -416,9 +417,36 @@ impl CodeGenerator {
         self.write_line("// TODO: generate_namespace");
     }
 
-    fn generate_use(&mut self, _use_item: &Use) {
-        // Placeholder
-        self.write_line("// TODO: generate_use");
+    fn generate_import(&mut self, import_item: &Import) {
+        // #import module.path → use module::path;
+        self.write("use ");
+        for (i, ident) in import_item.path.iter().enumerate() {
+            if i > 0 {
+                self.write("::");
+            }
+            self.write(&ident.name);
+        }
+        if let Some(alias) = &import_item.alias {
+            self.write(" as ");
+            self.write(&alias.name);
+        }
+        self.write_line(";");
+    }
+
+    fn generate_export(&mut self, export_item: &Export) {
+        // #export module.path → pub use module::path;
+        self.write("pub use ");
+        for (i, ident) in export_item.path.iter().enumerate() {
+            if i > 0 {
+                self.write("::");
+            }
+            self.write(&ident.name);
+        }
+        if let Some(alias) = &export_item.alias {
+            self.write(" as ");
+            self.write(&alias.name);
+        }
+        self.write_line(";");
     }
 
     fn generate_extern(&mut self, _extern_block: &Extern) {

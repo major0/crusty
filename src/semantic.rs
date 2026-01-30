@@ -374,7 +374,7 @@ impl SemanticAnalyzer {
             Item::Const(const_def) => self.analyze_const(const_def),
             Item::Static(static_def) => self.analyze_static(static_def),
             Item::MacroDefinition(macro_def) => self.analyze_macro_definition(macro_def),
-            Item::Namespace(_) | Item::Use(_) | Item::Extern(_) => {
+            Item::Namespace(_) | Item::Import(_) | Item::Export(_) | Item::Extern(_) => {
                 // These items don't require semantic analysis in this phase
             }
         }
