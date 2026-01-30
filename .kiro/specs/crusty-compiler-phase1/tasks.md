@@ -622,7 +622,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
   - [x]14.9.7 Note: This task depends on Task 2.7 (Create example directory)
     - Note: Completed as part of Task 2.7.5-2.7.7
 
-- [ ] 15. Implement #define macro support
+- [x] 15. Implement #define macro support
   - [x]15.1 Add #define parsing with delimiter types
     - Parse #define directive with double-underscore macro names (__MACRO_NAME__)
     - Parse macro parameters with different delimiter types (parentheses, brackets, braces, none)
