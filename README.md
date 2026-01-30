@@ -316,8 +316,12 @@ void main() {
 ```c
 // Import Rust standard library modules
 // Dot notation in module paths (no @ prefix for imports)
+
+// Public re-export (default) - translates to: pub use std::collections::HashMap;
 #use std.collections.HashMap;
-#use std.io.Write;
+
+// Private import - translates to: use std::io::Write;
+#use static std.io.Write;
 
 void main() {
     // Type-scoped call with @ prefix uses dot notation
@@ -325,6 +329,10 @@ void main() {
     map.insert("key", "value");
 }
 ```
+
+**Visibility Control:**
+- `#use module.item;` → `pub use module::item;` (public re-export, default)
+- `#use static module.item;` → `use module::item;` (private import)
 
 #### Explicit Generic Type Parameters
 ```c
