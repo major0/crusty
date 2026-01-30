@@ -37,9 +37,10 @@ A few C-like semantic constructs are supported to provide familiarity:
 
 **Rationale:** NULL is a C keyword that has no direct Rust syntax equivalent. This is the ONLY semantic transformation.
 
-### 2. C-Style Loops
-- `for(;;)` → `loop` (infinite loop)
-- `for(init; cond; update)` → Rust for loop equivalent
+### 2. C-Style For Loops
+- `for(init; cond; update) { ... }` → Rust loop equivalent
+- `for(;;) { ... }` → `loop { ... }` (infinite loop as special case)
+- Traditional three-part C for-loop syntax
 
 ### 3. Switch Statements
 - `switch(expr) { case val: ... }` → `match expr { val => ... }`

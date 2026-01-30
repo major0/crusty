@@ -39,7 +39,7 @@ Crusty transforms only syntax, not semantics. Method names, function names, and 
 A few C-like semantic constructs are supported:
 
 - **NULL**: `NULL` → `Option::None` (C keyword with no Rust equivalent)
-- **for(;;)**: C-style infinite loops → `loop`
+- **C-style for loops**: `for(init; cond; update)` → Rust loop equivalent
 - **switch/case**: C-style switch statements → Rust match expressions
 - **#define**: C-style macros → Rust declarative macros
 
