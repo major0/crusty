@@ -755,15 +755,15 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Test error handling translation
     - _Requirements: 28.4-28.8, 33.6-33.9, 45.7-45.10, 46.8-46.13_
 
-- [ ] 17. Implement nested functions (closures)
-  - [ ]17.1 Add nested function parsing
+- [-] 17. Implement nested functions (closures)
+  - [x]17.1 Add nested function parsing
     - Extend Parser to recognize function declarations within function bodies
     - Create NestedFunction AST node with signature and body
     - Support multiple nested functions in the same enclosing function
     - Verify nested functions use same syntax as top-level functions
     - _Requirements: 59.1, 59.2, 59.3_
   
-  - [ ]17.2 Implement capture analysis in semantic analyzer
+  - [x]17.2 Implement capture analysis in semantic analyzer
     - Track variables in scope when nested function is declared
     - Build capture list for each nested function
     - Determine which variables are captured (used in nested function body)

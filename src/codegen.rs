@@ -973,6 +973,44 @@ impl CodeGenerator {
                 }
                 self.write(";\n");
             }
+
+            Statement::NestedFunction {
+                name,
+                params,
+                return_type,
+                body,
+            } => {
+                // TODO: Implement full closure generation with capture analysis in subtask 17.4
+                // For now, generate a basic closure
+                self.write_indent();
+                self.write("let ");
+                self.write(&name.name);
+                self.write(" = |");
+
+                // Generate parameters
+                for (i, param) in params.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&param.name.name);
+                    self.write(": ");
+                    let param_type = self.generate_type_string(&param.ty);
+                    self.write(&param_type);
+                }
+
+                self.write("|");
+
+                // Generate return type if present
+                if let Some(ref ret_ty) = return_type {
+                    self.write(" -> ");
+                    let return_type_str = self.generate_type_string(ret_ty);
+                    self.write(&return_type_str);
+                }
+
+                self.write(" ");
+                self.generate_block(body);
+                self.write(";\n");
+            }
         }
     }
 

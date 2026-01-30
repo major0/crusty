@@ -204,6 +204,12 @@ pub enum Statement {
     },
     Break(Option<Ident>),
     Continue(Option<Ident>),
+    NestedFunction {
+        name: Ident,
+        params: Vec<Param>,
+        return_type: Option<Type>,
+        body: Block,
+    },
 }
 
 /// Expression types

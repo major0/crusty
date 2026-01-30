@@ -12,6 +12,8 @@ use std::collections::HashMap;
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
     current_token: Token,
+    /// Token buffer for lookahead (stores peeked tokens)
+    token_buffer: Vec<Token>,
     /// Registry of macro names to their delimiter types
     macro_registry: HashMap<String, MacroDelimiter>,
 }
@@ -27,17 +29,44 @@ impl<'a> Parser<'a> {
         Ok(Self {
             lexer,
             current_token,
+            token_buffer: Vec::new(),
             macro_registry: HashMap::new(),
         })
     }
 
     /// Advance to the next token
     fn advance(&mut self) -> Result<(), ParseError> {
-        self.current_token = self
-            .lexer
-            .next_token()
-            .map_err(|e| ParseError::new(e.span, e.message, vec![], "lexical error"))?;
+        // If we have buffered tokens, use them first
+        if !self.token_buffer.is_empty() {
+            self.current_token = self.token_buffer.remove(0);
+        } else {
+            self.current_token = self
+                .lexer
+                .next_token()
+                .map_err(|e| ParseError::new(e.span, e.message, vec![], "lexical error"))?;
+        }
         Ok(())
+    }
+
+    /// Peek ahead n tokens without consuming them
+    /// Returns None if we can't peek that far ahead
+    fn peek_ahead(&mut self, n: usize) -> Result<Option<Token>, ParseError> {
+        // Ensure we have enough tokens in the buffer
+        while self.token_buffer.len() < n {
+            let token = self
+                .lexer
+                .next_token()
+                .map_err(|e| ParseError::new(e.span, e.message, vec![], "lexical error"))?;
+            self.token_buffer.push(token);
+        }
+
+        if n == 0 {
+            Ok(Some(self.current_token.clone()))
+        } else if n <= self.token_buffer.len() {
+            Ok(Some(self.token_buffer[n - 1].clone()))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Expect a specific token kind and consume it
@@ -1171,6 +1200,29 @@ impl<'a> Parser<'a> {
                 // Check for labeled loop (.label: loop { ... })
                 self.parse_labeled_loop()
             }
+            // Check for nested function: type identifier (
+            TokenKind::Void
+            | TokenKind::Int
+            | TokenKind::I32
+            | TokenKind::I64
+            | TokenKind::U32
+            | TokenKind::U64
+            | TokenKind::Float
+            | TokenKind::F32
+            | TokenKind::F64
+            | TokenKind::Bool
+            | TokenKind::Char
+            | TokenKind::Ident(_) => {
+                // Look ahead to see if this is a function declaration
+                if self.is_nested_function_declaration()? {
+                    self.parse_nested_function()
+                } else {
+                    // Try to parse as expression statement
+                    let expr = self.parse_expression_stub()?;
+                    self.expect(TokenKind::Semicolon)?;
+                    Ok(Statement::Expr(expr))
+                }
+            }
             _ => {
                 // Try to parse as expression statement
                 let expr = self.parse_expression_stub()?;
@@ -1540,6 +1592,130 @@ impl<'a> Parser<'a> {
                 format!("{:?}", self.current_token.kind),
             ))
         }
+    }
+
+    /// Check if the current position is a nested function declaration
+    /// Looks for pattern: type identifier (
+    /// Uses lookahead to distinguish from expression statements
+    fn is_nested_function_declaration(&mut self) -> Result<bool, ParseError> {
+        // Check if current token is a type keyword
+        let is_type_keyword = matches!(
+            self.current_token.kind,
+            TokenKind::Void
+                | TokenKind::Int
+                | TokenKind::I32
+                | TokenKind::I64
+                | TokenKind::U32
+                | TokenKind::U64
+                | TokenKind::Float
+                | TokenKind::F32
+                | TokenKind::F64
+                | TokenKind::Bool
+                | TokenKind::Char
+        );
+
+        if !is_type_keyword {
+            // Could be a custom type (identifier), need to check further
+            if !matches!(self.current_token.kind, TokenKind::Ident(_)) {
+                return Ok(false);
+            }
+        }
+
+        // Peek ahead to see what comes after the type
+        // Pattern: type identifier (
+        let next_token = self.peek_ahead(1)?;
+        if let Some(token) = next_token {
+            if !matches!(token.kind, TokenKind::Ident(_)) {
+                return Ok(false);
+            }
+
+            // Check if there's a ( after the identifier
+            let token_after_ident = self.peek_ahead(2)?;
+            if let Some(token) = token_after_ident {
+                return Ok(matches!(token.kind, TokenKind::LParen));
+            }
+        }
+
+        Ok(false)
+    }
+
+    /// Parse a nested function declaration
+    fn parse_nested_function(&mut self) -> Result<Statement, ParseError> {
+        // Parse return type
+        let return_type = if self.check(&TokenKind::Void) {
+            self.advance()?;
+            None
+        } else {
+            Some(self.parse_type()?)
+        };
+
+        // Parse function name
+        let name = match &self.current_token.kind {
+            TokenKind::Ident(n) => {
+                let ident = Ident::new(n.clone());
+                self.advance()?;
+                ident
+            }
+            _ => {
+                return Err(ParseError::new(
+                    self.current_token.span,
+                    "expected function name",
+                    vec!["identifier".to_string()],
+                    format!("{:?}", self.current_token.kind),
+                ));
+            }
+        };
+
+        // Parse parameter list
+        self.expect(TokenKind::LParen)?;
+        let mut params = Vec::new();
+
+        if !self.check(&TokenKind::RParen) {
+            loop {
+                // Parse parameter type
+                let param_type = self.parse_type()?;
+
+                // Parse parameter name
+                let param_name = match &self.current_token.kind {
+                    TokenKind::Ident(n) => {
+                        let ident = Ident::new(n.clone());
+                        self.advance()?;
+                        ident
+                    }
+                    _ => {
+                        return Err(ParseError::new(
+                            self.current_token.span,
+                            "expected parameter name",
+                            vec!["identifier".to_string()],
+                            format!("{:?}", self.current_token.kind),
+                        ));
+                    }
+                };
+
+                params.push(Param {
+                    name: param_name,
+                    ty: param_type,
+                });
+
+                if self.check(&TokenKind::Comma) {
+                    self.advance()?;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        self.expect(TokenKind::RParen)?;
+
+        // Parse function body
+        let body = self.parse_block()?;
+
+        Ok(Statement::NestedFunction {
+            name,
+            params,
+            return_type,
+            body,
+        })
     }
 
     /// Stub for expression parsing (will be implemented in task 6.4)
