@@ -1217,18 +1217,36 @@ impl<'a> Parser<'a> {
                 if self.is_nested_function_declaration()? {
                     self.parse_nested_function()
                 } else {
-                    // Try to parse as expression statement
-                    let expr = self.parse_expression_stub()?;
-                    self.expect(TokenKind::Semicolon)?;
-                    Ok(Statement::Expr(expr))
+                    // Parse as expression statement (which may include assignment)
+                    self.parse_expression_statement()
                 }
             }
             _ => {
                 // Try to parse as expression statement
-                let expr = self.parse_expression_stub()?;
-                self.expect(TokenKind::Semicolon)?;
-                Ok(Statement::Expr(expr))
+                self.parse_expression_statement()
             }
+        }
+    }
+
+    /// Parse an expression statement (including assignments)
+    fn parse_expression_statement(&mut self) -> Result<Statement, ParseError> {
+        let expr = self.parse_expression_stub()?;
+
+        // Check if this is an assignment
+        if self.check(&TokenKind::Assign) {
+            self.advance()?;
+            let value = self.parse_expression_stub()?;
+            self.expect(TokenKind::Semicolon)?;
+
+            // Convert the left-hand side expression to an assignment target
+            Ok(Statement::Expr(Expression::Binary {
+                op: BinaryOp::Assign,
+                left: Box::new(expr),
+                right: Box::new(value),
+            }))
+        } else {
+            self.expect(TokenKind::Semicolon)?;
+            Ok(Statement::Expr(expr))
         }
     }
 
@@ -1618,6 +1636,15 @@ impl<'a> Parser<'a> {
             // Could be a custom type (identifier), need to check further
             if !matches!(self.current_token.kind, TokenKind::Ident(_)) {
                 return Ok(false);
+            }
+
+            // If current token is an identifier, check if next token is an assignment operator
+            // This would indicate an assignment statement, not a nested function
+            let next_token = self.peek_ahead(1)?;
+            if let Some(token) = next_token {
+                if matches!(token.kind, TokenKind::Assign) {
+                    return Ok(false);
+                }
             }
         }
 
