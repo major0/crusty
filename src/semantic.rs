@@ -17,6 +17,27 @@ pub enum SymbolKind {
     Const,
 }
 
+/// Capture kind for nested functions
+#[derive(Debug, Clone, PartialEq)]
+pub enum CaptureKind {
+    Immutable, // Variable is only read
+    Mutable,   // Variable is modified
+}
+
+/// Information about a captured variable in a nested function
+#[derive(Debug, Clone, PartialEq)]
+pub struct Capture {
+    pub name: String,
+    pub ty: Type,
+    pub kind: CaptureKind,
+}
+
+impl Capture {
+    pub fn new(name: String, ty: Type, kind: CaptureKind) -> Self {
+        Self { name, ty, kind }
+    }
+}
+
 /// Symbol information stored in the symbol table
 #[derive(Debug, Clone, PartialEq)]
 pub struct Symbol {
@@ -332,6 +353,11 @@ pub struct SemanticAnalyzer {
     symbol_table: SymbolTable,
     type_env: TypeEnvironment,
     errors: Vec<SemanticError>,
+    /// Track captures for nested functions: function_name -> list of captures
+    nested_function_captures: HashMap<String, Vec<Capture>>,
+    /// Track variables that are modified (for determining mutable captures)
+    #[allow(dead_code)]
+    modified_variables: std::collections::HashSet<String>,
 }
 
 impl SemanticAnalyzer {
@@ -341,6 +367,8 @@ impl SemanticAnalyzer {
             symbol_table: SymbolTable::new(),
             type_env: TypeEnvironment::new(),
             errors: Vec::new(),
+            nested_function_captures: HashMap::new(),
+            modified_variables: std::collections::HashSet::new(),
         }
     }
 
@@ -1053,6 +1081,123 @@ impl SemanticAnalyzer {
             Statement::Break(_) | Statement::Continue(_) => {
                 // No semantic analysis needed for break/continue
             }
+
+            Statement::NestedFunction {
+                name,
+                params,
+                return_type,
+                body,
+            } => {
+                // Verify function name doesn't use double-underscore pattern (reserved for macros)
+                if name.name.starts_with("__") && name.name.ends_with("__") {
+                    self.errors.push(SemanticError::new(
+                        Span::new(
+                            crate::error::Position::new(0, 0),
+                            crate::error::Position::new(0, 0),
+                        ),
+                        SemanticErrorKind::UnsupportedFeature,
+                        format!(
+                            "function name '{}' uses double-underscore pattern reserved for macros",
+                            name.name
+                        ),
+                    ));
+                }
+
+                // Register the nested function in the current scope so it can be called
+                let func_type = if let Some(ref ret_type) = return_type {
+                    Type::Function {
+                        params: params.iter().map(|p| p.ty.clone()).collect(),
+                        return_type: Box::new(ret_type.clone()),
+                    }
+                } else {
+                    Type::Function {
+                        params: params.iter().map(|p| p.ty.clone()).collect(),
+                        return_type: Box::new(Type::Primitive(crate::ast::PrimitiveType::Void)),
+                    }
+                };
+
+                let func_symbol =
+                    Symbol::new(name.name.clone(), func_type, SymbolKind::Function, false);
+
+                if let Err(msg) = self.symbol_table.insert(name.name.clone(), func_symbol) {
+                    self.errors.push(SemanticError::new(
+                        Span::new(
+                            crate::error::Position::new(0, 0),
+                            crate::error::Position::new(0, 0),
+                        ),
+                        SemanticErrorKind::DuplicateDefinition,
+                        msg,
+                    ));
+                }
+
+                // Collect variables in scope before entering nested function scope
+                let variables_in_scope = self.collect_variables_in_scope();
+
+                // Collect variables used in the nested function body
+                let mut used_variables = std::collections::HashSet::new();
+                self.collect_used_variables_in_block(body, &mut used_variables);
+
+                // Collect variables modified in the nested function body
+                let mut modified_variables = std::collections::HashSet::new();
+                self.collect_modified_variables_in_block(body, &mut modified_variables);
+
+                // Build capture list
+                let mut captures = Vec::new();
+                for var_name in &used_variables {
+                    // Check if this variable is from an outer scope (not a parameter)
+                    let is_parameter = params.iter().any(|p| p.name.name == *var_name);
+
+                    if !is_parameter {
+                        if let Some((var_type, _)) = variables_in_scope.get(var_name) {
+                            // Determine if capture is mutable or immutable
+                            let capture_kind = if modified_variables.contains(var_name) {
+                                CaptureKind::Mutable
+                            } else {
+                                CaptureKind::Immutable
+                            };
+
+                            captures.push(Capture::new(
+                                var_name.clone(),
+                                var_type.clone(),
+                                capture_kind,
+                            ));
+                        }
+                    }
+                }
+
+                // Store captures for this nested function
+                self.nested_function_captures
+                    .insert(name.name.clone(), captures);
+
+                // Enter new scope for nested function
+                self.symbol_table.enter_scope();
+
+                // Register parameters in nested function scope
+                for param in params {
+                    let symbol = Symbol::new(
+                        param.name.name.clone(),
+                        param.ty.clone(),
+                        SymbolKind::Variable,
+                        false,
+                    );
+                    if let Err(msg) = self.symbol_table.insert(param.name.name.clone(), symbol) {
+                        self.errors.push(SemanticError::new(
+                            Span::new(
+                                crate::error::Position::new(0, 0),
+                                crate::error::Position::new(0, 0),
+                            ),
+                            SemanticErrorKind::DuplicateDefinition,
+                            msg,
+                        ));
+                    }
+                }
+
+                // Analyze nested function body
+                self.analyze_block(body);
+
+                // Exit nested function scope
+                self.symbol_table.exit_scope();
+            }
         }
     }
 
@@ -1639,6 +1784,354 @@ impl SemanticAnalyzer {
                 path
             ),
         ));
+    }
+
+    /// Collect all variables currently in scope (for capture analysis)
+    fn collect_variables_in_scope(&self) -> HashMap<String, (Type, bool)> {
+        let mut variables = HashMap::new();
+
+        // Iterate through all scopes from outermost to innermost
+        for scope in &self.symbol_table.scopes {
+            for (name, symbol) in &scope.symbols {
+                if symbol.kind == SymbolKind::Variable {
+                    variables.insert(name.clone(), (symbol.ty.clone(), symbol.mutable));
+                }
+            }
+        }
+
+        variables
+    }
+
+    /// Analyze which variables are used in an expression
+    fn collect_used_variables(
+        &self,
+        expr: &crate::ast::Expression,
+        used: &mut std::collections::HashSet<String>,
+    ) {
+        use crate::ast::Expression;
+
+        match expr {
+            Expression::Ident(ident) => {
+                used.insert(ident.name.clone());
+            }
+            Expression::Binary { left, right, .. } => {
+                self.collect_used_variables(left, used);
+                self.collect_used_variables(right, used);
+            }
+            Expression::Unary { expr, .. } => {
+                self.collect_used_variables(expr, used);
+            }
+            Expression::Call { func, args } => {
+                self.collect_used_variables(func, used);
+                for arg in args {
+                    self.collect_used_variables(arg, used);
+                }
+            }
+            Expression::Index { expr, index } => {
+                self.collect_used_variables(expr, used);
+                self.collect_used_variables(index, used);
+            }
+            Expression::FieldAccess { expr, .. } => {
+                self.collect_used_variables(expr, used);
+            }
+            Expression::Cast { expr, .. } => {
+                self.collect_used_variables(expr, used);
+            }
+            Expression::Ternary {
+                condition,
+                then_expr,
+                else_expr,
+            } => {
+                self.collect_used_variables(condition, used);
+                self.collect_used_variables(then_expr, used);
+                self.collect_used_variables(else_expr, used);
+            }
+            Expression::ArrayLit { elements } => {
+                for elem in elements {
+                    self.collect_used_variables(elem, used);
+                }
+            }
+            Expression::TupleLit { elements } => {
+                for elem in elements {
+                    self.collect_used_variables(elem, used);
+                }
+            }
+            Expression::StructInit { fields, .. } => {
+                for (_, field_expr) in fields {
+                    self.collect_used_variables(field_expr, used);
+                }
+            }
+            Expression::Range { start, end, .. } => {
+                if let Some(s) = start {
+                    self.collect_used_variables(s, used);
+                }
+                if let Some(e) = end {
+                    self.collect_used_variables(e, used);
+                }
+            }
+            Expression::Sizeof { .. } => {
+                // Sizeof only uses types, not variables
+            }
+            Expression::MacroCall { .. } => {
+                // Macro calls are opaque - we can't analyze them
+            }
+            Expression::RustBlock { .. } => {
+                // Rust blocks are opaque - we can't analyze them
+            }
+            Expression::ErrorProp { expr } => {
+                self.collect_used_variables(expr, used);
+            }
+            Expression::MethodCall { receiver, args, .. } => {
+                self.collect_used_variables(receiver, used);
+                for arg in args {
+                    self.collect_used_variables(arg, used);
+                }
+            }
+            Expression::TypeScopedCall { args, .. } => {
+                for arg in args {
+                    self.collect_used_variables(arg, used);
+                }
+            }
+            Expression::ExplicitGenericCall { args, .. } => {
+                for arg in args {
+                    self.collect_used_variables(arg, used);
+                }
+            }
+            Expression::Literal(_) => {
+                // Literals don't use variables
+            }
+        }
+    }
+
+    /// Analyze which variables are used in a statement
+    fn collect_used_variables_in_statement(
+        &self,
+        stmt: &crate::ast::Statement,
+        used: &mut std::collections::HashSet<String>,
+    ) {
+        use crate::ast::Statement;
+
+        match stmt {
+            Statement::Let { init, .. } | Statement::Var { init, .. } => {
+                if let Some(expr) = init {
+                    self.collect_used_variables(expr, used);
+                }
+            }
+            Statement::Const { value, .. } => {
+                self.collect_used_variables(value, used);
+            }
+            Statement::Expr(expr) => {
+                self.collect_used_variables(expr, used);
+            }
+            Statement::Return(Some(expr)) => {
+                self.collect_used_variables(expr, used);
+            }
+            Statement::If {
+                condition,
+                then_block,
+                else_block,
+            } => {
+                self.collect_used_variables(condition, used);
+                self.collect_used_variables_in_block(then_block, used);
+                if let Some(else_blk) = else_block {
+                    self.collect_used_variables_in_block(else_blk, used);
+                }
+            }
+            Statement::While {
+                condition, body, ..
+            } => {
+                self.collect_used_variables(condition, used);
+                self.collect_used_variables_in_block(body, used);
+            }
+            Statement::For {
+                init,
+                condition,
+                increment,
+                body,
+                ..
+            } => {
+                self.collect_used_variables_in_statement(init, used);
+                self.collect_used_variables(condition, used);
+                self.collect_used_variables(increment, used);
+                self.collect_used_variables_in_block(body, used);
+            }
+            Statement::ForIn { iter, body, .. } => {
+                self.collect_used_variables(iter, used);
+                self.collect_used_variables_in_block(body, used);
+            }
+            Statement::Switch {
+                expr,
+                cases,
+                default,
+            } => {
+                self.collect_used_variables(expr, used);
+                for case in cases {
+                    for value in &case.values {
+                        self.collect_used_variables(value, used);
+                    }
+                    self.collect_used_variables_in_block(&case.body, used);
+                }
+                if let Some(default_block) = default {
+                    self.collect_used_variables_in_block(default_block, used);
+                }
+            }
+            Statement::NestedFunction { body, .. } => {
+                // Don't traverse into nested functions - they have their own scope
+                self.collect_used_variables_in_block(body, used);
+            }
+            Statement::Return(None) | Statement::Break(_) | Statement::Continue(_) => {
+                // No variables used
+            }
+        }
+    }
+
+    /// Analyze which variables are used in a block
+    fn collect_used_variables_in_block(
+        &self,
+        block: &crate::ast::Block,
+        used: &mut std::collections::HashSet<String>,
+    ) {
+        for stmt in &block.statements {
+            self.collect_used_variables_in_statement(stmt, used);
+        }
+    }
+
+    /// Analyze which variables are modified in an expression (for mutable capture detection)
+    fn collect_modified_variables(
+        &self,
+        expr: &crate::ast::Expression,
+        modified: &mut std::collections::HashSet<String>,
+    ) {
+        use crate::ast::{BinaryOp, Expression};
+
+        match expr {
+            Expression::Binary {
+                op:
+                    _op @ (BinaryOp::Assign
+                    | BinaryOp::AddAssign
+                    | BinaryOp::SubAssign
+                    | BinaryOp::MulAssign
+                    | BinaryOp::DivAssign),
+                left,
+                ..
+            } => {
+                // Mark the left-hand side as modified
+                if let Expression::Ident(ident) = &**left {
+                    modified.insert(ident.name.clone());
+                }
+            }
+            Expression::Unary { op, expr } => {
+                // Increment/decrement operators modify the operand
+                use crate::ast::UnaryOp;
+                match op {
+                    UnaryOp::PreInc | UnaryOp::PostInc | UnaryOp::PreDec | UnaryOp::PostDec => {
+                        if let Expression::Ident(ident) = &**expr {
+                            modified.insert(ident.name.clone());
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Analyze which variables are modified in a statement
+    fn collect_modified_variables_in_statement(
+        &self,
+        stmt: &crate::ast::Statement,
+        modified: &mut std::collections::HashSet<String>,
+    ) {
+        use crate::ast::Statement;
+
+        match stmt {
+            Statement::Let { init, .. } | Statement::Var { init, .. } => {
+                if let Some(expr) = init {
+                    self.collect_modified_variables(expr, modified);
+                }
+            }
+            Statement::Const { value, .. } => {
+                self.collect_modified_variables(value, modified);
+            }
+            Statement::Expr(expr) => {
+                self.collect_modified_variables(expr, modified);
+            }
+            Statement::Return(Some(expr)) => {
+                self.collect_modified_variables(expr, modified);
+            }
+            Statement::If {
+                condition,
+                then_block,
+                else_block,
+            } => {
+                self.collect_modified_variables(condition, modified);
+                self.collect_modified_variables_in_block(then_block, modified);
+                if let Some(else_blk) = else_block {
+                    self.collect_modified_variables_in_block(else_blk, modified);
+                }
+            }
+            Statement::While {
+                condition, body, ..
+            } => {
+                self.collect_modified_variables(condition, modified);
+                self.collect_modified_variables_in_block(body, modified);
+            }
+            Statement::For {
+                init,
+                condition,
+                increment,
+                body,
+                ..
+            } => {
+                self.collect_modified_variables_in_statement(init, modified);
+                self.collect_modified_variables(condition, modified);
+                self.collect_modified_variables(increment, modified);
+                self.collect_modified_variables_in_block(body, modified);
+            }
+            Statement::ForIn { iter, body, .. } => {
+                self.collect_modified_variables(iter, modified);
+                self.collect_modified_variables_in_block(body, modified);
+            }
+            Statement::Switch {
+                expr,
+                cases,
+                default,
+            } => {
+                self.collect_modified_variables(expr, modified);
+                for case in cases {
+                    for value in &case.values {
+                        self.collect_modified_variables(value, modified);
+                    }
+                    self.collect_modified_variables_in_block(&case.body, modified);
+                }
+                if let Some(default_block) = default {
+                    self.collect_modified_variables_in_block(default_block, modified);
+                }
+            }
+            Statement::NestedFunction { body, .. } => {
+                self.collect_modified_variables_in_block(body, modified);
+            }
+            Statement::Return(None) | Statement::Break(_) | Statement::Continue(_) => {
+                // No variables modified
+            }
+        }
+    }
+
+    /// Analyze which variables are modified in a block
+    fn collect_modified_variables_in_block(
+        &self,
+        block: &crate::ast::Block,
+        modified: &mut std::collections::HashSet<String>,
+    ) {
+        for stmt in &block.statements {
+            self.collect_modified_variables_in_statement(stmt, modified);
+        }
+    }
+
+    /// Get the captures for a nested function
+    #[allow(dead_code)]
+    pub fn get_captures(&self, function_name: &str) -> Option<&Vec<Capture>> {
+        self.nested_function_captures.get(function_name)
     }
 }
 
