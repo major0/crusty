@@ -150,7 +150,7 @@ The `goto` statement enables arbitrary control flow that breaks Rust's structure
 Direct pointer arithmetic (e.g., `ptr + offset`) without bounds checking is unsafe. Use Rust's slice indexing, iterators, or explicit unsafe blocks when necessary.
 
 ### #include directives
-C's `#include` preprocessor directive is replaced by Rust's module system. Use `#use` directives to import modules.
+C's `#include` preprocessor directive is replaced by Rust's module system. Use `#import` directives to import modules and `#export` directives to re-export symbols.
 
 ### Preprocessor conditionals
 C preprocessor directives like `#ifdef`, `#ifndef`, `#if` are not supported. Use Rust's `cfg` attributes for conditional compilation.

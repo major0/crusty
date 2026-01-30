@@ -470,7 +470,7 @@ pub enum TokenKind {
     Ident,
     
     // Special
-    Hash,  // # - for preprocessor directives (#use, #ifdef, etc.)
+    Hash,  // # - for preprocessor directives (#import, #export, #ifdef, etc.)
     Bang,  // ! - for error propagation operator (Rust's ?)
     At,    // @ - for type-scoped calls (@Type.method())
     Eof,
@@ -552,7 +552,8 @@ pub enum Item {
     Enum(Enum),
     Typedef(Typedef),
     Namespace(Namespace),
-    Use(Use),
+    Import(Import),
+    Export(Export),
     Extern(Extern),
     Const(Const),
     Static(Static),
@@ -1534,15 +1535,16 @@ fn main() {
 
 For projects with multiple Crusty source files, the transpiler:
 1. Preserves directory structure in the output directory
-2. Resolves `#use` directives to locate local modules
+2. Resolves `#import` and `#export` directives to locate local modules
 3. Builds a module dependency graph
 4. Transpiles files in dependency order
 
 **Module Resolution:**
 
-When encountering a `#use` directive for a local module:
+When encountering a `#import` or `#export` directive for a local module:
 ```crusty
-#use crate.utils.helpers;
+#import crate.utils.helpers;
+#export crate.utils.public_api;
 ```
 
 The transpiler:
@@ -1657,10 +1659,14 @@ Crusty programs can seamlessly integrate with the Rust ecosystem, using external
 Crusty code can import and use types from external Rust crates:
 
 ```crusty
-// Import external crate types
-#use serde.Serialize;
-#use serde.Deserialize;
-#use tokio.runtime.Runtime;
+// Import external crate types (private)
+#import serde.Serialize;
+#import serde.Deserialize;
+#import tokio.runtime.Runtime;
+
+// Or re-export for public API
+#export serde.Serialize;
+#export serde.Deserialize;
 
 // Use external types in Crusty code
 #[derive(Serialize, Deserialize)]
@@ -1898,8 +1904,8 @@ Property 20: Error handling syntax translates correctly
 **Validates: Requirements 46.8, 46.10**
 
 Property 21: Module directives translate correctly
-*For any* #use directive in the AST, the generated Rust code should create a corresponding use statement; for any namespace declaration, the generated Rust code should create a corresponding mod block.
-**Validates: Requirements 47.3, 48.5**
+*For any* #import directive in the AST, the generated Rust code should create a corresponding private use statement; for any #export directive, the generated Rust code should create a corresponding pub use statement; for any namespace declaration, the generated Rust code should create a corresponding mod block.
+**Validates: Requirements 50.3, 50.4, 50.5, 50.6, 51.5**
 
 Property 22: #define macros translate to macro_rules!
 *For any* #define macro definition in the AST, the generated Rust code should create a corresponding macro_rules! definition with parameters translated to pattern variables and the body wrapped in appropriate Rust macro syntax.
@@ -1984,10 +1990,9 @@ The compiler should detect and reject these C features with clear error messages
 
 - **C unions**: Not supported (Rust doesn't have unions in the same way)
 - **goto statements**: Not supported (use Rust's labeled break/continue instead)
-- **#include directives**: Not supported (use #use instead)
+- **#include directives**: Not supported (use #import or #export instead)
 - **Arbitrary pointer arithmetic**: Only safe pointer operations allowed
 - **Implicit type conversions**: Explicit casts required
-
 **Supported with Translation**:
 - **#define macros**: Supported for macro definitions, translate to Rust macro_rules!
 

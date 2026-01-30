@@ -94,7 +94,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
   
   - [x]2.6.3 Implement module resolution
     - Note: Module resolution is handled by Rust's module system
-    - #use directives translate directly to Rust use statements
+    - #import and #export directives translate directly to Rust use statements
     - rustc resolves all module imports and dependencies
     - crustyc only needs to translate syntax (already implemented in parser/codegen)
     - _Requirements: 15.5, 15.6, 15.7, 15.8_
@@ -851,11 +851,13 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Merge multiple namespace blocks with same name
     - _Requirements: 42.1-42.7_
   
-  - [ ]20.2 Add #use directive parsing and code generation
-    - Parse #use directives for module imports
-    - Translate #use to Rust use statements
+  - [ ]20.2 Add #import and #export directive parsing and code generation
+    - Parse #import directives for module imports (private use statements)
+    - Parse #export directives for module re-exports (pub use statements)
+    - Translate #import to Rust use statements
+    - Translate #export to Rust pub use statements
     - Support importing Rust std library modules
-    - _Requirements: 41.1, 41.2, 41.3, 31.3, 31.4, 31.5, 31.6_
+    - _Requirements: 50.1, 50.2, 50.3, 50.4, 50.5, 50.6_
   
   - [ ]20.3 Implement visibility rules
     - Recognize underscore-prefixed identifiers as private
@@ -869,9 +871,10 @@ The implementation follows a bottom-up approach, building core infrastructure fi
   
   - [ ]20.5 Write unit tests for module system
     - Test namespace parsing and generation
-    - Test #use directive handling
+    - Test #import directive handling (private imports)
+    - Test #export directive handling (public re-exports)
     - Test visibility rules
-    - _Requirements: 41.1-41.3, 42.1-42.7, 43.1-43.6_
+    - _Requirements: 50.1-50.17, 51.1-51.8, 52.1-52.6_
 
 - [ ] 21. Implement Rust parser integration
   - [ ]21.1 Integrate syn crate for Rust parsing

@@ -79,18 +79,18 @@
 
 ### 2.6.3 Implement module resolution ⏸️
 
-**Status:** Deferred to Task 19 (Implement module system and visibility)
+**Status:** Deferred to Task 20 (Implement module system and visibility)
 
-**Reason:** Module resolution requires implementing #use directive parsing, which is a significant feature that's part of the module system implementation (Task 19). The infrastructure for multi-file compilation is now in place, but the semantic analysis for resolving symbols across module boundaries requires:
+**Reason:** Module resolution requires implementing #import and #export directive parsing, which is a significant feature that's part of the module system implementation (Task 20). The infrastructure for multi-file compilation is now in place, but the semantic analysis for resolving symbols across module boundaries requires:
 
-1. Parsing #use directives (Task 19.2)
+1. Parsing #import and #export directives (Task 20.2)
 2. Building module dependency graphs
 3. Cross-module symbol resolution
-4. Namespace support (Task 19.1)
+4. Namespace support (Task 20.1)
 
-These features will be implemented as part of the comprehensive module system in Task 19.
+These features will be implemented as part of the comprehensive module system in Task 20.
 
-**Requirements:** 15.5, 15.6, 15.7, 15.8 (to be addressed in Task 19)
+**Requirements:** 15.5, 15.6, 15.7, 15.8 (to be addressed in Task 20)
 
 ### 2.6.5 Write unit tests for build.rs integration ⚠️
 
