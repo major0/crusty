@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Crusty is a C-like programming language that transpiles to Rust. It aims to provide the familiar syntax of C while leveraging Rust's safety guarantees, type system, and ecosystem.
+Crusty is a C-like programming language that transpiles to Rust. It provides a C-like syntax layer over Rust, not a semantic transformation. Crusty is C-like, not C itself — it's a syntax bridge for developers comfortable with C-style syntax, a learning tool to understand Rust through familiar syntax, and a 1:1 compatible layer that maintains full Rust semantics underneath.
 
 ## Rationale
 
