@@ -279,7 +279,6 @@ All documents consistently show:
 1. **#import/#export Implementation Guide**
    - Parser changes needed
    - Code generation details
-   - Migration guide from old #use syntax
 
 2. **Property-Based Testing Strategy**
    - 34 properties mentioned in design
@@ -429,12 +428,6 @@ All documents consistently show:
    - Replace `#use` with `#import`/`#export`
    - Add examples of module import/export
    - ~~Estimated effort: 30 minutes~~ **Actual: 5 minutes**
-
-6. ⏳ **Create #import/#export migration guide** - TODO
-   - Document the change from #use
-   - Provide migration examples
-   - Update parser/codegen sections
-   - Estimated effort: 1 hour
 
 7. ⏳ **Audit orphaned requirements** - TODO
    - Identify requirements without tasks
