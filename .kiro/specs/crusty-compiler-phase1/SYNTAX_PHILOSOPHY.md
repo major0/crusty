@@ -130,6 +130,36 @@ This is the ONLY place where we do semantic transformation, because NULL is a C 
 - Requirements 49.2, 49.4-7, 49.9, 49.11-13 specify semantic transformations
 - These should be removed/updated
 
+## Unsupported C Features
+
+Crusty does NOT support the following C features, as they are incompatible with Rust's safety guarantees:
+
+### unions
+C unions allow multiple fields to share the same memory location, which violates Rust's type safety. Use Rust's enum types instead for tagged unions.
+
+### goto statements
+The `goto` statement enables arbitrary control flow that breaks Rust's structured control flow guarantees. Use loops, match expressions, and early returns instead.
+
+### Unsafe pointer arithmetic
+Direct pointer arithmetic (e.g., `ptr + offset`) without bounds checking is unsafe. Use Rust's slice indexing, iterators, or explicit unsafe blocks when necessary.
+
+### #include directives
+C's `#include` preprocessor directive is replaced by Rust's module system. Use `#use` directives to import modules.
+
+### Preprocessor conditionals
+C preprocessor directives like `#ifdef`, `#ifndef`, `#if` are not supported. Use Rust's `cfg` attributes for conditional compilation.
+
+## Syntax Stability Warning
+
+**IMPORTANT**: Crusty syntax is currently **unstable and evolving**. The language is in active development, and syntax may change between versions without notice.
+
+- Breaking changes may occur in any release
+- Code written for one version may not compile in future versions
+- The syntax is experimental and subject to refinement
+- Production use is not recommended at this time
+
+This is an experimental project to explore C-like syntax over Rust. Use at your own risk.
+
 ## Action Items
 
 1. Update requirements.md to remove semantic transformations from Requirement 49

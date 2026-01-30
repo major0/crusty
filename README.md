@@ -25,6 +25,25 @@ As a general rule, Crusty provides syntax changes over Rust, not semantic ones, 
 - **Not a semantic transformation** - Rust semantics are preserved
 - **Not a replacement for Rust** - It's an alternative syntax for Rust
 
+### Unsupported C Features
+
+Crusty does NOT support the following C features, as they are incompatible with Rust's safety guarantees:
+
+- **unions** - Use Rust enum types for tagged unions instead
+- **goto statements** - Use structured control flow (loops, match, early returns)
+- **Unsafe pointer arithmetic** - Use Rust's slice indexing or iterators
+- **#include directives** - Use `#use` for Rust's module system
+- **Preprocessor conditionals** - Use Rust's `cfg` attributes
+
+### Syntax Stability Warning
+
+⚠️ **IMPORTANT**: Crusty syntax is currently **unstable and evolving**. This is an experimental project in active development.
+
+- Breaking changes may occur in any release
+- Code written for one version may not compile in future versions
+- Production use is not recommended at this time
+- Use at your own risk for experimentation and learning
+
 ### Design Principles
 
 Crusty transforms only syntax, not semantics. Method names, function names, and identifiers pass through unchanged between Crusty and Rust. This ensures:
