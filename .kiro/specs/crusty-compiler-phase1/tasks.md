@@ -633,7 +633,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Validate macro names have double-underscore prefix and suffix
     - _Requirements: 26.1, 26.2, 26.3, 26.4, 26.5, 26.6, 26.7, 26.8_
   
-  - [ ]15.2 Implement macro invocation parsing
+  - [x]15.2 Implement macro invocation parsing
     - Recognize double-underscore pattern in identifiers as potential macro invocations
     - Build macro registry during parsing to track delimiter types
     - Parse macro invocations with correct delimiter based on #define declaration
