@@ -1852,7 +1852,7 @@ Property 7: Variable declarations translate correctly
 **Validates: Requirements 35.7, 35.8, 35.9**
 
 Property 8: Reference syntax translates correctly
-*For any* reference expression in the AST (& for immutable, &var or &mut for mutable), the generated Rust code should use the corresponding Rust reference syntax (& or &mut).
+*For any* reference expression in the AST (& for immutable, var & or &mut for mutable), the generated Rust code should use the corresponding Rust reference syntax (& or &mut).
 **Validates: Requirements 36.10, 36.11**
 
 Property 9: Type casts translate to 'as' operator

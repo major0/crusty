@@ -241,7 +241,7 @@ fn test_property_7_variable_declarations_translate() {
 
 ### Property 8: Reference syntax translates correctly
 
-**Statement**: *For any* reference expression in the AST (& for immutable, &var or &mut for mutable), the generated Rust code should use the corresponding Rust reference syntax (& or &mut).
+**Statement**: *For any* reference expression in the AST (& for immutable, var & or &mut for mutable), the generated Rust code should use the corresponding Rust reference syntax (& or &mut).
 
 **Validates**: Requirements 36.10, 36.11
 

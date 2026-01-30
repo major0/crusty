@@ -275,7 +275,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Implement parse_type() for type expressions
     - Implement parsing for primitive types (int, i32, i64, u32, u64, float, f32, f64, bool, char, void)
     - Implement parsing for pointer types
-    - Implement parsing for reference types (& and &var/&mut)
+    - Implement parsing for reference types (& and var &/&mut)
     - Implement parsing for array types
     - Implement parsing for tuple types
     - Implement parsing for generic types (Type<T>)
@@ -405,7 +405,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Implement generate_type() for all type variants
     - Translate primitive types
     - Translate pointer types to references where safe
-    - Translate reference syntax (& and &var/&mut)
+    - Translate reference syntax (& and var &/&mut)
     - Translate array and slice types
     - Translate tuple types (pass through unchanged)
     - Translate generic types (pass through unchanged)
@@ -524,7 +524,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
 - [x] 14. Implement advanced parsing features
   - [x]14.1 Add support for struct methods
     - Parse C++-style method definitions within structs
-    - Parse self, &self, &var self parameters
+    - Parse self, &self, var &self parameters
     - Parse static methods (no self parameter)
     - Parse type-scoped static method calls with @ prefix and dot notation (@Type.method())
     - Support nested type paths with @ prefix and dot notation (@Foo.Bar.boo() matching Rust's Foo::Bar.boo())
@@ -557,7 +557,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
   
   - [x]14.5 Add support for ranges and slices
     - Parse range syntax (start..end, start..=end, .., start.., ..end)
-    - Parse slice type syntax (&[Type], &var [Type])
+    - Parse slice type syntax (&[Type], var &[Type])
     - Parse slice indexing (arr[start..end])
     - _Requirements: 20.1-20.11_
   

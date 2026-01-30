@@ -183,7 +183,7 @@ This phase serves as an experimental platform to determine which C language feat
 11. THE example .crst files SHALL demonstrate macro usage with double-underscore naming (__println__, __vec__, etc.)
 12. THE example .crst files SHALL demonstrate #define macro definitions with double-underscore naming
 13. THE example .crst files SHALL demonstrate variable declarations (const, var, let, static)
-14. THE example .crst files SHALL demonstrate references and borrowing (&, &var, &mut)
+14. THE example .crst files SHALL demonstrate references and borrowing (&, var &, &mut)
 15. THE example .crst files SHALL demonstrate error handling with fallible return types (Type?)
 16. THE example .crst files SHALL demonstrate NULL and Option type mapping
 17. THE example .crst files SHALL demonstrate #import and #export directives for importing Rust standard library modules
@@ -516,7 +516,7 @@ This phase serves as an experimental platform to determine which C language feat
 1. THE Parser SHALL support C++-style method definitions within struct declarations
 2. THE Parser SHALL support methods with self parameter for instance methods
 3. THE Parser SHALL support methods with &self parameter for immutable instance methods
-4. THE Parser SHALL support methods with &var self or &mut self parameter for mutable instance methods
+4. THE Parser SHALL support methods with var &self or &mut self parameter for mutable instance methods
 5. THE Parser SHALL support static methods (associated functions) without self parameter
 6. THE Parser SHALL support method calls with dot notation (obj.method())
 7. THE Parser SHALL support static method calls with @ prefix and dot notation (@Type.method())
@@ -525,7 +525,7 @@ This phase serves as an experimental platform to determine which C language feat
 10. WHEN generating Rust code, THE Code_Generator SHALL translate struct methods to Rust impl blocks
 11. WHEN generating Rust code, THE Code_Generator SHALL translate self to Rust self
 12. WHEN generating Rust code, THE Code_Generator SHALL translate &self to Rust &self
-13. WHEN generating Rust code, THE Code_Generator SHALL translate &var self and &mut self to Rust &mut self
+13. WHEN generating Rust code, THE Code_Generator SHALL translate var &self and &mut self to Rust &mut self
 14. WHEN generating Rust code, THE Code_Generator SHALL translate @Type.method() to Rust Type::method()
 15. WHEN generating Rust code, THE Code_Generator SHALL translate nested type paths @Foo.Bar.boo() to Rust Foo::Bar.boo()
 16. WHEN generating Rust code, THE Code_Generator SHALL translate @Foo.BAR->boo() to Rust Foo::BAR.boo() (where BAR is a constant and boo() is a method call)
@@ -745,7 +745,7 @@ impl Point {
 4. THE Parser SHALL support range expressions in for loops
 5. THE Parser SHALL support range expressions for array/slice indexing (arr[start..end])
 6. THE Parser SHALL support slice type syntax (&[Type])
-7. THE Parser SHALL support mutable slice type syntax (&var [Type] or &mut [Type])
+7. THE Parser SHALL support mutable slice type syntax (var &[Type] or &mut [Type])
 8. WHEN generating Rust code, THE Code_Generator SHALL pass range syntax directly to Rust unchanged
 9. WHEN generating Rust code, THE Code_Generator SHALL pass slice syntax directly to Rust unchanged
 10. THE Semantic_Analyzer SHALL verify that range bounds are valid integer expressions
@@ -931,23 +931,23 @@ impl Point {
 #### Acceptance Criteria
 
 1. THE Parser SHALL support & syntax for immutable references (immutable borrows)
-2. THE Parser SHALL support &var syntax for mutable references (mutable borrows)
-3. THE Parser SHALL support &mut as an alternative to &var for mutable references
+2. THE Parser SHALL support var & syntax for mutable references (mutable borrows)
+3. THE Parser SHALL support &mut as an alternative to var & for mutable references
 4. THE Parser SHALL support reference syntax in variable declarations, function parameters, and return types
 5. THE Parser SHALL support dereferencing with * operator
 6. THE Parser SHALL use reference syntax in function parameters and return types to indicate lifetimes
-7. WHEN a function parameter uses & or &var, THE Semantic_Analyzer SHALL infer the lifetime relationship between parameters and return values
+7. WHEN a function parameter uses & or var &, THE Semantic_Analyzer SHALL infer the lifetime relationship between parameters and return values
 8. WHEN a function returns a reference, THE Semantic_Analyzer SHALL verify the reference is tied to an input parameter's lifetime
 9. WHEN multiple reference parameters exist, THE Semantic_Analyzer SHALL infer lifetime relationships based on which parameters the return value derives from
 10. WHEN generating Rust code, THE Code_Generator SHALL translate & to Rust immutable references (&)
-11. WHEN generating Rust code, THE Code_Generator SHALL translate &var and &mut to Rust mutable references (&mut)
+11. WHEN generating Rust code, THE Code_Generator SHALL translate var & and &mut to Rust mutable references (&mut)
 12. WHEN generating Rust code, THE Code_Generator SHALL add explicit Rust lifetime annotations where necessary based on inferred relationships
 13. THE Semantic_Analyzer SHALL enforce Rust's borrowing rules (one mutable reference OR multiple immutable references)
-14. THE Semantic_Analyzer SHALL verify that &var (mutable references) are only created from var (mutable) variables
+14. THE Semantic_Analyzer SHALL verify that var & (mutable references) are only created from var (mutable) variables
 15. THE Semantic_Analyzer SHALL verify that references do not outlive their referents
 16. THE Semantic_Analyzer SHALL allow & (immutable references) from both let and var variables
 17. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust & to Crusty &
-18. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust &mut to Crusty &var or &mut
+18. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust &mut to Crusty var & or &mut
 19. WHEN reverse transpiling from Rust, THE Code_Generator SHALL omit explicit lifetime annotations and rely on Crusty's inference
 
 ### Requirement 39: Use Rust Standard Library Directly
@@ -1415,7 +1415,7 @@ fn process<T>(value: T) -> Option<T> { ... }
 1. THE test suite SHALL include tests for all supported Crusty syntax features
 2. THE test suite SHALL include tests for all type system features (primitive types, structs, enums, typedefs, type casting, sizeof)
 3. THE test suite SHALL include tests for all variable declaration keywords (const, var, let, static)
-4. THE test suite SHALL include tests for all reference and borrowing syntax (&, &var, &mut)
+4. THE test suite SHALL include tests for all reference and borrowing syntax (&, var &, &mut)
 5. THE test suite SHALL include tests for all control flow structures (if/else-if/else, while, for variants, switch, break, continue)
 6. THE test suite SHALL include tests for all operators (arithmetic, comparison, logical, bitwise, assignment, increment/decrement, ternary, member access, array subscript, address-of, dereference)
 7. THE test suite SHALL include tests for pointer arithmetic within Rust constraints
