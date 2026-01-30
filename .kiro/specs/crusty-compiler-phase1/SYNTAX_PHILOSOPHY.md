@@ -152,8 +152,8 @@ Direct pointer arithmetic (e.g., `ptr + offset`) without bounds checking is unsa
 ### #include directives
 C's `#include` preprocessor directive is replaced by Rust's module system. Use `#import` directives to import modules and `#export` directives to re-export symbols.
 
-### Preprocessor conditionals
-C preprocessor directives like `#ifdef`, `#ifndef`, `#if` are not supported. Use Rust's `cfg` attributes for conditional compilation.
+### Conditional compilation
+Crusty supports `#ifdef`, `#ifndef`, and `#endif` directives for conditional compilation, which translate to Rust's `cfg` attributes. Other C preprocessor conditionals like `#if`, `#elif`, `#else` (outside of ifdef/ifndef blocks) are not supported.
 
 ## Syntax Stability Warning
 

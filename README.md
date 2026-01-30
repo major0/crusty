@@ -33,7 +33,13 @@ Crusty does NOT support the following C features, as they are incompatible with 
 - **goto statements** - Use structured control flow (loops, match, early returns)
 - **Unsafe pointer arithmetic** - Use Rust's slice indexing or iterators
 - **#include directives** - Use `#import` for Rust's module system
-- **Preprocessor conditionals** - Use Rust's `cfg` attributes
+
+### Supported Conditional Compilation
+
+Crusty supports basic conditional compilation that maps to Rust's `cfg` attributes:
+
+- **#ifdef / #ifndef / #endif** - Translate to Rust's `#[cfg(...)]` attributes
+- Other C preprocessor conditionals (#if, #elif, #else outside ifdef/ifndef) are not supported
 
 ### Syntax Stability Warning
 

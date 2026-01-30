@@ -1404,6 +1404,41 @@ fn process<T>(value: T) -> Option<T> { ... }
 12. WHEN generating Crusty code from Rust, THE Code_Generator SHALL preserve Rust doc comments in Crusty-compatible format
 13. WHEN Rust features cannot be represented in Crusty, THE Transpiler SHALL report an error with explanation
 
+## Testing and Validation
+
+### Requirement 58: Provide Comprehensive Test Coverage for All Syntax Features
+
+**User Story:** As a transpiler developer, I want comprehensive tests for all Crusty syntax features, so that I can ensure correctness and prevent regressions.
+
+#### Acceptance Criteria
+
+1. THE test suite SHALL include tests for all supported Crusty syntax features
+2. THE test suite SHALL include tests for all type system features (primitive types, structs, enums, typedefs, type casting, sizeof)
+3. THE test suite SHALL include tests for all variable declaration keywords (const, var, let, static)
+4. THE test suite SHALL include tests for all reference and borrowing syntax (&, &var, &mut)
+5. THE test suite SHALL include tests for all control flow structures (if/else-if/else, while, for variants, switch, break, continue)
+6. THE test suite SHALL include tests for all operators (arithmetic, comparison, logical, bitwise, assignment, increment/decrement, ternary, member access, array subscript, address-of, dereference)
+7. THE test suite SHALL include tests for pointer arithmetic within Rust constraints
+8. THE test suite SHALL include tests for error handling syntax (Type?, expr? operator, Rust Result API)
+9. THE test suite SHALL include tests for NULL and Option type mapping
+10. THE test suite SHALL include tests for string types (String, &str, char arrays)
+11. THE test suite SHALL include tests for #import and #export directives importing standard Rust modules (std.collections, std.io, std.fs, etc.)
+12. THE test suite SHALL validate that #import and #export directives correctly map to Rust use statements for cross-tool compatibility
+13. THE test suite SHALL include tests for conditional compilation directives (#ifdef, #ifndef, #endif)
+14. THE test suite SHALL include tests for namespace declarations and nested namespaces
+15. THE test suite SHALL include tests for symbol visibility (static functions, underscore-prefixed symbols)
+16. THE test suite SHALL include tests for documentation comment extraction (///, //!, /** */, /*! */)
+17. THE test suite SHALL include tests for main() entry point variants (no parameters, argc/argv)
+18. THE test suite SHALL include tests for function declarations (static/non-static, void/non-void return types)
+19. THE test suite SHALL include tests for all for loop variants (Rust-style for-in, simple C-style, multi-variable C-style)
+20. THE test suite SHALL include tests for bidirectional transpilation (Crusty→Rust→Crusty round-trip)
+21. THE test suite SHALL include tests that verify generated Rust code compiles successfully with rustc
+22. THE test suite SHALL include tests that verify generated Rust code produces correct runtime behavior
+23. THE test suite SHALL include negative tests for unsupported features (unions, #include, goto)
+24. THE test suite SHALL include positive tests for #define macro definitions and their translation to Rust macro_rules!
+25. WHEN a syntax feature is added or modified, THE test suite SHALL be updated to include corresponding tests
+26. THE test suite SHALL achieve at least 90% code coverage of the Parser, Semantic_Analyzer, and Code_Generator components
+
 ### Requirement 59: Support Nested Functions as Closures
 
 **User Story:** As a Crusty programmer, I want to define functions within functions that can capture variables from the enclosing scope, so that I can write closures using familiar C-style function syntax.
@@ -1506,42 +1541,6 @@ pub fn outer_function() {
 - Variables declared **after** a nested function are not accessible to that function
 - Multiple nested functions can capture and share the same outer variables
 - Captures are automatically determined to be immutable (Fn) or mutable (FnMut) based on usage
-
-
-## Testing and Validation
-
-### Requirement 58: Provide Comprehensive Test Coverage for All Syntax Features
-
-**User Story:** As a transpiler developer, I want comprehensive tests for all Crusty syntax features, so that I can ensure correctness and prevent regressions.
-
-#### Acceptance Criteria
-
-1. THE test suite SHALL include tests for all supported Crusty syntax features
-2. THE test suite SHALL include tests for all type system features (primitive types, structs, enums, typedefs, type casting, sizeof)
-3. THE test suite SHALL include tests for all variable declaration keywords (const, var, let, static)
-4. THE test suite SHALL include tests for all reference and borrowing syntax (&, &var, &mut)
-5. THE test suite SHALL include tests for all control flow structures (if/else-if/else, while, for variants, switch, break, continue)
-6. THE test suite SHALL include tests for all operators (arithmetic, comparison, logical, bitwise, assignment, increment/decrement, ternary, member access, array subscript, address-of, dereference)
-7. THE test suite SHALL include tests for pointer arithmetic within Rust constraints
-8. THE test suite SHALL include tests for error handling syntax (Type?, expr? operator, Rust Result API)
-9. THE test suite SHALL include tests for NULL and Option type mapping
-10. THE test suite SHALL include tests for string types (String, &str, char arrays)
-11. THE test suite SHALL include tests for #import and #export directives importing standard Rust modules (std.collections, std.io, std.fs, etc.)
-12. THE test suite SHALL validate that #import and #export directives correctly map to Rust use statements for cross-tool compatibility
-13. THE test suite SHALL include tests for conditional compilation directives (#ifdef, #ifndef, #endif)
-14. THE test suite SHALL include tests for namespace declarations and nested namespaces
-15. THE test suite SHALL include tests for symbol visibility (static functions, underscore-prefixed symbols)
-16. THE test suite SHALL include tests for documentation comment extraction (///, //!, /** */, /*! */)
-17. THE test suite SHALL include tests for main() entry point variants (no parameters, argc/argv)
-18. THE test suite SHALL include tests for function declarations (static/non-static, void/non-void return types)
-19. THE test suite SHALL include tests for all for loop variants (Rust-style for-in, simple C-style, multi-variable C-style)
-20. THE test suite SHALL include tests for bidirectional transpilation (Crusty→Rust→Crusty round-trip)
-21. THE test suite SHALL include tests that verify generated Rust code compiles successfully with rustc
-22. THE test suite SHALL include tests that verify generated Rust code produces correct runtime behavior
-23. THE test suite SHALL include negative tests for unsupported features (unions, #include, goto)
-24. THE test suite SHALL include positive tests for #define macro definitions and their translation to Rust macro_rules!
-25. WHEN a syntax feature is added or modified, THE test suite SHALL be updated to include corresponding tests
-26. THE test suite SHALL achieve at least 90% code coverage of the Parser, Semantic_Analyzer, and Code_Generator components
 
 
 ---
