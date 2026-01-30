@@ -715,7 +715,6 @@ void outer() {
     }
 
     #[test]
-    #[ignore = "Return type checking not yet implemented in semantic analyzer"]
     fn test_error_type_mismatch_in_nested_function() {
         let source = r#"
 void outer() {

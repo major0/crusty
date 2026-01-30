@@ -358,6 +358,8 @@ pub struct SemanticAnalyzer {
     /// Track variables that are modified (for determining mutable captures)
     #[allow(dead_code)]
     modified_variables: std::collections::HashSet<String>,
+    /// Track the expected return type for the current function being analyzed
+    expected_return_type: Option<Type>,
 }
 
 impl SemanticAnalyzer {
@@ -369,6 +371,7 @@ impl SemanticAnalyzer {
             errors: Vec::new(),
             nested_function_captures: HashMap::new(),
             modified_variables: std::collections::HashSet::new(),
+            expected_return_type: None,
         }
     }
 
@@ -458,6 +461,14 @@ impl SemanticAnalyzer {
             return;
         }
 
+        // Set expected return type for this function
+        let old_return_type = self.expected_return_type.clone();
+        self.expected_return_type = if let Some(ref return_type) = func.return_type {
+            Some(return_type.clone())
+        } else {
+            Some(Type::Primitive(crate::ast::PrimitiveType::Void))
+        };
+
         // Enter function scope
         self.symbol_table.enter_scope();
 
@@ -490,6 +501,9 @@ impl SemanticAnalyzer {
 
         // Exit function scope
         self.symbol_table.exit_scope();
+
+        // Restore previous return type
+        self.expected_return_type = old_return_type;
     }
 
     /// Analyze a struct definition
@@ -895,9 +909,44 @@ impl SemanticAnalyzer {
             }
 
             Statement::Return(expr) => {
-                // Analyze the return expression if present
+                // Analyze the return expression if present and check type
                 if let Some(ref return_expr) = expr {
-                    self.analyze_expression(return_expr);
+                    let return_type = self.analyze_expression(return_expr);
+
+                    // Check if return type matches expected return type
+                    if let Some(ref expected_type) = self.expected_return_type {
+                        if !self.type_env.is_compatible(expected_type, &return_type) {
+                            self.errors.push(SemanticError::new(
+                                Span::new(
+                                    crate::error::Position::new(0, 0),
+                                    crate::error::Position::new(0, 0),
+                                ),
+                                SemanticErrorKind::TypeMismatch,
+                                format!(
+                                    "return type mismatch: expected {:?}, found {:?}",
+                                    expected_type, return_type
+                                ),
+                            ));
+                        }
+                    }
+                } else {
+                    // Returning void - check if function expects void
+                    if let Some(ref expected_type) = self.expected_return_type {
+                        let void_type = Type::Primitive(crate::ast::PrimitiveType::Void);
+                        if !self.type_env.is_compatible(expected_type, &void_type) {
+                            self.errors.push(SemanticError::new(
+                                Span::new(
+                                    crate::error::Position::new(0, 0),
+                                    crate::error::Position::new(0, 0),
+                                ),
+                                SemanticErrorKind::TypeMismatch,
+                                format!(
+                                    "return type mismatch: expected {:?}, found void",
+                                    expected_type
+                                ),
+                            ));
+                        }
+                    }
                 }
             }
 
@@ -1169,6 +1218,14 @@ impl SemanticAnalyzer {
                 self.nested_function_captures
                     .insert(name.name.clone(), captures);
 
+                // Set expected return type for this nested function
+                let old_return_type = self.expected_return_type.clone();
+                self.expected_return_type = if let Some(ref ret_type) = return_type {
+                    Some(ret_type.clone())
+                } else {
+                    Some(Type::Primitive(crate::ast::PrimitiveType::Void))
+                };
+
                 // Enter new scope for nested function
                 self.symbol_table.enter_scope();
 
@@ -1197,6 +1254,9 @@ impl SemanticAnalyzer {
 
                 // Exit nested function scope
                 self.symbol_table.exit_scope();
+
+                // Restore previous return type
+                self.expected_return_type = old_return_type;
             }
         }
     }
