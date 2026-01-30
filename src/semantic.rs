@@ -3786,4 +3786,64 @@ mod tests {
             error_msg
         );
     }
+
+    #[test]
+    fn test_resolve_type_generic_alias() {
+        let mut env = TypeEnvironment::new();
+
+        // Register typedef Vec[int] IntVec
+        env.register_type(
+            "IntVec".to_string(),
+            TypeInfo::new(
+                "IntVec".to_string(),
+                TypeKind::Alias {
+                    target: Type::Generic {
+                        base: Box::new(Type::Ident(Ident::new("Vec"))),
+                        args: vec![Type::Primitive(PrimitiveType::Int)],
+                    },
+                },
+            ),
+        );
+
+        let alias_type = Type::Ident(Ident::new("IntVec"));
+        let resolved = env.resolve_type(&alias_type);
+
+        match resolved {
+            Type::Generic { base, args } => {
+                assert!(matches!(*base, Type::Ident(ref i) if i.name == "Vec"));
+                assert_eq!(args.len(), 1);
+                assert!(matches!(args[0], Type::Primitive(PrimitiveType::Int)));
+            }
+            _ => panic!("Expected generic type"),
+        }
+    }
+
+    #[test]
+    fn test_is_compatible_with_generic_typedef() {
+        let mut env = TypeEnvironment::new();
+
+        // Register typedef Vec[int] IntVec
+        env.register_type(
+            "IntVec".to_string(),
+            TypeInfo::new(
+                "IntVec".to_string(),
+                TypeKind::Alias {
+                    target: Type::Generic {
+                        base: Box::new(Type::Ident(Ident::new("Vec"))),
+                        args: vec![Type::Primitive(PrimitiveType::Int)],
+                    },
+                },
+            ),
+        );
+
+        let alias_type = Type::Ident(Ident::new("IntVec"));
+        let generic_type = Type::Generic {
+            base: Box::new(Type::Ident(Ident::new("Vec"))),
+            args: vec![Type::Primitive(PrimitiveType::Int)],
+        };
+
+        // IntVec should be compatible with Vec[int]
+        assert!(env.is_compatible(&alias_type, &generic_type));
+        assert!(env.is_compatible(&generic_type, &alias_type));
+    }
 }

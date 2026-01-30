@@ -5,18 +5,19 @@ Complete reference for Crusty syntax, transformations, and language features.
 ## Table of Contents
 
 1. [Functions and Types](#functions-and-types)
-2. [Structs and Methods](#structs-and-methods)
-3. [Control Flow](#control-flow)
-4. [Error Handling](#error-handling)
-5. [NULL Handling](#null-handling)
-6. [Macros and Type-Scoped Calls](#macros-and-type-scoped-calls)
-7. [Module System](#module-system)
-8. [Generic Type Parameters](#generic-type-parameters)
-9. [Defining Macros](#defining-macros)
-10. [Labeled Loops](#labeled-loops)
-11. [Raw Rust Code](#raw-rust-code)
-12. [Closures with Nested Functions](#closures-with-nested-functions)
-13. [Implementation Blocks](#implementation-blocks)
+2. [Type Aliases](#type-aliases)
+3. [Structs and Methods](#structs-and-methods)
+4. [Control Flow](#control-flow)
+5. [Error Handling](#error-handling)
+6. [NULL Handling](#null-handling)
+7. [Macros and Type-Scoped Calls](#macros-and-type-scoped-calls)
+8. [Module System](#module-system)
+9. [Generic Type Parameters](#generic-type-parameters)
+10. [Defining Macros](#defining-macros)
+11. [Labeled Loops](#labeled-loops)
+12. [Raw Rust Code](#raw-rust-code)
+13. [Closures with Nested Functions](#closures-with-nested-functions)
+14. [Implementation Blocks](#implementation-blocks)
 
 ---
 
@@ -55,6 +56,169 @@ fn helper(n: i32) -> i32 {
     n * 2
 }
 ```
+
+---
+
+## Type Aliases
+
+Crusty supports general type aliases using `typedef`, allowing you to create alternative names for any type.
+
+### Simple Type Aliases
+
+```c
+// Create aliases for primitive types
+typedef int MyInt;
+typedef float MyFloat;
+typedef bool Flag;
+
+// Use type aliases interchangeably with original types
+void example() {
+    let x: MyInt = 42;        // MyInt is compatible with int
+    let y: int = x;           // Can assign MyInt to int
+    let z: MyFloat = 3.14;
+}
+```
+
+**Translates to Rust:**
+```rust
+pub type MyInt = i32;
+pub type MyFloat = f64;
+pub type Flag = bool;
+
+pub fn example() {
+    let x: MyInt = 42;
+    let y: i32 = x;
+    let z: MyFloat = 3.14;
+}
+```
+
+### Pointer and Reference Type Aliases
+
+```c
+// Pointer type aliases (prefix * syntax)
+typedef *int IntPtr;
+typedef *char CharPtr;
+
+// Reference type aliases
+typedef &int IntRef;
+typedef &var int MutIntRef;
+
+void pointer_example() {
+    let value: int = 100;
+    let ptr: IntPtr = &value;
+    let ref: IntRef = &value;
+}
+```
+
+**Translates to Rust:**
+```rust
+pub type IntPtr = *mut i32;
+pub type CharPtr = *mut i8;
+pub type IntRef = &i32;
+pub type MutIntRef = &mut i32;
+
+pub fn pointer_example() {
+    let value: i32 = 100;
+    let ptr: IntPtr = &value as *mut i32;
+    let ref_val: IntRef = &value;
+}
+```
+
+### Custom Type Aliases
+
+```c
+// Alias for struct types
+struct Point {
+    int x;
+    int y;
+}
+
+typedef Point PointAlias;
+typedef Point* PointPtr;
+
+void custom_type_example() {
+    let p: PointAlias = Point { x: 10, y: 20 };
+    let ptr: PointPtr = &p;
+}
+```
+
+**Translates to Rust:**
+```rust
+pub struct Point {
+    pub x: i32,
+    pub y: i32,
+}
+
+pub type PointAlias = Point;
+pub type PointPtr = *mut Point;
+
+pub fn custom_type_example() {
+    let p: PointAlias = Point { x: 10, y: 20 };
+    let ptr: PointPtr = &p as *mut Point;
+}
+```
+
+### Chained Type Aliases
+
+```c
+// Type aliases can reference other aliases
+typedef int Integer;
+typedef Integer Number;
+typedef Number Count;
+
+// All three are compatible with int
+void chained_example() {
+    let a: int = 1;
+    let b: Integer = a;
+    let c: Number = b;
+    let d: Count = c;
+}
+```
+
+**Translates to Rust:**
+```rust
+pub type Integer = i32;
+pub type Number = Integer;
+pub type Count = Number;
+
+pub fn chained_example() {
+    let a: i32 = 1;
+    let b: Integer = a;
+    let c: Number = b;
+    let d: Count = c;
+}
+```
+
+### Generic Type Aliases
+
+```c
+// Aliases for generic types
+typedef Vec[int] IntVec;
+typedef HashMap[String, int] StringIntMap;
+
+void generic_example() {
+    let numbers: IntVec = Vec(int).new();
+    let map: StringIntMap = HashMap(String, int).new();
+}
+```
+
+**Translates to Rust:**
+```rust
+pub type IntVec = Vec<i32>;
+pub type StringIntMap = HashMap<String, i32>;
+
+pub fn generic_example() {
+    let numbers: IntVec = Vec::<i32>::new();
+    let map: StringIntMap = HashMap::<String, i32>::new();
+}
+```
+
+### Type Alias Best Practices
+
+- **Use meaningful names**: `UserId` instead of `MyInt`
+- **Document purpose**: Add comments explaining why the alias exists
+- **Avoid circular references**: `typedef A B; typedef B A;` will cause an error
+- **Keep it simple**: Don't create unnecessarily long alias chains
 
 ---
 
