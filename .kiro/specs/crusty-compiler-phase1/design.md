@@ -4,7 +4,18 @@
 
 The Crusty transpiler (crustyc) is a bidirectional tool that translates between Crusty (a C-like language) and Rust source code. This phase 1 implementation establishes the core transpiler infrastructure and determines which C language features can be preserved while maintaining Rust compatibility.
 
-**Core Philosophy**: Crusty is a **syntactic transpilation layer, not a semantic one**. This design document follows the principles outlined in [SYNTAX_PHILOSOPHY.md](SYNTAX_PHILOSOPHY.md): method names, function names, and identifiers pass through unchanged, with NULL being the ONLY semantic exception.
+**Core Philosophy**: Crusty is a **C-like syntax layer over Rust, not a semantic transformation**. As a general rule, Crusty provides syntax changes over Rust, not semantic ones, though a few C-like semantics are brought over:
+
+- **NULL**: C keyword with no Rust equivalent
+- **for(;;)**: C-style infinite loops
+- **switch/case**: C-style switch statements  
+- **#define**: C-style preprocessor macros
+
+Crusty also introduces C-inspired syntax (like `@` for type-scoped calls and `__macro__` for macros) that maintains 1:1 compatibility with Rust. Method names, function names, and identifiers pass through unchanged.
+
+**Important**: Crusty is **C-like**, not C. It does not compile native C code, does not provide standard C library functions, and makes no attempt to be a C compatibility layer.
+
+This design document follows the principles outlined in [SYNTAX_PHILOSOPHY.md](SYNTAX_PHILOSOPHY.md).
 
 The transpiler follows a traditional multi-phase architecture:
 1. **Lexical Analysis**: Tokenize source code
@@ -23,6 +34,7 @@ The design supports bidirectional transpilation, meaning the same AST representa
 - **Safety First**: Reject C features that violate Rust's safety guarantees
 - **Familiar Syntax**: Provide C-like syntax that maps cleanly to Rust semantics
 - **Syntax-Only Transformations**: Transform only syntax (Type?, @Type.method()), not semantics (expr? and method/function names pass through)
+- **Selective C Semantics**: Support a few C-like semantic constructs (NULL, for(;;), switch/case, #define) for familiarity
 - **Escape Hatch**: Support __rust__ macro for embedding raw Rust code when needed
 
 ## Development Workflow and Infrastructure

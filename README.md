@@ -7,38 +7,67 @@ Crusty is a C-like programming language that transpiles to Rust, providing famil
 
 ## Philosophy
 
-**Crusty is a syntactic transpilation layer, not a semantic one.**
+**Crusty is a C-like syntax layer over Rust, not a semantic transformation.**
 
-Crusty transforms only syntax, not semantics. Method names, function names, and identifiers pass through unchanged between Crusty and Rust. This design principle ensures:
+As a general rule, Crusty provides syntax changes over Rust, not semantic ones, though a few C-like semantics are brought over for familiarity. Crusty is **C-like**, not C itself.
+
+### What Crusty Is
+
+- A **syntax bridge** for developers comfortable with C-style syntax
+- A **learning tool** to help understand Rust through familiar syntax
+- A **1:1 compatible** layer that maintains full Rust semantics
+- A way to write Rust code with C-like appearance
+
+### What Crusty Is NOT
+
+- **Not a C compiler** - Does not compile native C code
+- **Not a C compatibility layer** - No standard C library functions
+- **Not a semantic transformation** - Rust semantics are preserved
+- **Not a replacement for Rust** - It's an alternative syntax for Rust
+
+### Design Principles
+
+Crusty transforms only syntax, not semantics. Method names, function names, and identifiers pass through unchanged between Crusty and Rust. This ensures:
 
 - **Transparent transpilation**: You know exactly what Rust code will be generated
 - **Bidirectional conversion**: True Crusty ↔ Rust round-trip transpilation
 - **No conflicts**: Won't hijack your user-defined functions
 - **Simplicity**: Less magic, fewer surprises
 
-### What IS Transformed (Syntax Only)
-- `Type?` → `Result<Type, Box<dyn std::error::Error>>` (fallible return types)
-- `expr?` → `expr?` (error propagation operator - pass through)
-- `@Type.method()` → `Type::method()` (type-scoped calls)
-- `.label:` → `'label:` (loop labels)
-- `NULL` → `Option::None` (special case - see below)
+### C-Like Semantics (Selective)
+
+A few C-like semantic constructs are supported:
+
+- **NULL**: `NULL` → `Option::None` (C keyword with no Rust equivalent)
+- **for(;;)**: C-style infinite loops → `loop`
+- **switch/case**: C-style switch statements → Rust match expressions
+- **#define**: C-style macros → Rust declarative macros
+
+### Pure Syntax Transformations
+
+- `Type?` → `Result<Type, Box<dyn std::error::Error>>` (fallible types)
+- `expr?` → `expr?` (error propagation - pass through)
+- `@Type.method()` → `Type::method()` (type-scoped calls with @ prefix)
+- `.label:` → `'label:` (loop labels with dot prefix)
+- `__macro__()` → `macro!()` (double-underscore for macros)
+
+**Note:** The `@` prefix and double-underscore syntax are Crusty innovations in the C spirit, maintaining 1:1 Rust compatibility.
 
 ### What is NOT Transformed (Pass Through)
+
 - Method names: `.is_err()`, `.is_ok()`, `.unwrap()` (unchanged)
 - Function names: `Ok()`, `Err()` (unchanged)
 - User-defined identifiers (unchanged)
 
 ### The NULL Exception
 
-`NULL` is the **ONLY** semantic transformation in Crusty. It's a C keyword with no direct Rust equivalent, so it requires special handling:
+`NULL` is the **ONLY** semantic transformation in Crusty. It's a C keyword with no direct Rust equivalent:
 
 ```c
 void* ptr = NULL;        // → let ptr: Option<&()> = Option::None;
 if (ptr == NULL) { }     // → if ptr.is_none() { }
 if (ptr != NULL) { }     // → if ptr.is_some() { }
 ```
-
-For all other cases, use Rust's standard API directly.
 
 **See**: [SYNTAX_PHILOSOPHY.md](.kiro/specs/crusty-compiler-phase1/SYNTAX_PHILOSOPHY.md) for detailed rationale.
 

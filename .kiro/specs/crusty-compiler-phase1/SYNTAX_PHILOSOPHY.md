@@ -2,34 +2,73 @@
 
 ## Core Principle
 
-**Crusty is a SYNTACTIC transpilation layer, not a SEMANTIC one.**
+**Crusty is a C-like SYNTAX layer over Rust, not a semantic transformation.**
+
+As a general rule, Crusty provides syntax changes over Rust, not semantic ones, though a few C-like semantics are brought over for familiarity. Crusty is **C-like**, not C itself.
+
+### What Crusty Is
+
+- A **syntax bridge** for developers comfortable with C-style syntax
+- A **learning tool** to help understand Rust through familiar syntax
+- A **1:1 compatible** layer that maintains full Rust semantics underneath
+- A way to write Rust code with C-like appearance
+
+### What Crusty Is NOT
+
+- **Not a C compiler** - Crusty does not compile native C code
+- **Not a C compatibility layer** - No standard C library functions
+- **Not a semantic transformation** - Rust semantics are preserved
+- **Not a replacement for Rust** - It's an alternative syntax for Rust
 
 Method names, function names, and identifiers pass through unchanged between Crusty and Rust. This preserves:
 - Bidirectional transpilation (Crusty ↔ Rust)
 - No conflicts with user-defined functions
 - Transparent mapping between languages
+- Full Rust ecosystem compatibility
 
-## Syntax Transformations (Allowed)
+## C-Like Semantics Brought Over
 
-These are pure syntax changes that don't affect semantics:
+A few C-like semantic constructs are supported to provide familiarity:
+
+### 1. NULL (Special Semantic Exception)
+- `NULL` → `Option::None` (C keyword with no Rust equivalent)
+- `ptr == NULL` → `ptr.is_none()` (NULL comparison)
+- `ptr != NULL` → `ptr.is_some()` (NULL comparison)
+
+**Rationale:** NULL is a C keyword that has no direct Rust syntax equivalent. This is the ONLY semantic transformation.
+
+### 2. C-Style Loops
+- `for(;;)` → `loop` (infinite loop)
+- `for(init; cond; update)` → Rust for loop equivalent
+
+### 3. Switch Statements
+- `switch(expr) { case val: ... }` → `match expr { val => ... }`
+- C-style switch/case syntax maps to Rust match expressions
+
+### 4. Macro Definitions
+- `#define __MACRO__() body` → `macro_rules! macro { ... }`
+- C-style preprocessor macros map to Rust declarative macros
+
+## Pure Syntax Transformations
+
+These are syntax-only changes that maintain Rust semantics:
 
 ### 1. Type Syntax
 - `Type?` → `Result<Type, Box<dyn std::error::Error>>`
-- `int` → `i32`
-- `float` → `f64`
+- `int` → `i32`, `float` → `f64`
 - `void` → `()` (no return annotation)
 
-### 2. Operator Syntax
-- `expr?` → `expr?` (error propagation - pass through)
-- `@Type.method()` → `Type::method()` (type-scoped calls)
-- `.label:` → `'label:` (loop labels)
+### 2. C-Inspired Syntax (Crusty Innovations)
+- `@Type.method()` → `Type::method()` (type-scoped calls with @ prefix)
+- `.label:` → `'label:` (loop labels with dot prefix)
+- `__macro__()` → `macro!()` (double-underscore for macros)
 
-### 3. NULL Special Case (ONLY Exception)
-- `NULL` → `Option::None` (special keyword transformation)
-- `ptr == NULL` → `ptr.is_none()` (NULL comparison transformation)
-- `ptr != NULL` → `ptr.is_some()` (NULL comparison transformation)
+**Note:** The `@` prefix and double-underscore syntax are Crusty innovations in the C spirit, maintaining 1:1 Rust compatibility.
 
-**Rationale:** NULL is a special C keyword that has no direct Rust equivalent. This is the ONLY semantic transformation allowed.
+### 3. Operator Syntax (Pass Through)
+- `expr?` → `expr?` (error propagation - unchanged)
+- Method calls pass through unchanged
+- Function calls pass through unchanged
 
 ## What is NOT Transformed
 
