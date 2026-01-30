@@ -15,6 +15,13 @@ The Crusty compiler has **excellent test coverage** with 376 comprehensive tests
 - **Test-to-Code Ratio:** ~1 test per 47 lines of code
 - **Pass Rate:** 99.7% (1 known issue in pretty-printer)
 
+### Critical Finding
+⚠️ **Pretty Printer Roundtrip Test Failing**
+- **Root Cause:** Property test generator creates variable names that match type keywords (e.g., `u32`, `i32`, `i64`)
+- **Impact:** Parser treats these as type declarations instead of variable names
+- **Example:** `let u32: int = 42;` is parsed as a type declaration, not a variable
+- **Fix Required:** Add type keywords to the identifier filter in `arb_simple_statement()`
+
 ---
 
 ## Module-by-Module Analysis
@@ -430,8 +437,12 @@ The Crusty compiler has **excellent test coverage** with 376 comprehensive tests
 
 ### Known Issues:
 1. **Pretty Printer Roundtrip:** Property 27 failing due to identifier/type keyword conflicts
-   - Impact: Low (doesn't affect core functionality)
-   - Recommendation: Fix identifier handling in pretty printer
+   - **Root Cause:** Property test generator (`arb_simple_statement`) doesn't filter out type keywords
+   - **Specific Issue:** Generates variable names like `u32`, `i32`, `i64`, `u64`, `f32`, `f64`, `bool`, `char`
+   - **Parser Behavior:** Treats these as type declarations, not variable names
+   - **Example Failure:** `let u32: int = 42;` parsed as nested function declaration attempt
+   - **Impact:** Low (doesn't affect core functionality, only property test)
+   - **Fix:** Add type keywords to filter: `"int" | "i32" | "i64" | "u32" | "u64" | "float" | "f32" | "f64" | "bool" | "char" | "void"`
 
 ---
 
@@ -449,10 +460,14 @@ The Crusty compiler has **excellent test coverage** with 376 comprehensive tests
 ### High Priority:
 1. ✅ **COMPLETED:** Implement return type checking for nested functions
 2. ✅ **COMPLETED:** Add comprehensive nested function tests
+3. **FIX PROPERTY TEST:** Add type keywords to identifier filter in `src/pretty_properties.rs`
+   - Add to filter in `arb_simple_statement()`: `"int"`, `"i32"`, `"i64"`, `"u32"`, `"u64"`, `"float"`, `"f32"`, `"f64"`, `"bool"`, `"char"`, `"void"`
+   - This will fix Property 27 and achieve 100% test pass rate
+   - **Estimated effort:** 5 minutes
 
 ### Medium Priority:
-1. **Fix Pretty Printer:** Resolve identifier/type keyword conflict in Property 27
-   - This will bring test pass rate to 100%
+1. Consider adding more edge case tests for type/identifier ambiguity
+2. Add property test for parser lookahead with type keywords
 
 ### Low Priority:
 1. Consider adding more integration tests for complex multi-file scenarios
