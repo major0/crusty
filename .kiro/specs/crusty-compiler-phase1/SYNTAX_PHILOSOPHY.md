@@ -2,9 +2,9 @@
 
 ## Core Principle
 
-**Crusty is a C-like SYNTAX layer over Rust, not a semantic transformation.**
+**Crusty is primarily a SYNTAX layer over Rust, with selective semantic enhancements.**
 
-As a general rule, Crusty provides syntax changes over Rust, not semantic ones, though a few C-like semantics are brought over for familiarity. Crusty is **C-like**, not C itself.
+As a general rule, Crusty provides syntax changes over Rust. However, a few C-like semantic constructs are brought over for familiarity, where they can map cleanly to Rust's semantics. Crusty is **C-like**, not C itself.
 
 ### What Crusty Is
 
@@ -28,27 +28,33 @@ Method names, function names, and identifiers pass through unchanged between Cru
 
 ## C-Like Semantics Brought Over
 
-A few C-like semantic constructs are supported to provide familiarity:
+Several C-like semantic constructs are supported to provide familiarity. These are semantic transformations because they introduce control flow, scoping, or compile-time behavior that requires scaffolding beyond simple syntax mapping:
 
-### 1. NULL (Special Semantic Exception)
+### 1. NULL (Semantic Transformation)
 - `NULL` → `Option::None` (C keyword with no Rust equivalent)
 - `ptr == NULL` → `ptr.is_none()` (NULL comparison)
 - `ptr != NULL` → `ptr.is_some()` (NULL comparison)
 
-**Rationale:** NULL is a C keyword that has no direct Rust syntax equivalent. This is the ONLY semantic transformation.
+**Why Semantic:** NULL is a C keyword that maps to a completely different Rust concept (Option type). This requires understanding the semantic intent of null pointer checks.
 
-### 2. C-Style For Loops
-- `for(init; cond; update) { ... }` → Rust loop equivalent
+### 2. C-Style For Loops (Semantic Transformation)
+- `for(int i = 0; i < 100; i++) { ... }` → Rust loop with variable scoping
+- `for(int i = 0, j = 2; i < 100; i++) { ... }` → Multiple variable initialization
 - `for(;;) { ... }` → `loop { ... }` (infinite loop as special case)
-- Traditional three-part C for-loop syntax
 
-### 3. Switch Statements
+**Why Semantic:** C-style for loops introduce variable scoping (variables declared in init are scoped to the loop) and require scaffolding to translate the three-part structure (init; condition; update) into Rust's loop constructs.
+
+### 3. Switch Statements (Semantic Transformation)
 - `switch(expr) { case val: ... }` → `match expr { val => ... }`
-- C-style switch/case syntax maps to Rust match expressions
+- C-style switch/case with fall-through → Rust match with exhaustive patterns
 
-### 4. Macro Definitions
+**Why Semantic:** Switch statements have different semantics than Rust's match (fall-through vs. exhaustive matching). The transformation must handle break statements, default cases, and pattern matching differently.
+
+### 4. Macro Definitions (Semantic Transformation)
 - `#define __MACRO__() body` → `macro_rules! macro { ... }`
-- C-style preprocessor macros map to Rust declarative macros
+- C-style preprocessor macros → Rust declarative macros
+
+**Why Semantic:** C preprocessor macros are compile-time text substitution, while Rust macros are token-based with hygiene. The transformation requires understanding macro expansion semantics and translating between fundamentally different macro systems.
 
 ## Pure Syntax Transformations
 

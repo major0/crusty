@@ -4,12 +4,12 @@
 
 Crusty is a C-like programming language that transpiles to Rust, enabling developers to write code with familiar C syntax while leveraging the safety and performance of the Rust ecosystem. Phase 1 focuses on building two tools: `crustyc` (a bidirectional transpiler that translates between Crusty and Rust source code) and `crustydoc` (a documentation generator that leverages rustdoc for generating high-quality documentation).
 
-**Core Philosophy**: Crusty is a **C-like syntax layer over Rust, not a semantic transformation**. As a general rule, Crusty provides syntax changes over Rust, not semantic ones, though a few C-like semantics are brought over for familiarity:
+**Core Philosophy**: Crusty is primarily a **syntax layer over Rust, with selective semantic enhancements**. As a general rule, Crusty provides syntax changes over Rust. However, a few C-like semantic constructs are brought over for familiarity, where they can map cleanly to Rust's semantics:
 
-- **NULL**: C keyword with no Rust equivalent
-- **C-style for loops**: Traditional three-part for loops `for(init; cond; update)`
-- **switch/case**: C-style switch statements
-- **#define**: C-style preprocessor macros
+- **NULL**: C keyword that maps to Rust's Option type (semantic transformation)
+- **C-style for loops**: Traditional three-part for loops `for(int i = 0; i < 100; i++)` with variable scoping (semantic transformation)
+- **switch/case**: C-style switch statements that map to Rust match expressions (semantic transformation)
+- **#define**: C-style preprocessor macros that map to Rust declarative macros (semantic transformation)
 
 Crusty also introduces C-inspired syntax (like `@` for type-scoped calls) that maintains 1:1 compatibility with Rust. Method names, function names, and identifiers pass through unchanged between Crusty and Rust.
 

@@ -7,9 +7,9 @@ Crusty is a C-like programming language that transpiles to Rust, providing famil
 
 ## Philosophy
 
-**Crusty is a C-like syntax layer over Rust, not a semantic transformation.**
+**Crusty is primarily a syntax layer over Rust, with selective semantic enhancements.**
 
-As a general rule, Crusty provides syntax changes over Rust, not semantic ones, though a few C-like semantics are brought over for familiarity. Crusty is **C-like**, not C itself.
+As a general rule, Crusty provides syntax changes over Rust. However, a few C-like semantic constructs are brought over for familiarity, where they can map cleanly to Rust's semantics. Crusty is **C-like**, not C itself.
 
 ### What Crusty Is
 
@@ -55,12 +55,12 @@ Crusty transforms only syntax, not semantics. Method names, function names, and 
 
 ### C-Like Semantics (Selective)
 
-A few C-like semantic constructs are supported:
+Several C-like semantic constructs are supported. These are semantic transformations because they introduce control flow, scoping, or compile-time behavior that requires scaffolding:
 
-- **NULL**: `NULL` → `Option::None` (C keyword with no Rust equivalent)
-- **C-style for loops**: `for(init; cond; update)` → Rust loop equivalent
-- **switch/case**: C-style switch statements → Rust match expressions
-- **#define**: C-style macros → Rust declarative macros
+- **NULL**: `NULL` → `Option::None` (maps C keyword to Rust's Option type)
+- **C-style for loops**: `for(int i = 0; i < 100; i++)` → Rust loop with variable scoping
+- **switch/case**: C-style switch statements → Rust match expressions with different semantics
+- **#define**: C-style preprocessor macros → Rust declarative macros (different macro systems)
 
 ### Pure Syntax Transformations
 
@@ -78,14 +78,31 @@ A few C-like semantic constructs are supported:
 - Function names: `Ok()`, `Err()` (unchanged)
 - User-defined identifiers (unchanged)
 
-### The NULL Exception
+### Semantic Transformations
 
-`NULL` is the **ONLY** semantic transformation in Crusty. It's a C keyword with no direct Rust equivalent:
+Crusty includes several semantic transformations from C to Rust. These go beyond simple syntax mapping because they require understanding control flow, scoping, and compile-time behavior:
 
+**NULL Handling** - Maps C keyword to Rust's Option type:
 ```c
 void* ptr = NULL;        // → let ptr: Option<&()> = Option::None;
 if (ptr == NULL) { }     // → if ptr.is_none() { }
 if (ptr != NULL) { }     // → if ptr.is_some() { }
+```
+
+**C-Style For Loops** - Introduces variable scoping and control flow scaffolding:
+```c
+for (int i = 0; i < 100; i++) {  // → Rust loop with scoped variable
+    // i is scoped to loop body
+}
+```
+
+**Switch Statements** - Maps C fall-through semantics to Rust exhaustive matching:
+```c
+switch (x) {                     // → Rust match expression
+    case 1: break;
+    case 2: break;
+    default: break;
+}
 ```
 
 **See**: [SYNTAX_PHILOSOPHY.md](.kiro/specs/crusty-compiler-phase1/SYNTAX_PHILOSOPHY.md) for detailed rationale.

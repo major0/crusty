@@ -4,12 +4,12 @@
 
 The Crusty transpiler (crustyc) is a bidirectional tool that translates between Crusty (a C-like language) and Rust source code. This phase 1 implementation establishes the core transpiler infrastructure and determines which C language features can be preserved while maintaining Rust compatibility.
 
-**Core Philosophy**: Crusty is a **C-like syntax layer over Rust, not a semantic transformation**. As a general rule, Crusty provides syntax changes over Rust, not semantic ones, though a few C-like semantics are brought over:
+**Core Philosophy**: Crusty is primarily a **syntax layer over Rust, with selective semantic enhancements**. As a general rule, Crusty provides syntax changes over Rust. However, a few C-like semantic constructs are brought over for familiarity, where they can map cleanly to Rust's semantics:
 
-- **NULL**: C keyword with no Rust equivalent
-- **C-style for loops**: Traditional three-part for loops `for(init; cond; update)`
-- **switch/case**: C-style switch statements  
-- **#define**: C-style preprocessor macros
+- **NULL**: C keyword that maps to Rust's Option type (semantic transformation)
+- **C-style for loops**: Traditional three-part for loops `for(int i = 0; i < 100; i++)` with variable scoping (semantic transformation)
+- **switch/case**: C-style switch statements that map to Rust match expressions (semantic transformation)
+- **#define**: C-style preprocessor macros that map to Rust declarative macros (semantic transformation)
 
 Crusty also introduces C-inspired syntax (like `@` for type-scoped calls and `__macro__` for macros) that maintains 1:1 compatibility with Rust. Method names, function names, and identifiers pass through unchanged.
 
