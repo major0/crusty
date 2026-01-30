@@ -26,4 +26,6 @@ pub mod rustc;
 #[cfg(test)]
 mod rustc_integration_tests;
 pub mod semantic;
+#[cfg(test)]
+mod typedef_integration_tests;
 pub mod utils;
