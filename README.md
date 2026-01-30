@@ -137,13 +137,10 @@ switch (x) {                     // → Rust match expression
 
 ## Quick Start
 
+Get up and running with Crusty in minutes.
+
 ### Installation
 
-#### Prerequisites
-- Rust toolchain (stable) - [Install Rust](https://rustup.rs/)
-- Cargo package manager (included with Rust)
-
-#### Building from Source
 ```bash
 git clone https://github.com/major0/crusty.git
 cd crusty
@@ -151,7 +148,7 @@ cargo build --release
 cargo install --path .
 ```
 
-### Your First Crusty Program
+### Your First Program
 
 Create `hello.crst`:
 ```c
@@ -166,491 +163,100 @@ crustyc hello.crst --emit=binary -o hello
 ./hello
 ```
 
-## Syntax Examples
+**📖 For detailed installation instructions and usage, see [QUICK_START.md](QUICK_START.md)**
 
-### Functions and Types
+## Syntax Overview
+
+Crusty provides C-like syntax that transpiles to Rust:
+
 ```c
-// C-style function declarations
+// Functions with C-style declarations
 int add(int a, int b) {
     return a + b;
 }
 
-// Void return type
-void print_sum(int x, int y) {
-    __println__("Sum: {}", add(x, y));
-}
-
-// Static functions (private in Rust)
-static int helper(int n) {
-    return n * 2;
-}
-```
-
-### Structs and Methods
-```c
-// Define a struct type
+// Structs with implementation blocks
 typedef struct {
     int x;
     int y;
 } Point;
 
-// Add implementation block with methods
 typedef struct {
-    // Static method (constructor)
     Point new(int x, int y) {
         return Point { x: x, y: y };
     }
     
-    // Instance method
     int distance_squared(&self) {
         return self.x * self.x + self.y * self.y;
     }
 } @Point;
 
-// Implement Default trait
-typedef default {
-    Point default() {
-        return Point { x: 0, y: 0 };
-    }
-} @Point;
-
+// Type-scoped calls with @ prefix
 void main() {
-    // Type-scoped call with @ prefix and dot notation
-    // Dot (.) replaces Rust's :: for type-scoped access
-    let p1 = @Point.new(3, 4);
-    
-    // Use Default trait
-    let origin = @Point.default();
-    
-    // Instance method call (no @ prefix)
-    __println__("Distance²: {}", p1.distance_squared());
-    
-    // Nested type paths: dot replaces :: for type-scoped access
-    // @std.collections.HashMap.new()
-    // Translates to: std::collections::HashMap::new()
-    
-    // Method calls on type-scoped values use arrow
-    // @Foo.BAR->boo()  where BAR is a constant, boo() is a method
-    // Translates to: Foo::BAR.boo()
+    let p = @Point.new(3, 4);
+    __println__("Distance²: {}", p.distance_squared());
 }
 ```
 
-### Control Flow
-```c
-int fibonacci(int n) {
-    if (n <= 1) {
-        return n;
-    }
-    return fibonacci(n - 1) + fibonacci(n - 2);
-}
+### Key Syntax Features
 
-void count_to_ten() {
-    for (int i = 0; i < 10; i++) {
-        __println__("{}", i);
-    }
-}
-```
+- **Type-scoped calls**: `@Type.method()` → `Type::method()`
+- **Macros**: `__println__()` → `println!()`
+- **Error handling**: `Type?` → `Result<Type, E>`
+- **NULL handling**: `NULL` → `Option::None`
+- **Module system**: `#import` and `#export`
+- **Nested functions**: C-style closures
+- **Raw Rust**: `__rust__{}` escape hatch
 
-### Error Handling with Type?
-```c
-// Fallible return type: Type? → Result<Type, Box<dyn std::error::Error>>
-int? parse_number(char* str) {
-    // Error propagation: expr? → expr? (pass through)
-    let num = str.parse()?;  // Propagates error if parse fails
-    return Ok(num);          // Use Rust's Ok() directly (not transformed)
-}
-
-void main() {
-    let result = parse_number("42");
-    
-    // Use Rust's Result API directly (method names NOT transformed)
-    if (result.is_err()) {              // NOT .is_error()
-        __println__("Parse failed");
-        return;
-    }
-    
-    let value = result.unwrap();        // Pass through unchanged
-    __println__("Parsed: {}", value);
-}
-```
-
-**Note**: Only `Type?` is transformed to `Result<Type, E>`. The `expr?` operator and method names (`.is_err()`, `.is_ok()`, `.unwrap()`) pass through unchanged to Rust. This preserves transparency and avoids conflicts with user-defined functions.
-
-### NULL Handling (Special Case)
-```c
-// NULL is the ONLY semantic transformation in Crusty
-void process_optional(int* ptr) {
-    // NULL → Option::None
-    if (ptr == NULL) {              // → if ptr.is_none()
-        __println__("No value");
-        return;
-    }
-    
-    if (ptr != NULL) {              // → if ptr.is_some()
-        __println__("Has value");
-    }
-}
-
-void main() {
-    int* ptr = NULL;                // → let ptr: Option<&i32> = Option::None;
-    process_optional(ptr);
-}
-```
-
-**Note**: NULL is the ONLY exception to Crusty's syntax-only philosophy. It's a C keyword with no direct Rust equivalent, so it requires special handling to map to Rust's `Option` type.
-
-### Macros and Type-Scoped Calls
-```c
-void main() {
-    // Macros use double-underscore naming (no ! suffix in Crusty)
-    __println__("Creating a vector...");
-    
-    // Type-scoped calls use @ prefix with dot notation
-    let v = @Vec.new();
-    v.push(1);
-    v.push(2);
-    v.push(3);
-    
-    // Macro with formatting
-    __println__("Vector: {:?}", v);
-}
-```
-
-### Advanced Syntax
-
-#### Module Imports and Exports
-```c
-// Import modules into current context (private)
-// Translates to: use std::collections::HashMap;
-#import std.collections.HashMap;
-
-// Export symbols for public API (public re-export)
-// Translates to: pub use std::io::Write;
-#export std.io.Write;
-
-// Import entire module
-// Translates to: use std::fs;
-#import std.fs;
-
-void main() {
-    // Type-scoped call with @ prefix uses dot notation
-    let map = @HashMap.new();
-    map.insert("key", "value");
-}
-```
-
-**Import vs Export:**
-- `#import module;` → `use module;` (private import into current context)
-- `#export module.symbol;` → `pub use module::symbol;` (public re-export for API)
-- Use `#import` to bring modules/symbols into scope for internal use
-- Use `#export` to make imported symbols part of your public API
-
-#### Explicit Generic Type Parameters
-```c
-void main() {
-    // Explicit type parameters with parentheses/brackets syntax
-    let v = @Vec(i32).new();
-    v.push(42);
-    
-    // Nested generics alternate parentheses and brackets
-    // Dot notation for type-scoped access
-    let opt = @Option(Result[String, std.io.Error]).None;
-    
-    // Type inference when parameters omitted
-    let v2 = @Vec.new();  // Type inferred from usage
-}
-```
-
-#### Defining Macros with #define
-```c
-// Define macros with double-underscore naming
-#define __MAX__(a, b) ((a) > (b) ? (a) : (b))
-#define __SQUARE__(x) ((x) * (x))
-
-void main() {
-    let max_val = __MAX__(10, 20);
-    let squared = __SQUARE__(5);
-    __println__("Max: {}, Squared: {}", max_val, squared);
-}
-```
-
-#### Labeled Loops
-```c
-void main() {
-    // Labels use dot prefix (. is not part of the label name)
-    .outer: loop {
-        .inner: loop {
-            if (condition) {
-                break outer;  // Break to outer loop (no dot in break)
-            }
-            continue inner;  // Continue inner loop (no dot in continue)
-        }
-    }
-}
-```
-
-#### Embedding Raw Rust Code with __rust__
-```c
-void main() {
-    // Use __rust__ as an escape hatch for Rust-specific features
-    // The contents are passed directly to the Rust compiler
-    
-    // In expression context
-    let result = __rust__{ Some(42) };
-    
-    // In statement context
-    __rust__{
-        println!("This is raw Rust code");
-        let x = vec![1, 2, 3];
-    };
-    
-    // For complex Rust patterns not yet supported in Crusty
-    __rust__{
-        match value {
-            Some(x) if x > 10 => println!("Large: {}", x),
-            Some(x) => println!("Small: {}", x),
-            None => println!("Nothing"),
-        }
-    };
-    
-    // In type context (for complex Rust types)
-    let callback: __rust__{ Box<dyn Fn(i32) -> i32> } = __rust__{ Box::new(|x| x * 2) };
-}
-```
-
-**Note**: The `__rust__` macro provides an escape hatch for using Rust features not yet supported by Crusty syntax. The contents are passed directly to rustc without validation by crustyc. Use this when you need access to advanced Rust features like pattern matching, closures, or complex trait bounds.
-
-#### Closures with Nested Functions
-```c
-void main() {
-    // Crusty supports nested functions as closures
-    // Functions defined within functions can capture variables from outer scope
-    
-    int outer_value = 42;
-    
-    // Define a nested function that captures outer scope
-    // Can only capture variables defined BEFORE the nested function
-    int add_to_outer(int x) {
-        return x + outer_value;  // Captures outer_value (defined above)
-    }
-    
-    // Use the nested function
-    let result = add_to_outer(10);  // Returns 52
-    __println__("Result: {}", result);
-    
-    // Variables defined after the nested function are NOT accessible
-    int later_value = 100;  // add_to_outer cannot access this
-    
-    // Nested functions can be passed as function parameters
-    void apply_twice(int (*func)(int), int value) {
-        return func(func(value));
-    }
-    
-    int double_it(int x) {
-        return x * 2;
-    }
-    
-    let doubled = apply_twice(double_it, 5);  // Returns 20
-    
-    // Mutable captures work too
-    int counter = 0;
-    
-    void increment() {
-        counter = counter + 1;  // Mutably captures counter
-    }
-    
-    increment();
-    increment();
-    __println__("Counter: {}", counter);  // Prints 2
-    
-    // Multiple nested functions can capture the same variables
-    void reset() {
-        counter = 0;
-    }
-    
-    reset();
-    __println__("Counter after reset: {}", counter);  // Prints 0
-}
-```
-
-**Translation to Rust**: Nested functions are translated to Rust closures:
-```rust
-pub fn main() {
-    let outer_value = 42;
-    
-    // Becomes a closure
-    let add_to_outer = |x: i32| -> i32 {
-        x + outer_value
-    };
-    
-    let result = add_to_outer(10);
-    println!("Result: {}", result);
-}
-```
-
-**Scoping Rules**:
-- Nested functions can only capture variables defined **before** the nested function declaration
-- Variables defined **after** a nested function are not accessible to that function
-- Multiple nested functions can capture and share the same outer variables
-- Captures can be immutable (read-only) or mutable (read-write)
-
-**Note**: Nested functions provide a familiar C-style syntax for closures. They can capture variables from the enclosing scope and are translated to Rust closures (`Fn`, `FnMut`, or `FnOnce` depending on how they use captured variables).
-
-**Reference**: GNU C supports nested functions as an extension: https://gcc.gnu.org/onlinedocs/gcc/Nested-Functions.html
-
-#### Implementation Blocks with typedef
-```c
-// Define a struct type
-typedef struct {
-    int width;
-    int height;
-} Rectangle;
-
-// Add implementation block
-typedef struct {
-    Rectangle new(int w, int h) {
-        return Rectangle { width: w, height: h };
-    }
-    
-    int area(&self) {
-        return self.width * self.height;
-    }
-} @Rectangle;
-
-// Implement Default trait
-typedef default {
-    Rectangle default() {
-        return Rectangle { width: 0, height: 0 };
-    }
-} @Rectangle;
-
-// Named implementation block (for organization)
-typedef struct {
-    void print(&self) {
-        __println__("Rectangle: {}x{}", self.width, self.height);
-    }
-} @Rectangle.display;
-
-void main() {
-    // Type-scoped call with @ prefix and dot notation
-    let rect = @Rectangle.new(10, 20);
-    __println__("Area: {}", rect.area());
-    rect.print();
-}
-```
+**📖 For complete syntax reference with examples, see [SYNTAX_REFERENCE.md](SYNTAX_REFERENCE.md)**
 
 ## Usage
 
-### Basic Transpilation
+### Basic Commands
 
-Transpile Crusty to Rust:
 ```bash
+# Transpile to Rust
 crustyc input.crst -o output.rs
-```
 
-Transpile and compile to binary:
-```bash
+# Compile to binary
 crustyc input.crst --emit=binary -o program
-```
 
-Transpile Rust to Crusty:
-```bash
+# Reverse transpile (Rust → Crusty)
 crustyc input.rs --from-lang=rust -o output.crst
 ```
 
-### Command-Line Options
+### Build Integration
 
-```
-crustyc [OPTIONS] <INPUT>
+Integrate Crusty with Cargo projects using build.rs:
 
-OPTIONS:
-    -o, --output <FILE>         Output file path
-    --emit <MODE>               Output mode: rust, binary, ast
-    --from-lang <LANG>          Source language: crusty, rust
-    -v, --verbose               Detailed output
-    --no-compile                Generate Rust without invoking rustc
-    -h, --help                  Print help information
-    --version                   Print version information
-```
-
-## Build Integration
-
-### Using Crusty in Cargo Projects
-
-Crusty integrates seamlessly with Cargo through build.rs scripts.
-
-**1. Add crustyc as a build dependency in `Cargo.toml`:**
-```toml
-[package]
-name = "my-project"
-version = "0.1.0"
-edition = "2021"
-
-[build-dependencies]
-# crustyc = "0.1"  # When published to crates.io
-```
-
-**2. Create `build.rs` in your project root:**
 ```rust
+// build.rs
 use std::process::Command;
 use std::env;
 
 fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
-    
-    // Transpile all .crst files to Rust
     Command::new("crustyc")
         .args(&["src/", "--out-dir", &out_dir])
         .status()
         .expect("Failed to run crustyc");
-    
-    // Rebuild if any .crst file changes
     println!("cargo:rerun-if-changed=src/");
 }
 ```
 
-**3. Place your `.crst` files in `src/`:**
-```
-my-project/
-├── Cargo.toml
-├── build.rs
-└── src/
-    ├── main.crst
-    ├── lib.crst
-    └── utils.crst
-```
+**📖 For detailed usage and build integration, see [QUICK_START.md](QUICK_START.md)**
 
-**4. Build normally with Cargo:**
-```bash
-cargo build
-cargo run
-```
+## Example Project
 
-The build.rs script automatically transpiles your Crusty code to Rust during the build process.
+The repository includes a complete working example in the [example/](example/) directory:
 
-### Example Project
-
-The repository includes a complete working example demonstrating Crusty language features and build system integration. See the [example/](example/) directory for:
-- [example/Cargo.toml](example/Cargo.toml) - Project configuration
-- [example/build.rs](example/build.rs) - Build script that transpiles .crst files
-- [example/src/](example/src/) - Sample Crusty programs
-- [example/README.md](example/README.md) - Build and run instructions
-
-The example demonstrates:
-- Function declarations and control flow
-- Struct definitions with methods
-- Type-scoped static method calls (`@Type.method()`)
-- Macro usage with double-underscore naming (`__println__`, `__vec__`)
-- Build system integration with Cargo
-
-To run the example:
 ```bash
 cd example
 cargo build
 cargo run
 ```
 
-The example is automatically built and tested in the CI/CD pipeline to ensure the transpiler works correctly.
+The example demonstrates all major Crusty features and is automatically tested in CI/CD.
 
 ## Development
 
@@ -686,42 +292,28 @@ The hooks will automatically run:
 ## Documentation
 
 ### Getting Started
-- [Quick Start](#quick-start) - Install and run your first Crusty program
-- [Syntax Examples](#syntax-examples) - Learn Crusty syntax with examples
-- [Example Programs](example/README.md) - Working examples with build integration
+- **[QUICK_START.md](QUICK_START.md)** - Installation, first program, and basic usage
+- **[SYNTAX_REFERENCE.md](SYNTAX_REFERENCE.md)** - Complete syntax guide with examples
+- **[Example Programs](example/README.md)** - Working examples with build integration
 
 ### Core Concepts
-- [Philosophy](#philosophy) - Understand syntax-only transpilation
-- [SYNTAX_PHILOSOPHY.md](.kiro/specs/crusty-compiler-phase1/SYNTAX_PHILOSOPHY.md) - Detailed rationale and design principles
-- [Error Handling](#error-handling-with-type) - Using Type? and expr? operator
-- [NULL Handling](#null-handling-special-case) - The ONLY semantic exception
+- **[Philosophy](#philosophy)** - Understand syntax-only transpilation
+- **[SYNTAX_PHILOSOPHY.md](.kiro/specs/crusty-compiler-phase1/SYNTAX_PHILOSOPHY.md)** - Detailed rationale and design principles
 
 ### Integration
-- [Build System Integration](#build-integration) - Using Crusty with Cargo
-- [Build.rs Guide](docs/build-rs-integration.md) - Comprehensive build integration guide
-- [Command-Line Usage](#usage) - crustyc command-line options
+- **[Build System Integration](QUICK_START.md#build-integration)** - Using Crusty with Cargo
+- **[Build.rs Guide](docs/build-rs-integration.md)** - Comprehensive build integration guide
 
 ### Contributing
-- [Contributing Guide](CONTRIBUTING.md) - How to contribute to the project
-- [Development Workflow](#development) - Running tests, formatting, linting
+- **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to the project
+- **[Development Workflow](#development)** - Running tests, formatting, linting
 
 ### Specification Documents
-- [Requirements](.kiro/specs/crusty-compiler-phase1/requirements.md) - Detailed requirements and acceptance criteria
-- [Design](.kiro/specs/crusty-compiler-phase1/design.md) - Architecture and component design
-- [Implementation Tasks](.kiro/specs/crusty-compiler-phase1/tasks.md) - Development task breakdown and progress
-
-### Language Reference
-- Function declarations and definitions
-- Struct and enum types with typedef syntax
-- Implementation blocks (typedef struct @Type)
-- Trait implementations (typedef default @Type)
-- Type-scoped calls with dot notation (`@Type.method()`)
-- Macro invocations with double-underscore naming (`__macro_name__`)
-- Raw Rust code embedding with `__rust__` escape hatch
-- Closures with nested functions
-- Control flow statements
-- Memory management and ownership
-- Module system and visibility
+- **[Requirements](.kiro/specs/crusty-compiler-phase1/requirements.md)** - Detailed requirements and acceptance criteria
+- **[Design](.kiro/specs/crusty-compiler-phase1/design.md)** - Architecture and component design
+- **[Implementation Tasks](.kiro/specs/crusty-compiler-phase1/tasks.md)** - Development task breakdown and progress
+- **[Error Handling](.kiro/specs/crusty-compiler-phase1/ERROR_HANDLING.md)** - Error architecture documentation
+- **[Error Catalog](.kiro/specs/crusty-compiler-phase1/ERROR_CATALOG.md)** - Complete error message reference
 
 ## Contributing
 

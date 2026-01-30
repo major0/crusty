@@ -460,21 +460,23 @@ All documents consistently show:
     - ~~Estimated effort: 2 hours~~ **Actual: 1 hour**
     - **File**: ERROR_CATALOG.md
 
-11. **Split README.md** (Optional)
-    - Create separate QUICK_START.md
-    - Create separate SYNTAX_REFERENCE.md
-    - Keep README focused on overview
-    - Estimated effort: 1 hour
+11. ✅ **Split README.md** - COMPLETED
+    - Created QUICK_START.md (305 lines) - Installation, usage, build integration
+    - Created SYNTAX_REFERENCE.md (775 lines) - Complete syntax guide with examples
+    - Reduced README.md from 814 to 406 lines (50% reduction)
+    - Improved documentation organization and discoverability
+    - ~~Estimated effort: 1 hour~~ **Actual: 1 hour**
+    - **Files**: QUICK_START.md, SYNTAX_REFERENCE.md, README.md (updated)
 
 ### Priority 4: LOW (Nice to Have)
 
-11. **Add decision tree diagrams**
+12. **Add decision tree diagrams**
     - Syntax vs semantic transformation decision tree
     - Parser flow diagram
     - Code generation flow diagram
     - Estimated effort: 2-3 hours
 
-12. **Create property test catalog**
+13. **Create property test catalog**
     - List all 34 properties
     - Document testing strategy
     - Provide examples
@@ -519,7 +521,7 @@ The Crusty compiler documentation is comprehensive and well-structured. All Prio
 - ✅ Design document AST section updated to reflect Import/Export structs
 - ✅ All cross-references updated and consistent
 
-**Remaining Work**: Only Priority 4 items remain (optional enhancements)
+**Remaining Work**: Only Priority 4 items remain (optional enhancements - diagrams and property test catalog)
 
 **Estimated Total Effort for Remaining Items**: 4-5 hours (all optional)
 
