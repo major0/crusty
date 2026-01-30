@@ -382,6 +382,22 @@ impl SemanticAnalyzer {
 
     /// Analyze a function declaration
     fn analyze_function(&mut self, func: &crate::ast::Function) {
+        // Validate that function names don't use double-underscore pattern (reserved for macros)
+        if func.name.name.starts_with("__") && func.name.name.ends_with("__") {
+            self.errors.push(SemanticError::new(
+                Span::new(
+                    crate::error::Position::new(0, 0),
+                    crate::error::Position::new(0, 0),
+                ),
+                SemanticErrorKind::InvalidOperation,
+                format!(
+                    "Function names cannot use double-underscore pattern (reserved for macros): '{}'",
+                    func.name.name
+                ),
+            ));
+            return;
+        }
+
         // Register function in symbol table
         let func_type = if let Some(ref return_type) = func.return_type {
             Type::Function {
@@ -2562,6 +2578,7 @@ mod tests {
             name: Ident::new("__MAX__".to_string()),
             params: vec![],
             body: vec![],
+            delimiter: crate::ast::MacroDelimiter::None,
         };
 
         analyzer.analyze_macro_definition(&macro_def);
@@ -2575,6 +2592,7 @@ mod tests {
             name: Ident::new("MAX__".to_string()),
             params: vec![],
             body: vec![],
+            delimiter: crate::ast::MacroDelimiter::None,
         };
 
         analyzer.analyze_macro_definition(&macro_def);
@@ -2593,6 +2611,7 @@ mod tests {
             name: Ident::new("__MAX".to_string()),
             params: vec![],
             body: vec![],
+            delimiter: crate::ast::MacroDelimiter::None,
         };
 
         analyzer.analyze_macro_definition(&macro_def);
@@ -2635,10 +2654,33 @@ mod tests {
                     "b".to_string(),
                 ),
             ],
+            delimiter: crate::ast::MacroDelimiter::Parens,
         };
 
         analyzer.analyze_macro_definition(&macro_def);
         assert_eq!(analyzer.errors().len(), 0);
+    }
+
+    #[test]
+    fn test_semantic_analyzer_function_with_double_underscore_name() {
+        let mut analyzer = SemanticAnalyzer::new();
+        let func = crate::ast::Function {
+            visibility: crate::ast::Visibility::Public,
+            name: Ident::new("__my_function__".to_string()),
+            params: vec![],
+            return_type: None,
+            body: crate::ast::Block::new(vec![]),
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+
+        analyzer.analyze_function(&func);
+        assert_eq!(analyzer.errors().len(), 1);
+        assert_eq!(
+            analyzer.errors()[0].kind,
+            SemanticErrorKind::InvalidOperation
+        );
+        assert!(analyzer.errors()[0].message.contains("reserved for macros"));
     }
 
     // Property-based tests

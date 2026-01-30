@@ -132,6 +132,16 @@ pub struct MacroDefinition {
     pub name: Ident,
     pub params: Vec<Ident>,
     pub body: Vec<crate::lexer::Token>,
+    pub delimiter: MacroDelimiter,
+}
+
+/// Macro invocation delimiter style
+#[derive(Debug, Clone, PartialEq)]
+pub enum MacroDelimiter {
+    None,     // __MACRO__ (no parameters, no delimiters)
+    Parens,   // __MACRO__(args)
+    Brackets, // __MACRO__[args]
+    Braces,   // __MACRO__{args}
 }
 
 /// Statement types

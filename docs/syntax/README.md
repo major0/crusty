@@ -14,3 +14,4 @@ Crusty provides a C-like syntax that transpiles to Rust, giving developers famil
 - [Typedef](typedef.md) - Typedef syntax for structs, impl blocks, and trait implementations
 - [Nested Functions](nested-functions.md) - Nested functions as closures with capture semantics
 - [Error Handling](error-handling.md) - Fallible types, error propagation, and Result mapping
+- [Macros](macros.md) - #define macros, delimiter types, and double-underscore naming

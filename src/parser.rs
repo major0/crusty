@@ -1007,9 +1007,9 @@ impl<'a> Parser<'a> {
             }
         };
 
-        // Parse optional parameter list
+        // Detect delimiter type and parse parameters
         let mut params = Vec::new();
-        if self.check(&TokenKind::LParen) {
+        let delimiter = if self.check(&TokenKind::LParen) {
             self.advance()?;
 
             // Parse parameters
@@ -1039,7 +1039,73 @@ impl<'a> Parser<'a> {
             }
 
             self.expect(TokenKind::RParen)?;
-        }
+            MacroDelimiter::Parens
+        } else if self.check(&TokenKind::LBracket) {
+            self.advance()?;
+
+            // Parse parameters
+            if !self.check(&TokenKind::RBracket) {
+                loop {
+                    match &self.current_token.kind {
+                        TokenKind::Ident(param_name) => {
+                            params.push(Ident::new(param_name.clone()));
+                            self.advance()?;
+                        }
+                        _ => {
+                            return Err(ParseError::new(
+                                self.current_token.span,
+                                "expected parameter name",
+                                vec!["identifier".to_string()],
+                                format!("{:?}", self.current_token.kind),
+                            ));
+                        }
+                    }
+
+                    if self.check(&TokenKind::Comma) {
+                        self.advance()?;
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            self.expect(TokenKind::RBracket)?;
+            MacroDelimiter::Brackets
+        } else if self.check(&TokenKind::LBrace) {
+            self.advance()?;
+
+            // Parse parameters
+            if !self.check(&TokenKind::RBrace) {
+                loop {
+                    match &self.current_token.kind {
+                        TokenKind::Ident(param_name) => {
+                            params.push(Ident::new(param_name.clone()));
+                            self.advance()?;
+                        }
+                        _ => {
+                            return Err(ParseError::new(
+                                self.current_token.span,
+                                "expected parameter name",
+                                vec!["identifier".to_string()],
+                                format!("{:?}", self.current_token.kind),
+                            ));
+                        }
+                    }
+
+                    if self.check(&TokenKind::Comma) {
+                        self.advance()?;
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            self.expect(TokenKind::RBrace)?;
+            MacroDelimiter::Braces
+        } else {
+            // No delimiter - constant macro
+            MacroDelimiter::None
+        };
 
         // Parse macro body as token sequence until end of line or semicolon
         let mut body = Vec::new();
@@ -1062,6 +1128,7 @@ impl<'a> Parser<'a> {
             name,
             params,
             body,
+            delimiter,
         }))
     }
 
@@ -1808,7 +1875,22 @@ impl<'a> Parser<'a> {
                     }
                 }
                 TokenKind::LParen => {
-                    // Function call
+                    // Check if this is a macro call (double-underscore pattern)
+                    if let Expression::Ident(ref name) = expr {
+                        if name.name.starts_with("__") && name.name.ends_with("__") {
+                            // This is a macro call with parentheses, parse as MacroCall
+                            let macro_name = name.clone();
+                            let args =
+                                self.parse_macro_args(TokenKind::LParen, TokenKind::RParen)?;
+                            expr = Expression::MacroCall {
+                                name: macro_name,
+                                args,
+                            };
+                            continue;
+                        }
+                    }
+
+                    // Regular function call
                     self.advance()?;
                     let mut args = Vec::new();
 
@@ -1828,6 +1910,104 @@ impl<'a> Parser<'a> {
                         func: Box::new(expr),
                         args,
                     };
+                }
+                TokenKind::LBracket => {
+                    // Check if this is a macro call with brackets (e.g., __vec__[1, 2, 3])
+                    if let Expression::Ident(ref name) = expr {
+                        if name.name.starts_with("__") && name.name.ends_with("__") {
+                            // This is a macro call with brackets, parse as MacroCall
+                            let macro_name = name.clone();
+                            let args =
+                                self.parse_macro_args(TokenKind::LBracket, TokenKind::RBracket)?;
+                            expr = Expression::MacroCall {
+                                name: macro_name,
+                                args,
+                            };
+                            continue;
+                        }
+                    }
+
+                    // Array indexing or slice range
+                    self.advance()?;
+
+                    // Check for range syntax
+                    if self.check(&TokenKind::DotDot) || self.check(&TokenKind::DotDotEq) {
+                        // Range starting from beginning: [..end] or [..=end]
+                        let inclusive = self.check(&TokenKind::DotDotEq);
+                        self.advance()?;
+
+                        let end = if self.check(&TokenKind::RBracket) {
+                            None
+                        } else {
+                            Some(Box::new(self.parse_expression()?))
+                        };
+
+                        self.expect(TokenKind::RBracket)?;
+
+                        let range = Expression::Range {
+                            start: None,
+                            end,
+                            inclusive,
+                        };
+
+                        expr = Expression::Index {
+                            expr: Box::new(expr),
+                            index: Box::new(range),
+                        };
+                    } else {
+                        let start = self.parse_expression()?;
+
+                        // Check if this is a range
+                        if self.check(&TokenKind::DotDot) || self.check(&TokenKind::DotDotEq) {
+                            let inclusive = self.check(&TokenKind::DotDotEq);
+                            self.advance()?;
+
+                            let end = if self.check(&TokenKind::RBracket) {
+                                None
+                            } else {
+                                Some(Box::new(self.parse_expression()?))
+                            };
+
+                            self.expect(TokenKind::RBracket)?;
+
+                            let range = Expression::Range {
+                                start: Some(Box::new(start)),
+                                end,
+                                inclusive,
+                            };
+
+                            expr = Expression::Index {
+                                expr: Box::new(expr),
+                                index: Box::new(range),
+                            };
+                        } else {
+                            // Regular array indexing
+                            self.expect(TokenKind::RBracket)?;
+                            expr = Expression::Index {
+                                expr: Box::new(expr),
+                                index: Box::new(start),
+                            };
+                        }
+                    }
+                }
+                TokenKind::LBrace => {
+                    // Check if this is a macro call with braces (e.g., __macro__{...})
+                    if let Expression::Ident(ref name) = expr {
+                        if name.name.starts_with("__") && name.name.ends_with("__") {
+                            // This is a macro call with braces, parse as MacroCall
+                            let macro_name = name.clone();
+                            let args =
+                                self.parse_macro_args(TokenKind::LBrace, TokenKind::RBrace)?;
+                            expr = Expression::MacroCall {
+                                name: macro_name,
+                                args,
+                            };
+                            continue;
+                        }
+                    }
+
+                    // Not a macro call, break out of postfix loop
+                    break;
                 }
                 TokenKind::Dot => {
                     // Field access or tuple indexing
@@ -1900,70 +2080,6 @@ impl<'a> Parser<'a> {
                         expr: Box::new(deref),
                         field,
                     };
-                }
-                TokenKind::LBracket => {
-                    // Array indexing or slice range
-                    self.advance()?;
-
-                    // Check for range syntax
-                    if self.check(&TokenKind::DotDot) || self.check(&TokenKind::DotDotEq) {
-                        // Range starting from beginning: [..end] or [..=end]
-                        let inclusive = self.check(&TokenKind::DotDotEq);
-                        self.advance()?;
-
-                        let end = if self.check(&TokenKind::RBracket) {
-                            None
-                        } else {
-                            Some(Box::new(self.parse_expression()?))
-                        };
-
-                        self.expect(TokenKind::RBracket)?;
-
-                        let range = Expression::Range {
-                            start: None,
-                            end,
-                            inclusive,
-                        };
-
-                        expr = Expression::Index {
-                            expr: Box::new(expr),
-                            index: Box::new(range),
-                        };
-                    } else {
-                        let start = self.parse_expression()?;
-
-                        // Check if this is a range
-                        if self.check(&TokenKind::DotDot) || self.check(&TokenKind::DotDotEq) {
-                            let inclusive = self.check(&TokenKind::DotDotEq);
-                            self.advance()?;
-
-                            let end = if self.check(&TokenKind::RBracket) {
-                                None
-                            } else {
-                                Some(Box::new(self.parse_expression()?))
-                            };
-
-                            self.expect(TokenKind::RBracket)?;
-
-                            let range = Expression::Range {
-                                start: Some(Box::new(start)),
-                                end,
-                                inclusive,
-                            };
-
-                            expr = Expression::Index {
-                                expr: Box::new(expr),
-                                index: Box::new(range),
-                            };
-                        } else {
-                            // Regular array indexing
-                            self.expect(TokenKind::RBracket)?;
-                            expr = Expression::Index {
-                                expr: Box::new(expr),
-                                index: Box::new(start),
-                            };
-                        }
-                    }
                 }
                 _ => break,
             }
