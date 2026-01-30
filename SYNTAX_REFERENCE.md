@@ -71,11 +71,11 @@ typedef int MyInt;
 typedef float MyFloat;
 typedef bool Flag;
 
-// Use type aliases interchangeably with original types
+// Use type aliases with C-like casting
 void example() {
-    let x: MyInt = 42;        // MyInt is compatible with int
-    let y: int = x;           // Can assign MyInt to int
-    let z: MyFloat = 3.14;
+    let x = (MyInt)42;        // Cast to MyInt type
+    let y = (int)x;           // Cast back to int
+    let z = (MyFloat)3.14;
 }
 ```
 
@@ -86,9 +86,9 @@ pub type MyFloat = f64;
 pub type Flag = bool;
 
 pub fn example() {
-    let x: MyInt = 42;
-    let y: i32 = x;
-    let z: MyFloat = 3.14;
+    let x = 42 as MyInt;
+    let y = x as i32;
+    let z = 3.14 as MyFloat;
 }
 ```
 
@@ -100,13 +100,17 @@ typedef *int IntPtr;
 typedef *char CharPtr;
 
 // Reference type aliases
-typedef &int IntRef;
+// Immutable references (implicit or explicit let)
+typedef &int IntRef;           // Implicit let (default)
+typedef let &int IntRefAlt;    // Explicit let (equivalent)
+
+// Mutable references (explicit var)
 typedef var &int MutIntRef;
 
 void pointer_example() {
-    let value: int = 100;
-    let ptr: IntPtr = &value;
-    let ref: IntRef = &value;
+    let value = 100;
+    let ptr = (IntPtr)&value;
+    let ref = (IntRef)&value;
 }
 ```
 
@@ -118,9 +122,9 @@ pub type IntRef = &i32;
 pub type MutIntRef = &mut i32;
 
 pub fn pointer_example() {
-    let value: i32 = 100;
-    let ptr: IntPtr = &value as *mut i32;
-    let ref_val: IntRef = &value;
+    let value = 100;
+    let ptr = &value as IntPtr;
+    let ref_val = &value as IntRef;
 }
 ```
 
@@ -137,8 +141,8 @@ typedef Point PointAlias;
 typedef Point* PointPtr;
 
 void custom_type_example() {
-    let p: PointAlias = Point { x: 10, y: 20 };
-    let ptr: PointPtr = &p;
+    let p = (PointAlias)Point { x: 10, y: 20 };
+    let ptr = (PointPtr)&p;
 }
 ```
 
@@ -153,8 +157,8 @@ pub type PointAlias = Point;
 pub type PointPtr = *mut Point;
 
 pub fn custom_type_example() {
-    let p: PointAlias = Point { x: 10, y: 20 };
-    let ptr: PointPtr = &p as *mut Point;
+    let p = Point { x: 10, y: 20 } as PointAlias;
+    let ptr = &p as PointPtr;
 }
 ```
 
@@ -166,12 +170,12 @@ typedef int Integer;
 typedef Integer Number;
 typedef Number Count;
 
-// All three are compatible with int
+// All three are compatible with int through casting
 void chained_example() {
-    let a: int = 1;
-    let b: Integer = a;
-    let c: Number = b;
-    let d: Count = c;
+    let a = 1;
+    let b = (Integer)a;
+    let c = (Number)b;
+    let d = (Count)c;
 }
 ```
 
@@ -182,10 +186,10 @@ pub type Number = Integer;
 pub type Count = Number;
 
 pub fn chained_example() {
-    let a: i32 = 1;
-    let b: Integer = a;
-    let c: Number = b;
-    let d: Count = c;
+    let a = 1;
+    let b = a as Integer;
+    let c = b as Number;
+    let d = c as Count;
 }
 ```
 
@@ -197,8 +201,8 @@ typedef Vec[int] IntVec;
 typedef HashMap[String, int] StringIntMap;
 
 void generic_example() {
-    let numbers: IntVec = Vec(int).new();
-    let map: StringIntMap = HashMap(String, int).new();
+    let numbers = (IntVec)@Vec(int).new();
+    let map = (StringIntMap)@HashMap(String, int).new();
 }
 ```
 
@@ -208,8 +212,8 @@ pub type IntVec = Vec<i32>;
 pub type StringIntMap = HashMap<String, i32>;
 
 pub fn generic_example() {
-    let numbers: IntVec = Vec::<i32>::new();
-    let map: StringIntMap = HashMap::<String, i32>::new();
+    let numbers = Vec::<i32>::new() as IntVec;
+    let map = HashMap::<String, i32>::new() as StringIntMap;
 }
 ```
 
