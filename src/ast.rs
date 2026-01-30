@@ -94,6 +94,7 @@ pub struct Namespace {
 /// Use/import directive
 #[derive(Debug, Clone, PartialEq)]
 pub struct Use {
+    pub visibility: Visibility,
     pub path: Vec<Ident>,
     pub alias: Option<Ident>,
 }

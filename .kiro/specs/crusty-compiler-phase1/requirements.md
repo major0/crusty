@@ -1261,15 +1261,18 @@ fn process<T>(value: T) -> Option<T> { ... }
 
 1. THE Parser SHALL support #use directives for module imports
 2. WHEN a #use directive is encountered, THE Parser SHALL parse the module path
-3. WHEN generating code, THE Code_Generator SHALL translate #use directives to Rust use statements
-4. THE Parser SHALL support #ifdef directives for conditional compilation
-5. THE Parser SHALL support #ifndef directives for conditional compilation
-6. THE Parser SHALL support #endif directives to close conditional blocks
-7. WHEN conditional compilation directives are encountered, THE Code_Generator SHALL translate them to Rust cfg attributes
-8. THE Parser SHALL support nested conditional compilation blocks
-9. WHEN #include is encountered, THE Parser SHALL reject it with an error message explaining to use #use instead
-10. WHEN #define is encountered, THE Parser SHALL parse it as a macro definition
-11. WHEN generating Rust code, THE Code_Generator SHALL translate #define macros to Rust macro_rules! definitions
+3. THE Parser SHALL support the optional `static` keyword before #use directives to control visibility
+4. WHEN a #use directive has the `static` keyword (#use static module.item), THE Code_Generator SHALL translate it to a private Rust use statement (use module::item)
+5. WHEN a #use directive does NOT have the `static` keyword (#use module.item), THE Code_Generator SHALL translate it to a public Rust use statement (pub use module::item)
+6. WHEN generating code, THE Code_Generator SHALL translate #use directives to Rust use statements with appropriate visibility
+7. THE Parser SHALL support #ifdef directives for conditional compilation
+8. THE Parser SHALL support #ifndef directives for conditional compilation
+9. THE Parser SHALL support #endif directives to close conditional blocks
+10. WHEN conditional compilation directives are encountered, THE Code_Generator SHALL translate them to Rust cfg attributes
+11. THE Parser SHALL support nested conditional compilation blocks
+12. WHEN #include is encountered, THE Parser SHALL reject it with an error message explaining to use #use instead
+13. WHEN #define is encountered, THE Parser SHALL parse it as a macro definition
+14. WHEN generating Rust code, THE Code_Generator SHALL translate #define macros to Rust macro_rules! definitions
 
 ### Requirement 51: Support Namespace Declarations for Module Organization
 
