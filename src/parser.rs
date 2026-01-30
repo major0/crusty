@@ -4242,3 +4242,182 @@ fn test_multiple_macros_different_delimiters() {
     // Should parse successfully - all macros use correct delimiters
     assert_eq!(file.items.len(), 5); // 4 macros + 1 function
 }
+
+#[test]
+fn test_all_macro_syntaxes_comprehensive() {
+    // Test all four delimiter types in one comprehensive test
+    let source = r#"
+        // Define macros with all delimiter types
+        #define __CONSTANT__ 42
+        #define __FUNC__(x, y) x + y
+        #define __ARRAY__[items] items
+        #define __BLOCK__{code} code
+        
+        void main() {
+            // Invoke macros with all delimiter types
+            let c = __CONSTANT__;
+            let sum = __FUNC__(1, 2);
+            let arr = __ARRAY__[1, 2, 3];
+            __BLOCK__{
+                let x = 1;
+            };
+        }
+    "#;
+
+    let mut parser = Parser::new(source).unwrap();
+    let file = parser.parse_file().unwrap();
+
+    // Should have 4 macro definitions + 1 function
+    assert_eq!(file.items.len(), 5);
+
+    // Verify macro definitions
+    match &file.items[0] {
+        Item::MacroDefinition(m) => {
+            assert_eq!(m.name.name, "__CONSTANT__");
+            assert_eq!(m.delimiter, MacroDelimiter::None);
+        }
+        _ => panic!("Expected MacroDefinition"),
+    }
+
+    match &file.items[1] {
+        Item::MacroDefinition(m) => {
+            assert_eq!(m.name.name, "__FUNC__");
+            assert_eq!(m.delimiter, MacroDelimiter::Parens);
+            assert_eq!(m.params.len(), 2);
+        }
+        _ => panic!("Expected MacroDefinition"),
+    }
+
+    match &file.items[2] {
+        Item::MacroDefinition(m) => {
+            assert_eq!(m.name.name, "__ARRAY__");
+            assert_eq!(m.delimiter, MacroDelimiter::Brackets);
+        }
+        _ => panic!("Expected MacroDefinition"),
+    }
+
+    match &file.items[3] {
+        Item::MacroDefinition(m) => {
+            assert_eq!(m.name.name, "__BLOCK__");
+            assert_eq!(m.delimiter, MacroDelimiter::Braces);
+        }
+        _ => panic!("Expected MacroDefinition"),
+    }
+}
+
+#[test]
+fn test_common_rust_macros() {
+    // Test common Rust macro names with double-underscore syntax
+    let source = r#"
+        #define __PRINTLN__(msg) msg
+        #define __VEC__[items] items
+        #define __ASSERT__(cond) cond
+        #define __FORMAT__(fmt, args) fmt
+        #define __PANIC__(msg) msg
+        
+        void main() {
+            __PRINTLN__("test");
+            let v = __VEC__[1, 2, 3];
+            __ASSERT__(true);
+            let s = __FORMAT__("test", 1);
+            __PANIC__("error");
+        }
+    "#;
+
+    let mut parser = Parser::new(source).unwrap();
+    let file = parser.parse_file().unwrap();
+
+    // Should parse successfully - 5 macros + 1 function
+    assert_eq!(file.items.len(), 6);
+}
+
+#[test]
+fn test_macro_in_expression_context() {
+    let source = r#"
+        #define __ADD__(a, b) a + b
+        
+        void main() {
+            let x = __ADD__(1, 2) + __ADD__(3, 4);
+            let y = __ADD__(__ADD__(1, 2), 3);
+        }
+    "#;
+
+    let mut parser = Parser::new(source).unwrap();
+    let file = parser.parse_file().unwrap();
+
+    // Should parse successfully with nested macro calls
+    assert_eq!(file.items.len(), 2);
+}
+
+#[test]
+fn test_macro_in_statement_context() {
+    let source = r#"
+        #define __PRINTLN__(msg) msg
+        
+        void main() {
+            __PRINTLN__("Hello");
+            __PRINTLN__("World");
+        }
+    "#;
+
+    let mut parser = Parser::new(source).unwrap();
+    let file = parser.parse_file().unwrap();
+
+    // Should parse successfully with macros as statements
+    assert_eq!(file.items.len(), 2);
+}
+
+#[test]
+fn test_macro_without_double_underscore_rejected() {
+    // Test that macros without double-underscore prefix/suffix are rejected
+    let source = r#"
+        #define MAX 100
+    "#;
+
+    let mut parser = Parser::new(source).unwrap();
+    let result = parser.parse_file();
+
+    // Should fail - macro name must have double-underscore prefix and suffix
+    assert!(result.is_err());
+    if let Err(e) = result {
+        assert!(e
+            .message
+            .contains("must have double-underscore prefix and suffix"));
+    }
+}
+
+#[test]
+fn test_macro_with_only_prefix_rejected() {
+    let source = r#"
+        #define __MAX 100
+    "#;
+
+    let mut parser = Parser::new(source).unwrap();
+    let result = parser.parse_file();
+
+    // Should fail - macro name must have both prefix AND suffix
+    assert!(result.is_err());
+    if let Err(e) = result {
+        assert!(e
+            .message
+            .contains("must have double-underscore prefix and suffix"));
+    }
+}
+
+#[test]
+fn test_macro_with_only_suffix_rejected() {
+    let source = r#"
+        #define MAX__ 100
+    "#;
+
+    let mut parser = Parser::new(source).unwrap();
+    let result = parser.parse_file();
+
+    // Should fail - macro name must have both prefix AND suffix
+    assert!(result.is_err());
+    if let Err(e) = result {
+        assert!(e
+            .message
+            .contains("must have double-underscore prefix and suffix"));
+    }
+}
