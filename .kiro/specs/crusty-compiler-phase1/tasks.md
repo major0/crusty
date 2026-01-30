@@ -663,7 +663,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - **Property 22: #define macros translate to macro_rules!**
     - **Validates: Requirements 26.15, 26.16, 26.17**
   
-  - [ ]15.6 Write unit tests for #define macros with delimiter types
+  - [x]15.6 Write unit tests for #define macros with delimiter types
     - Test parsing of simple macros with double-underscores
     - Test parsing of macros with different delimiter types (parens, brackets, braces, none)
     - Test parsing of macros with parameters
