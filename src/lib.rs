@@ -12,6 +12,8 @@ pub mod codegen;
 mod codegen_properties;
 pub mod error;
 pub mod lexer;
+#[cfg(test)]
+mod nested_function_tests;
 pub mod parser;
 #[cfg(test)]
 mod parser_advanced_tests;
