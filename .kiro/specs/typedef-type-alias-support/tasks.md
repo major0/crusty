@@ -1,34 +1,34 @@
 # Tasks: Typedef Type Alias Support
 
 ## 1. Core Type Resolution Implementation
-- [ ] 1.1 Add `resolve_type()` function to `TypeEnvironment` in `src/semantic.rs`
+- [x] 1.1 Add `resolve_type()` function to `TypeEnvironment` in `src/semantic.rs`
   - Implement recursive type alias resolution
   - Handle all type variants (Ident, Pointer, Reference, Array, Slice, Generic, Tuple, Function, Fallible)
   - Return resolved type or original if not an alias
   
-- [ ] 1.2 Update `is_compatible()` function to resolve types before comparison
+- [x] 1.2 Update `is_compatible()` function to resolve types before comparison
   - Call `resolve_type()` on both input types
   - Perform compatibility check on resolved types
   - Maintain existing compatibility logic
 
-- [ ] 1.3 Write unit tests for `resolve_type()`
+- [x] 1.3 Write unit tests for `resolve_type()`
   - Test simple alias resolution (typedef int MyInt)
   - Test chained alias resolution (typedef int A; typedef A B)
   - Test complex type resolution (pointers, references, generics)
   - Test non-alias types return unchanged
 
 ## 2. Circular Reference Detection
-- [ ] 2.1 Add `has_circular_reference()` function to `TypeEnvironment`
+- [x] 2.1 Add `has_circular_reference()` function to `TypeEnvironment`
   - Implement visited set tracking
   - Check for cycles in alias chains
   - Handle complex types recursively
 
-- [ ] 2.2 Update `analyze_typedef()` to check for circular references
+- [x] 2.2 Update `analyze_typedef()` to check for circular references
   - Call `has_circular_reference()` before registering typedef
   - Report semantic error if circular reference detected
   - Prevent registration of circular typedefs
 
-- [ ] 2.3 Write unit tests for circular reference detection
+- [x] 2.3 Write unit tests for circular reference detection
   - Test direct circular reference (typedef A A)
   - Test indirect circular reference (typedef A B; typedef B A)
   - Test multi-step circular reference (typedef A B; typedef B C; typedef C A)
