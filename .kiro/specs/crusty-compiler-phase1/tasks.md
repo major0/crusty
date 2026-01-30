@@ -801,7 +801,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - **Property 35: Nested functions translate to Rust closures**
     - **Validates: Requirements 59.11, 59.12, 59.13**
   
-  - [ ]17.7 Write unit tests for nested functions
+  - [x]17.7 Write unit tests for nested functions
     - Test parsing of nested functions
     - Test capture analysis (immutable and mutable)
     - Test scoping rules (before/after declaration)
