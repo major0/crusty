@@ -32,7 +32,7 @@ What is NOT transformed: method names (`.is_err()` stays `.is_err()`), function 
 C features that cannot be safely represented in Rust are rejected at compile time:
 - **No unions** — Use Rust enums instead
 - **No goto** — Use structured control flow
-- **No #include** — Use Crusty's module system
+- **No #include** — Use `#import`/`#export` directives
 
 ### Rust Standard Library
 Crusty programs use Rust's standard library directly. There are no wrapper types or compatibility layers. `println!`, `Vec`, `String`, and all other std types work as-is.
@@ -46,5 +46,6 @@ When Crusty's syntax doesn't cover a Rust feature, the `rust!` macro allows embe
 |---------|--------|-------------|
 | `union` | Violates Rust memory safety | Use `enum` |
 | `goto` | No Rust equivalent | Use loops with `break`/`continue` |
-| `#include` | Incompatible with Rust modules | Use `#import`/`#export` |
+| `#include` | Incompatible with Rust modules | Use `#import`/`#export` directives |
+| `#use` | Replaced by explicit import/export | Use `#import` or `#export` |
 | Raw pointers (unrestricted) | Unsafe by default | Use references, or `unsafe` blocks |
