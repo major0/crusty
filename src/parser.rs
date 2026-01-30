@@ -6,11 +6,14 @@
 use crate::ast::*;
 use crate::error::ParseError;
 use crate::lexer::{Lexer, Token, TokenKind};
+use std::collections::HashMap;
 
 /// Parser for Crusty source code
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
     current_token: Token,
+    /// Registry of macro names to their delimiter types
+    macro_registry: HashMap<String, MacroDelimiter>,
 }
 
 impl<'a> Parser<'a> {
@@ -24,6 +27,7 @@ impl<'a> Parser<'a> {
         Ok(Self {
             lexer,
             current_token,
+            macro_registry: HashMap::new(),
         })
     }
 
@@ -1124,6 +1128,10 @@ impl<'a> Parser<'a> {
             self.advance()?;
         }
 
+        // Register macro in the registry
+        self.macro_registry
+            .insert(name.name.clone(), delimiter.clone());
+
         Ok(Item::MacroDefinition(MacroDefinition {
             name,
             params,
@@ -1878,6 +1886,9 @@ impl<'a> Parser<'a> {
                     // Check if this is a macro call (double-underscore pattern)
                     if let Expression::Ident(ref name) = expr {
                         if name.name.starts_with("__") && name.name.ends_with("__") {
+                            // Check delimiter type matches macro definition
+                            self.check_macro_delimiter(&name.name, MacroDelimiter::Parens)?;
+
                             // This is a macro call with parentheses, parse as MacroCall
                             let macro_name = name.clone();
                             let args =
@@ -1915,6 +1926,9 @@ impl<'a> Parser<'a> {
                     // Check if this is a macro call with brackets (e.g., __vec__[1, 2, 3])
                     if let Expression::Ident(ref name) = expr {
                         if name.name.starts_with("__") && name.name.ends_with("__") {
+                            // Check delimiter type matches macro definition
+                            self.check_macro_delimiter(&name.name, MacroDelimiter::Brackets)?;
+
                             // This is a macro call with brackets, parse as MacroCall
                             let macro_name = name.clone();
                             let args =
@@ -1994,6 +2008,9 @@ impl<'a> Parser<'a> {
                     // Check if this is a macro call with braces (e.g., __macro__{...})
                     if let Expression::Ident(ref name) = expr {
                         if name.name.starts_with("__") && name.name.ends_with("__") {
+                            // Check delimiter type matches macro definition
+                            self.check_macro_delimiter(&name.name, MacroDelimiter::Braces)?;
+
                             // This is a macro call with braces, parse as MacroCall
                             let macro_name = name.clone();
                             let args =
@@ -2127,6 +2144,30 @@ impl<'a> Parser<'a> {
 
         self.expect(close)?;
         Ok(tokens)
+    }
+
+    /// Check if a macro invocation uses the correct delimiter type
+    /// Returns Ok(()) if the delimiter is correct or macro is not registered
+    /// Returns Err if the delimiter doesn't match the macro definition
+    fn check_macro_delimiter(
+        &self,
+        macro_name: &str,
+        used_delimiter: MacroDelimiter,
+    ) -> Result<(), ParseError> {
+        if let Some(expected_delimiter) = self.macro_registry.get(macro_name) {
+            if expected_delimiter != &used_delimiter {
+                return Err(ParseError::new(
+                    self.current_token.span,
+                    format!(
+                        "macro '{}' expects {:?} delimiter but was invoked with {:?}",
+                        macro_name, expected_delimiter, used_delimiter
+                    ),
+                    vec![format!("{:?}", expected_delimiter)],
+                    format!("{:?}", used_delimiter),
+                ));
+            }
+        }
+        Ok(())
     }
 
     /// Check if the current position looks like a struct initializer
@@ -4041,4 +4082,163 @@ fn test_parse_struct_initializer_nested() {
         }
         _ => panic!("Expected Function"),
     }
+}
+
+#[test]
+fn test_macro_delimiter_parens() {
+    let source = r#"
+        #define __ADD__(a, b) a + b
+        int main() {
+            let result = __ADD__(1, 2);
+        }
+    "#;
+    let mut parser = Parser::new(source).unwrap();
+    let file = parser.parse_file().unwrap();
+
+    // Should parse successfully with matching delimiters
+    assert_eq!(file.items.len(), 2);
+}
+
+#[test]
+fn test_macro_delimiter_brackets() {
+    let source = r#"
+        #define __VEC__[items] items
+        int main() {
+            let v = __VEC__[1, 2, 3];
+        }
+    "#;
+    let mut parser = Parser::new(source).unwrap();
+    let file = parser.parse_file().unwrap();
+
+    // Should parse successfully with matching delimiters
+    assert_eq!(file.items.len(), 2);
+}
+
+#[test]
+fn test_macro_delimiter_braces() {
+    let source = r#"
+        #define __BLOCK__{code} code
+        int main() {
+            __BLOCK__{
+                let x = 1;
+            };
+        }
+    "#;
+    let mut parser = Parser::new(source).unwrap();
+    let file = parser.parse_file().unwrap();
+
+    // Should parse successfully with matching delimiters
+    assert_eq!(file.items.len(), 2);
+}
+
+#[test]
+fn test_macro_delimiter_none() {
+    let source = r#"
+        #define __MAX__ 100
+        int main() {
+            let x = __MAX__;
+        }
+    "#;
+    let mut parser = Parser::new(source).unwrap();
+    let file = parser.parse_file().unwrap();
+
+    // Should parse successfully - constant macro with no delimiter
+    assert_eq!(file.items.len(), 2);
+}
+
+#[test]
+fn test_macro_delimiter_mismatch_parens_to_brackets() {
+    let source = r#"
+        #define __ADD__(a, b) a + b
+        int main() {
+            let result = __ADD__[1, 2];
+        }
+    "#;
+    let mut parser = Parser::new(source).unwrap();
+    let result = parser.parse_file();
+
+    // Should fail - macro defined with parens but invoked with brackets
+    assert!(result.is_err());
+    if let Err(e) = result {
+        assert!(e.message.contains("expects Parens delimiter"));
+        assert!(e.message.contains("invoked with Brackets"));
+    }
+}
+
+#[test]
+fn test_macro_delimiter_mismatch_brackets_to_parens() {
+    let source = r#"
+        #define __VEC__[items] items
+        int main() {
+            let v = __VEC__(1, 2, 3);
+        }
+    "#;
+    let mut parser = Parser::new(source).unwrap();
+    let result = parser.parse_file();
+
+    // Should fail - macro defined with brackets but invoked with parens
+    assert!(result.is_err());
+    if let Err(e) = result {
+        assert!(e.message.contains("expects Brackets delimiter"));
+        assert!(e.message.contains("invoked with Parens"));
+    }
+}
+
+#[test]
+fn test_macro_delimiter_mismatch_braces_to_parens() {
+    let source = r#"
+        #define __BLOCK__{code} code
+        int main() {
+            __BLOCK__(let x = 1;);
+        }
+    "#;
+    let mut parser = Parser::new(source).unwrap();
+    let result = parser.parse_file();
+
+    // Should fail - macro defined with braces but invoked with parens
+    assert!(result.is_err());
+    if let Err(e) = result {
+        assert!(e.message.contains("expects Braces delimiter"));
+        assert!(e.message.contains("invoked with Parens"));
+    }
+}
+
+#[test]
+fn test_macro_invocation_before_definition() {
+    let source = r#"
+        int main() {
+            let result = __ADD__(1, 2);
+        }
+        #define __ADD__(a, b) a + b
+    "#;
+    let mut parser = Parser::new(source).unwrap();
+    let file = parser.parse_file().unwrap();
+
+    // Should parse successfully - macro invoked before definition is allowed
+    // (delimiter checking only happens if macro is already registered)
+    assert_eq!(file.items.len(), 2);
+}
+
+#[test]
+fn test_multiple_macros_different_delimiters() {
+    let source = r#"
+        #define __ADD__(a, b) a + b
+        #define __VEC__[items] items
+        #define __BLOCK__{code} code
+        #define __MAX__ 100
+        
+        int main() {
+            let sum = __ADD__(1, 2);
+            let v = __VEC__[1, 2, 3];
+            __BLOCK__{
+                let x = 1;
+            };
+            let max = __MAX__;
+        }
+    "#;
+    let mut parser = Parser::new(source).unwrap();
+    let file = parser.parse_file().unwrap();
+
+    // Should parse successfully - all macros use correct delimiters
+    assert_eq!(file.items.len(), 5); // 4 macros + 1 function
 }
