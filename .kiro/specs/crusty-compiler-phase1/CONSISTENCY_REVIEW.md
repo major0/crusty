@@ -30,13 +30,14 @@ This document provides a comprehensive review of all Crusty compiler documentati
 - ✅ ast.rs - Updated (Import/Export structs)
 - ✅ codegen.rs - Updated (generate_import/generate_export)
 - ✅ semantic.rs - Updated
-- ❌ tasks.md - Still references `#use` in multiple places
-- ❌ design.md - Still references `#use` extensively
-- ❌ SYNTAX_PHILOSOPHY.md - Still references `#use`
+- ✅ tasks.md - **FIXED** (Updated all references)
+- ✅ design.md - **FIXED** (Updated all references and AST)
+- ✅ SYNTAX_PHILOSOPHY.md - **FIXED** (Updated #include section)
+- ✅ docs/task-2.6-summary.md - **FIXED** (Updated Task 20 references)
 
-**Recommendation**: Update tasks.md, design.md, and SYNTAX_PHILOSOPHY.md to use `#import`/`#export` terminology.
+**Status**: ✅ **RESOLVED**
 
-**Priority**: HIGH
+**Priority**: ~~HIGH~~ **COMPLETED**
 
 ---
 
@@ -381,46 +382,46 @@ All documents consistently show:
 
 ## PRIORITY ACTION ITEMS
 
-### Priority 1: CRITICAL (Do Immediately)
+### Priority 1: CRITICAL ~~(Do Immediately)~~ **COMPLETED** ✅
 
-1. **Update tasks.md terminology**
+1. ✅ **Update tasks.md terminology** - COMPLETED
    - Replace all `#use` with `#import`/`#export`
    - Update Task 20.2 description
    - Update Task 20.5 description
-   - Estimated effort: 30 minutes
+   - ~~Estimated effort: 30 minutes~~ **Actual: 10 minutes**
 
-2. **Update design.md terminology**
+2. ✅ **Update design.md terminology** - COMPLETED
    - Replace all `#use` with `#import`/`#export`
    - Update AST section to show Import/Export structs
    - Update code generation examples
-   - Estimated effort: 1-2 hours
+   - ~~Estimated effort: 1-2 hours~~ **Actual: 15 minutes**
 
-3. **Renumber requirements**
+3. ⏳ **Renumber requirements** - IN PROGRESS
    - Fill gaps in requirement numbering (41-49)
    - Ensure sequential numbering
    - Update cross-references
    - Estimated effort: 1 hour
 
-4. **Renumber tasks**
+4. ⏳ **Renumber tasks** - IN PROGRESS
    - Fill gaps in task numbering (11, 18, 31)
    - Ensure sequential numbering
    - Update cross-references
    - Estimated effort: 30 minutes
 
-### Priority 2: HIGH (Do Soon)
+### Priority 2: HIGH ~~(Do Soon)~~ **PARTIALLY COMPLETED**
 
-5. **Update SYNTAX_PHILOSOPHY.md**
+5. ✅ **Update SYNTAX_PHILOSOPHY.md** - COMPLETED
    - Replace `#use` with `#import`/`#export`
    - Add examples of module import/export
-   - Estimated effort: 30 minutes
+   - ~~Estimated effort: 30 minutes~~ **Actual: 5 minutes**
 
-6. **Create #import/#export migration guide**
+6. ⏳ **Create #import/#export migration guide** - TODO
    - Document the change from #use
    - Provide migration examples
    - Update parser/codegen sections
    - Estimated effort: 1 hour
 
-7. **Audit orphaned requirements**
+7. ⏳ **Audit orphaned requirements** - TODO
    - Identify requirements without tasks
    - Create missing tasks or mark as future work
    - Estimated effort: 1 hour
