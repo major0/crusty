@@ -99,6 +99,28 @@ impl<'a> Parser<'a> {
         std::mem::discriminant(&self.current_token.kind) == std::mem::discriminant(kind)
     }
 
+    /// Check if current token could be the start of a type
+    fn is_type_token(&self) -> bool {
+        matches!(
+            self.current_token.kind,
+            TokenKind::Int
+                | TokenKind::I32
+                | TokenKind::I64
+                | TokenKind::U32
+                | TokenKind::U64
+                | TokenKind::Float
+                | TokenKind::F32
+                | TokenKind::F64
+                | TokenKind::Bool
+                | TokenKind::Char
+                | TokenKind::Void
+                | TokenKind::Ident(_)
+                | TokenKind::Star // For pointer types like *int
+                | TokenKind::BitAnd // For reference types like &int
+                | TokenKind::Var // For mutable references like var &int
+        )
+    }
+
     /// Check if we're at end of file
     fn is_at_end(&self) -> bool {
         matches!(self.current_token.kind, TokenKind::Eof)
@@ -2534,7 +2556,11 @@ impl<'a> Parser<'a> {
                 Ok(Expression::Literal(Literal::Null))
             }
             TokenKind::LParen => {
-                // Parenthesized expression or tuple literal
+                // Could be:
+                // 1. Cast expression: (Type)expr
+                // 2. Parenthesized expression: (expr)
+                // 3. Tuple literal: (expr1, expr2, ...)
+
                 self.advance()?;
 
                 // Check for empty tuple ()
@@ -2545,6 +2571,50 @@ impl<'a> Parser<'a> {
                     });
                 }
 
+                // Try to detect if this is a cast by checking if we have a type token
+                let is_cast = self.is_type_token();
+
+                if is_cast {
+                    // Try to parse as cast: (Type)expr
+                    // Save position in case we need to backtrack
+                    let saved_position = self.lexer.position;
+                    let saved_line = self.lexer.line;
+                    let saved_column = self.lexer.column;
+                    let saved_token = self.current_token.clone();
+
+                    // Try to parse type
+                    match self.parse_type() {
+                        Ok(ty) => {
+                            // Check for closing paren
+                            if self.check(&TokenKind::RParen) {
+                                self.advance()?;
+                                // Parse the expression being cast
+                                let expr = self.parse_unary()?;
+                                return Ok(Expression::Cast {
+                                    expr: Box::new(expr),
+                                    ty,
+                                });
+                            } else {
+                                // Not a cast, restore position and parse as expression
+                                self.lexer.position = saved_position;
+                                self.lexer.line = saved_line;
+                                self.lexer.column = saved_column;
+                                self.current_token = saved_token;
+                                self.advance()?;
+                            }
+                        }
+                        Err(_) => {
+                            // Failed to parse type, restore position and parse as expression
+                            self.lexer.position = saved_position;
+                            self.lexer.line = saved_line;
+                            self.lexer.column = saved_column;
+                            self.current_token = saved_token;
+                            self.advance()?;
+                        }
+                    }
+                }
+
+                // Parse as parenthesized expression or tuple
                 let first_expr = self.parse_expression()?;
 
                 // Check if this is a tuple (has comma) or just a parenthesized expression
