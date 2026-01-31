@@ -6,7 +6,7 @@
 use crate::ast::{Ident, Type};
 use crate::error::{SemanticError, SemanticErrorKind, Span};
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// Symbol kind classification
 #[derive(Debug, Clone, PartialEq)]
@@ -240,11 +240,120 @@ impl TypeEnvironment {
         self.types.get(name)
     }
 
+    /// Resolve a type by following type aliases
+    /// Returns the resolved type, or the original type if it's not an alias
+    pub fn resolve_type(&self, ty: &Type) -> Type {
+        match ty {
+            Type::Ident(ident) => {
+                // Look up the type in the type environment
+                if let Some(type_info) = self.types.get(&ident.name) {
+                    match &type_info.kind {
+                        TypeKind::Alias { target } => {
+                            // Recursively resolve the target type
+                            // This handles chains like: typedef A B; typedef B C;
+                            self.resolve_type(target)
+                        }
+                        _ => ty.clone(),
+                    }
+                } else {
+                    ty.clone()
+                }
+            }
+            // For complex types, recursively resolve inner types
+            Type::Pointer { ty: inner, mutable } => Type::Pointer {
+                ty: Box::new(self.resolve_type(inner)),
+                mutable: *mutable,
+            },
+            Type::Reference { ty: inner, mutable } => Type::Reference {
+                ty: Box::new(self.resolve_type(inner)),
+                mutable: *mutable,
+            },
+            Type::Array { ty: inner, size } => Type::Array {
+                ty: Box::new(self.resolve_type(inner)),
+                size: *size,
+            },
+            Type::Slice { ty: inner } => Type::Slice {
+                ty: Box::new(self.resolve_type(inner)),
+            },
+            Type::Generic { base, args } => Type::Generic {
+                base: Box::new(self.resolve_type(base)),
+                args: args.iter().map(|t| self.resolve_type(t)).collect(),
+            },
+            Type::Tuple { types } => Type::Tuple {
+                types: types.iter().map(|t| self.resolve_type(t)).collect(),
+            },
+            Type::Function {
+                params,
+                return_type,
+            } => Type::Function {
+                params: params.iter().map(|t| self.resolve_type(t)).collect(),
+                return_type: Box::new(self.resolve_type(return_type)),
+            },
+            Type::Fallible { ty: inner } => Type::Fallible {
+                ty: Box::new(self.resolve_type(inner)),
+            },
+            // Primitives and Auto don't need resolution
+            _ => ty.clone(),
+        }
+    }
+
+    /// Check if a type alias chain contains a circular reference
+    pub fn has_circular_reference(&self, ty: &Type, visited: &mut HashSet<String>) -> bool {
+        match ty {
+            Type::Ident(ident) => {
+                if visited.contains(&ident.name) {
+                    return true; // Circular reference detected
+                }
+
+                if let Some(type_info) = self.types.get(&ident.name) {
+                    if let TypeKind::Alias { target } = &type_info.kind {
+                        visited.insert(ident.name.clone());
+                        let result = self.has_circular_reference(target, visited);
+                        visited.remove(&ident.name);
+                        return result;
+                    }
+                }
+                false
+            }
+            // Check inner types for complex types
+            Type::Pointer { ty, .. }
+            | Type::Reference { ty, .. }
+            | Type::Array { ty, .. }
+            | Type::Slice { ty }
+            | Type::Fallible { ty } => self.has_circular_reference(ty, visited),
+
+            Type::Generic { base, args } => {
+                self.has_circular_reference(base, visited)
+                    || args.iter().any(|t| self.has_circular_reference(t, visited))
+            }
+
+            Type::Tuple { types } => types
+                .iter()
+                .any(|t| self.has_circular_reference(t, visited)),
+
+            Type::Function {
+                params,
+                return_type,
+            } => {
+                params
+                    .iter()
+                    .any(|t| self.has_circular_reference(t, visited))
+                    || self.has_circular_reference(return_type, visited)
+            }
+
+            _ => false,
+        }
+    }
+
     /// Check if two types are compatible
     pub fn is_compatible(&self, t1: &Type, t2: &Type) -> bool {
         use crate::ast::PrimitiveType;
 
-        match (t1, t2) {
+        // Resolve type aliases first
+        let resolved_t1 = self.resolve_type(t1);
+        let resolved_t2 = self.resolve_type(t2);
+
+        match (&resolved_t1, &resolved_t2) {
             // Auto type is compatible with anything
             (Type::Auto, _) | (_, Type::Auto) => true,
 
@@ -584,6 +693,23 @@ impl SemanticAnalyzer {
 
     /// Analyze a typedef
     fn analyze_typedef(&mut self, typedef: &crate::ast::Typedef) {
+        // Check for circular references
+        let mut visited = HashSet::new();
+        if self
+            .type_env
+            .has_circular_reference(&typedef.target, &mut visited)
+        {
+            self.errors.push(SemanticError::new(
+                Span::new(
+                    crate::error::Position::new(0, 0),
+                    crate::error::Position::new(0, 0),
+                ),
+                SemanticErrorKind::TypeMismatch,
+                format!("circular type alias definition for '{}'", typedef.name.name),
+            ));
+            return;
+        }
+
         // Register type alias in type environment
         let type_info = TypeInfo::new(
             typedef.name.name.clone(),
@@ -3344,5 +3470,320 @@ mod tests {
                 prop_assert_eq!(analyzer.errors().len(), 0);
             }
         }
+    }
+
+    // Unit tests for typedef type alias resolution
+
+    #[test]
+    fn test_resolve_type_simple_alias() {
+        let mut env = TypeEnvironment::new();
+
+        // Register typedef int MyInt
+        env.register_type(
+            "MyInt".to_string(),
+            TypeInfo::new(
+                "MyInt".to_string(),
+                TypeKind::Alias {
+                    target: Type::Primitive(PrimitiveType::Int),
+                },
+            ),
+        );
+
+        let alias_type = Type::Ident(Ident::new("MyInt"));
+        let resolved = env.resolve_type(&alias_type);
+
+        assert!(matches!(resolved, Type::Primitive(PrimitiveType::Int)));
+    }
+
+    #[test]
+    fn test_resolve_type_chained_alias() {
+        let mut env = TypeEnvironment::new();
+
+        // Register typedef int A
+        env.register_type(
+            "A".to_string(),
+            TypeInfo::new(
+                "A".to_string(),
+                TypeKind::Alias {
+                    target: Type::Primitive(PrimitiveType::Int),
+                },
+            ),
+        );
+
+        // Register typedef A B
+        env.register_type(
+            "B".to_string(),
+            TypeInfo::new(
+                "B".to_string(),
+                TypeKind::Alias {
+                    target: Type::Ident(Ident::new("A")),
+                },
+            ),
+        );
+
+        // Register typedef B C
+        env.register_type(
+            "C".to_string(),
+            TypeInfo::new(
+                "C".to_string(),
+                TypeKind::Alias {
+                    target: Type::Ident(Ident::new("B")),
+                },
+            ),
+        );
+
+        let alias_type = Type::Ident(Ident::new("C"));
+        let resolved = env.resolve_type(&alias_type);
+
+        assert!(matches!(resolved, Type::Primitive(PrimitiveType::Int)));
+    }
+
+    #[test]
+    fn test_resolve_type_pointer_alias() {
+        let mut env = TypeEnvironment::new();
+
+        // Register typedef *int IntPtr
+        env.register_type(
+            "IntPtr".to_string(),
+            TypeInfo::new(
+                "IntPtr".to_string(),
+                TypeKind::Alias {
+                    target: Type::Pointer {
+                        ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                        mutable: true,
+                    },
+                },
+            ),
+        );
+
+        let alias_type = Type::Ident(Ident::new("IntPtr"));
+        let resolved = env.resolve_type(&alias_type);
+
+        match resolved {
+            Type::Pointer { ty, mutable } => {
+                assert!(matches!(*ty, Type::Primitive(PrimitiveType::Int)));
+                assert!(mutable);
+            }
+            _ => panic!("Expected pointer type"),
+        }
+    }
+
+    #[test]
+    fn test_resolve_type_complex_nested() {
+        let mut env = TypeEnvironment::new();
+
+        // Register typedef int MyInt
+        env.register_type(
+            "MyInt".to_string(),
+            TypeInfo::new(
+                "MyInt".to_string(),
+                TypeKind::Alias {
+                    target: Type::Primitive(PrimitiveType::Int),
+                },
+            ),
+        );
+
+        // Create a pointer to MyInt
+        let complex_type = Type::Pointer {
+            ty: Box::new(Type::Ident(Ident::new("MyInt"))),
+            mutable: true,
+        };
+
+        let resolved = env.resolve_type(&complex_type);
+
+        match resolved {
+            Type::Pointer { ty, mutable } => {
+                assert!(matches!(*ty, Type::Primitive(PrimitiveType::Int)));
+                assert!(mutable);
+            }
+            _ => panic!("Expected pointer type"),
+        }
+    }
+
+    #[test]
+    fn test_is_compatible_with_typedef() {
+        let mut env = TypeEnvironment::new();
+
+        // Register typedef int MyInt
+        env.register_type(
+            "MyInt".to_string(),
+            TypeInfo::new(
+                "MyInt".to_string(),
+                TypeKind::Alias {
+                    target: Type::Primitive(PrimitiveType::Int),
+                },
+            ),
+        );
+
+        let alias_type = Type::Ident(Ident::new("MyInt"));
+        let int_type = Type::Primitive(PrimitiveType::Int);
+
+        // MyInt should be compatible with int
+        assert!(env.is_compatible(&alias_type, &int_type));
+        assert!(env.is_compatible(&int_type, &alias_type));
+    }
+
+    #[test]
+    fn test_has_circular_reference_direct() {
+        let mut env = TypeEnvironment::new();
+
+        // Register typedef A A (self-referential)
+        env.register_type(
+            "A".to_string(),
+            TypeInfo::new(
+                "A".to_string(),
+                TypeKind::Alias {
+                    target: Type::Ident(Ident::new("A")),
+                },
+            ),
+        );
+
+        let alias_type = Type::Ident(Ident::new("A"));
+        let mut visited = HashSet::new();
+
+        assert!(env.has_circular_reference(&alias_type, &mut visited));
+    }
+
+    #[test]
+    fn test_has_circular_reference_indirect() {
+        let mut env = TypeEnvironment::new();
+
+        // Register typedef B A
+        env.register_type(
+            "A".to_string(),
+            TypeInfo::new(
+                "A".to_string(),
+                TypeKind::Alias {
+                    target: Type::Ident(Ident::new("B")),
+                },
+            ),
+        );
+
+        // Register typedef A B (creates cycle)
+        env.register_type(
+            "B".to_string(),
+            TypeInfo::new(
+                "B".to_string(),
+                TypeKind::Alias {
+                    target: Type::Ident(Ident::new("A")),
+                },
+            ),
+        );
+
+        let alias_type = Type::Ident(Ident::new("A"));
+        let mut visited = HashSet::new();
+
+        assert!(env.has_circular_reference(&alias_type, &mut visited));
+    }
+
+    #[test]
+    fn test_has_circular_reference_multi_step() {
+        let mut env = TypeEnvironment::new();
+
+        // Register typedef B A
+        env.register_type(
+            "A".to_string(),
+            TypeInfo::new(
+                "A".to_string(),
+                TypeKind::Alias {
+                    target: Type::Ident(Ident::new("B")),
+                },
+            ),
+        );
+
+        // Register typedef C B
+        env.register_type(
+            "B".to_string(),
+            TypeInfo::new(
+                "B".to_string(),
+                TypeKind::Alias {
+                    target: Type::Ident(Ident::new("C")),
+                },
+            ),
+        );
+
+        // Register typedef A C (creates cycle A -> B -> C -> A)
+        env.register_type(
+            "C".to_string(),
+            TypeInfo::new(
+                "C".to_string(),
+                TypeKind::Alias {
+                    target: Type::Ident(Ident::new("A")),
+                },
+            ),
+        );
+
+        let alias_type = Type::Ident(Ident::new("A"));
+        let mut visited = HashSet::new();
+
+        assert!(env.has_circular_reference(&alias_type, &mut visited));
+    }
+
+    #[test]
+    fn test_has_circular_reference_no_cycle() {
+        let mut env = TypeEnvironment::new();
+
+        // Register typedef int A
+        env.register_type(
+            "A".to_string(),
+            TypeInfo::new(
+                "A".to_string(),
+                TypeKind::Alias {
+                    target: Type::Primitive(PrimitiveType::Int),
+                },
+            ),
+        );
+
+        // Register typedef A B
+        env.register_type(
+            "B".to_string(),
+            TypeInfo::new(
+                "B".to_string(),
+                TypeKind::Alias {
+                    target: Type::Ident(Ident::new("A")),
+                },
+            ),
+        );
+
+        let alias_type = Type::Ident(Ident::new("B"));
+        let mut visited = HashSet::new();
+
+        assert!(!env.has_circular_reference(&alias_type, &mut visited));
+    }
+
+    #[test]
+    fn test_analyze_typedef_with_circular_reference() {
+        let mut analyzer = SemanticAnalyzer::new();
+
+        // First register typedef int A (no cycle yet)
+        let typedef_a = crate::ast::Typedef {
+            visibility: crate::ast::Visibility::Public,
+            name: Ident::new("A"),
+            target: Type::Primitive(PrimitiveType::Int),
+            doc_comments: vec![],
+        };
+        analyzer.analyze_typedef(&typedef_a);
+
+        // Now register typedef A B (creates self-reference to A)
+        let typedef_b = crate::ast::Typedef {
+            visibility: crate::ast::Visibility::Public,
+            name: Ident::new("A"),
+            target: Type::Ident(Ident::new("A")),
+            doc_comments: vec![],
+        };
+
+        // Clear previous errors
+        analyzer.errors.clear();
+        analyzer.analyze_typedef(&typedef_b);
+
+        // Should have one error for circular reference
+        assert_eq!(analyzer.errors().len(), 1);
+        // The error could be either circular reference or duplicate definition
+        let error_msg = &analyzer.errors()[0].message;
+        assert!(
+            error_msg.contains("circular") || error_msg.contains("already defined"),
+            "Expected circular reference or duplicate definition error, got: {}",
+            error_msg
+        );
     }
 }
