@@ -101,6 +101,52 @@ typedef struct {
 ```
 Named blocks are organizational — multiple `@Type.name` blocks for the same type are merged into a single `impl Type` block in the generated Rust code.
 
+## C-Style Type Casting
+
+Crusty supports C-style cast syntax `(Type)expr` alongside Rust-style type annotations. This is particularly useful with typedef aliases:
+
+```c
+typedef int MyInt;
+typedef float MyFloat;
+
+void main() {
+    let x = (MyInt)42;       // C-style cast to typedef alias
+    let y = (int)x;          // Cast back to primitive
+    let z = (MyFloat)3.14;   // Cast to float alias
+}
+```
+
+Translates to:
+```rust
+let x = (42 as MyInt);
+let y = (x as i32);
+let z = (3.14 as MyFloat);
+```
+
+Chained typedef aliases resolve correctly through the alias chain:
+```c
+typedef int Integer;
+typedef Integer Number;
+
+void main() {
+    let x = (Number)42;    // Resolves Number → Integer → int
+    let y = (Integer)x;
+    let z = (int)y;
+}
+```
+
+The parser distinguishes between casts, parenthesized expressions, and tuples using lookahead:
+- `(Type)expr` — cast expression
+- `(expr)` — parenthesized expression
+- `(expr1, expr2)` — tuple literal
+
+Both Rust-style annotations and C-style casts are supported simultaneously:
+```c
+typedef int MyInt;
+let x: MyInt = 42;    // Rust-style annotation
+let y = (MyInt)42;    // C-style cast
+```
+
 ## Formal Grammar
 
 ```ebnf
