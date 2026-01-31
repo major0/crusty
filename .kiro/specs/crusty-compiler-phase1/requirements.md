@@ -1135,15 +1135,19 @@ fn process<T>(value: T) -> Option<T> { ... }
 5. THE Parser SHALL support __rust__{ } blocks within extern blocks for embedding raw Rust code
 6. THE Parser SHALL support extern blocks at module level
 7. THE Parser SHALL support linking to external libraries via extern blocks
-8. WHEN generating Rust code, THE Code_Generator SHALL translate extern blocks to Rust extern blocks with the same ABI specification
-9. WHEN generating Rust code, THE Code_Generator SHALL translate Crusty function declarations inside extern blocks to Rust function declarations
-10. WHEN generating Rust code, THE Code_Generator SHALL emit __rust__{ } block contents directly as Rust code within extern blocks
-11. WHEN generating Rust code, THE Code_Generator SHALL preserve the ABI string exactly as specified (extern "C", extern "Rust", etc.)
-12. THE Semantic_Analyzer SHALL verify that extern function declarations use FFI-compatible types
-13. THE Semantic_Analyzer SHALL verify that extern functions do not use Rust-specific features incompatible with the specified ABI
-14. THE Semantic_Analyzer SHALL allow extern functions to be called from Crusty code
-15. WHEN reverse transpiling from Rust, THE Code_Generator SHALL preserve extern blocks in Crusty with the same ABI specification
-16. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust function declarations inside extern blocks to Crusty syntax
+8. THE Semantic_Analyzer SHALL reject nested extern blocks (extern within extern)
+9. THE Semantic_Analyzer SHALL reject nested __rust__{ } blocks (__rust__ within __rust__)
+10. THE Semantic_Analyzer SHALL reject extern blocks within __rust__{ } blocks that are themselves within extern blocks
+11. THE Semantic_Analyzer SHALL allow extern blocks within __rust__{ } blocks at module level (handled transparently by rustc)
+12. WHEN generating Rust code, THE Code_Generator SHALL translate extern blocks to Rust extern blocks with the same ABI specification
+13. WHEN generating Rust code, THE Code_Generator SHALL translate Crusty function declarations inside extern blocks to Rust function declarations
+14. WHEN generating Rust code, THE Code_Generator SHALL emit __rust__{ } block contents directly as Rust code within extern blocks
+15. WHEN generating Rust code, THE Code_Generator SHALL preserve the ABI string exactly as specified (extern "C", extern "Rust", etc.)
+16. THE Semantic_Analyzer SHALL verify that extern function declarations use FFI-compatible types
+17. THE Semantic_Analyzer SHALL verify that extern functions do not use Rust-specific features incompatible with the specified ABI
+18. THE Semantic_Analyzer SHALL allow extern functions to be called from Crusty code
+19. WHEN reverse transpiling from Rust, THE Code_Generator SHALL preserve extern blocks in Crusty with the same ABI specification
+20. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust function declarations inside extern blocks to Crusty syntax
 
 **Syntax Examples:**
 
@@ -1237,6 +1241,13 @@ pub fn main() {
 - Extern functions are typically unsafe to call (Rust requirement)
 - The parser translates Crusty function syntax to Rust function syntax within extern blocks
 - __rust__{ } block contents are emitted directly as Rust code without translation
+
+**Nesting Rules:**
+- ❌ DISALLOWED: extern within extern (nested extern blocks)
+- ❌ DISALLOWED: __rust__ within __rust__ (nested __rust__ blocks)
+- ❌ DISALLOWED: extern within __rust__ within extern (would unwrap to nested extern)
+- ✅ ALLOWED: __rust__ within extern (for complex FFI signatures)
+- ✅ ALLOWED: extern within __rust__ at module level (handled by rustc transparently)
 
 ### Requirement 45: Support Inline Assembly
 

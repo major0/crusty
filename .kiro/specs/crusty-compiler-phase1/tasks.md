@@ -1060,11 +1060,13 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Support all Rust ABI strings (extern "C", extern "cdecl", extern "stdcall", extern "fastcall", extern "system", extern "Rust", etc.)
     - Parse Crusty-style function declarations inside extern blocks
     - Support __rust__{ } blocks within extern blocks for embedding raw Rust code
+    - Validate nesting rules: reject extern within extern, __rust__ within __rust__, extern within __rust__ within extern
+    - Allow extern within __rust__ at module level (handled by rustc)
     - Validate FFI-compatible types in extern functions
     - Translate extern blocks to Rust with same ABI specification
     - Translate Crusty function declarations to Rust function declarations inside extern blocks
     - Emit __rust__{ } block contents directly as Rust code within extern blocks
-    - _Requirements: 44.1-44.16_
+    - _Requirements: 44.1-44.20_
   
   - [ ]27.2 Add inline assembly support
     - Parse __asm__ macro syntax with double-underscore naming (no ! suffix)
