@@ -66,6 +66,24 @@ All Rust ABI specifications are supported: `"C"`, `"cdecl"`, `"stdcall"`, `"fast
 - The ABI string is optional — omitting it defaults to Rust ABI
 - Extern functions are typically unsafe to call in the generated Rust code
 - Extern blocks are supported at module level and inside functions
+- `__rust__{ }` blocks can be used within extern blocks for complex Rust-specific syntax that Crusty cannot express
+
+### Escape Hatch for Complex Signatures
+
+When an extern function signature requires Rust-specific syntax (like function pointers with ABI annotations or static mutable globals), use `__rust__{ }` blocks:
+
+```c
+extern "C" {
+    void simple_function();
+
+    __rust__{
+        fn complex_function(callback: extern "C" fn(i32) -> i32) -> i32;
+        static mut GLOBAL_STATE: i32;
+    }
+}
+```
+
+The contents of `__rust__{ }` blocks are emitted directly as Rust code without translation.
 
 ## Formal Grammar
 
