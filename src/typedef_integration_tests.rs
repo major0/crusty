@@ -415,6 +415,53 @@ void main() {
         assert!(rust_code.contains("pub type PublicInt = i32;"));
     }
 
+    #[test]
+    fn test_typedef_private_visibility() {
+        let source = r#"
+static typedef int PrivateInt;
+
+void main() {
+    let x: PrivateInt = 42;
+}
+"#;
+
+        let result = compile_crusty(source);
+        assert!(result.is_ok(), "Failed to compile: {:?}", result.err());
+
+        let rust_code = result.unwrap();
+        // Should generate private typedef (no pub keyword)
+        assert!(
+            rust_code.contains("type PrivateInt = i32;"),
+            "Expected 'type PrivateInt = i32;' but got:\n{}",
+            rust_code
+        );
+        assert!(
+            !rust_code.contains("pub type PrivateInt"),
+            "Should not contain 'pub type PrivateInt'"
+        );
+    }
+
+    #[test]
+    fn test_typedef_mixed_visibility() {
+        let source = r#"
+typedef int PublicInt;
+static typedef int PrivateInt;
+
+void main() {
+    let x: PublicInt = 42;
+    let y: PrivateInt = 10;
+}
+"#;
+
+        let result = compile_crusty(source);
+        assert!(result.is_ok(), "Failed to compile: {:?}", result.err());
+
+        let rust_code = result.unwrap();
+        assert!(rust_code.contains("pub type PublicInt = i32;"));
+        assert!(rust_code.contains("type PrivateInt = i32;"));
+        assert!(!rust_code.contains("pub type PrivateInt"));
+    }
+
     // Test 13: Typedef compatibility in assignments
 
     #[test]

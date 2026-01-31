@@ -152,7 +152,7 @@ impl<'a> Parser<'a> {
             | TokenKind::Void => self.parse_function(is_static, attributes),
             TokenKind::Struct => self.parse_struct_with_attributes(attributes),
             TokenKind::Enum => self.parse_enum_with_attributes(attributes),
-            TokenKind::Typedef => self.parse_typedef(),
+            TokenKind::Typedef => self.parse_typedef(is_static),
             _ => Err(ParseError::new(
                 self.current_token.span,
                 "expected item declaration",
@@ -1004,7 +1004,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a typedef declaration
-    fn parse_typedef(&mut self) -> Result<Item, ParseError> {
+    fn parse_typedef(&mut self, is_static: bool) -> Result<Item, ParseError> {
         self.expect(TokenKind::Typedef)?;
 
         // Parse target type
@@ -1030,7 +1030,11 @@ impl<'a> Parser<'a> {
         self.expect(TokenKind::Semicolon)?;
 
         Ok(Item::Typedef(Typedef {
-            visibility: Visibility::Public,
+            visibility: if is_static {
+                Visibility::Private
+            } else {
+                Visibility::Public
+            },
             name,
             target,
             doc_comments: Vec::new(),
@@ -3301,6 +3305,28 @@ mod tests {
             Item::Typedef(t) => {
                 assert_eq!(t.name.name, "MyInt");
                 assert!(matches!(t.target, Type::Primitive(PrimitiveType::Int)));
+                assert_eq!(t.visibility, Visibility::Public);
+            }
+            _ => panic!("Expected typedef item"),
+        }
+    }
+
+    #[test]
+    fn test_parse_static_typedef() {
+        let source = "static typedef int PrivateInt;";
+        let mut parser = Parser::new(source).unwrap();
+
+        let file = parser.parse_file();
+        assert!(file.is_ok());
+
+        let file = file.unwrap();
+        assert_eq!(file.items.len(), 1);
+
+        match &file.items[0] {
+            Item::Typedef(t) => {
+                assert_eq!(t.name.name, "PrivateInt");
+                assert!(matches!(t.target, Type::Primitive(PrimitiveType::Int)));
+                assert_eq!(t.visibility, Visibility::Private);
             }
             _ => panic!("Expected typedef item"),
         }
