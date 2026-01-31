@@ -1691,20 +1691,35 @@ impl SemanticAnalyzer {
                 // Analyze the expression being cast
                 let expr_type = self.analyze_expression(cast_expr);
 
-                // Basic cast validation (can be expanded)
-                // For now, allow casts between numeric types
-                match (&expr_type, ty) {
-                    (Type::Primitive(_), Type::Primitive(_)) => {}
-                    _ => {
-                        self.errors.push(SemanticError::new(
-                            Span::new(
-                                crate::error::Position::new(0, 0),
-                                crate::error::Position::new(0, 0),
-                            ),
-                            SemanticErrorKind::InvalidOperation,
-                            format!("invalid cast from {:?} to {:?}", expr_type, ty),
-                        ));
-                    }
+                // Resolve both types to handle typedef aliases
+                let resolved_expr_type = self.type_env.resolve_type(&expr_type);
+                let resolved_target_type = self.type_env.resolve_type(ty);
+
+                // Check if cast is valid
+                // Allow casts between:
+                // 1. Compatible types (including through typedef)
+                // 2. Numeric types
+                // 3. Pointer types
+                let is_valid_cast = self
+                    .type_env
+                    .is_compatible(&resolved_expr_type, &resolved_target_type)
+                    || matches!(
+                        (&resolved_expr_type, &resolved_target_type),
+                        (Type::Primitive(_), Type::Primitive(_))
+                            | (Type::Pointer { .. }, Type::Pointer { .. })
+                            | (Type::Primitive(_), Type::Pointer { .. })
+                            | (Type::Pointer { .. }, Type::Primitive(_))
+                    );
+
+                if !is_valid_cast {
+                    self.errors.push(SemanticError::new(
+                        Span::new(
+                            crate::error::Position::new(0, 0),
+                            crate::error::Position::new(0, 0),
+                        ),
+                        SemanticErrorKind::InvalidOperation,
+                        format!("invalid cast from {:?} to {:?}", expr_type, ty),
+                    ));
                 }
 
                 ty.clone()

@@ -462,7 +462,73 @@ void main() {
         assert!(!rust_code.contains("pub type PrivateInt"));
     }
 
-    // Test 13: Typedef compatibility in assignments
+    // Test 13: Type casting with typedef
+
+    #[test]
+    fn test_typedef_with_cast_syntax() {
+        let source = r#"
+typedef int MyInt;
+
+void main() {
+    let x = (MyInt)42;
+    let y = (int)x;
+}
+"#;
+
+        let result = compile_crusty(source);
+        assert!(result.is_ok(), "Failed to compile: {:?}", result.err());
+
+        let rust_code = result.unwrap();
+        assert!(rust_code.contains("pub type MyInt = i32;"));
+        assert!(rust_code.contains("let x = (42 as MyInt);"));
+        assert!(rust_code.contains("let y = (x as i32);"));
+    }
+
+    #[test]
+    fn test_typedef_cast_multiple_types() {
+        let source = r#"
+typedef int MyInt;
+typedef float MyFloat;
+
+void main() {
+    let x = (MyInt)42;
+    let y = (MyFloat)3.14;
+    let z = (int)x;
+}
+"#;
+
+        let result = compile_crusty(source);
+        assert!(result.is_ok(), "Failed to compile: {:?}", result.err());
+
+        let rust_code = result.unwrap();
+        assert!(rust_code.contains("let x = (42 as MyInt);"));
+        assert!(rust_code.contains("let y = (3.14 as MyFloat);"));
+        assert!(rust_code.contains("let z = (x as i32);"));
+    }
+
+    #[test]
+    fn test_typedef_cast_chained() {
+        let source = r#"
+typedef int Integer;
+typedef Integer Number;
+
+void main() {
+    let x = (Number)42;
+    let y = (Integer)x;
+    let z = (int)y;
+}
+"#;
+
+        let result = compile_crusty(source);
+        assert!(result.is_ok(), "Failed to compile: {:?}", result.err());
+
+        let rust_code = result.unwrap();
+        assert!(rust_code.contains("let x = (42 as Number);"));
+        assert!(rust_code.contains("let y = (x as Integer);"));
+        assert!(rust_code.contains("let z = (y as i32);"));
+    }
+
+    // Test 14: Typedef compatibility in assignments
 
     #[test]
     fn test_typedef_assignment_compatibility() {
@@ -480,7 +546,7 @@ void main() {
         assert!(result.is_ok(), "Failed to compile: {:?}", result.err());
     }
 
-    // Test 14: Multiple typedefs in sequence
+    // Test 15: Multiple typedefs in sequence
 
     #[test]
     fn test_multiple_typedefs_sequence() {
@@ -505,7 +571,7 @@ void main() {
         assert!(rust_code.contains("pub type C = i32;"));
     }
 
-    // Test 15: Typedef with function calls
+    // Test 16: Typedef with function calls
     // NOTE: Parser currently doesn't support custom type names as return types
 
     #[test]
