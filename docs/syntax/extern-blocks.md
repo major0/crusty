@@ -85,6 +85,14 @@ extern "C" {
 
 The contents of `__rust__{ }` blocks are emitted directly as Rust code without translation.
 
+### Nesting Rules
+
+- `__rust__{ }` within extern — allowed (for complex FFI signatures)
+- extern within `__rust__{ }` at module level — allowed (handled by rustc)
+- extern within extern — disallowed (nested extern blocks)
+- `__rust__{ }` within `__rust__{ }` — disallowed (nested escape hatches)
+- extern within `__rust__{ }` within extern — disallowed (would unwrap to nested extern)
+
 ## Formal Grammar
 
 ```ebnf
