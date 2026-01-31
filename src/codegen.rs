@@ -663,12 +663,17 @@ impl CodeGenerator {
                         self.write(";\n");
                     }
                     TargetLanguage::Crusty => {
-                        // Crusty uses Rust-style const syntax
+                        // Crusty uses C-style syntax - no type annotations
+                        // Type is specified via cast expression
                         self.write("const ");
                         self.write(&name.name);
-                        self.write(": ");
-                        self.write(&self.generate_type_string(ty));
                         self.write(" = ");
+                        // If there's a type but the value is not a cast, wrap it
+                        if !matches!(value, Expression::Cast { .. }) {
+                            self.write("(");
+                            self.write(&self.generate_type_string(ty));
+                            self.write(")");
+                        }
                         self.write(&self.generate_expression_string(value));
                         self.write(";\n");
                     }

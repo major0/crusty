@@ -1410,15 +1410,21 @@ impl<'a> Parser<'a> {
             }
         };
 
-        // Parse type annotation (required for const)
-        self.expect(TokenKind::Colon)?;
-        let ty = self.parse_type()?;
-
         // Parse initializer (required for const)
+        // Type annotation is NOT supported - use C-style casting instead
         self.expect(TokenKind::Assign)?;
         let value = self.parse_expression_stub()?;
 
         self.expect(TokenKind::Semicolon)?;
+
+        // Extract type from cast expression if present
+        let ty = if let Expression::Cast { ty, .. } = &value {
+            ty.clone()
+        } else {
+            // If no cast, infer type from the expression
+            // For now, we'll use a placeholder - semantic analyzer will infer
+            Type::Primitive(PrimitiveType::Int)
+        };
 
         Ok(Statement::Const { name, ty, value })
     }
@@ -3463,7 +3469,7 @@ mod tests {
 
     #[test]
     fn test_parse_const_statement() {
-        let source = "int main() { const x: int = 5; }";
+        let source = "int main() { const x = (int)5; }";
         let mut parser = Parser::new(source).unwrap();
 
         let file = parser.parse_file().unwrap();
@@ -3471,8 +3477,10 @@ mod tests {
             Item::Function(func) => {
                 assert_eq!(func.body.statements.len(), 1);
                 match &func.body.statements[0] {
-                    Statement::Const { name, .. } => {
+                    Statement::Const { name, value, .. } => {
                         assert_eq!(name.name, "x");
+                        // Should have a cast expression
+                        assert!(matches!(value, Expression::Cast { .. }));
                     }
                     _ => panic!("Expected const statement"),
                 }

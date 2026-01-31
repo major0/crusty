@@ -25,17 +25,25 @@ let y = (float)42;    // Cast to float
 var z = (MyInt)0;     // Mutable with explicit type
 ```
 
+### Constants
+```c
+const MAX = (int)100;     // C-style cast for constants
+const PI = 3.14159;      // Type inference for constants
+```
+
 ### What's Not Supported
 ```c
-let x: int = 42;      // ❌ Rust-style annotation — rejected by parser
-var y: float = 3.14;  // ❌ Rust-style annotation — rejected by parser
+let x: int = 42;         // ❌ Rust-style annotation — rejected by parser
+var y: float = 3.14;     // ❌ Rust-style annotation — rejected by parser
+const MAX: int = 100;    // ❌ Rust-style annotation — rejected by parser
 ```
 
 ## Scope of Change
 
-Type annotations are removed only from variable declarations:
+Type annotations are removed from all variable declarations:
 - `let` statements — no type annotations
 - `var` statements — no type annotations
+- `const` statements — no type annotations
 
 Type annotations are preserved where they are structurally required:
 - Function parameters: `int add(int a, int b)` — types are part of the declaration syntax
@@ -49,6 +57,7 @@ Type annotations are preserved where they are structurally required:
 let x: int = 42;
 let y: MyInt = 10;
 var z: float = 3.14;
+const MAX: int = 100;
 ```
 
 ### After (C-style)
@@ -56,4 +65,5 @@ var z: float = 3.14;
 let x = 42;              // Type inference
 let y = (MyInt)10;       // C-style cast
 var z = 3.14;            // Type inference
+const MAX = (int)100;    // C-style cast
 ```
