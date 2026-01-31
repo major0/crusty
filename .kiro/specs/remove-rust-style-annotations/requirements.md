@@ -1,131 +1,206 @@
-# Requirements: Remove Rust-Style Type Annotations
+# Requirements: C-Style Variable Declarations
 
 ## Overview
-Remove Rust-style type annotations (`let x: Type = value`) from Crusty to maintain C-like philosophy. Only support C-style casting and type inference.
+Implement C-style variable declaration syntax in Crusty, where `Type name = value;` is the primary syntax and `let`/`var` keywords are optional modifiers. This maintains C-like philosophy while preserving Rust's type inference capability.
 
 ## Background
-Crusty currently supports Rust-style type annotations which is inconsistent with its C-like design philosophy. The language should use:
-- **Type inference**: `let x = 42;` (infer type from initializer)
-- **C-style casting**: `let x = (MyInt)42;` (explicit type via cast)
+Crusty should use C-natural syntax as the primary way to declare variables. The `let` keyword exists specifically for:
+1. Explicitly marking immutability when using type inference
+2. Allowing Rust's type inference feature (which C doesn't have)
+
+When neither `let` nor `var` is specified, `let` (immutable) is assumed, making `int x = 42;` equivalent to `let int x = 42;`.
+
+## Design Philosophy
+
+### Primary Syntax (C-style)
+```c
+int x = 42;              // Immutable (implicit let)
+var int x = 42;          // Mutable (explicit var)
+const int MAX = 100;     // Constant
+```
+
+### Alternative Syntax (Type Inference)
+```c
+let x = 42;              // Immutable with inference
+var x = 42;              // Mutable with inference
+const MAX = 100;         // Constant with inference
+```
+
+### Complete Syntax Options
+```c
+// All valid immutable declarations:
+int x = 42;              // C-style (implicit let)
+let int x = 42;          // Explicit let with type
+let x = 42;              // Explicit let with inference
+
+// All valid mutable declarations:
+var int x = 42;          // Explicit var with type
+var x = 42;              // Explicit var with inference
+
+// All valid constant declarations:
+const int MAX = 100;     // Explicit type
+const MAX = 100;         // Type inference
+```
+
+### Key Rule
+**If neither `let` nor `var` is specified, `let` (immutable) is assumed.**
 
 ## User Stories
 
-### 1. Remove Type Annotations from Let Statements
+### 1. C-Style Immutable Declarations
+**As a** C developer  
+**I want** to declare immutable variables using C syntax  
+**So that** the code feels natural and familiar
+
+**Acceptance Criteria:**
+- 1.1: Parser accepts `int x = 42;` (implicit let)
+- 1.2: Parser treats `int x = 42;` as immutable
+- 1.3: Parser accepts `MyInt x = 32;` with typedef types
+- 1.4: Generated Rust code is `let x: i32 = 42;`
+
+### 2. C-Style Mutable Declarations
+**As a** C developer  
+**I want** to declare mutable variables using `var` prefix  
+**So that** mutability is explicit
+
+**Acceptance Criteria:**
+- 2.1: Parser accepts `var int x = 42;`
+- 2.2: Parser treats `var int x = 42;` as mutable
+- 2.3: Generated Rust code is `let mut x: i32 = 42;`
+
+### 3. Explicit Let with Type
 **As a** Crusty developer  
-**I want** `let` statements to not support type annotations  
-**So that** the language is more C-like
+**I want** to explicitly use `let` with a type  
+**So that** I can be explicit about immutability
 
 **Acceptance Criteria:**
-- 1.1: Parser rejects `let x: Type = value` syntax
-- 1.2: Parser accepts `let x = value` (type inference)
-- 1.3: Parser accepts `let x = (Type)value` (C-style cast)
-- 1.4: Error message is clear when type annotation is attempted
+- 3.1: Parser accepts `let int x = 42;`
+- 3.2: `let int x = 42;` is equivalent to `int x = 42;`
+- 3.3: Generated Rust code is `let x: i32 = 42;`
 
-### 2. Remove Type Annotations from Var Statements
+### 4. Type Inference with Let/Var
+**As a** Rust developer  
+**I want** to use type inference with `let`/`var`  
+**So that** I can leverage Rust's type inference
+
+**Acceptance Criteria:**
+- 4.1: Parser accepts `let x = 42;` (inference)
+- 4.2: Parser accepts `var x = 42;` (inference)
+- 4.3: Type is inferred from initializer
+- 4.4: Generated Rust code uses inference
+
+### 5. Const Declarations
 **As a** Crusty developer  
-**I want** `var` statements to not support type annotations  
-**So that** mutable variables use C-style syntax
+**I want** to declare constants with or without explicit types  
+**So that** I have flexibility in constant declarations
 
 **Acceptance Criteria:**
-- 2.1: Parser rejects `var x: Type = value` syntax
-- 2.2: Parser accepts `var x = value` (type inference)
-- 2.3: Parser accepts `var x = (Type)value` (C-style cast)
+- 5.1: Parser accepts `const int MAX = 100;`
+- 5.2: Parser accepts `const MAX = 100;` (inference)
+- 5.3: Parser rejects `const MAX: int = 100;` (Rust-style)
 
-### 3. Update All Examples
-**As a** Crusty user  
-**I want** all examples to use C-style syntax  
-**So that** I learn the correct idioms
-
-**Acceptance Criteria:**
-- 3.1: All `.crst` files in `example/` directory updated
-- 3.2: No Rust-style type annotations remain
-- 3.3: Examples compile successfully
-
-### 4. Update All Tests
-**As a** Crusty maintainer  
-**I want** all tests to use C-style syntax  
-**So that** tests validate correct behavior
+### 6. Reject Rust-Style Annotations
+**As a** Crusty developer  
+**I want** Rust-style type annotations to be rejected  
+**So that** syntax is consistent
 
 **Acceptance Criteria:**
-- 4.1: All test files updated to use C-style or type inference
-- 4.2: All tests pass
-- 4.3: No Rust-style type annotations in test code
+- 6.1: Parser rejects `let x: int = 42;`
+- 6.2: Parser rejects `var x: int = 42;`
+- 6.3: Parser rejects `const X: int = 42;`
+- 6.4: Error message is clear
 
-### 5. Update Documentation
-**As a** Crusty user  
-**I want** documentation to reflect C-style only  
-**So that** I understand the correct syntax
+### 7. No Casting in Declarations
+**As a** Crusty developer  
+**I want** casting to not be used in declarations  
+**So that** syntax is clean and unambiguous
 
 **Acceptance Criteria:**
-- 5.1: SYNTAX_REFERENCE.md shows only C-style and type inference
-- 5.2: README.md updated if needed
-- 5.3: All spec documents updated
+- 7.1: Documentation doesn't show `let x = (int)42;`
+- 7.2: Examples use C-style or inference, not casting
+- 7.3: Code generator doesn't emit casting in declarations
+
+## Syntax Summary
+
+### ✅ Supported Syntax
+
+| Syntax | Mutability | Type | Example |
+|--------|-----------|------|---------|
+| `Type name = value;` | Immutable | Explicit | `int x = 42;` |
+| `let Type name = value;` | Immutable | Explicit | `let int x = 42;` |
+| `let name = value;` | Immutable | Inferred | `let x = 42;` |
+| `var Type name = value;` | Mutable | Explicit | `var int x = 42;` |
+| `var name = value;` | Mutable | Inferred | `var x = 42;` |
+| `const Type NAME = value;` | Constant | Explicit | `const int MAX = 100;` |
+| `const NAME = value;` | Constant | Inferred | `const MAX = 100;` |
+
+### ❌ NOT Supported
+
+| Syntax | Reason |
+|--------|--------|
+| `let x: int = 42;` | Rust-style colon annotation |
+| `var x: int = 42;` | Rust-style colon annotation |
+| `const X: int = 42;` | Rust-style colon annotation |
+| `let x = (int)42;` | Casting in declaration (confusing) |
 
 ## Non-Functional Requirements
 
-### Breaking Change Management
-- This is a **major breaking change**
-- All existing Crusty code using type annotations will break
-- Clear migration guide needed
+### Parser Complexity
+- Parser must handle optional `let`/`var` keywords
+- Parser must distinguish between type names and variable names
+- Parser must handle both explicit types and inference
 
-### Type Inference
-- Type inference must work correctly for common cases
-- Semantic analyzer must infer types from initializers
-- Clear error messages when type cannot be inferred
+### Code Generation
+- C-style declarations generate Rust `let` statements
+- `var` prefix generates Rust `let mut` statements
+- Type information preserved in generated code
 
-### Const Statements
-- **Decision**: Const statements use C-style casting, not type annotations
-- Syntax: `const X = (int)42;` (C-style)
-- NOT: `const X: int = 42;` (Rust-style - rejected)
-- Rationale: Maintain consistency with let/var syntax
+### Documentation
+- Primary examples use C-style syntax
+- Type inference documented as alternative
+- Clear explanation of when to use each syntax
 
 ## Out of Scope
-- Function parameter type annotations (these are required, not optional)
-- Return type annotations (these are required, not optional)
-- Struct field type annotations (these are required, not optional)
+- Function parameter declarations (already use C-style)
+- Struct field declarations (already use C-style)
+- Global variable declarations (future feature)
 
 ## Success Metrics
-- Parser rejects all Rust-style type annotations
-- All examples compile with C-style syntax
+- Parser accepts all C-style declaration forms
+- Parser rejects Rust-style colon annotations
 - All tests pass
-- Documentation is consistent
-- Type inference works for common cases
+- Documentation shows C-style as primary
+- Code generation produces correct Rust code
 
 ## Migration Guide
 
-### Before (Rust-style)
+### Before (Current - Rust-style rejected)
 ```c
-let x: int = 42;
-let y: MyInt = 10;
-var z: float = 3.14;
-const MAX: int = 100;
+let x: int = 42;         // ❌ Rejected
+let x = 42;              // ✅ Works (inference)
 ```
 
-### After (C-style)
+### After (C-style primary)
 ```c
-let x = 42;              // Type inference
-let y = (MyInt)10;       // C-style cast
-var z = 3.14;            // Type inference
-const MAX = (int)100;    // C-style cast
+int x = 42;              // ✅ Primary syntax (implicit let)
+let int x = 42;          // ✅ Explicit let
+let x = 42;              // ✅ Type inference
+var int x = 42;          // ✅ Mutable
 ```
 
 ## Implementation Status
 
 ### Completed ✅
-- [x] Parser updated to reject type annotations in `let` statements
-- [x] Parser updated to reject type annotations in `var` statements
-- [x] C-style casting implemented and working
-- [x] Updated all test files (412 tests passing)
-- [x] Updated all example files (typedef_demo.crst, main.crst)
-- [x] Updated code generator to emit C-style syntax
-- [x] Verified type inference works correctly
-- [x] Migration guide included in requirements
-- [x] Error messages clear ("expected Semicolon, found Colon")
-- [x] SYNTAX_REFERENCE.md already uses C-style syntax
-- [x] Property test generator fixed to exclude type names
+- [x] Parser rejects Rust-style colon annotations
+- [x] Parser accepts `let name = value;` (inference)
+- [x] Parser accepts `var name = value;` (inference)
+- [x] Parser accepts `const NAME = value;` (inference)
 
-### Decision: Const Statements ✅
-- `const` statements **also use C-style casting** (no type annotations)
-- Syntax: `const X = (int)42;` (C-style)
-- NOT: `const X: int = 42;` (Rust-style - rejected)
-- Rationale: Maintain consistency with let/var syntax across all variable declarations
+### To Implement 🔨
+- [ ] Parser accepts `Type name = value;` (implicit let)
+- [ ] Parser accepts `let Type name = value;` (explicit let)
+- [ ] Parser accepts `var Type name = value;` (explicit var)
+- [ ] Parser accepts `const Type NAME = value;` (explicit type)
+- [ ] Update all examples to use C-style syntax
+- [ ] Update documentation to show C-style as primary
+- [ ] Update code generator to handle all forms correctly
