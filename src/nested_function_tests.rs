@@ -135,7 +135,7 @@ void outer() {
         let source = r#"
 void outer() {
     int compute(int x) {
-        let result: int = x * 2;
+        let result = x * 2;
         return result;
     }
 }
@@ -160,7 +160,7 @@ void outer() {
     fn test_capture_analysis_immutable() {
         let source = r#"
 void outer() {
-    let x: int = 42;
+    let x = 42;
     
     int get_x() {
         return x;
@@ -190,10 +190,10 @@ void outer() {
     fn test_capture_analysis_mutable() {
         let source = r#"
 void outer() {
-    var counter: int = 0;
+    var counter = 0;
     
     void increment() {
-        let temp: int = counter + 1;
+        let temp = counter + 1;
         counter = temp;
     }
 }
@@ -221,9 +221,9 @@ void outer() {
     fn test_capture_analysis_multiple_variables() {
         let source = r#"
 void outer() {
-    let a: int = 1;
-    let b: int = 2;
-    var c: int = 3;
+    let a = 1;
+    let b = 2;
+    var c = 3;
     
     int compute() {
         c = c + 1;
@@ -267,7 +267,7 @@ void outer() {
     fn test_capture_analysis_no_captures() {
         let source = r#"
 void outer() {
-    let x: int = 42;
+    let x = 42;
     
     int independent(int y) {
         return y * 2;
@@ -291,7 +291,7 @@ void outer() {
     fn test_capture_analysis_parameter_not_captured() {
         let source = r#"
 void outer() {
-    let x: int = 42;
+    let x = 42;
     
     int use_param(int x) {
         return x;
@@ -320,7 +320,7 @@ void outer() {
     fn test_scoping_variable_before_nested_function() {
         let source = r#"
 void outer() {
-    let x: int = 42;
+    let x = 42;
     
     int get_x() {
         return x;
@@ -346,7 +346,7 @@ void outer() {
         return y;
     }
     
-    let y: int = 42;
+    let y = 42;
 }
 "#;
         let mut parser = Parser::new(source).unwrap();
@@ -461,7 +461,7 @@ void outer() {
     fn test_multiple_nested_functions_share_immutable_capture() {
         let source = r#"
 void outer() {
-    let shared: int = 42;
+    let shared = 42;
     
     int first() {
         return shared;
@@ -496,7 +496,7 @@ void outer() {
     fn test_multiple_nested_functions_share_mutable_capture() {
         let source = r#"
 void outer() {
-    var counter: int = 0;
+    var counter = 0;
     
     void increment() {
         counter = counter + 1;
@@ -629,7 +629,7 @@ void outer() {
     fn test_codegen_nested_function_with_capture() {
         let source = r#"
 void outer() {
-    let x: int = 42;
+    let x = 42;
     
     int get_x() {
         return x;
@@ -742,7 +742,7 @@ void outer() {
     fn test_integration_nested_function_full_pipeline() {
         let source = r#"
 void outer() {
-    let x: int = 42;
+    let x = 42;
     
     int add_x(int y) {
         return x + y;
@@ -765,7 +765,7 @@ void outer() {
         let rust_code = codegen.generate(&file);
 
         // Verify generated code
-        assert!(rust_code.contains("let x: i32 = 42;"));
+        assert!(rust_code.contains("let x = 42;"));
         assert!(rust_code.contains("let add_x = |y: i32| -> i32"));
         assert!(rust_code.contains("let result = add_x(10);"));
     }
@@ -774,8 +774,8 @@ void outer() {
     fn test_integration_complex_nested_function() {
         let source = r#"
 void outer() {
-    var counter: int = 0;
-    let multiplier: int = 2;
+    var counter = 0;
+    let multiplier = 2;
     
     void increment() {
         counter = counter + 1;
@@ -815,8 +815,8 @@ void outer() {
         let rust_code = codegen.generate(&file);
 
         // Verify generated code structure
-        assert!(rust_code.contains("let mut counter: i32 = 0;"));
-        assert!(rust_code.contains("let multiplier: i32 = 2;"));
+        assert!(rust_code.contains("let mut counter = 0;"));
+        assert!(rust_code.contains("let multiplier = 2;"));
         assert!(rust_code.contains("let increment = ||"));
         assert!(rust_code.contains("let get_value = || -> i32"));
     }

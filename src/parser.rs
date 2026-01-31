@@ -4289,7 +4289,7 @@ mod property_tests {
 
 #[test]
 fn test_parse_struct_initializer() {
-    let source = "int main() { let p: Point = { .x = 10, .y = 20 }; }";
+    let source = "int main() { let p = (Point){ .x = 10, .y = 20 }; }";
     let mut parser = Parser::new(source).unwrap();
     let file = parser.parse_file().unwrap();
 
@@ -4299,21 +4299,26 @@ fn test_parse_struct_initializer() {
             assert_eq!(func.body.statements.len(), 1);
             match &func.body.statements[0] {
                 Statement::Let { init, ty, .. } => {
-                    // Check that type is specified
-                    assert!(ty.is_some());
+                    // Type should be inferred, not explicitly specified
+                    assert!(ty.is_none());
 
-                    if let Some(Expression::StructInit { ty, fields }) = init {
-                        // Check type - should be Point (resolved from variable type)
+                    if let Some(Expression::Cast { ty, expr }) = init {
+                        // Check type - should be Point from the cast
                         match ty {
                             Type::Ident(ident) => assert_eq!(ident.name, "Point"),
-                            _ => panic!("Expected Type::Ident for struct initializer"),
+                            _ => panic!("Expected Type::Ident for cast"),
                         }
-                        // Check fields
-                        assert_eq!(fields.len(), 2);
-                        assert_eq!(fields[0].0.name, "x");
-                        assert_eq!(fields[1].0.name, "y");
+
+                        // Check the struct init inside the cast
+                        if let Expression::StructInit { fields, .. } = &**expr {
+                            assert_eq!(fields.len(), 2);
+                            assert_eq!(fields[0].0.name, "x");
+                            assert_eq!(fields[1].0.name, "y");
+                        } else {
+                            panic!("Expected StructInit inside Cast");
+                        }
                     } else {
-                        panic!("Expected StructInit expression");
+                        panic!("Expected Cast expression");
                     }
                 }
                 _ => panic!("Expected Let statement"),
@@ -4325,7 +4330,7 @@ fn test_parse_struct_initializer() {
 
 #[test]
 fn test_parse_struct_initializer_partial() {
-    let source = "int main() { let p: Point = { .x = 10 }; }";
+    let source = "int main() { let p = (Point){ .x = 10 }; }";
     let mut parser = Parser::new(source).unwrap();
     let file = parser.parse_file().unwrap();
 
@@ -4333,11 +4338,15 @@ fn test_parse_struct_initializer_partial() {
     match &file.items[0] {
         Item::Function(func) => match &func.body.statements[0] {
             Statement::Let { init, .. } => {
-                if let Some(Expression::StructInit { fields, .. }) = init {
-                    assert_eq!(fields.len(), 1);
-                    assert_eq!(fields[0].0.name, "x");
+                if let Some(Expression::Cast { expr, .. }) = init {
+                    if let Expression::StructInit { fields, .. } = &**expr {
+                        assert_eq!(fields.len(), 1);
+                        assert_eq!(fields[0].0.name, "x");
+                    } else {
+                        panic!("Expected StructInit inside Cast");
+                    }
                 } else {
-                    panic!("Expected StructInit expression");
+                    panic!("Expected Cast expression");
                 }
             }
             _ => panic!("Expected Let statement"),
@@ -4348,7 +4357,7 @@ fn test_parse_struct_initializer_partial() {
 
 #[test]
 fn test_parse_struct_initializer_trailing_comma() {
-    let source = "int main() { let p: Point = { .x = 10, .y = 20, }; }";
+    let source = "int main() { let p = (Point){ .x = 10, .y = 20, }; }";
     let mut parser = Parser::new(source).unwrap();
     let file = parser.parse_file().unwrap();
 
@@ -4356,10 +4365,14 @@ fn test_parse_struct_initializer_trailing_comma() {
     match &file.items[0] {
         Item::Function(func) => match &func.body.statements[0] {
             Statement::Let { init, .. } => {
-                if let Some(Expression::StructInit { fields, .. }) = init {
-                    assert_eq!(fields.len(), 2);
+                if let Some(Expression::Cast { expr, .. }) = init {
+                    if let Expression::StructInit { fields, .. } = &**expr {
+                        assert_eq!(fields.len(), 2);
+                    } else {
+                        panic!("Expected StructInit inside Cast");
+                    }
                 } else {
-                    panic!("Expected StructInit expression");
+                    panic!("Expected Cast expression");
                 }
             }
             _ => panic!("Expected Let statement"),
@@ -4370,7 +4383,7 @@ fn test_parse_struct_initializer_trailing_comma() {
 
 #[test]
 fn test_parse_struct_initializer_nested() {
-    let source = "int main() { let r: Rect = { .origin = { .x = 0, .y = 0 }, .size = { .w = 10, .h = 20 } }; }";
+    let source = "int main() { let r = (Rect){ .origin = { .x = 0, .y = 0 }, .size = { .w = 10, .h = 20 } }; }";
     let mut parser = Parser::new(source).unwrap();
     let file = parser.parse_file().unwrap();
 
@@ -4379,23 +4392,27 @@ fn test_parse_struct_initializer_nested() {
         Item::Function(func) => {
             match &func.body.statements[0] {
                 Statement::Let { init, .. } => {
-                    if let Some(Expression::StructInit { fields, .. }) = init {
-                        assert_eq!(fields.len(), 2);
-                        assert_eq!(fields[0].0.name, "origin");
-                        assert_eq!(fields[1].0.name, "size");
+                    if let Some(Expression::Cast { expr, .. }) = init {
+                        if let Expression::StructInit { fields, .. } = &**expr {
+                            assert_eq!(fields.len(), 2);
+                            assert_eq!(fields[0].0.name, "origin");
+                            assert_eq!(fields[1].0.name, "size");
 
-                        // Check nested struct initializers
-                        match &fields[0].1 {
-                            Expression::StructInit {
-                                fields: nested_fields,
-                                ..
-                            } => {
-                                assert_eq!(nested_fields.len(), 2);
+                            // Check nested struct initializers
+                            match &fields[0].1 {
+                                Expression::StructInit {
+                                    fields: nested_fields,
+                                    ..
+                                } => {
+                                    assert_eq!(nested_fields.len(), 2);
+                                }
+                                _ => panic!("Expected nested StructInit"),
                             }
-                            _ => panic!("Expected nested StructInit"),
+                        } else {
+                            panic!("Expected StructInit inside Cast");
                         }
                     } else {
-                        panic!("Expected StructInit expression");
+                        panic!("Expected Cast expression");
                     }
                 }
                 _ => panic!("Expected Let statement"),

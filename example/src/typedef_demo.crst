@@ -22,26 +22,26 @@ typedef Integer Number;
 
 /// Function using typedef'd types
 int calculate(MyInt a, MyFloat b) {
-    let result: Number = a + 10;
+    let result = (Number)(a + 10);
     return result;
 }
 
 /// Function demonstrating type alias compatibility
 int get_value() {
-    let x: MyInt = 42;  // MyInt is compatible with int
+    let x = (MyInt)42;  // MyInt is compatible with int
     return x;
 }
 
 /// Main function demonstrating typedef usage
 void main() {
     // Use simple type alias
-    let a: MyInt = 10;
-    let b: MyFloat = 3.14;
+    let a = (MyInt)10;
+    let b = (MyFloat)3.14;
     
     // Use chained alias
-    let c: Number = 20;
+    let c = (Number)20;
     
     // Call functions with typedef'd types
-    let result: int = calculate(a, b);  // MyInt compatible with int
-    let value: MyInt = get_value();
+    let result = calculate(a, b);  // MyInt compatible with int
+    let value = get_value();
 }

@@ -590,15 +590,21 @@ impl CodeGenerator {
                         self.write(";\n");
                     }
                     TargetLanguage::Crusty => {
-                        // Crusty uses Rust-style let syntax (not C-style)
+                        // Crusty uses C-style syntax - no type annotations for let
+                        // If there's a type but no cast in the init, we need to generate a cast
                         self.write("let ");
                         self.write(&name.name);
-                        if let Some(ref ty) = ty {
-                            self.write(": ");
-                            self.write(&self.generate_type_string(ty));
-                        }
                         if let Some(ref init) = init {
                             self.write(" = ");
+                            // If there's a type annotation in the AST but the init is not a cast,
+                            // wrap it in a cast to preserve the type information
+                            if let Some(ref ty) = ty {
+                                if !matches!(init, Expression::Cast { .. }) {
+                                    self.write("(");
+                                    self.write(&self.generate_type_string(ty));
+                                    self.write(")");
+                                }
+                            }
                             self.write(&self.generate_expression_string(init));
                         }
                         self.write(";\n");
@@ -623,15 +629,21 @@ impl CodeGenerator {
                         self.write(";\n");
                     }
                     TargetLanguage::Crusty => {
-                        // Crusty uses Rust-style var syntax
+                        // Crusty uses C-style syntax - no type annotations for var
+                        // If there's a type but no cast in the init, we need to generate a cast
                         self.write("var ");
                         self.write(&name.name);
-                        if let Some(ref ty) = ty {
-                            self.write(": ");
-                            self.write(&self.generate_type_string(ty));
-                        }
                         if let Some(ref init) = init {
                             self.write(" = ");
+                            // If there's a type annotation in the AST but the init is not a cast,
+                            // wrap it in a cast to preserve the type information
+                            if let Some(ref ty) = ty {
+                                if !matches!(init, Expression::Cast { .. }) {
+                                    self.write("(");
+                                    self.write(&self.generate_type_string(ty));
+                                    self.write(")");
+                                }
+                            }
                             self.write(&self.generate_expression_string(init));
                         }
                         self.write(";\n");

@@ -46,8 +46,8 @@ mod tests {
 typedef int MyInt;
 
 void main() {
-    let x: MyInt = 42;
-    let y: int = x;
+    let x = (MyInt)42;
+    let y = (int)x;
 }
 "#;
 
@@ -56,7 +56,7 @@ void main() {
 
         let rust_code = result.unwrap();
         assert!(rust_code.contains("pub type MyInt = i32;"));
-        assert!(rust_code.contains("let x: MyInt = 42;"));
+        assert!(rust_code.contains("let x = (42 as MyInt);"));
     }
 
     #[test]
@@ -67,9 +67,9 @@ typedef float MyFloat;
 typedef bool Flag;
 
 void main() {
-    let x: MyInt = 42;
-    let y: MyFloat = 3.14;
-    let z: Flag = true;
+    let x = (MyInt)42;
+    let y = (MyFloat)3.14;
+    let z = (Flag)true;
 }
 "#;
 
@@ -94,7 +94,7 @@ int add(MyInt a, MyInt b) {
 }
 
 void main() {
-    let result: MyInt = add(10, 20);
+    let result = (MyInt)add(10, 20);
 }
 "#;
 
@@ -197,7 +197,7 @@ int area(Rectangle r) {
 typedef *int IntPtr;
 
 void main() {
-    let value: int = 100;
+    let value = 100;
 }
 "#;
 
@@ -234,7 +234,7 @@ void process_string(CharPtr str) {
 typedef &int IntRef;
 
 void main() {
-    let value: int = 100;
+    let value = 100;
 }
 "#;
 
@@ -312,10 +312,10 @@ typedef Integer Number;
 typedef Number Count;
 
 void main() {
-    let a: int = 1;
-    let b: Integer = a;
-    let c: Number = b;
-    let d: Count = c;
+    let a = 1;
+    let b = (Integer)a;
+    let c = (Number)b;
+    let d = (Count)c;
 }
 "#;
 
@@ -337,7 +337,7 @@ typedef int MyInt;
 typedef *MyInt MyIntPtr;
 
 void main() {
-    let value: MyInt = 42;
+    let value = (MyInt)42;
 }
 "#;
 
@@ -381,7 +381,7 @@ typedef B A;
 typedef A B;
 
 void main() {
-    let x: A = 42;
+    let x = (A)42;
 }
 "#;
 
@@ -404,7 +404,7 @@ void main() {
 typedef int PublicInt;
 
 void main() {
-    let x: PublicInt = 42;
+    let x = (PublicInt)42;
 }
 "#;
 
@@ -421,7 +421,7 @@ void main() {
 static typedef int PrivateInt;
 
 void main() {
-    let x: PrivateInt = 42;
+    let x = (PrivateInt)42;
 }
 "#;
 
@@ -448,8 +448,8 @@ typedef int PublicInt;
 static typedef int PrivateInt;
 
 void main() {
-    let x: PublicInt = 42;
-    let y: PrivateInt = 10;
+    let x = (PublicInt)42;
+    let y = (PrivateInt)10;
 }
 "#;
 
@@ -536,9 +536,9 @@ void main() {
 typedef int MyInt;
 
 void main() {
-    let x: int = 42;
-    let y: MyInt = x;
-    let z: int = y;
+    let x = 42;
+    let y = (MyInt)x;
+    let z = (int)y;
 }
 "#;
 
@@ -556,9 +556,9 @@ typedef int B;
 typedef int C;
 
 void main() {
-    let a: A = 1;
-    let b: B = 2;
-    let c: C = 3;
+    let a = (A)1;
+    let b = (B)2;
+    let c = (C)3;
 }
 "#;
 
