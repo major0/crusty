@@ -786,7 +786,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Verify multiple nested functions can capture same variables
     - _Requirements: 59.8, 59.9, 59.10, 59.22, 59.23, 59.25_
   
-  - [ ]17.4 Implement nested function code generation
+  - [x]17.4 Implement nested function code generation
     - Translate nested functions to Rust closures
     - Generate closure with appropriate trait (Fn, FnMut, FnOnce)
     - Translate immutable captures to Fn closures
