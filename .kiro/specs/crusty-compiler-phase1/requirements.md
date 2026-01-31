@@ -1108,20 +1108,6 @@ fn process<T>(value: T) -> Option<T> { ... }
 9. THE Semantic_Analyzer SHALL verify that field values match the field types
 10. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust struct literals to C-style designated initializers
 
-### Requirement 43: Support Type Inference with Auto Keyword
-
-**User Story:** As a Crusty programmer, I want to use the auto keyword for type inference, so that I can let the Rust compiler infer types automatically.
-
-#### Acceptance Criteria
-
-1. THE Parser SHALL support the auto keyword for variable type declarations
-2. THE Parser SHALL allow auto in variable declarations (auto x = 5;)
-3. THE Parser SHALL allow auto in function return types where Rust supports type inference
-4. WHEN generating Rust code, THE Code_Generator SHALL omit explicit type annotations for auto declarations
-5. WHEN generating Rust code, THE Code_Generator SHALL rely on Rust's type inference to determine the actual type
-6. THE Semantic_Analyzer SHALL verify that auto is only used where Rust's type inference can determine the type
-7. WHEN reverse transpiling from Rust, THE Code_Generator SHALL use auto for variables where explicit types are not specified
-
 ### Requirement 44: Support Extern Blocks for FFI
 
 **User Story:** As a Crusty programmer, I want to declare extern blocks for FFI, so that I can interface with C libraries, system calls, and other foreign functions.
