@@ -11,11 +11,12 @@ use proptest::prelude::*;
 
 /// Generate a simple valid function for testing
 fn arb_simple_function() -> impl Strategy<Value = Function> {
-    // Avoid Rust/Crusty keywords
-    let valid_ident = "[a-z][a-z0-9_]{0,10}".prop_filter("Must not be a keyword", |s| {
-        !matches!(
-            s.as_str(),
-            "let"
+    // Avoid Rust/Crusty keywords and type names
+    let valid_ident =
+        "[a-z][a-z0-9_]{0,10}".prop_filter("Must not be a keyword or type name", |s| {
+            !matches!(
+                s.as_str(),
+                "let"
                 | "var"
                 | "const"
                 | "static"
@@ -67,8 +68,29 @@ fn arb_simple_function() -> impl Strategy<Value = Function> {
                 | "unsized"
                 | "virtual"
                 | "try"
-        )
-    });
+                // Primitive type names
+                | "int"
+                | "float"
+                | "bool"
+                | "char"
+                | "void"
+                | "i8"
+                | "i16"
+                | "i32"
+                | "i64"
+                | "i128"
+                | "u8"
+                | "u16"
+                | "u32"
+                | "u64"
+                | "u128"
+                | "f32"
+                | "f64"
+                | "isize"
+                | "usize"
+                | "str"
+            )
+        });
 
     (
         prop::bool::ANY,

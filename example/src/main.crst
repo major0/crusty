@@ -5,7 +5,7 @@ int add(int a, int b) {
 
 /// Main entry point for the Crusty example program
 void main() {
-    let x: int = 10;
-    let y: int = 20;
-    let sum: int = add(x, y);
+    let x = 10;
+    let y = 20;
+    let sum = add(x, y);
 }
