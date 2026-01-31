@@ -90,7 +90,7 @@ Total Tests:      715 passed, 0 failed, 3 ignored
 ### What Changed
 - `let x: Type = value` → **REJECTED** by parser
 - `var x: Type = value` → **REJECTED** by parser
-- `const X: Type = value` → **STILL SUPPORTED** (by design)
+- `const X: Type = value` → **REJECTED** by parser (now uses C-style casting)
 
 ### Migration Path
 ```c
@@ -98,11 +98,13 @@ Total Tests:      715 passed, 0 failed, 3 ignored
 let x: int = 42;
 let y: MyInt = 10;
 var z: float = 3.14;
+const MAX: int = 100;
 
 // After (C-style)
 let x = 42;              // Type inference
 let y = (MyInt)10;       // C-style cast
 var z = 3.14;            // Type inference
+const MAX = (int)100;    // C-style cast
 ```
 
 ## Documentation Status

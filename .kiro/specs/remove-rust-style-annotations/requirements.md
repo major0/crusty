@@ -74,9 +74,10 @@ Crusty currently supports Rust-style type annotations which is inconsistent with
 - Clear error messages when type cannot be inferred
 
 ### Const Statements
-- Decision needed: Should `const` keep type annotations?
-- Constants may need explicit types for clarity
-- Consider: `const X = (int)42;` vs `const X: int = 42;`
+- **Decision**: Const statements use C-style casting, not type annotations
+- Syntax: `const X = (int)42;` (C-style)
+- NOT: `const X: int = 42;` (Rust-style - rejected)
+- Rationale: Maintain consistency with let/var syntax
 
 ## Out of Scope
 - Function parameter type annotations (these are required, not optional)
@@ -97,6 +98,7 @@ Crusty currently supports Rust-style type annotations which is inconsistent with
 let x: int = 42;
 let y: MyInt = 10;
 var z: float = 3.14;
+const MAX: int = 100;
 ```
 
 ### After (C-style)
@@ -104,6 +106,7 @@ var z: float = 3.14;
 let x = 42;              // Type inference
 let y = (MyInt)10;       // C-style cast
 var z = 3.14;            // Type inference
+const MAX = (int)100;    // C-style cast
 ```
 
 ## Implementation Status
@@ -122,6 +125,7 @@ var z = 3.14;            // Type inference
 - [x] Property test generator fixed to exclude type names
 
 ### Decision: Const Statements ✅
-- `const` statements **keep** type annotations (required for clarity)
-- Syntax: `const X: int = 42;` (unchanged)
-- Rationale: Constants need explicit types for documentation and clarity
+- `const` statements **also use C-style casting** (no type annotations)
+- Syntax: `const X = (int)42;` (C-style)
+- NOT: `const X: int = 42;` (Rust-style - rejected)
+- Rationale: Maintain consistency with let/var syntax across all variable declarations
