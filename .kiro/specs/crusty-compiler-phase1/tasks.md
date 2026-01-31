@@ -777,7 +777,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Verify variables defined after nested function are not accessible
     - _Requirements: 59.4, 59.5, 59.6, 59.7, 59.24_
   
-  - [ ]17.3 Add nested function type checking
+  - [x]17.3 Add nested function type checking
     - Verify nested functions can be assigned to variables
     - Verify nested functions can be passed as function parameters
     - Verify nested functions can be returned from functions
