@@ -777,11 +777,45 @@ impl<'a> Parser<'a> {
                         name: self_ident,
                         ty: Type::Ident(Ident::new("Self")),
                     });
-                } else if self.check(&TokenKind::BitAnd) {
-                    // &self or &var self
+                } else if self.check(&TokenKind::Var) {
+                    // var &self (mutable reference to self)
                     self.advance()?;
 
-                    let mutable = if self.check(&TokenKind::Var) {
+                    // Expect & after var
+                    self.expect(TokenKind::BitAnd)?;
+
+                    // Expect 'self' identifier
+                    if let TokenKind::Ident(n) = &self.current_token.kind {
+                        if n == "self" {
+                            self.advance()?;
+                            params.push(Param {
+                                name: Ident::new("self"),
+                                ty: Type::Reference {
+                                    ty: Box::new(Type::Ident(Ident::new("Self"))),
+                                    mutable: true,
+                                },
+                            });
+                        } else {
+                            return Err(ParseError::new(
+                                self.current_token.span,
+                                "expected 'self' after var &",
+                                vec!["self".to_string()],
+                                format!("{:?}", self.current_token.kind),
+                            ));
+                        }
+                    } else {
+                        return Err(ParseError::new(
+                            self.current_token.span,
+                            "expected 'self' after var &",
+                            vec!["self".to_string()],
+                            format!("{:?}", self.current_token.kind),
+                        ));
+                    }
+                } else if self.check(&TokenKind::BitAnd) {
+                    // &self or &mut self
+                    self.advance()?;
+
+                    let mutable = if self.check(&TokenKind::Mut) {
                         self.advance()?;
                         true
                     } else {
@@ -2822,16 +2856,29 @@ impl<'a> Parser<'a> {
 
     /// Parse a type expression
     fn parse_type(&mut self) -> Result<Type, ParseError> {
-        // Check for reference types (& and &var/&mut)
+        // Check for mutable reference types (var & or &mut)
+        if self.check(&TokenKind::Var) {
+            self.advance()?;
+
+            // Expect & after var
+            self.expect(TokenKind::BitAnd)?;
+
+            let inner_type = self.parse_type()?;
+            return Ok(Type::Reference {
+                ty: Box::new(inner_type),
+                mutable: true,
+            });
+        }
+
+        // Check for reference types (& for immutable, &mut for Rust-style mutable)
         if self.check(&TokenKind::BitAnd) {
             self.advance()?;
 
-            // Check for mutable reference (&var or &mut)
-            let mutable = if self.check(&TokenKind::Var) {
+            // Check for Rust-style &mut (alternative to var &)
+            let mutable = if self.check(&TokenKind::Mut) {
                 self.advance()?;
                 true
             } else {
-                // Check for Rust-style &mut (not in lexer yet, but prepare for it)
                 false
             };
 
@@ -3799,7 +3846,7 @@ fn test_parse_reference_type() {
 
 #[test]
 fn test_parse_mutable_reference_type() {
-    let source = "int foo(&var int x) {}";
+    let source = "int foo(var &int x) {}";
     let mut parser = Parser::new(source).unwrap();
 
     let file = parser.parse_file().unwrap();

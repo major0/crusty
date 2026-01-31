@@ -1312,7 +1312,7 @@ impl CodeGenerator {
                 }
             }
             Type::Reference { ty, mutable } => {
-                // & and &var/&mut translate to Rust references
+                // & and var &/&mut translate to Rust references
                 if *mutable {
                     format!("&mut {}", self.generate_type_string(ty))
                 } else {
