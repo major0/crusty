@@ -1132,16 +1132,18 @@ fn process<T>(value: T) -> Option<T> { ... }
 2. THE Parser SHALL support all Rust ABI strings (extern "C", extern "cdecl", extern "stdcall", extern "fastcall", extern "system", extern "Rust", etc.)
 3. THE Parser SHALL support function declarations within extern blocks using Crusty syntax
 4. THE Parser SHALL allow Crusty-style function declarations inside extern blocks (return_type function_name(params);)
-5. THE Parser SHALL support extern blocks at module level
-6. THE Parser SHALL support linking to external libraries via extern blocks
-7. WHEN generating Rust code, THE Code_Generator SHALL translate extern blocks to Rust extern blocks with the same ABI specification
-8. WHEN generating Rust code, THE Code_Generator SHALL translate Crusty function declarations inside extern blocks to Rust function declarations
-9. WHEN generating Rust code, THE Code_Generator SHALL preserve the ABI string exactly as specified (extern "C", extern "Rust", etc.)
-10. THE Semantic_Analyzer SHALL verify that extern function declarations use FFI-compatible types
-11. THE Semantic_Analyzer SHALL verify that extern functions do not use Rust-specific features incompatible with the specified ABI
-12. THE Semantic_Analyzer SHALL allow extern functions to be called from Crusty code
-13. WHEN reverse transpiling from Rust, THE Code_Generator SHALL preserve extern blocks in Crusty with the same ABI specification
-14. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust function declarations inside extern blocks to Crusty syntax
+5. THE Parser SHALL support __rust__{ } blocks within extern blocks for embedding raw Rust code
+6. THE Parser SHALL support extern blocks at module level
+7. THE Parser SHALL support linking to external libraries via extern blocks
+8. WHEN generating Rust code, THE Code_Generator SHALL translate extern blocks to Rust extern blocks with the same ABI specification
+9. WHEN generating Rust code, THE Code_Generator SHALL translate Crusty function declarations inside extern blocks to Rust function declarations
+10. WHEN generating Rust code, THE Code_Generator SHALL emit __rust__{ } block contents directly as Rust code within extern blocks
+11. WHEN generating Rust code, THE Code_Generator SHALL preserve the ABI string exactly as specified (extern "C", extern "Rust", etc.)
+12. THE Semantic_Analyzer SHALL verify that extern function declarations use FFI-compatible types
+13. THE Semantic_Analyzer SHALL verify that extern functions do not use Rust-specific features incompatible with the specified ABI
+14. THE Semantic_Analyzer SHALL allow extern functions to be called from Crusty code
+15. WHEN reverse transpiling from Rust, THE Code_Generator SHALL preserve extern blocks in Crusty with the same ABI specification
+16. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust function declarations inside extern blocks to Crusty syntax
 
 **Syntax Examples:**
 
@@ -1162,6 +1164,17 @@ extern {
 // Extern block with system ABI
 extern "system" {
     void SystemCall(int param);
+}
+
+// Using __rust__{ } blocks within extern for complex Rust syntax
+extern "C" {
+    void simple_function();
+    
+    __rust__{
+        // Raw Rust code for complex function signatures
+        fn complex_function(callback: extern "C" fn(i32) -> i32) -> i32;
+        static mut GLOBAL_STATE: i32;
+    }
 }
 
 // Using extern functions
@@ -1196,6 +1209,15 @@ extern "system" {
     pub fn SystemCall(param: i32);
 }
 
+// Using __rust__{ } blocks within extern for complex Rust syntax
+extern "C" {
+    pub fn simple_function();
+    
+    // Raw Rust code emitted directly
+    fn complex_function(callback: extern "C" fn(i32) -> i32) -> i32;
+    static mut GLOBAL_STATE: i32;
+}
+
 // Using extern functions
 pub fn main() {
     extern "C" {
@@ -1210,9 +1232,11 @@ pub fn main() {
 **Key Points:**
 - Extern blocks use the same syntax as Rust (extern "ABI" { ... })
 - Function declarations inside extern blocks use Crusty syntax (not Rust syntax)
+- __rust__{ } blocks can be used within extern blocks for complex Rust-specific syntax
 - All Rust ABI specifications are supported
 - Extern functions are typically unsafe to call (Rust requirement)
 - The parser translates Crusty function syntax to Rust function syntax within extern blocks
+- __rust__{ } block contents are emitted directly as Rust code without translation
 
 ### Requirement 45: Support Inline Assembly
 
