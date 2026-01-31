@@ -1055,12 +1055,14 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - _Requirements: 56.1-56.20_
 
 - [ ] 27. Implement additional language features
-  - [ ]27.1 Add extern "C" support
-    - Parse extern "C" blocks
-    - Parse extern "C" function declarations
-    - Validate C-compatible types in extern functions
-    - Pass extern "C" to Rust unchanged
-    - _Requirements: 35.1-35.9_
+  - [ ]27.1 Add extern block support (Requirement 44)
+    - Parse extern blocks with optional ABI specification (extern { ... }, extern "C" { ... }, extern "Rust" { ... })
+    - Support all Rust ABI strings (extern "C", extern "cdecl", extern "stdcall", extern "fastcall", extern "system", extern "Rust", etc.)
+    - Parse Crusty-style function declarations inside extern blocks
+    - Validate FFI-compatible types in extern functions
+    - Translate extern blocks to Rust with same ABI specification
+    - Translate Crusty function declarations to Rust function declarations inside extern blocks
+    - _Requirements: 44.1-44.14_
   
   - [ ]27.2 Add inline assembly support
     - Parse __asm__ macro syntax with double-underscore naming (no ! suffix)

@@ -1122,22 +1122,97 @@ fn process<T>(value: T) -> Option<T> { ... }
 6. THE Semantic_Analyzer SHALL verify that auto is only used where Rust's type inference can determine the type
 7. WHEN reverse transpiling from Rust, THE Code_Generator SHALL use auto for variables where explicit types are not specified
 
-### Requirement 44: Support Extern C Declarations for FFI
+### Requirement 44: Support Extern Blocks for FFI
 
-**User Story:** As a Crusty programmer, I want to declare extern "C" functions for FFI, so that I can interface with C libraries and system calls.
+**User Story:** As a Crusty programmer, I want to declare extern blocks for FFI, so that I can interface with C libraries, system calls, and other foreign functions.
 
 #### Acceptance Criteria
 
-1. THE Parser SHALL support extern "C" block syntax (extern "C" { ... })
-2. THE Parser SHALL support extern "C" function declarations within extern blocks
-3. THE Parser SHALL support extern "C" on individual function declarations
-4. THE Parser SHALL support function declarations with C calling convention
-5. THE Parser SHALL support linking to external C libraries
-6. WHEN generating Rust code, THE Code_Generator SHALL pass extern "C" blocks directly to Rust unchanged
-7. WHEN generating Rust code, THE Code_Generator SHALL preserve extern "C" function declarations
-8. THE Semantic_Analyzer SHALL verify that extern "C" functions use C-compatible types
-9. THE Semantic_Analyzer SHALL verify that extern "C" functions do not use Rust-specific features incompatible with C ABI
-10. WHEN reverse transpiling from Rust, THE Code_Generator SHALL preserve extern "C" declarations in Crusty
+1. THE Parser SHALL support extern block syntax with optional ABI specification (extern { ... }, extern "C" { ... }, extern "Rust" { ... })
+2. THE Parser SHALL support all Rust ABI strings (extern "C", extern "cdecl", extern "stdcall", extern "fastcall", extern "system", extern "Rust", etc.)
+3. THE Parser SHALL support function declarations within extern blocks using Crusty syntax
+4. THE Parser SHALL allow Crusty-style function declarations inside extern blocks (return_type function_name(params);)
+5. THE Parser SHALL support extern blocks at module level
+6. THE Parser SHALL support linking to external libraries via extern blocks
+7. WHEN generating Rust code, THE Code_Generator SHALL translate extern blocks to Rust extern blocks with the same ABI specification
+8. WHEN generating Rust code, THE Code_Generator SHALL translate Crusty function declarations inside extern blocks to Rust function declarations
+9. WHEN generating Rust code, THE Code_Generator SHALL preserve the ABI string exactly as specified (extern "C", extern "Rust", etc.)
+10. THE Semantic_Analyzer SHALL verify that extern function declarations use FFI-compatible types
+11. THE Semantic_Analyzer SHALL verify that extern functions do not use Rust-specific features incompatible with the specified ABI
+12. THE Semantic_Analyzer SHALL allow extern functions to be called from Crusty code
+13. WHEN reverse transpiling from Rust, THE Code_Generator SHALL preserve extern blocks in Crusty with the same ABI specification
+14. WHEN reverse transpiling from Rust, THE Code_Generator SHALL translate Rust function declarations inside extern blocks to Crusty syntax
+
+**Syntax Examples:**
+
+```c
+// Extern block with C ABI
+extern "C" {
+    void printf(char* format, ...);
+    int puts(char* s);
+    void* malloc(size_t size);
+    void free(void* ptr);
+}
+
+// Extern block with default ABI (Rust)
+extern {
+    void some_rust_function();
+}
+
+// Extern block with system ABI
+extern "system" {
+    void SystemCall(int param);
+}
+
+// Using extern functions
+void main() {
+    extern "C" {
+        int getpid();
+    }
+    
+    let pid = getpid();
+    __println__("Process ID: {}", pid);
+}
+```
+
+**Rust Translation:**
+
+```rust
+// Extern block with C ABI
+extern "C" {
+    pub fn printf(format: *const i8, ...);
+    pub fn puts(s: *const i8) -> i32;
+    pub fn malloc(size: usize) -> *mut ();
+    pub fn free(ptr: *mut ());
+}
+
+// Extern block with default ABI (Rust)
+extern {
+    pub fn some_rust_function();
+}
+
+// Extern block with system ABI
+extern "system" {
+    pub fn SystemCall(param: i32);
+}
+
+// Using extern functions
+pub fn main() {
+    extern "C" {
+        fn getpid() -> i32;
+    }
+    
+    let pid = unsafe { getpid() };
+    println!("Process ID: {}", pid);
+}
+```
+
+**Key Points:**
+- Extern blocks use the same syntax as Rust (extern "ABI" { ... })
+- Function declarations inside extern blocks use Crusty syntax (not Rust syntax)
+- All Rust ABI specifications are supported
+- Extern functions are typically unsafe to call (Rust requirement)
+- The parser translates Crusty function syntax to Rust function syntax within extern blocks
 
 ### Requirement 45: Support Inline Assembly
 
