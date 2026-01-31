@@ -256,7 +256,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Implement parsing for labeled loops (.label: loop { ... })
     - Implement parsing for labeled break (break label) and continue (continue label)
     - Commit with message: "feat(task-6.3): implement statement parsing"
-    - _Requirements: 6.8, 6.9, 6.10, 6.11, 6.12, 6.13, 6.14, 6.15, 34.1-34.5, 43.1, 43.2_
+    - _Requirements: 6.8, 6.9, 6.10, 6.11, 6.12, 6.13, 6.14, 6.15, 34.1-34.5_
   
   - [x]6.4 Implement expression parsing with precedence
     - Implement parse_expression() with operator precedence climbing
@@ -292,7 +292,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - Test error recovery
     - _Requirements: 1.1, 1.2_
 
-- [x] 6. Checkpoint - Ensure lexer and parser tests pass
+- [x] 6.8 Checkpoint - Ensure lexer and parser tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 
