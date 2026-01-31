@@ -1,12 +1,36 @@
-# Typedef and Implementation Blocks
+# Typedef, Type Aliases, and Implementation Blocks
 
 ## Introduction
 
-Crusty uses C-style `typedef` syntax for defining struct types and their implementations. This provides a familiar syntax for C developers while mapping to Rust's `impl` blocks and trait implementations.
+Crusty uses C-style `typedef` syntax for three purposes: defining struct types, creating type aliases, and adding implementations to existing types. This provides a familiar syntax for C developers while mapping to Rust's type system.
 
 ## Rationale
 
-In Rust, methods are added to types via `impl` blocks, which is unfamiliar to C developers. Crusty repurposes the `typedef` keyword to serve double duty: defining new types and adding implementations to existing types. The `@` prefix distinguishes between type definitions and implementation blocks.
+In Rust, methods are added to types via `impl` blocks, which is unfamiliar to C developers. Crusty repurposes the `typedef` keyword to serve double duty: defining new types (including aliases) and adding implementations to existing types. The `@` prefix distinguishes between type definitions and implementation blocks.
+
+## Type Aliases
+
+Simple type aliases map directly to Rust's `type` keyword:
+
+```c
+typedef int MyInt;
+typedef float Coordinate;
+typedef int* IntPtr;
+```
+
+Translates to:
+```rust
+pub type MyInt = i32;
+pub type Coordinate = f64;
+pub type IntPtr = *mut i32;
+```
+
+Type aliases are fully resolved during semantic analysis — `MyInt` is interchangeable with `int` in all contexts. Circular aliases (e.g., `typedef A B; typedef B A;`) are detected and rejected at compile time.
+
+Use `static typedef` for private (non-public) aliases:
+```c
+static typedef int InternalId;
+```
 
 ## Examples
 
@@ -80,10 +104,13 @@ Named blocks are organizational — multiple `@Type.name` blocks for the same ty
 ## Formal Grammar
 
 ```ebnf
-typedef_stmt  = "typedef" typedef_kind "{" member_list "}" typedef_target ";" ;
+typedef_stmt  = "typedef" typedef_body ;
+typedef_body  = type_alias | struct_def | impl_block ;
+type_alias    = type IDENT ";" ;
+struct_def    = "struct" "{" member_list "}" IDENT ";" ;
+impl_block    = typedef_kind "{" member_list "}" typedef_target ";" ;
 typedef_kind  = "struct" | "default" ;
-typedef_target = IDENT                    (* new type definition *)
-               | "@" IDENT               (* impl block for existing type *)
+typedef_target = "@" IDENT               (* impl block for existing type *)
                | "@" IDENT "." IDENT     (* named impl block *) ;
 member_list   = (field_decl | method_decl)* ;
 ```
