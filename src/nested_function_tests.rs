@@ -560,7 +560,12 @@ void outer() {
         let mut parser = Parser::new(source).unwrap();
         let file = parser.parse_file().unwrap();
 
+        // Run semantic analysis to get captures
+        let mut analyzer = SemanticAnalyzer::new();
+        let _ = analyzer.analyze(&file);
+
         let mut codegen = CodeGenerator::new(TargetLanguage::Rust);
+        codegen.set_captures(analyzer.get_all_captures().clone());
         let rust_code = codegen.generate(&file);
 
         assert!(rust_code.contains("let inner = ||"));
@@ -579,7 +584,12 @@ void outer() {
         let mut parser = Parser::new(source).unwrap();
         let file = parser.parse_file().unwrap();
 
+        // Run semantic analysis to get captures
+        let mut analyzer = SemanticAnalyzer::new();
+        let _ = analyzer.analyze(&file);
+
         let mut codegen = CodeGenerator::new(TargetLanguage::Rust);
+        codegen.set_captures(analyzer.get_all_captures().clone());
         let rust_code = codegen.generate(&file);
 
         assert!(rust_code.contains("let add = |x: i32, y: i32| -> i32"));
@@ -598,7 +608,12 @@ void outer() {
         let mut parser = Parser::new(source).unwrap();
         let file = parser.parse_file().unwrap();
 
+        // Run semantic analysis to get captures
+        let mut analyzer = SemanticAnalyzer::new();
+        let _ = analyzer.analyze(&file);
+
         let mut codegen = CodeGenerator::new(TargetLanguage::Rust);
+        codegen.set_captures(analyzer.get_all_captures().clone());
         let rust_code = codegen.generate(&file);
 
         assert!(rust_code.contains("let get_value = || -> i32"));
@@ -617,7 +632,12 @@ void outer() {
         let mut parser = Parser::new(source).unwrap();
         let file = parser.parse_file().unwrap();
 
+        // Run semantic analysis to get captures
+        let mut analyzer = SemanticAnalyzer::new();
+        let _ = analyzer.analyze(&file);
+
         let mut codegen = CodeGenerator::new(TargetLanguage::Rust);
+        codegen.set_captures(analyzer.get_all_captures().clone());
         let rust_code = codegen.generate(&file);
 
         // Void return type should not generate -> annotation
@@ -639,12 +659,45 @@ void outer() {
         let mut parser = Parser::new(source).unwrap();
         let file = parser.parse_file().unwrap();
 
+        // Run semantic analysis to get captures
+        let mut analyzer = SemanticAnalyzer::new();
+        let _ = analyzer.analyze(&file);
+
         let mut codegen = CodeGenerator::new(TargetLanguage::Rust);
+        codegen.set_captures(analyzer.get_all_captures().clone());
         let rust_code = codegen.generate(&file);
 
-        // Should generate a closure that captures x
+        // Should generate a closure that captures x (immutable)
         assert!(rust_code.contains("let get_x = || -> i32"));
         assert!(rust_code.contains("return x;"));
+    }
+
+    #[test]
+    fn test_codegen_nested_function_with_mutable_capture() {
+        let source = r#"
+void outer() {
+    var counter = 0;
+    
+    void increment() {
+        counter = counter + 1;
+    }
+}
+"#;
+        let mut parser = Parser::new(source).unwrap();
+        let file = parser.parse_file().unwrap();
+
+        // Run semantic analysis to get captures
+        let mut analyzer = SemanticAnalyzer::new();
+        let _ = analyzer.analyze(&file);
+
+        let mut codegen = CodeGenerator::new(TargetLanguage::Rust);
+        codegen.set_captures(analyzer.get_all_captures().clone());
+        let rust_code = codegen.generate(&file);
+
+        // Should generate a closure with mut because it has mutable captures
+        assert!(rust_code.contains("let mut increment = ||"));
+        // The assignment should be there (exact format may vary)
+        assert!(rust_code.contains("counter ="));
     }
 
     #[test]
@@ -663,7 +716,12 @@ void outer() {
         let mut parser = Parser::new(source).unwrap();
         let file = parser.parse_file().unwrap();
 
+        // Run semantic analysis to get captures
+        let mut analyzer = SemanticAnalyzer::new();
+        let _ = analyzer.analyze(&file);
+
         let mut codegen = CodeGenerator::new(TargetLanguage::Rust);
+        codegen.set_captures(analyzer.get_all_captures().clone());
         let rust_code = codegen.generate(&file);
 
         assert!(rust_code.contains("let first = ||"));
@@ -812,12 +870,13 @@ void outer() {
 
         // Code generation
         let mut codegen = CodeGenerator::new(TargetLanguage::Rust);
+        codegen.set_captures(analyzer.get_all_captures().clone());
         let rust_code = codegen.generate(&file);
 
         // Verify generated code structure
         assert!(rust_code.contains("let mut counter = 0;"));
         assert!(rust_code.contains("let multiplier = 2;"));
-        assert!(rust_code.contains("let increment = ||"));
+        assert!(rust_code.contains("let mut increment = ||")); // mut because of mutable capture
         assert!(rust_code.contains("let get_value = || -> i32"));
     }
 
