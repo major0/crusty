@@ -64,7 +64,7 @@ Crusty transforms only syntax, not semantics. Method names, function names, and 
 Several C-like semantic constructs are supported. These are semantic transformations because they introduce control flow, scoping, or compile-time behavior that requires scaffolding:
 
 - **NULL**: `NULL` → `Option::None` (maps C keyword to Rust's Option type)
-- **C-style for loops**: `for(int i = 0; i < 100; i++)` → Rust loop with variable scoping
+- **C-style for loops**: `for(int i = 0; i < 100; ++i)` → Rust loop with variable scoping
 - **switch/case**: C-style switch statements → Rust match expressions with different semantics
 - **#define**: C-style preprocessor macros → Rust declarative macros (different macro systems)
 
@@ -97,7 +97,7 @@ if (ptr != NULL) { }     // → if ptr.is_some() { }
 
 **C-Style For Loops** - Introduces variable scoping and control flow scaffolding:
 ```c
-for (int i = 0; i < 100; i++) {  // → Rust loop with scoped variable
+for (int i = 0; i < 100; ++i) {  // → Rust loop with scoped variable
     // i is scoped to loop body
 }
 ```

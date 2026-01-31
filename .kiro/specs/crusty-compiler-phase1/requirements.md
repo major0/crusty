@@ -7,7 +7,7 @@ Crusty is a C-like programming language that transpiles to Rust, enabling develo
 **Core Philosophy**: Crusty is primarily a **syntax layer over Rust, with selective semantic enhancements**. As a general rule, Crusty provides syntax changes over Rust. However, a few C-like semantic constructs are brought over for familiarity, where they can map cleanly to Rust's semantics:
 
 - **NULL**: C keyword that maps to Rust's Option type (semantic transformation)
-- **C-style for loops**: Traditional three-part for loops `for(int i = 0; i < 100; i++)` with variable scoping (semantic transformation)
+- **C-style for loops**: Traditional three-part for loops `for(int i = 0; i < 100; ++i)` with variable scoping (semantic transformation)
 - **switch/case**: C-style switch statements that map to Rust match expressions (semantic transformation)
 - **#define**: C-style preprocessor macros that map to Rust declarative macros (semantic transformation)
 
@@ -794,21 +794,17 @@ impl Point {
 4. THE Parser SHALL support all standard C bitwise operators (&, |, ^, ~, <<, >>)
 5. THE Parser SHALL support C assignment operators (=, +=, -=, *=, /=, %=, &=, |=, ^=, <<=, >>=)
 6. THE Parser SHALL support C prefix increment and decrement operators (++i, --i)
-7. THE Parser SHALL support C postfix increment and decrement operators (i++, i--)
-8. WHEN a prefix increment/decrement is used, THE Semantic_Analyzer SHALL verify it increments/decrements before returning the value
-9. WHEN a postfix increment/decrement is used, THE Semantic_Analyzer SHALL verify it returns the original value before incrementing/decrementing
-10. WHEN generating Rust code for prefix increment (++i), THE Code_Generator SHALL translate to (i += 1; i) or equivalent
-11. WHEN generating Rust code for postfix increment (i++), THE Code_Generator SHALL translate to ({ let tmp = i; i += 1; tmp }) or equivalent
-12. WHEN generating Rust code for prefix decrement (--i), THE Code_Generator SHALL translate to (i -= 1; i) or equivalent
-13. WHEN generating Rust code for postfix decrement (i--), THE Code_Generator SHALL translate to ({ let tmp = i; i -= 1; tmp }) or equivalent
-14. THE Parser SHALL support C ternary conditional operator (? :)
-15. THE Parser SHALL support C member access operators (., ->)
-16. THE Parser SHALL support C array subscript operator ([])
-17. THE Parser SHALL support C address-of operator (&)
-18. THE Parser SHALL support C dereference operator (*)
-19. THE Semantic_Analyzer SHALL enforce C operator precedence and associativity rules
-20. WHEN generating Rust code, THE Code_Generator SHALL translate C operators to equivalent Rust operators
-21. THE Semantic_Analyzer SHALL verify that operators are used with compatible types
+7. WHEN a prefix increment/decrement is used, THE Semantic_Analyzer SHALL verify it increments/decrements before returning the value
+8. WHEN generating Rust code for prefix increment (++i), THE Code_Generator SHALL translate to (i += 1; i) or equivalent
+9. WHEN generating Rust code for prefix decrement (--i), THE Code_Generator SHALL translate to (i -= 1; i) or equivalent
+10. THE Parser SHALL support C ternary conditional operator (? :)
+11. THE Parser SHALL support C member access operators (., ->)
+12. THE Parser SHALL support C array subscript operator ([])
+13. THE Parser SHALL support C address-of operator (&)
+14. THE Parser SHALL support C dereference operator (*)
+15. THE Semantic_Analyzer SHALL enforce C operator precedence and associativity rules
+16. WHEN generating Rust code, THE Code_Generator SHALL translate C operators to equivalent Rust operators
+17. THE Semantic_Analyzer SHALL verify that operators are used with compatible types
 
 ### Requirement 32: Support Pointer Arithmetic with Rust Constraints
 
@@ -1284,8 +1280,8 @@ pub fn main() {
 2. THE Parser SHALL support C-style for loops with initialization, condition, and increment (for (init; condition; increment) { ... })
 3. WHEN a Rust-style for-in loop is encountered, THE Code_Generator SHALL pass it directly to Rust unchanged
 4. WHEN a C-style for loop with a single variable is encountered, THE Code_Generator SHALL attempt to optimize it to Rust range syntax where possible
-5. WHEN a C-style for loop matches the pattern for (var T i = start; i < end; i++), THE Code_Generator SHALL translate it to for i in start..end { ... }
-6. WHEN a C-style for loop matches the pattern for (var T i = start; i <= end; i++), THE Code_Generator SHALL translate it to for i in start..=end { ... }
+5. WHEN a C-style for loop matches the pattern for (var T i = start; i < end; ++i), THE Code_Generator SHALL translate it to for i in start..end { ... }
+6. WHEN a C-style for loop matches the pattern for (var T i = start; i <= end; ++i), THE Code_Generator SHALL translate it to for i in start..=end { ... }
 7. WHEN a C-style for loop has multiple variables in initialization, THE Code_Generator SHALL translate it to a scoped while loop
 8. WHEN translating multi-variable C-style for loops, THE Code_Generator SHALL wrap the loop in a Rust block to constrain variable scope
 9. WHEN translating multi-variable C-style for loops, THE Code_Generator SHALL place initialization statements at the start of the block

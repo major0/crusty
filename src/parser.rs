@@ -121,6 +121,81 @@ impl<'a> Parser<'a> {
         )
     }
 
+    /// Check if current position looks like a variable declaration (Type name = value;)
+    /// Uses lookahead to distinguish from expressions like int(x) or int + 5
+    /// Returns true if pattern matches: Type Identifier '='
+    fn looks_like_declaration(&mut self) -> Result<bool, ParseError> {
+        // First check: current token must be a type token
+        if !self.is_type_token() {
+            return Ok(false);
+        }
+
+        // For primitive types, we need to look ahead to distinguish from expressions
+        let is_primitive = matches!(
+            self.current_token.kind,
+            TokenKind::Int
+                | TokenKind::I32
+                | TokenKind::I64
+                | TokenKind::U32
+                | TokenKind::U64
+                | TokenKind::Float
+                | TokenKind::F32
+                | TokenKind::F64
+                | TokenKind::Bool
+                | TokenKind::Char
+                | TokenKind::Void
+        );
+
+        // For identifiers (could be typedef or variable), check if next token is assignment
+        // This would indicate an assignment statement, not a declaration
+        if matches!(self.current_token.kind, TokenKind::Ident(_)) && !is_primitive {
+            let next_token = self.peek_ahead(1)?;
+            if let Some(token) = next_token {
+                if matches!(token.kind, TokenKind::Assign) {
+                    // Pattern: identifier = value (assignment, not declaration)
+                    return Ok(false);
+                }
+            }
+        }
+
+        // Look ahead to see what comes after the type
+        // Pattern: Type Identifier '='
+        // Need to handle pointer types: int* ptr = ...
+        let mut lookahead_offset = 1;
+
+        // Skip pointer/reference modifiers
+        loop {
+            let next_token = self.peek_ahead(lookahead_offset)?;
+            if let Some(token) = next_token {
+                if matches!(token.kind, TokenKind::Star | TokenKind::BitAnd) {
+                    lookahead_offset += 1;
+                    continue;
+                }
+                break;
+            } else {
+                return Ok(false);
+            }
+        }
+
+        // Now check for identifier
+        let next_token = self.peek_ahead(lookahead_offset)?;
+        if let Some(token) = next_token {
+            if !matches!(token.kind, TokenKind::Ident(_)) {
+                // Not followed by identifier, so not a declaration
+                // Could be: int(x) or int + 5
+                return Ok(false);
+            }
+
+            // Check if there's an '=' after the identifier
+            let token_after_ident = self.peek_ahead(lookahead_offset + 1)?;
+            if let Some(token) = token_after_ident {
+                return Ok(matches!(token.kind, TokenKind::Assign));
+            }
+        }
+
+        Ok(false)
+    }
+
     /// Check if we're at end of file
     fn is_at_end(&self) -> bool {
         matches!(self.current_token.kind, TokenKind::Eof)
@@ -1260,7 +1335,7 @@ impl<'a> Parser<'a> {
                 // Check for labeled loop (.label: loop { ... })
                 self.parse_labeled_loop()
             }
-            // Check for nested function: type identifier (
+            // Check for nested function or implicit let declaration: type identifier ...
             TokenKind::Void
             | TokenKind::Int
             | TokenKind::I32
@@ -1276,6 +1351,9 @@ impl<'a> Parser<'a> {
                 // Look ahead to see if this is a function declaration
                 if self.is_nested_function_declaration()? {
                     self.parse_nested_function()
+                } else if self.looks_like_declaration()? {
+                    // Pattern: Type Identifier '=' (implicit let declaration)
+                    self.parse_implicit_let_statement()
                 } else {
                     // Parse as expression statement (which may include assignment)
                     self.parse_expression_statement()
@@ -1314,25 +1392,82 @@ impl<'a> Parser<'a> {
     fn parse_let_statement(&mut self) -> Result<Statement, ParseError> {
         self.expect(TokenKind::Let)?;
 
-        // Parse variable name
-        let name = match &self.current_token.kind {
-            TokenKind::Ident(n) => {
-                let ident = Ident::new(n.clone());
-                self.advance()?;
-                ident
-            }
-            _ => {
-                return Err(ParseError::new(
-                    self.current_token.span,
-                    "expected variable name",
-                    vec!["identifier".to_string()],
-                    format!("{:?}", self.current_token.kind),
-                ));
-            }
-        };
+        // Check if next token is a type (C-style: let int x = 42;)
+        // We need to distinguish between:
+        // - let int x = 42; (type is int, name is x)
+        // - let x = 42; (no type, name is x)
+        let (name, ty) = if self.is_type_token() {
+            // Check if this looks like a type followed by identifier
+            // Pattern: let Type Identifier = ...
+            let next_token = self.peek_ahead(1)?;
+            let is_type_declaration = if let Some(token) = next_token {
+                matches!(token.kind, TokenKind::Ident(_))
+            } else {
+                false
+            };
 
-        // No type annotation support - use C-style casting or type inference
-        let ty = None;
+            if is_type_declaration {
+                // Parse type first
+                let ty = self.parse_type()?;
+
+                // Then parse variable name
+                let name = match &self.current_token.kind {
+                    TokenKind::Ident(n) => {
+                        let ident = Ident::new(n.clone());
+                        self.advance()?;
+                        ident
+                    }
+                    _ => {
+                        return Err(ParseError::new(
+                            self.current_token.span,
+                            "expected variable name after type",
+                            vec!["identifier".to_string()],
+                            format!("{:?}", self.current_token.kind),
+                        ));
+                    }
+                };
+
+                (name, Some(ty))
+            } else {
+                // Type inference (let x = 42;)
+                let name = match &self.current_token.kind {
+                    TokenKind::Ident(n) => {
+                        let ident = Ident::new(n.clone());
+                        self.advance()?;
+                        ident
+                    }
+                    _ => {
+                        return Err(ParseError::new(
+                            self.current_token.span,
+                            "expected variable name",
+                            vec!["identifier".to_string()],
+                            format!("{:?}", self.current_token.kind),
+                        ));
+                    }
+                };
+
+                (name, None)
+            }
+        } else {
+            // Type inference (let x = 42;)
+            let name = match &self.current_token.kind {
+                TokenKind::Ident(n) => {
+                    let ident = Ident::new(n.clone());
+                    self.advance()?;
+                    ident
+                }
+                _ => {
+                    return Err(ParseError::new(
+                        self.current_token.span,
+                        "expected variable name",
+                        vec!["identifier".to_string()],
+                        format!("{:?}", self.current_token.kind),
+                    ));
+                }
+            };
+
+            (name, None)
+        };
 
         // Parse optional initializer
         let init = if self.check(&TokenKind::Assign) {
@@ -1356,25 +1491,82 @@ impl<'a> Parser<'a> {
     fn parse_var_statement(&mut self) -> Result<Statement, ParseError> {
         self.expect(TokenKind::Var)?;
 
-        // Parse variable name
-        let name = match &self.current_token.kind {
-            TokenKind::Ident(n) => {
-                let ident = Ident::new(n.clone());
-                self.advance()?;
-                ident
-            }
-            _ => {
-                return Err(ParseError::new(
-                    self.current_token.span,
-                    "expected variable name",
-                    vec!["identifier".to_string()],
-                    format!("{:?}", self.current_token.kind),
-                ));
-            }
-        };
+        // Check if next token is a type (C-style: var int x = 42;)
+        // We need to distinguish between:
+        // - var int x = 42; (type is int, name is x)
+        // - var x = 42; (no type, name is x)
+        let (name, ty) = if self.is_type_token() {
+            // Check if this looks like a type followed by identifier
+            // Pattern: var Type Identifier = ...
+            let next_token = self.peek_ahead(1)?;
+            let is_type_declaration = if let Some(token) = next_token {
+                matches!(token.kind, TokenKind::Ident(_))
+            } else {
+                false
+            };
 
-        // No type annotation support - use C-style casting or type inference
-        let ty = None;
+            if is_type_declaration {
+                // Parse type first
+                let ty = self.parse_type()?;
+
+                // Then parse variable name
+                let name = match &self.current_token.kind {
+                    TokenKind::Ident(n) => {
+                        let ident = Ident::new(n.clone());
+                        self.advance()?;
+                        ident
+                    }
+                    _ => {
+                        return Err(ParseError::new(
+                            self.current_token.span,
+                            "expected variable name after type",
+                            vec!["identifier".to_string()],
+                            format!("{:?}", self.current_token.kind),
+                        ));
+                    }
+                };
+
+                (name, Some(ty))
+            } else {
+                // Type inference (var x = 42;)
+                let name = match &self.current_token.kind {
+                    TokenKind::Ident(n) => {
+                        let ident = Ident::new(n.clone());
+                        self.advance()?;
+                        ident
+                    }
+                    _ => {
+                        return Err(ParseError::new(
+                            self.current_token.span,
+                            "expected variable name",
+                            vec!["identifier".to_string()],
+                            format!("{:?}", self.current_token.kind),
+                        ));
+                    }
+                };
+
+                (name, None)
+            }
+        } else {
+            // Type inference (var x = 42;)
+            let name = match &self.current_token.kind {
+                TokenKind::Ident(n) => {
+                    let ident = Ident::new(n.clone());
+                    self.advance()?;
+                    ident
+                }
+                _ => {
+                    return Err(ParseError::new(
+                        self.current_token.span,
+                        "expected variable name",
+                        vec!["identifier".to_string()],
+                        format!("{:?}", self.current_token.kind),
+                    ));
+                }
+            };
+
+            (name, None)
+        };
 
         // Parse optional initializer
         let init = if self.check(&TokenKind::Assign) {
@@ -1392,6 +1584,31 @@ impl<'a> Parser<'a> {
     /// Parse a const statement
     fn parse_const_statement(&mut self) -> Result<Statement, ParseError> {
         self.expect(TokenKind::Const)?;
+
+        // Check if next token is a type (C-style: const int MAX = 100;)
+        // We need to distinguish between:
+        // - const int MAX = 100; (type is int, name is MAX)
+        // - const MAX = 100; (no type, name is MAX)
+        let explicit_ty = if self.is_type_token() {
+            // Check if this looks like a type followed by identifier
+            // Pattern: const Type Identifier = ...
+            let next_token = self.peek_ahead(1)?;
+            let is_type_declaration = if let Some(token) = next_token {
+                matches!(token.kind, TokenKind::Ident(_))
+            } else {
+                false
+            };
+
+            if is_type_declaration {
+                // Parse type first
+                let ty = self.parse_type()?;
+                Some(ty)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
 
         // Parse constant name
         let name = match &self.current_token.kind {
@@ -1411,22 +1628,64 @@ impl<'a> Parser<'a> {
         };
 
         // Parse initializer (required for const)
-        // Type annotation is NOT supported - use C-style casting instead
         self.expect(TokenKind::Assign)?;
         let value = self.parse_expression_stub()?;
 
         self.expect(TokenKind::Semicolon)?;
 
-        // Extract type from cast expression if present
-        let ty = if let Expression::Cast { ty, .. } = &value {
+        // Determine type: use explicit type if provided, otherwise extract from cast or infer
+        let ty = if let Some(explicit_ty) = explicit_ty {
+            explicit_ty
+        } else if let Expression::Cast { ty, .. } = &value {
             ty.clone()
         } else {
-            // If no cast, infer type from the expression
+            // If no explicit type and no cast, infer type from the expression
             // For now, we'll use a placeholder - semantic analyzer will infer
             Type::Primitive(PrimitiveType::Int)
         };
 
         Ok(Statement::Const { name, ty, value })
+    }
+
+    /// Parse an implicit let statement (C-style: int x = 42;)
+    /// This is called when we detect a type token at the start of a statement
+    /// followed by an identifier and assignment operator
+    fn parse_implicit_let_statement(&mut self) -> Result<Statement, ParseError> {
+        // Parse type
+        let ty = self.parse_type()?;
+
+        // Parse variable name
+        let name = match &self.current_token.kind {
+            TokenKind::Ident(n) => {
+                let ident = Ident::new(n.clone());
+                self.advance()?;
+                ident
+            }
+            _ => {
+                return Err(ParseError::new(
+                    self.current_token.span,
+                    "expected variable name after type",
+                    vec!["identifier".to_string()],
+                    format!("{:?}", self.current_token.kind),
+                ));
+            }
+        };
+
+        // Expect assignment
+        self.expect(TokenKind::Assign)?;
+
+        // Parse initializer
+        let init = Some(self.parse_expression_stub()?);
+
+        self.expect(TokenKind::Semicolon)?;
+
+        // Create Let statement with type (implicit let is immutable)
+        Ok(Statement::Let {
+            name,
+            ty: Some(ty),
+            init,
+            mutable: false,
+        })
     }
 
     /// Parse an if statement
@@ -3095,6 +3354,30 @@ impl<'a> Parser<'a> {
                         ));
                     }
                 }
+            }
+        }
+
+        // Check for postfix pointer/reference syntax (C-style: int* or int&)
+        while self.check(&TokenKind::Star) || self.check(&TokenKind::BitAnd) {
+            if self.check(&TokenKind::Star) {
+                self.advance()?;
+                base_type = Type::Pointer {
+                    ty: Box::new(base_type),
+                    mutable: true,
+                };
+            } else if self.check(&TokenKind::BitAnd) {
+                self.advance()?;
+                // Check for mutable reference (&mut)
+                let mutable = if self.check(&TokenKind::Mut) {
+                    self.advance()?;
+                    true
+                } else {
+                    false
+                };
+                base_type = Type::Reference {
+                    ty: Box::new(base_type),
+                    mutable,
+                };
             }
         }
 

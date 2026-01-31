@@ -728,7 +728,7 @@ The implementation follows a bottom-up approach, building core infrastructure fi
     - **Property 10: Sizeof translates to std::mem functions**
     - **Validates: Requirements 28.6**
     - **Property 11: Increment/decrement operators translate with correct semantics**
-    - **Validates: Requirements 29.10, 29.11**
+    - **Validates: Requirements 29.8, 29.9**
     - **Property 12: Typedef translates to type alias**
     - **Validates: Requirements 31.9**
     - **Property 13: C-style enums translate to Rust enums with discriminants**

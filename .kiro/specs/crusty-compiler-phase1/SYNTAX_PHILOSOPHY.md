@@ -38,8 +38,8 @@ Several C-like semantic constructs are supported to provide familiarity. These a
 **Why Semantic:** NULL is a C keyword that maps to a completely different Rust concept (Option type). This requires understanding the semantic intent of null pointer checks.
 
 ### 2. C-Style For Loops (Semantic Transformation)
-- `for(int i = 0; i < 100; i++) { ... }` → Rust loop with variable scoping
-- `for(int i = 0, j = 2; i < 100; i++) { ... }` → Multiple variable initialization
+- `for(int i = 0; i < 100; ++i) { ... }` → Rust loop with variable scoping
+- `for(int i = 0, j = 2; i < 100; ++i) { ... }` → Multiple variable initialization
 - `for(;;) { ... }` → `loop { ... }` (infinite loop as special case)
 
 **Why Semantic:** C-style for loops introduce variable scoping (variables declared in init are scoped to the loop) and require scaffolding to translate the three-part structure (init; condition; update) into Rust's loop constructs.

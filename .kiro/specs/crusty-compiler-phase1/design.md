@@ -7,7 +7,7 @@ The Crusty transpiler (crustyc) is a bidirectional tool that translates between 
 **Core Philosophy**: Crusty is primarily a **syntax layer over Rust, with selective semantic enhancements**. As a general rule, Crusty provides syntax changes over Rust. However, a few C-like semantic constructs are brought over for familiarity, where they can map cleanly to Rust's semantics:
 
 - **NULL**: C keyword that maps to Rust's Option type (semantic transformation)
-- **C-style for loops**: Traditional three-part for loops `for(int i = 0; i < 100; i++)` with variable scoping (semantic transformation)
+- **C-style for loops**: Traditional three-part for loops `for(int i = 0; i < 100; ++i)` with variable scoping (semantic transformation)
 - **switch/case**: C-style switch statements that map to Rust match expressions (semantic transformation)
 - **#define**: C-style preprocessor macros that map to Rust declarative macros (semantic transformation)
 
@@ -1864,8 +1864,8 @@ Property 10: Sizeof translates to std::mem functions
 **Validates: Requirements 28.6**
 
 Property 11: Increment/decrement operators translate with correct semantics
-*For any* prefix increment (++i) in the AST, the generated Rust code should evaluate to the incremented value; for any postfix increment (i++), the generated Rust code should evaluate to the original value before incrementing.
-**Validates: Requirements 29.10, 29.11**
+*For any* prefix increment (++i) or prefix decrement (--i) in the AST, the generated Rust code should evaluate to the incremented/decremented value.
+**Validates: Requirements 29.8, 29.9**
 
 Property 12: Typedef translates to type alias
 *For any* typedef declaration in the AST, the generated Rust code should create a corresponding type alias using the 'type' keyword.
@@ -1892,7 +1892,7 @@ Property 17: VTable structs translate to traits
 **Validates: Requirements 22.6**
 
 Property 18: For loops translate appropriately
-*For any* C-style for loop in the AST matching the pattern for(i=start; i<end; i++), the generated Rust code should use range syntax (for i in start..end); for multi-variable for loops, the generated Rust code should use a scoped while loop.
+*For any* C-style for loop in the AST matching the pattern for(i=start; i<end; ++i), the generated Rust code should use range syntax (for i in start..end); for multi-variable for loops, the generated Rust code should use a scoped while loop.
 **Validates: Requirements 38.4, 38.5, 38.7**
 
 Property 19: Switch statements translate to match expressions

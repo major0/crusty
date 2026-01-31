@@ -271,9 +271,9 @@ fn test_property_7_variable_declarations_translate() {
 
 ### Property 11: Increment/decrement operators translate with correct semantics
 
-**Statement**: *For any* prefix increment (++i) in the AST, the generated Rust code should evaluate to the incremented value; for any postfix increment (i++), the generated Rust code should evaluate to the original value before incrementing.
+**Statement**: *For any* prefix increment (++i) or prefix decrement (--i) in the AST, the generated Rust code should evaluate to the incremented/decremented value.
 
-**Validates**: Requirements 29.10, 29.11
+**Validates**: Requirements 29.8, 29.9
 
 **Status**: ✅ Implemented
 
@@ -341,7 +341,7 @@ fn test_property_7_variable_declarations_translate() {
 
 ### Property 18: For loops translate appropriately
 
-**Statement**: *For any* C-style for loop in the AST matching the pattern for(i=start; i<end; i++), the generated Rust code should use range syntax (for i in start..end); for multi-variable for loops, the generated Rust code should use a scoped while loop.
+**Statement**: *For any* C-style for loop in the AST matching the pattern for(i=start; i<end; ++i), the generated Rust code should use range syntax (for i in start..end); for multi-variable for loops, the generated Rust code should use a scoped while loop.
 
 **Validates**: Requirements 38.4, 38.5, 38.7
 
@@ -751,7 +751,7 @@ PROPTEST_CASES=1000 cargo test
 | 25.10-25.11 | 32 | ✅ Complete |
 | 27.5 | 9 | ✅ Complete |
 | 28.6 | 10 | ✅ Complete |
-| 29.10-29.11 | 11 | ✅ Complete |
+| 29.8-29.9 | 11 | ✅ Complete |
 | 31.9 | 12 | ✅ Complete |
 | 32.8 | 13 | ✅ Complete |
 | 34.4-34.5 | 14 | ✅ Complete |

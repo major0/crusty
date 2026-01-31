@@ -425,7 +425,7 @@ The tasks are organized into 37 major task groups:
 | 8: Reference syntax | 9.7 | 36.10, 36.11 | ✅ |
 | 9: Type casts | 16.8 | 27.5 | ✅ |
 | 10: Sizeof | 16.8 | 28.6 | ✅ |
-| 11: Increment/decrement | 16.8 | 29.10, 29.11 | ✅ |
+| 11: Increment/decrement | 16.8 | 29.8, 29.9 | ✅ |
 | 12: Typedef | 16.8 | 31.9 | ✅ |
 | 13: C-style enums | 16.8 | 32.8 | ✅ |
 | 14: NULL to Option | 16.8 | 34.4, 34.5 | ✅ |
