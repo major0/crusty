@@ -101,7 +101,7 @@ typedef *char CharPtr;
 
 // Reference type aliases
 typedef &int IntRef;
-typedef &var int MutIntRef;
+typedef var &int MutIntRef;
 
 void pointer_example() {
     let value: int = 100;

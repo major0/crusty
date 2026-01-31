@@ -42,7 +42,7 @@ enum Color {
 ### Pointers and References
 ```c
 &int x;       // immutable reference
-&var int x;   // mutable reference
+var &int x;   // mutable reference
 ```
 
 ### Arrays and Tuples
