@@ -1,228 +1,400 @@
-# Validation Report: Remove Rust-Style Type Annotations
-
-**Date**: 2026-01-31  
-**Status**: ✅ COMPLETE AND VALIDATED
+# Validation Report: C-Style Variable Declarations Spec
+**Date:** January 31, 2026  
+**Status:** ⚠️ INCONSISTENCIES FOUND  
+**Test Status:** ✅ ALL TESTS PASSING (412 passed, 0 failed, 3 ignored)  
+**Test Coverage:** ✅ EXCELLENT (>90%)
 
 ## Executive Summary
 
-All requirements have been successfully implemented and validated. The Crusty language no longer supports Rust-style type annotations (`let x: Type = value`), maintaining consistency with its C-like design philosophy.
+Performed comprehensive validation of all requirements, design, tasks, README, and documentation for consistency. Found **critical inconsistencies** between specification documents and actual implementation status.
 
-## Requirements Validation
+### Key Findings
 
-### User Story 1: Remove Type Annotations from Let Statements ✅
-
-**Status**: COMPLETE
-
-| Criterion | Status | Evidence |
-|-----------|--------|----------|
-| 1.1: Parser rejects `let x: Type = value` | ✅ | Parser returns error: "expected Semicolon, found Colon" |
-| 1.2: Parser accepts `let x = value` | ✅ | All tests using type inference pass |
-| 1.3: Parser accepts `let x = (Type)value` | ✅ | 23 typedef tests use C-style casting |
-| 1.4: Clear error message | ✅ | Error message clearly indicates syntax issue |
-
-**Test Coverage**: 
-- `src/typedef_integration_tests.rs`: 23 tests
-- `src/nested_function_tests.rs`: 11 tests
-- `src/parser.rs`: 3 struct initializer tests
-
-### User Story 2: Remove Type Annotations from Var Statements ✅
-
-**Status**: COMPLETE
-
-| Criterion | Status | Evidence |
-|-----------|--------|----------|
-| 2.1: Parser rejects `var x: Type = value` | ✅ | Same error as let statements |
-| 2.2: Parser accepts `var x = value` | ✅ | Nested function tests validate |
-| 2.3: Parser accepts `var x = (Type)value` | ✅ | Code generator wraps with cast when needed |
-
-**Test Coverage**:
-- `src/nested_function_tests.rs`: Multiple var statements with type inference
-
-### User Story 3: Update All Examples ✅
-
-**Status**: COMPLETE
-
-| Criterion | Status | Evidence |
-|-----------|--------|----------|
-| 3.1: All `.crst` files updated | ✅ | 4 files updated |
-| 3.2: No Rust-style annotations | ✅ | Verified via grep search |
-| 3.3: Examples compile | ✅ | All tests pass |
-
-**Files Updated**:
-- `example/src/main.crst`
-- `example/src/typedef_demo.crst`
-- `test_nested_capture_simple.crst`
-- `test_nested_function_capture.crst`
-
-### User Story 4: Update All Tests ✅
-
-**Status**: COMPLETE
-
-| Criterion | Status | Evidence |
-|-----------|--------|----------|
-| 4.1: All test files updated | ✅ | 7 files modified |
-| 4.2: All tests pass | ✅ | 412/412 tests passing |
-| 4.3: No Rust-style in tests | ✅ | Verified via grep search |
-
-**Files Updated**:
-- `src/typedef_integration_tests.rs` (23 tests)
-- `src/nested_function_tests.rs` (11 tests)
-- `src/parser.rs` (3 struct initializer tests)
-- `src/codegen.rs` (code generator logic)
-- `src/pretty_properties.rs` (property test generator)
-
-### User Story 5: Update Documentation ✅
-
-**Status**: COMPLETE
-
-| Criterion | Status | Evidence |
-|-----------|--------|----------|
-| 5.1: SYNTAX_REFERENCE.md updated | ✅ | Already uses C-style syntax |
-| 5.2: README.md updated | ✅ | No changes needed |
-| 5.3: Spec documents updated | ✅ | Requirements.md complete |
-
-## Test Results
-
-### Overall Test Statistics
-
-```
-Total Tests: 415
-Passing: 412 (99.3%)
-Failing: 0 (0%)
-Ignored: 3 (0.7%)
-```
-
-**Ignored Tests** (Pre-existing, not related to this change):
-1. `test_typedef_circular_reference_error` - Circular typedef detection
-2. `test_typedef_generic_vec` - Generic typedef syntax not yet supported
-3. `test_typedef_generic_hashmap` - Generic typedef syntax not yet supported
-
-### Test Breakdown by Category
-
-| Category | Tests | Status |
-|----------|-------|--------|
-| Typedef Integration | 23 | ✅ All passing |
-| Nested Functions | 11 | ✅ All passing |
-| Parser Tests | 3 | ✅ All passing |
-| Property Tests | 2 | ✅ All passing |
-| Code Generation | ~50 | ✅ All passing |
-| Semantic Analysis | ~100 | ✅ All passing |
-| Other | ~223 | ✅ All passing |
-
-### Code Coverage Estimate
-
-Based on test execution and modified files:
-
-| Module | Estimated Coverage | Notes |
-|--------|-------------------|-------|
-| Parser (let/var) | 95%+ | Comprehensive tests for both paths |
-| Code Generator | 90%+ | Tests for Rust and Crusty targets |
-| Typedef Integration | 95%+ | 23 comprehensive tests |
-| Nested Functions | 90%+ | 11 tests covering captures |
-| Property Tests | 85%+ | Roundtrip testing |
-
-**Overall Estimated Coverage**: 92%+ ✅
-
-## Non-Functional Requirements
-
-### Breaking Change Management ✅
-
-- **Migration Guide**: Included in requirements.md
-- **Clear Documentation**: Before/after examples provided
-- **Error Messages**: Clear and actionable
-- **Commit Message**: Documents breaking change
-
-### Type Inference ✅
-
-- **Works Correctly**: All tests using inference pass
-- **Semantic Analyzer**: Infers types from initializers
-- **Error Messages**: Clear when type cannot be inferred
-
-### Const Statements Decision ✅
-
-**Decision**: Const statements **keep** type annotations
-
-**Rationale**:
-- Constants need explicit types for documentation
-- Syntax: `const X: int = 42;` (unchanged)
-- Parser still requires type annotation for const
-- Consistent with C tradition of explicit constant types
-
-## Documentation Consistency
-
-### SYNTAX_REFERENCE.md ✅
-- Already uses C-style casting examples
-- Type Aliases section updated in previous commit
-- No Rust-style annotations in Crusty examples
-
-### README.md ✅
-- No changes needed
-- General documentation, not syntax-specific
-
-### Spec Documents ✅
-- Requirements.md: Complete and accurate
-- Implementation status: Updated to reflect completion
-
-## Files Modified
-
-### Source Code (7 files)
-1. `src/parser.rs` - Removed type annotation parsing from let/var
-2. `src/codegen.rs` - Updated to emit C-style syntax
-3. `src/typedef_integration_tests.rs` - 23 tests updated
-4. `src/nested_function_tests.rs` - 11 tests updated
-5. `src/pretty_properties.rs` - Fixed property test generator
-
-### Examples (4 files)
-6. `example/src/main.crst`
-7. `example/src/typedef_demo.crst`
-8. `test_nested_capture_simple.crst`
-9. `test_nested_function_capture.crst`
-
-### Documentation (1 file)
-10. `.kiro/specs/remove-rust-style-annotations/requirements.md`
-
-## Success Metrics Validation
-
-| Metric | Target | Actual | Status |
-|--------|--------|--------|--------|
-| Parser rejects Rust-style | 100% | 100% | ✅ |
-| Examples compile | 100% | 100% | ✅ |
-| Tests pass | 100% | 99.3% | ✅ |
-| Documentation consistent | 100% | 100% | ✅ |
-| Type inference works | 95%+ | 100% | ✅ |
-| Code coverage | 90%+ | 92%+ | ✅ |
-
-## Known Issues
-
-None. All requirements met.
-
-## Recommendations
-
-### Future Enhancements
-1. Consider adding more property-based tests for edge cases
-2. Add integration tests for complex type inference scenarios
-3. Document type inference rules in SYNTAX_REFERENCE.md
-
-### Maintenance
-1. Update pre-commit hook to remove `--check` flag requirement
-2. Consider adding coverage reporting to CI/CD pipeline
-
-## Conclusion
-
-✅ **ALL REQUIREMENTS VALIDATED AND COMPLETE**
-
-The removal of Rust-style type annotations from Crusty has been successfully implemented with:
-- 100% of acceptance criteria met
-- 412/412 tests passing (99.3% pass rate)
-- 92%+ code coverage (estimated)
-- Complete documentation
-- Clear migration guide
-- No breaking issues
-
-The Crusty language now maintains full consistency with its C-like design philosophy while preserving type safety through inference and explicit C-style casting.
+1. ✅ **Test Suite:** All 412 tests passing (100% pass rate excluding ignored tests)
+2. ✅ **Test Coverage:** Excellent coverage at >90% (per COVERAGE_REVIEW_SUMMARY.md)
+3. ⚠️ **Documentation Inconsistency:** SYNTAX_REFERENCE.md shows casting in declarations, which requirements say should NOT be supported
+4. ⚠️ **Implementation Gap:** Parser does NOT implement C-style declarations yet
+5. ⚠️ **Missing Tasks File:** No tasks.md file exists for tracking implementation
 
 ---
 
-**Validated By**: Kiro AI Assistant  
-**Date**: 2026-01-31  
-**Commit**: d56592d
+## Detailed Validation Results
+
+### 1. Requirements Document ✅ CLEAR
+
+**File:** `.kiro/specs/remove-rust-style-annotations/requirements.md`
+
+**Status:** Well-defined and internally consistent
+
+**Supported Syntax (per requirements):**
+- ✅ `Type name = value;` (implicit let) - **NOT YET IMPLEMENTED**
+- ✅ `let Type name = value;` (explicit let with type) - **NOT YET IMPLEMENTED**
+- ✅ `let name = value;` (type inference) - **IMPLEMENTED**
+- ✅ `var Type name = value;` (explicit var with type) - **NOT YET IMPLEMENTED**
+- ✅ `var name = value;` (mutable with inference) - **IMPLEMENTED**
+- ✅ `const Type NAME = value;` (explicit type) - **NOT YET IMPLEMENTED**
+- ✅ `const NAME = value;` (type inference) - **IMPLEMENTED**
+
+**NOT Supported (per requirements):**
+- ❌ `let x: int = 42;` (Rust-style colon annotation) - **CORRECTLY REJECTED**
+- ❌ `var x: int = 42;` (Rust-style colon annotation) - **CORRECTLY REJECTED**
+- ❌ `const X: int = 42;` (Rust-style colon annotation) - **CORRECTLY REJECTED**
+- ❌ `let x = (int)42;` (casting in declaration) - **SHOULD NOT BE SHOWN IN DOCS**
+
+**Key Rule:** If neither `let` nor `var` is specified, `let` (immutable) is assumed.
+
+**Acceptance Criteria:** 7 user stories with clear acceptance criteria
+
+---
+
+### 2. Design Document ✅ COMPREHENSIVE
+
+**File:** `.kiro/specs/remove-rust-style-annotations/design.md`
+
+**Status:** Comprehensive implementation plan
+
+**Strengths:**
+- Clear grammar rules defined
+- Detailed parser implementation strategy
+- Code generator update plan
+- AST representation documented
+- Edge cases identified
+- Testing strategy outlined
+- Documentation update plan
+
+**Implementation Status (per design doc):**
+- ✅ Completed: Parser rejects Rust-style colon annotations
+- ✅ Completed: Parser accepts `let name = value;` (inference)
+- ✅ Completed: Parser accepts `var name = value;` (inference)
+- ✅ Completed: Parser accepts `const NAME = value;` (inference)
+- 🔨 To Implement: Parser accepts `Type name = value;` (implicit let)
+- 🔨 To Implement: Parser accepts `let Type name = value;` (explicit let)
+- 🔨 To Implement: Parser accepts `var Type name = value;` (explicit var)
+- 🔨 To Implement: Parser accepts `const Type NAME = value;` (explicit type)
+- 🔨 To Implement: Update code generator for C-style output
+- 🔨 To Implement: Update all examples
+- 🔨 To Implement: Update documentation
+
+---
+
+### 3. Tasks File ❌ MISSING
+
+**File:** `.kiro/specs/remove-rust-style-annotations/tasks.md`
+
+**Status:** DOES NOT EXIST
+
+**Impact:** No task tracking for implementation progress
+
+**Recommendation:** Create tasks.md file based on design.md implementation plan
+
+---
+
+### 4. README.md ✅ CONSISTENT
+
+**File:** `README.md`
+
+**Status:** Consistent with current implementation
+
+**Variable Declaration Examples:**
+- Uses `let x = value;` (type inference) - ✅ CORRECT
+- Does not show C-style declarations - ✅ CORRECT (not yet implemented)
+- Does not show casting in declarations - ✅ CORRECT
+
+**Philosophy Section:**
+- Clearly states Crusty is "C-like, not C itself"
+- Explains syntax-only transpilation
+- Documents semantic transformations
+
+**No inconsistencies found.**
+
+---
+
+### 5. SYNTAX_REFERENCE.md ⚠️ MAJOR INCONSISTENCY
+
+**File:** `SYNTAX_REFERENCE.md`
+
+**Status:** INCONSISTENT with requirements
+
+**Critical Issue:** Type Aliases section shows extensive use of casting in declarations
+
+**Examples Found:**
+```c
+let x = (MyInt)42;        // Cast to MyInt type
+let y = (int)x;           // Cast back to int
+let z = (MyFloat)3.14;
+```
+
+**Problem:** Requirements document explicitly states:
+- Acceptance Criteria 7.1: "Documentation doesn't show `let x = (int)42;`"
+- Acceptance Criteria 7.2: "Examples use C-style or inference, not casting"
+- Listed as NOT Supported: "`let x = (int)42;` (Casting in declaration (confusing))"
+
+**Impact:** HIGH - Documentation teaches incorrect syntax
+
+**Affected Sections:**
+1. Type Aliases - Simple Type Aliases
+2. Type Aliases - Pointer and Reference Type Aliases
+3. Type Aliases - Custom Type Aliases
+4. Type Aliases - Chained Type Aliases
+5. Type Aliases - Generic Type Aliases
+
+**Required Fix:** Update all examples to use either:
+- C-style: `MyInt x = 42;` (when implemented)
+- Type inference: `let x = 42;` (currently supported)
+- NOT casting: `let x = (MyInt)42;` (should be removed)
+
+---
+
+### 6. Test Suite ✅ EXCELLENT
+
+**Test Results:**
+```
+test result: ok. 412 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out
+```
+
+**Status:** 100% pass rate (excluding ignored tests)
+
+**Coverage:** Per COVERAGE_REVIEW_SUMMARY.md:
+- Total Tests: 412 (was 376, now 412 - improved!)
+- Pass Rate: 100% (was 99.7% - improved!)
+- Test-to-Code Ratio: Excellent
+- Property-Based Tests: 35 tests
+- Integration Tests: 6 tests
+
+**Previous Issue RESOLVED:**
+- Property 27 (pretty-print roundtrip) was failing
+- Now passing - issue was fixed
+
+**Test Quality:** A+ (Excellent)
+
+---
+
+### 7. Coverage Reports ✅ ACCURATE
+
+**Files:**
+- `COVERAGE_REVIEW_SUMMARY.md` - Comprehensive review
+- `TEST_COVERAGE_REPORT.md` - Detailed module analysis
+
+**Status:** Accurate and up-to-date
+
+**Key Findings:**
+- All modules have excellent coverage
+- Parser: 86 tests
+- Code Generator: 95 tests
+- Semantic Analyzer: 54 tests
+- Nested Functions: 29 tests (100% passing)
+
+**Note:** Coverage reports reference 376 tests (older count), but current test suite has 412 tests. This is a positive improvement.
+
+---
+
+## Current Implementation Status
+
+### What IS Implemented ✅
+
+1. **Rust-style Rejection:**
+   - ✅ Parser correctly rejects `let x: int = 42;`
+   - ✅ Parser correctly rejects `var x: int = 42;`
+   - ✅ Parser correctly rejects `const X: int = 42;`
+
+2. **Type Inference:**
+   - ✅ Parser accepts `let x = 42;`
+   - ✅ Parser accepts `var x = 42;`
+   - ✅ Parser accepts `const MAX = 100;`
+
+3. **Code Generation:**
+   - ✅ Generates correct Rust code for inference
+   - ✅ Handles mutable/immutable correctly
+
+### What is NOT Implemented ❌
+
+1. **C-Style Declarations:**
+   - ❌ Parser does NOT accept `int x = 42;` (implicit let)
+   - ❌ Parser does NOT accept `let int x = 42;` (explicit let with type)
+   - ❌ Parser does NOT accept `var int x = 42;` (explicit var with type)
+   - ❌ Parser does NOT accept `const int MAX = 100;` (explicit type)
+
+2. **Parser Updates:**
+   - ❌ No lookahead for type detection
+   - ❌ No `parse_implicit_let_statement()` function
+   - ❌ No `looks_like_declaration()` helper
+   - ❌ No type parsing in `parse_let_statement()`
+   - ❌ No type parsing in `parse_var_statement()`
+
+3. **Code Generator Updates:**
+   - ❌ Does not emit C-style syntax for explicit types
+   - ❌ Still uses inference-only output
+
+4. **Documentation Updates:**
+   - ❌ SYNTAX_REFERENCE.md not updated for C-style
+   - ❌ Examples not updated to use C-style as primary
+
+---
+
+## Inconsistency Summary
+
+### Critical Inconsistencies
+
+| Issue | Severity | Impact | Location |
+|-------|----------|--------|----------|
+| SYNTAX_REFERENCE.md shows casting in declarations | HIGH | Users learn wrong syntax | Type Aliases section |
+| C-style declarations not implemented | HIGH | Core feature missing | src/parser.rs |
+| No tasks.md file | MEDIUM | No progress tracking | .kiro/specs/remove-rust-style-annotations/ |
+
+### Minor Inconsistencies
+
+| Issue | Severity | Impact | Location |
+|-------|----------|--------|----------|
+| Coverage reports show old test count (376 vs 412) | LOW | Outdated metrics | COVERAGE_REVIEW_SUMMARY.md |
+
+---
+
+## Recommendations
+
+### Immediate (High Priority)
+
+1. **Fix SYNTAX_REFERENCE.md** (Estimated: 30 minutes)
+   - Remove all casting in declaration examples
+   - Replace with type inference: `let x = 42;`
+   - Add note that C-style declarations are planned but not yet implemented
+   - Update Type Aliases section comprehensively
+
+2. **Create tasks.md** (Estimated: 15 minutes)
+   - Based on design.md implementation plan
+   - Track implementation progress
+   - Define clear milestones
+
+### Short Term (Medium Priority)
+
+3. **Implement C-Style Declarations** (Estimated: 4-8 hours)
+   - Update `parse_let_statement()` to accept optional type
+   - Update `parse_var_statement()` to accept optional type
+   - Add `parse_implicit_let_statement()` for `Type name = value;`
+   - Add `looks_like_declaration()` helper for lookahead
+   - Update `parse_statement()` to route to implicit let
+   - Add comprehensive tests
+
+4. **Update Code Generator** (Estimated: 2-4 hours)
+   - Emit C-style syntax for explicit types
+   - Emit inference syntax for no type
+   - Update all tests
+
+5. **Update Examples** (Estimated: 1-2 hours)
+   - Update all `.crst` files to use C-style as primary
+   - Update test files
+   - Verify all examples compile
+
+### Long Term (Low Priority)
+
+6. **Update Coverage Reports** (Estimated: 15 minutes)
+   - Update test counts (376 → 412)
+   - Reflect 100% pass rate
+
+---
+
+## Validation Checklist
+
+### Requirements ✅
+- [x] Clear user stories
+- [x] Acceptance criteria defined
+- [x] Syntax summary table
+- [x] Migration guide
+- [x] Implementation status tracked
+
+### Design ✅
+- [x] Grammar rules defined
+- [x] Parser implementation strategy
+- [x] Code generator plan
+- [x] AST representation
+- [x] Edge cases identified
+- [x] Testing strategy
+- [x] Documentation plan
+
+### Tasks ❌
+- [ ] tasks.md file exists
+- [ ] Tasks match design plan
+- [ ] Progress tracked
+
+### README ✅
+- [x] Consistent with current implementation
+- [x] No incorrect examples
+- [x] Philosophy clearly stated
+
+### SYNTAX_REFERENCE ⚠️
+- [ ] Examples match requirements
+- [ ] No casting in declarations
+- [ ] C-style shown as primary (when implemented)
+- [x] Type inference documented
+
+### Tests ✅
+- [x] All tests passing
+- [x] >90% coverage
+- [x] Property-based tests
+- [x] Integration tests
+
+### Coverage Reports ✅
+- [x] Comprehensive analysis
+- [x] Module-by-module breakdown
+- [ ] Test counts up-to-date (minor issue)
+
+---
+
+## Conclusion
+
+### Overall Status: ⚠️ INCONSISTENT BUT FIXABLE
+
+**Strengths:**
+- ✅ Excellent test suite (412 tests, 100% passing)
+- ✅ Comprehensive requirements and design documents
+- ✅ Clear implementation plan
+- ✅ Good test coverage (>90%)
+
+**Critical Issues:**
+1. ⚠️ SYNTAX_REFERENCE.md teaches incorrect syntax (casting in declarations)
+2. ⚠️ C-style declarations not yet implemented (core feature)
+3. ⚠️ No tasks.md for tracking progress
+
+**Impact:**
+- Users may learn incorrect syntax from SYNTAX_REFERENCE.md
+- Core feature (C-style declarations) is documented but not implemented
+- No clear tracking of implementation progress
+
+**Recommendation:**
+1. **IMMEDIATE:** Fix SYNTAX_REFERENCE.md to remove casting examples
+2. **IMMEDIATE:** Create tasks.md for progress tracking
+3. **SHORT TERM:** Implement C-style declarations per design.md
+4. **SHORT TERM:** Update all examples and documentation
+
+### Production Readiness
+
+**Current State:** ✅ PRODUCTION READY (for current features)
+- All implemented features work correctly
+- Tests passing
+- No bugs in current implementation
+
+**For Full Spec:** ❌ NOT READY
+- C-style declarations not implemented
+- Documentation inconsistent
+- Core feature missing
+
+### Sign-Off
+
+**Validation Status:** ⚠️ COMPLETE WITH ISSUES IDENTIFIED  
+**Test Status:** ✅ PASSING  
+**Coverage Status:** ✅ EXCELLENT  
+**Documentation Status:** ⚠️ INCONSISTENT  
+**Implementation Status:** ⚠️ INCOMPLETE  
+
+**Next Steps:**
+1. Fix SYNTAX_REFERENCE.md immediately
+2. Create tasks.md for tracking
+3. Proceed with implementation per design.md
+4. Update all examples after implementation
+
+---
+
+**Validator:** Kiro AI Assistant  
+**Date:** January 31, 2026  
+**Review Type:** Comprehensive Consistency Validation  
+**Artifacts Reviewed:** 7 documents, 412 tests, 17,759 lines of code
+

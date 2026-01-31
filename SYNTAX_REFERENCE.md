@@ -71,11 +71,11 @@ typedef int MyInt;
 typedef float MyFloat;
 typedef bool Flag;
 
-// Use type aliases with C-like casting
+// Use type aliases with type inference
 void example() {
-    let x = (MyInt)42;        // Cast to MyInt type
-    let y = (int)x;           // Cast back to int
-    let z = (MyFloat)3.14;
+    let x = 42;        // Type inferred as int
+    let y = x;         // Type inferred from x
+    let z = 3.14;      // Type inferred as float
 }
 ```
 
@@ -86,11 +86,13 @@ pub type MyFloat = f64;
 pub type Flag = bool;
 
 pub fn example() {
-    let x = 42 as MyInt;
-    let y = x as i32;
-    let z = 3.14 as MyFloat;
+    let x = 42;
+    let y = x;
+    let z = 3.14;
 }
 ```
+
+**Note:** C-style variable declarations with explicit types (e.g., `MyInt x = 42;`) are planned but not yet implemented. Currently, use type inference with `let` or `var`.
 
 ### Pointer and Reference Type Aliases
 
@@ -109,8 +111,9 @@ typedef var &int MutIntRef;
 
 void pointer_example() {
     let value = 100;
-    let ptr = (IntPtr)&value;
-    let ref = (IntRef)&value;
+    // Pointer and reference usage with type inference
+    let ptr = &value;
+    let ref = &value;
 }
 ```
 
@@ -123,8 +126,8 @@ pub type MutIntRef = &mut i32;
 
 pub fn pointer_example() {
     let value = 100;
-    let ptr = &value as IntPtr;
-    let ref_val = &value as IntRef;
+    let ptr = &value;
+    let ref_val = &value;
 }
 ```
 
@@ -141,8 +144,9 @@ typedef Point PointAlias;
 typedef Point* PointPtr;
 
 void custom_type_example() {
-    let p = (PointAlias)Point { x: 10, y: 20 };
-    let ptr = (PointPtr)&p;
+    // Use struct initializer with type inference
+    let p = Point { x: 10, y: 20 };
+    let ptr = &p;
 }
 ```
 
@@ -157,8 +161,8 @@ pub type PointAlias = Point;
 pub type PointPtr = *mut Point;
 
 pub fn custom_type_example() {
-    let p = Point { x: 10, y: 20 } as PointAlias;
-    let ptr = &p as PointPtr;
+    let p = Point { x: 10, y: 20 };
+    let ptr = &p;
 }
 ```
 
@@ -170,12 +174,12 @@ typedef int Integer;
 typedef Integer Number;
 typedef Number Count;
 
-// All three are compatible with int through casting
+// All three are compatible through type inference
 void chained_example() {
     let a = 1;
-    let b = (Integer)a;
-    let c = (Number)b;
-    let d = (Count)c;
+    let b = a;
+    let c = b;
+    let d = c;
 }
 ```
 
@@ -187,9 +191,9 @@ pub type Count = Number;
 
 pub fn chained_example() {
     let a = 1;
-    let b = a as Integer;
-    let c = b as Number;
-    let d = c as Count;
+    let b = a;
+    let c = b;
+    let d = c;
 }
 ```
 
@@ -201,8 +205,9 @@ typedef Vec[int] IntVec;
 typedef HashMap[String, int] StringIntMap;
 
 void generic_example() {
-    let numbers = (IntVec)@Vec(int).new();
-    let map = (StringIntMap)@HashMap(String, int).new();
+    // Use type-scoped calls with type inference
+    let numbers = @Vec(int).new();
+    let map = @HashMap(String, int).new();
 }
 ```
 
@@ -212,8 +217,8 @@ pub type IntVec = Vec<i32>;
 pub type StringIntMap = HashMap<String, i32>;
 
 pub fn generic_example() {
-    let numbers = Vec::<i32>::new() as IntVec;
-    let map = HashMap::<String, i32>::new() as StringIntMap;
+    let numbers = Vec::<i32>::new();
+    let map = HashMap::<String, i32>::new();
 }
 ```
 
@@ -223,6 +228,12 @@ pub fn generic_example() {
 - **Document purpose**: Add comments explaining why the alias exists
 - **Avoid circular references**: `typedef A B; typedef B A;` will cause an error
 - **Keep it simple**: Don't create unnecessarily long alias chains
+
+**Current Implementation Note:**
+- Type aliases are fully supported with `typedef`
+- Variable declarations currently use type inference: `let x = 42;`
+- C-style declarations with explicit types (e.g., `MyInt x = 42;`) are planned but not yet implemented
+- Use type inference for now: `let x = 42;` instead of casting
 
 ---
 
