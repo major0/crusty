@@ -820,4 +820,188 @@ void outer() {
         assert!(rust_code.contains("let increment = ||"));
         assert!(rust_code.contains("let get_value = || -> i32"));
     }
+
+    // ============================================================================
+    // Test Category 4: Type Checking for Nested Functions (Task 17.3)
+    // ============================================================================
+    //
+    // NOTE: Full testing of nested function type checking requires function pointer
+    // type syntax support in the parser (e.g., `int(int, int)` as a type).
+    // This is a prerequisite that needs to be implemented. For now, we test what
+    // we can with the current parser capabilities.
+
+    #[test]
+    fn test_nested_function_assigned_to_variable() {
+        let source = r#"
+void outer() {
+    int add(int x, int y) {
+        return x + y;
+    }
+    
+    let adder = add;
+}
+"#;
+        let mut parser = Parser::new(source).unwrap();
+        let file = parser.parse_file().unwrap();
+
+        let mut analyzer = SemanticAnalyzer::new();
+        let result = analyzer.analyze(&file);
+
+        assert!(
+            result.is_ok(),
+            "Should allow assigning nested function to variable"
+        );
+        assert!(
+            analyzer.errors().is_empty(),
+            "Should have no errors, but got: {:?}",
+            analyzer.errors()
+        );
+    }
+
+    #[test]
+    fn test_nested_function_called_through_variable() {
+        let source = r#"
+void outer() {
+    int add(int x, int y) {
+        return x + y;
+    }
+    
+    let adder = add;
+    int result = adder(1, 2);
+}
+"#;
+        let mut parser = Parser::new(source).unwrap();
+        let file = parser.parse_file().unwrap();
+
+        let mut analyzer = SemanticAnalyzer::new();
+        let result = analyzer.analyze(&file);
+
+        assert!(
+            result.is_ok(),
+            "Should allow calling nested function through variable"
+        );
+        assert!(
+            analyzer.errors().is_empty(),
+            "Should have no errors, but got: {:?}",
+            analyzer.errors()
+        );
+    }
+
+    #[test]
+    fn test_multiple_nested_functions_same_captures() {
+        let source = r#"
+void outer() {
+    int x = 10;
+    
+    int add_x(int y) {
+        return x + y;
+    }
+    
+    int mul_x(int y) {
+        return x * y;
+    }
+    
+    int a = add_x(5);
+    int b = mul_x(5);
+}
+"#;
+        let mut parser = Parser::new(source).unwrap();
+        let file = parser.parse_file().unwrap();
+
+        let mut analyzer = SemanticAnalyzer::new();
+        let result = analyzer.analyze(&file);
+
+        assert!(
+            result.is_ok(),
+            "Should allow multiple nested functions capturing same variable"
+        );
+        assert!(
+            analyzer.errors().is_empty(),
+            "Should have no errors, but got: {:?}",
+            analyzer.errors()
+        );
+
+        // Verify both functions capture x
+        let add_captures = analyzer.get_captures("add_x").unwrap();
+        assert_eq!(add_captures.len(), 1);
+        assert_eq!(add_captures[0].name, "x");
+
+        let mul_captures = analyzer.get_captures("mul_x").unwrap();
+        assert_eq!(mul_captures.len(), 1);
+        assert_eq!(mul_captures[0].name, "x");
+    }
+
+    #[test]
+    fn test_nested_function_compatible_signatures() {
+        let source = r#"
+void outer() {
+    int add(int x, int y) {
+        return x + y;
+    }
+    
+    let func1 = add;
+    let func2 = func1;
+    int result = func2(1, 2);
+}
+"#;
+        let mut parser = Parser::new(source).unwrap();
+        let file = parser.parse_file().unwrap();
+
+        let mut analyzer = SemanticAnalyzer::new();
+        let result = analyzer.analyze(&file);
+
+        assert!(
+            result.is_ok(),
+            "Should allow assigning compatible function types"
+        );
+        assert!(
+            analyzer.errors().is_empty(),
+            "Should have no errors, but got: {:?}",
+            analyzer.errors()
+        );
+    }
+
+    #[test]
+    fn test_nested_function_no_captures() {
+        let source = r#"
+void outer() {
+    int pure_add(int x, int y) {
+        return x + y;
+    }
+    
+    let func = pure_add;
+    int result = func(1, 2);
+}
+"#;
+        let mut parser = Parser::new(source).unwrap();
+        let file = parser.parse_file().unwrap();
+
+        let mut analyzer = SemanticAnalyzer::new();
+        let result = analyzer.analyze(&file);
+
+        assert!(
+            result.is_ok(),
+            "Should allow nested functions with no captures"
+        );
+        assert!(
+            analyzer.errors().is_empty(),
+            "Should have no errors, but got: {:?}",
+            analyzer.errors()
+        );
+
+        // Verify no captures
+        let captures = analyzer.get_captures("pure_add").unwrap();
+        assert_eq!(captures.len(), 0, "Should have no captures");
+    }
+
+    // TODO: The following tests require function pointer type syntax support in the parser
+    // (e.g., `int(int, int)` as a type). Once that's implemented, uncomment and fix these tests:
+    //
+    // - test_nested_function_type_mismatch_param_count
+    // - test_nested_function_type_mismatch_param_types
+    // - test_nested_function_type_mismatch_return_type
+    // - test_nested_function_as_parameter
+    // - test_nested_function_as_parameter_type_mismatch
+    // - test_nested_function_as_return_value
+    // - test_nested_function_as_return_value_type_mismatch
 }

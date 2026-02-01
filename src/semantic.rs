@@ -917,18 +917,28 @@ impl SemanticAnalyzer {
                 // Determine the variable type
                 let var_type = if let Some(ref declared_type) = ty {
                     // Check type compatibility if both type and init are present
-                    if init.is_some() && !self.type_env.is_compatible(declared_type, &init_type) {
-                        self.errors.push(SemanticError::new(
-                            Span::new(
-                                crate::error::Position::new(0, 0),
-                                crate::error::Position::new(0, 0),
-                            ),
-                            SemanticErrorKind::TypeMismatch,
-                            format!(
-                                "variable '{}' type mismatch: expected {:?}, found {:?}",
-                                name.name, declared_type, init_type
-                            ),
-                        ));
+                    if init.is_some() {
+                        // Special handling for function types (nested functions)
+                        let compatible = match (&init_type, declared_type) {
+                            (Type::Function { .. }, Type::Function { .. }) => {
+                                self.check_function_type_compatibility(&init_type, declared_type)
+                            }
+                            _ => self.type_env.is_compatible(declared_type, &init_type),
+                        };
+
+                        if !compatible {
+                            self.errors.push(SemanticError::new(
+                                Span::new(
+                                    crate::error::Position::new(0, 0),
+                                    crate::error::Position::new(0, 0),
+                                ),
+                                SemanticErrorKind::TypeMismatch,
+                                format!(
+                                    "variable '{}' type mismatch: expected {:?}, found {:?}",
+                                    name.name, declared_type, init_type
+                                ),
+                            ));
+                        }
                     }
                     declared_type.clone()
                 } else {
@@ -962,18 +972,28 @@ impl SemanticAnalyzer {
                 // Determine the variable type
                 let var_type = if let Some(ref declared_type) = ty {
                     // Check type compatibility if both type and init are present
-                    if init.is_some() && !self.type_env.is_compatible(declared_type, &init_type) {
-                        self.errors.push(SemanticError::new(
-                            Span::new(
-                                crate::error::Position::new(0, 0),
-                                crate::error::Position::new(0, 0),
-                            ),
-                            SemanticErrorKind::TypeMismatch,
-                            format!(
-                                "variable '{}' type mismatch: expected {:?}, found {:?}",
-                                name.name, declared_type, init_type
-                            ),
-                        ));
+                    if init.is_some() {
+                        // Special handling for function types (nested functions)
+                        let compatible = match (&init_type, declared_type) {
+                            (Type::Function { .. }, Type::Function { .. }) => {
+                                self.check_function_type_compatibility(&init_type, declared_type)
+                            }
+                            _ => self.type_env.is_compatible(declared_type, &init_type),
+                        };
+
+                        if !compatible {
+                            self.errors.push(SemanticError::new(
+                                Span::new(
+                                    crate::error::Position::new(0, 0),
+                                    crate::error::Position::new(0, 0),
+                                ),
+                                SemanticErrorKind::TypeMismatch,
+                                format!(
+                                    "variable '{}' type mismatch: expected {:?}, found {:?}",
+                                    name.name, declared_type, init_type
+                                ),
+                            ));
+                        }
                     }
                     declared_type.clone()
                 } else {
@@ -1041,7 +1061,15 @@ impl SemanticAnalyzer {
 
                     // Check if return type matches expected return type
                     if let Some(ref expected_type) = self.expected_return_type {
-                        if !self.type_env.is_compatible(expected_type, &return_type) {
+                        // Special handling for function types (nested functions)
+                        let compatible = match (&return_type, expected_type) {
+                            (Type::Function { .. }, Type::Function { .. }) => {
+                                self.check_function_type_compatibility(&return_type, expected_type)
+                            }
+                            _ => self.type_env.is_compatible(expected_type, &return_type),
+                        };
+
+                        if !compatible {
                             self.errors.push(SemanticError::new(
                                 Span::new(
                                     crate::error::Position::new(0, 0),
@@ -1387,6 +1415,41 @@ impl SemanticAnalyzer {
         }
     }
 
+    /// Check if two function types are compatible
+    /// This is used when assigning nested functions to variables or passing them as arguments
+    fn check_function_type_compatibility(&self, actual: &Type, expected: &Type) -> bool {
+        match (actual, expected) {
+            (
+                Type::Function {
+                    params: actual_params,
+                    return_type: actual_ret,
+                },
+                Type::Function {
+                    params: expected_params,
+                    return_type: expected_ret,
+                },
+            ) => {
+                // Check parameter count
+                if actual_params.len() != expected_params.len() {
+                    return false;
+                }
+
+                // Check each parameter type
+                for (actual_param, expected_param) in
+                    actual_params.iter().zip(expected_params.iter())
+                {
+                    if !self.type_env.is_compatible(actual_param, expected_param) {
+                        return false;
+                    }
+                }
+
+                // Check return type
+                self.type_env.is_compatible(actual_ret, expected_ret)
+            }
+            _ => false,
+        }
+    }
+
     /// Analyze an expression and return its type (placeholder for sub-task 8.4)
     fn analyze_expression(&mut self, expr: &crate::ast::Expression) -> Type {
         use crate::ast::{BinaryOp, Expression, PrimitiveType, UnaryOp};
@@ -1544,7 +1607,15 @@ impl SemanticAnalyzer {
                             for (i, (param_type, arg_type)) in
                                 params.iter().zip(arg_types.iter()).enumerate()
                             {
-                                if !self.type_env.is_compatible(param_type, arg_type) {
+                                // Special handling for function types (nested functions as arguments)
+                                let compatible = match (arg_type, param_type) {
+                                    (Type::Function { .. }, Type::Function { .. }) => {
+                                        self.check_function_type_compatibility(arg_type, param_type)
+                                    }
+                                    _ => self.type_env.is_compatible(param_type, arg_type),
+                                };
+
+                                if !compatible {
                                     self.errors.push(SemanticError::new(
                                         Span::new(
                                             crate::error::Position::new(0, 0),
@@ -1553,7 +1624,7 @@ impl SemanticAnalyzer {
                                         SemanticErrorKind::TypeMismatch,
                                         format!(
                                             "function call argument {} type mismatch: expected {:?}, found {:?}",
-                                            i, param_type, arg_type
+                                            i + 1, param_type, arg_type
                                         ),
                                     ));
                                 }
