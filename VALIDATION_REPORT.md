@@ -228,17 +228,21 @@ void increment() { counter = counter + 1; }
 - ✅ Tests are independent and can run in any order
 
 ### Test Coverage Goals
-| Module | Current | Target | Status |
-|--------|---------|--------|--------|
-| AST | 96.64% | 95% | ✅ EXCEEDS |
-| CLI | 92.71% | 90% | ✅ EXCEEDS |
-| Codegen | 84.41% | 80% | ✅ EXCEEDS |
-| Semantic | 70.25% | 70% | ✅ MEETS |
-| Parser | 73.19% | 70% | ✅ EXCEEDS |
-| Lexer | 79.49% | 75% | ✅ EXCEEDS |
-| Error | 77.12% | 75% | ✅ EXCEEDS |
-| Pretty | 93.00% | 90% | ✅ EXCEEDS |
-| Rustc | 90.06% | 85% | ✅ EXCEEDS |
+| Module | Current | Target | Gap | Status |
+|--------|---------|--------|-----|--------|
+| AST | 96.64% | 90% | - | ✅ EXCEEDS |
+| Pretty | 93.00% | 90% | - | ✅ EXCEEDS |
+| CLI | 92.71% | 90% | - | ✅ EXCEEDS |
+| Rustc | 90.06% | 90% | - | ✅ MEETS |
+| Codegen | 84.41% | 90% | +5.59% | ⚠️ BELOW TARGET |
+| Lexer | 79.49% | 90% | +10.51% | ⚠️ BELOW TARGET |
+| Error | 77.12% | 90% | +12.88% | ⚠️ BELOW TARGET |
+| Semantic | 76.16% | 90% | +13.84% | ⚠️ BELOW TARGET (improved from 70.25%) |
+| Parser | 73.19% | 90% | +16.81% | ⚠️ BELOW TARGET |
+
+**Overall Status**: ⚠️ 5 of 9 modules below 90% target
+
+**Progress**: Added 28 new tests for semantic analyzer, improving coverage from 70.25% to 76.16% (+5.91%)
 
 ## Areas for Future Improvement
 
