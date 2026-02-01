@@ -29,5 +29,7 @@ pub mod rustc;
 mod rustc_integration_tests;
 pub mod semantic;
 #[cfg(test)]
+mod semantic_coverage_tests;
+#[cfg(test)]
 mod typedef_integration_tests;
 pub mod utils;
