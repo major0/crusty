@@ -350,7 +350,7 @@ int fibonacci(int n) {
 
 ```c
 void count_to_ten() {
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 10; ++i) {
         __println__("{}", i);
     }
 }
@@ -928,7 +928,7 @@ pub fn main() {
 | `NULL` | `Option::None` | NULL keyword mapping |
 | `ptr == NULL` | `ptr.is_none()` | NULL comparison |
 | `ptr != NULL` | `ptr.is_some()` | Non-NULL comparison |
-| `for(int i=0; i<n; i++)` | `for i in 0..n` | C-style for loops |
+| `for(int i=0; i<n; ++i)` | `for i in 0..n` | C-style for loops |
 | `switch/case` | `match` | Switch statements |
 | `#define __M__()` | `macro_rules! M` | Macro definitions |
 

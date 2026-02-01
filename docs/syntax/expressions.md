@@ -31,6 +31,19 @@ Translates to:
 let max = if a > b { a } else { b };
 ```
 
+### Prefix Increment/Decrement
+```c
+++i;    // Increment before use
+--i;    // Decrement before use
+```
+Translates to:
+```rust
+{ i += 1; i }
+{ i -= 1; i }
+```
+
+Crusty supports only prefix increment/decrement (`++i`, `--i`). Postfix forms (`i++`, `i--`) are not supported — they introduce subtle evaluation-order bugs and have no clean Rust equivalent.
+
 ### Type Cast
 ```c
 float f = (float)integer_value;

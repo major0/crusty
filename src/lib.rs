@@ -4,6 +4,8 @@
 //! Crusty compiler library
 
 pub mod ast;
+#[cfg(test)]
+mod c_style_declaration_tests;
 pub mod cli;
 #[cfg(test)]
 mod cli_properties;
