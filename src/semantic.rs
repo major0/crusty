@@ -2405,6 +2405,12 @@ impl SemanticAnalyzer {
     pub fn get_captures(&self, function_name: &str) -> Option<&Vec<Capture>> {
         self.nested_function_captures.get(function_name)
     }
+
+    /// Get all nested function captures
+    #[allow(dead_code)] // Used in tests
+    pub fn get_all_captures(&self) -> &HashMap<String, Vec<Capture>> {
+        &self.nested_function_captures
+    }
 }
 
 impl Default for SemanticAnalyzer {

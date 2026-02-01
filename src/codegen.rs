@@ -4,6 +4,8 @@
 //! Code generation module for emitting Rust or Crusty source code.
 
 use crate::ast::*;
+use crate::semantic::{Capture, CaptureKind};
+use std::collections::HashMap;
 
 /// Target language for code generation
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -18,6 +20,8 @@ pub struct CodeGenerator {
     target: TargetLanguage,
     indent_level: usize,
     output: String,
+    /// Capture information for nested functions: function_name -> captures
+    nested_function_captures: HashMap<String, Vec<Capture>>,
 }
 
 impl CodeGenerator {
@@ -27,7 +31,14 @@ impl CodeGenerator {
             target,
             indent_level: 0,
             output: String::new(),
+            nested_function_captures: HashMap::new(),
         }
+    }
+
+    /// Set capture information for nested functions from semantic analysis
+    #[allow(dead_code)] // Used in tests
+    pub fn set_captures(&mut self, captures: HashMap<String, Vec<Capture>>) {
+        self.nested_function_captures = captures;
     }
 
     /// Generate source code from a File AST
@@ -997,10 +1008,20 @@ impl CodeGenerator {
                 return_type,
                 body,
             } => {
-                // TODO: Implement full closure generation with capture analysis in subtask 17.4
-                // For now, generate a basic closure
+                // Generate closure with appropriate capture semantics
                 self.write_indent();
                 self.write("let ");
+
+                // Determine if we need mut based on captures
+                let captures = self.nested_function_captures.get(&name.name);
+                let has_mutable_captures = captures
+                    .map(|caps| caps.iter().any(|c| matches!(c.kind, CaptureKind::Mutable)))
+                    .unwrap_or(false);
+
+                if has_mutable_captures {
+                    self.write("mut ");
+                }
+
                 self.write(&name.name);
                 self.write(" = |");
 
