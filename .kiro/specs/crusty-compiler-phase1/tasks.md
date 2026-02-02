@@ -30,7 +30,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
 ## Tasks
 
 - [x] 1. Set up development infrastructure
-  - [x]1.1 Create GitHub CI/CD pipeline
+  - [x] 1.1 Create GitHub CI/CD pipeline
     - Create .github/workflows/ci.yml file
     - Configure workflow to trigger on push and pull requests to main branch
     - Add job matrix for Linux, macOS, and Windows
@@ -40,7 +40,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Add build status badge to README.md
     - _Requirements: 1.1-1.18_
   
-  - [x]1.2 Set up pre-commit hooks
+  - [x] 1.2 Set up pre-commit hooks
     - Create .pre-commit-config.yaml file
     - Add hook for crustyc syntax validation on .crst files
     - Add hook for cargo fmt check on .rs files
@@ -49,14 +49,14 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Test hooks locally before committing
     - _Requirements: 3.1-3.18_
   
-  - [x]1.3 Add MIT License
+  - [x] 1.3 Add MIT License
     - Create LICENSE.txt file with MIT License text
     - Add copyright notice with project name and year
     - Add copyright headers to all source files
     - Update README.md to mention MIT License
     - _Requirements: 4.1-4.8_
   
-  - [x]1.4 Create EditorConfig
+  - [x] 1.4 Create EditorConfig
     - Create .editorconfig file in root directory
     - Add formatting rules for .crst files (4 spaces, UTF-8, LF)
     - Add formatting rules for .rs files (4 spaces, UTF-8, LF)
@@ -66,7 +66,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Document EditorConfig support in README.md
     - _Requirements: 5.1-5.16_
   
-  - [x]1.5 Commit infrastructure setup
+  - [x] 1.5 Commit infrastructure setup
     - Stage all infrastructure files
     - Create commit with message: "chore(task-1): set up development infrastructure"
     - Include commit body describing CI/CD, pre-commit, license, and EditorConfig setup
@@ -84,27 +84,27 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
   - _Requirements: All (foundational)_
 
 - [x] 2.6 Implement build.rs integration and multi-file support
-  - [x]2.6.1 Add --out-dir CLI option
+  - [x] 2.6.1 Add --out-dir CLI option
     - Add --out-dir option to specify output directory for generated Rust files
     - Create output directory if it doesn't exist
     - Preserve source directory structure in output directory
     - _Requirements: 14.1, 14.2, 14.3_
   
-  - [x]2.6.2 Implement batch transpilation mode
+  - [x] 2.6.2 Implement batch transpilation mode
     - Support transpiling multiple .crst files in a single invocation
     - Accept directory path as input to discover all .crst files
     - Transpile all discovered files to output directory
     - Report progress and errors for each file
     - _Requirements: 15.1, 15.2, 15.3, 15.4_
   
-  - [x]2.6.3 Implement module resolution
+  - [x] 2.6.3 Implement module resolution
     - Note: Module resolution is handled by Rust's module system
     - #import and #export directives translate directly to Rust use statements
     - rustc resolves all module imports and dependencies
     - crustyc only needs to translate syntax (already implemented in parser/codegen)
     - _Requirements: 15.5, 15.6, 15.7, 15.8_
   
-  - [x]2.6.4 Create reference build.rs script
+  - [x] 2.6.4 Create reference build.rs script
     - Create example build.rs that invokes crustyc
     - Discover all .crst files in src/ directory
     - Transpile to OUT_DIR preserving directory structure
@@ -112,7 +112,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Document build.rs integration patterns
     - _Requirements: 19.1, 19.2, 19.3, 19.4, 19.5, 19.6, 19.7_
   
-  - [x]2.6.5 Write unit tests for build.rs integration
+  - [x] 2.6.5 Write unit tests for build.rs integration
     - Test --out-dir option
     - Test batch transpilation
     - Test module resolution
@@ -120,33 +120,33 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - _Requirements: 14.1-14.3, 15.1-15.8, 19.1-19.7_
 
 - [x] 2.7 Create example directory structure
-  - [x]2.7.1 Create example directory and Cargo.toml
+  - [x] 2.7.1 Create example directory and Cargo.toml
     - Create example/ directory in repository root
     - Create example/Cargo.toml with crustyc as build-dependency
     - Configure example as a binary crate
     - _Requirements: 6.1, 6.2, 6.3_
   
-  - [x]2.7.2 Create build.rs script for examples
+  - [x] 2.7.2 Create build.rs script for examples
     - Create example/build.rs script
     - Implement logic to discover all .crst files in example/src/
     - Invoke crustyc to transpile .crst files to OUT_DIR
     - Set up cargo:rerun-if-changed for incremental builds
     - _Requirements: 6.4, 6.5, 6.6, 6.7, 6.8_
   
-  - [x]2.7.3 Create basic example files
+  - [x] 2.7.3 Create basic example files
     - Create example/src/ directory
     - Create example/src/main.crst with hello world program
     - Create example/src/functions.crst with function examples
     - Create example/README.md with build and run instructions
     - _Requirements: 6.9, 6.10, 6.11, 6.12, 6.13_
   
-  - [x]2.7.4 Integrate example into CI/CD
+  - [x] 2.7.4 Integrate example into CI/CD
     - Update .github/workflows/ci.yml to build example/
     - Add step to run example binary
     - Verify example builds and runs successfully in CI
     - _Requirements: 6.14, 6.15, 6.16_
   
-  - [x]2.7.5 Add advanced example files
+  - [x] 2.7.5 Add advanced example files
     - Create example/src/structs.crst with struct examples
     - Create example/src/methods.crst with struct method examples
     - Create example/src/generics.crst with generic type parameter examples
@@ -156,13 +156,13 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Create example/src/slices.crst with slice examples
     - _Requirements: 6.17-6.24_
   
-  - [x]2.7.6 Update example README with advanced features
+  - [x] 2.7.6 Update example README with advanced features
     - Update example/README.md with new examples
     - Document advanced features demonstrated
     - Add build and run instructions for each example
     - _Requirements: 6.25, 6.26_
   
-  - [x]2.7.7 Commit advanced example updates
+  - [x] 2.7.7 Commit advanced example updates
     - Stage all new example files
     - Create commit with message: "feat(task-2.7): add advanced feature examples"
     - Reference requirements: "Validates: Requirements 6.17-6.26"
@@ -170,7 +170,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - _Requirements: 6.17-6.34_
 
 - [x] 3. Implement error handling infrastructure
-  - [x]3.1 Define error types and structures
+  - [x] 3.1 Define error types and structures
     - Create CompilerError enum with variants for Lex, Parse, Semantic, CodeGen, Io, RustcInvocation
     - Create LexError, ParseError, SemanticError structs with span and message fields
     - Create Span and Position structs for source location tracking
@@ -178,20 +178,20 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Commit with message: "feat(task-3.1): define error types and structures"
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
   
-  - [x]3.2 Write property test for error reporting
+  - [x] 3.2 Write property test for error reporting
     - **Property 2: Invalid syntax produces error reports with location**
     - **Validates: Requirements 6.2, 10.1**
     - Commit with message: "test(task-3.2): add property test for error reporting"
 
 - [x] 4. Implement lexer for tokenization
-  - [x]4.1 Define token types and lexer structure
+  - [x] 4.1 Define token types and lexer structure
     - Create TokenKind enum with all keywords, operators, delimiters, literals, identifiers
     - Create Token struct with kind, span, and text fields
     - Create Lexer struct with source, position, line, column fields
     - Commit with message: "feat(task-4.1): define token types and lexer structure"
     - _Requirements: 6.1, 6.4-6.19_
   
-  - [x]4.2 Implement lexer methods
+  - [x] 4.2 Implement lexer methods
     - Implement Lexer::new() constructor
     - Implement next_token() for advancing through source
     - Implement peek_token() for lookahead
@@ -200,7 +200,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Commit with message: "feat(task-4.2): implement lexer methods"
     - _Requirements: 6.1, 49.4_
   
-  - [x]4.3 Write unit tests for lexer
+  - [x] 4.3 Write unit tests for lexer
     - Test tokenization of keywords, operators, literals
     - Test error cases (unterminated strings, invalid characters)
     - Test comment handling
@@ -209,7 +209,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
 
 
 - [x] 5. Implement AST data structures
-  - [x]5.1 Define core AST types
+  - [x] 5.1 Define core AST types
     - Create File, Item, Function, Struct, Enum, Typedef, Namespace, Use, Extern, Const, Static types
     - Create Statement enum with Let, Var, Const, Expr, Return, If, While, For, ForIn, Switch, Break, Continue variants
     - Create Expression enum with Literal, Ident, Binary, Unary, Call, FieldAccess, Index, Cast, Sizeof, Ternary, StructInit, ArrayLit, TupleLit, Range, MacroCall, RustBlock, ErrorProp, MethodCall variants
@@ -217,21 +217,21 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Commit with message: "feat(task-5.1): define core AST types"
     - _Requirements: 6.3, 18.1-18.9, 19.1-19.10, 20.1-20.7, 21.1-21.14_
   
-  - [x]5.2 Define supporting AST types
+  - [x] 5.2 Define supporting AST types
     - Create Param, Field, EnumVariant, SwitchCase, Visibility, BinaryOp, UnaryOp, Literal, Ident types
     - Create Block type for statement sequences
     - Add doc_comments field to relevant AST nodes
     - Commit with message: "feat(task-5.2): define supporting AST types"
     - _Requirements: 6.3, 49.1, 49.9_
   
-  - [x]5.3 Write unit tests for AST construction
+  - [x] 5.3 Write unit tests for AST construction
     - Test creating various AST nodes
     - Test AST node equality and cloning
     - Commit with message: "test(task-5.3): add unit tests for AST construction"
     - _Requirements: 6.3_
 
 - [x] 6. Implement basic Crusty parser
-  - [x]6.1 Create parser structure and initialization
+  - [x] 6.1 Create parser structure and initialization
     - Create Parser struct with lexer and current_token fields
     - Implement Parser::new() that initializes lexer
     - Implement advance() method to move to next token
@@ -240,7 +240,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Commit with message: "feat(task-6.1): create parser structure and initialization"
     - _Requirements: 6.1_
   
-  - [x]6.2 Implement top-level item parsing
+  - [x] 6.2 Implement top-level item parsing
     - Implement parse_file() to parse entire source file into File AST
     - Implement parse_item() to dispatch to specific item parsers
     - Implement parse_function() for function declarations
@@ -250,7 +250,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Commit with message: "feat(task-6.2): implement top-level item parsing"
     - _Requirements: 6.1, 6.4, 6.5, 6.6, 6.7, 6.15, 30.1-30.7, 31.1-31.5_
   
-  - [x]6.3 Implement statement parsing
+  - [x] 6.3 Implement statement parsing
     - Implement parse_statement() to dispatch to specific statement parsers
     - Implement parsing for let, var, const declarations
     - Implement parsing for if/else-if/else statements
@@ -263,7 +263,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Commit with message: "feat(task-6.3): implement statement parsing"
     - _Requirements: 6.8, 6.9, 6.10, 6.11, 6.12, 6.13, 6.14, 6.15, 34.1-34.5_
   
-  - [x]6.4 Implement expression parsing with precedence
+  - [x] 6.4 Implement expression parsing with precedence
     - Implement parse_expression() with operator precedence climbing
     - Implement parsing for literals (int, float, string, char, bool)
     - Implement parsing for identifiers
@@ -276,7 +276,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Implement parsing for type-scoped static method calls (@Type.method())
     - _Requirements: 1.14, 13.5, 21.7, 21.8, 23.1-23.21_
   
-  - [x]6.5 Implement type parsing
+  - [x] 6.5 Implement type parsing
     - Implement parse_type() for type expressions
     - Implement parsing for primitive types (int, i32, i64, u32, u64, float, f32, f64, bool, char, void)
     - Implement parsing for pointer types
@@ -286,11 +286,11 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Implement parsing for generic types (Type<T>)
     - _Requirements: 13.1-13.8, 14.1-14.6, 30.1-30.4, 32.1-32.7_
   
-  - [x]6.6 Write property test for valid parsing
+  - [x] 6.6 Write property test for valid parsing
     - **Property 1: Valid Crusty programs parse successfully**
     - **Validates: Requirements 6.1**
   
-  - [x]6.7 Write unit tests for parser
+  - [x] 6.7 Write unit tests for parser
     - Test parsing of functions, structs, enums
     - Test parsing of statements and expressions
     - Test parsing of types
@@ -302,32 +302,32 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
 
 
 - [x] 7. Implement symbol table and type environment
-  - [x]7.1 Create symbol table structure
+  - [x] 7.1 Create symbol table structure
     - Create SymbolTable struct with scopes stack
     - Create Scope struct with symbols HashMap
     - Create Symbol struct with name, type, kind, mutable fields
     - Implement enter_scope(), exit_scope(), insert(), lookup() methods
     - _Requirements: 2.1, 2.2, 2.3_
   
-  - [x]7.2 Create type environment structure
+  - [x] 7.2 Create type environment structure
     - Create TypeEnvironment struct with types HashMap
     - Create TypeInfo struct with name and kind fields
     - Implement register_type(), get_type(), is_compatible() methods
     - _Requirements: 2.2, 13.9_
   
-  - [x]7.3 Write unit tests for symbol table
+  - [x] 7.3 Write unit tests for symbol table
     - Test scope management
     - Test symbol insertion and lookup
     - Test duplicate detection
     - _Requirements: 2.1, 2.3_
 
 - [x] 8. Implement semantic analyzer
-  - [x]8.1 Create semantic analyzer structure
+  - [x] 8.1 Create semantic analyzer structure
     - Create SemanticAnalyzer struct with symbol_table, type_env, errors fields
     - Implement analyze() method that validates entire File AST
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6_
   
-  - [x]8.2 Implement item analysis
+  - [x] 8.2 Implement item analysis
     - Implement analyze_item() to dispatch to specific analyzers
     - Implement analyze_function() to validate function signatures and bodies
     - Implement analyze_struct() to validate struct definitions
@@ -335,14 +335,14 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Register types and symbols in appropriate tables
     - _Requirements: 2.1, 2.3, 26.6, 26.7_
   
-  - [x]8.3 Implement statement analysis
+  - [x] 8.3 Implement statement analysis
     - Implement analyze_statement() to validate statements
     - Check variable declarations and assignments
     - Validate control flow statements
     - Ensure variables are declared before use
     - _Requirements: 2.1, 2.2_
   
-  - [x]8.4 Implement expression type checking
+  - [x] 8.4 Implement expression type checking
     - Implement analyze_expression() that returns inferred type
     - Check type compatibility for binary operations
     - Check type compatibility for function calls
@@ -350,31 +350,31 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Check cast validity
     - _Requirements: 2.2, 2.3, 13.9, 21.6, 21.7_
   
-  - [x]8.5 Implement unsupported feature detection
+  - [x] 8.5 Implement unsupported feature detection
     - Detect and reject C unions
     - Detect and reject goto statements
     - Detect and reject #include directives
     - Report clear error messages explaining why features are unsupported
     - _Requirements: 6.19, 6.20, 6.21, 10.3, 17.1-17.7, 47.9_
   
-  - [x]8.6 Write property test for type checking
+  - [x] 8.6 Write property test for type checking
     - **Property 28: Type checking matches Rust semantics**
     - **Validates: Requirements 18.9**
   
-  - [x]8.7 Write unit tests for semantic analysis
+  - [x] 8.7 Write unit tests for semantic analysis
     - Test type checking for various expressions
     - Test error detection (undefined variables, type mismatches)
     - Test unsupported feature detection
     - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
 - [x] 9. Implement Rust code generator
-  - [x]9.1 Create code generator structure
+  - [x] 9.1 Create code generator structure
     - Create CodeGenerator struct with target language and indent level
     - Implement generate() method that produces Rust source from AST
     - Implement helper methods for indentation and formatting
     - _Requirements: 3.1, 3.2_
   
-  - [x]9.2 Implement item code generation
+  - [x] 9.2 Implement item code generation
     - Implement generate_item() to dispatch to specific generators
     - Implement generate_function() for function definitions
     - Translate C-style function syntax to Rust syntax
@@ -383,7 +383,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Translate non-static functions to public Rust functions
     - _Requirements: 3.3, 3.4, 3.5, 3.6, 3.7, 3.8_
   
-  - [x]9.3 Implement statement code generation
+  - [x] 9.3 Implement statement code generation
     - Implement generate_statement() for all statement types
     - Translate let, var, const declarations to Rust
     - Translate if/else-if/else to Rust syntax
@@ -395,7 +395,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Note: The dot is a prefix for label declarations only, not part of the label name
     - _Requirements: 3.9, 3.10, 3.11, 3.12, 3.13, 6.13, 6.14, 6.15, 29.7, 29.8, 29.9, 38.3-38.11_
   
-  - [x]9.4 Implement expression code generation
+  - [x] 9.4 Implement expression code generation
     - Implement generate_expression() for all expression types
     - Translate binary and unary operators
     - Translate function calls and method calls
@@ -406,7 +406,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Translate type-scoped static calls (@Type.method()) to Rust Type::method()
     - _Requirements: 3.13, 21.5, 21.13, 22.6, 23.10-23.13_
   
-  - [x]9.5 Implement type code generation
+  - [x] 9.5 Implement type code generation
     - Implement generate_type() for all type variants
     - Translate primitive types
     - Translate pointer types to references where safe
@@ -416,7 +416,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Translate generic types (pass through unchanged)
     - _Requirements: 3.14, 3.15, 14.7, 30.10, 30.11, 32.7_
   
-  - [x]9.6 Implement struct and enum code generation
+  - [x] 9.6 Implement struct and enum code generation
     - Implement generate_struct() for struct definitions
     - Translate struct fields with visibility
     - Translate struct methods to impl blocks
@@ -425,7 +425,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - _Requirements: 3.14, 16.8, 26.8, 26.9_
 
 
-  - [x]9.7 Write property tests for code generation
+  - [x] 9.7 Write property tests for code generation
     - **Property 4: Generated Rust code is syntactically valid**
     - **Validates: Requirements 8.1**
     - **Property 6: Transparent syntax preservation**
@@ -437,7 +437,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - **Property 23: Label syntax translates correctly**
     - **Validates: Requirements 6.13, 6.14, 6.15**
   
-  - [x]9.8 Write unit tests for code generation
+  - [x] 9.8 Write unit tests for code generation
     - Test generation of functions, structs, enums
     - Test generation of statements and expressions
     - Test generation of types
@@ -445,22 +445,22 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - _Requirements: 3.1, 3.2, 3.3-3.16_
 
 - [x] 10. Implement pretty printer and formatting
-  - [x]10.1 Integrate prettyplease for Rust formatting
+  - [x] 10.1 Integrate prettyplease for Rust formatting
     - Use prettyplease crate to format generated Rust code
     - Ensure output follows Rust style conventions
     - _Requirements: 3.16_
   
-  - [x]10.2 Implement Crusty pretty printer
+  - [x] 10.2 Implement Crusty pretty printer
     - Create PrettyPrinter for Crusty source code
     - Implement formatting rules for Crusty syntax
     - Support round-trip: AST → Crusty source → AST
     - _Requirements: 11.1_
   
-  - [x]10.3 Write property test for pretty printing
+  - [x] 10.3 Write property test for pretty printing
     - **Property 27: Pretty-print then parse is identity (CRITICAL)**
     - **Validates: Requirements 16.1, 16.2**
   
-  - [x]10.4 Write property test for formatting
+  - [x] 10.4 Write property test for formatting
     - **Property 5: Generated Rust code follows formatting conventions**
     - **Validates: Requirements 8.16**
 
@@ -468,7 +468,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
   - Ensure all tests pass, ask the user if questions arise.
 
 - [x] 12. Implement CLI and file I/O
-  - [x]12.1 Create CLI argument parser
+  - [x] 12.1 Create CLI argument parser
     - Use clap crate to define command-line options
     - Support -o/--output for output file path
     - Support --emit for output mode (rust, binary, ast)
@@ -478,7 +478,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Support --version and -h/--help
     - _Requirements: 6.1-6.6, 7.1-7.13_
   
-  - [x]12.2 Implement file I/O operations
+  - [x] 12.2 Implement file I/O operations
     - Implement reading source files from disk
     - Implement writing generated code to output files
     - Handle file not found errors
@@ -486,7 +486,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Handle file write errors
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6_
   
-  - [x]12.3 Implement transpiler orchestration
+  - [x] 12.3 Implement transpiler orchestration
     - Create run_compiler() function that coordinates transpilation pipeline
     - Read source file
     - Parse source (Crusty or Rust based on --from-lang)
@@ -496,38 +496,38 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Optionally invoke rustc
     - _Requirements: 3.1, 3.2, 4.1, 4.2, 4.3, 4.4_
   
-  - [x]12.4 Write property test for file I/O
+  - [x] 12.4 Write property test for file I/O
     - **Property 29: Valid file paths are read successfully**
     - **Validates: Requirements 11.1**
   
-  - [x]12.5 Write unit tests for CLI
+  - [x] 12.5 Write unit tests for CLI
     - Test argument parsing
     - Test file I/O operations
     - Test error handling
     - _Requirements: 6.1-6.6, 7.1-7.13_
 
 - [x] 13. Implement rustc invocation
-  - [x]13.1 Create rustc invoker
+  - [x] 13.1 Create rustc invoker
     - Implement function to invoke rustc as subprocess
     - Pass generated Rust code to rustc
     - Capture rustc output (stdout and stderr)
     - Report compilation success or failure
     - _Requirements: 4.1, 4.2, 4.3, 4.4_
   
-  - [x]13.2 Handle rustc errors
+  - [x] 13.2 Handle rustc errors
     - Parse rustc error messages
     - Report rustc errors to user
     - Preserve error locations and descriptions
     - _Requirements: 4.3, 5.1, 5.2_
   
-  - [x]13.3 Write unit tests for rustc invocation
+  - [x] 13.3 Write unit tests for rustc invocation
     - Test successful compilation
     - Test compilation failures
     - Test error message handling
     - _Requirements: 4.1, 4.2, 4.3_
 
 - [x] 14. Implement advanced parsing features
-  - [x]14.1 Add support for struct methods
+  - [x] 14.1 Add support for struct methods
     - Parse C++-style method definitions within structs
     - Parse self, &self, var &self parameters
     - Parse static methods (no self parameter)
@@ -535,7 +535,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Support nested type paths with @ prefix and dot notation (@Foo.Bar.boo() matching Rust's Foo::Bar.boo())
     - _Requirements: 16.1-16.7, 21.7, 21.8, 23.7, 23.8_
   
-  - [x]14.2 Add support for explicit generic type parameters
+  - [x] 14.2 Add support for explicit generic type parameters
     - Parse explicit generic type parameters using parentheses syntax (@Type(T))
     - Parse nested generic type parameters using alternating parentheses and brackets (@Type(Inner[T]))
     - Parse multiple type parameters separated by commas (@Type(T1, T2))
@@ -546,38 +546,38 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Validate that the number of type parameters matches the generic type definition
     - _Requirements: 38.1-38.28_
   
-  - [x]14.3 Add support for attributes
+  - [x] 14.3 Add support for attributes
     - Parse #[attribute] syntax
     - Parse #[derive(...)] for trait derivation
     - Parse #[test], #[cfg(...)] attributes
     - Support attributes on structs, enums, functions, fields
     - _Requirements: 19.1-19.9_
   
-  - [x]14.4 Add support for macros
+  - [x] 14.4 Add support for macros
     - Parse Crusty macro invocation syntax with double-underscore naming (__macro_name__(args), __macro_name__[args], __macro_name__{args})
     - Support common macros with double-underscore naming (__println__(...), __vec__[...], __assert__(...), __panic__(...))
     - Parse macro invocations in expression and statement contexts
     - Note: Crusty macros do NOT use ! suffix - it is added during transpilation to Rust
     - _Requirements: 23.1-23.6_
   
-  - [x]14.5 Add support for ranges and slices
+  - [x] 14.5 Add support for ranges and slices
     - Parse range syntax (start..end, start..=end, .., start.., ..end)
     - Parse slice type syntax (&[Type], var &[Type])
     - Parse slice indexing (arr[start..end])
     - _Requirements: 20.1-20.11_
   
-  - [x]14.6 Add support for array and tuple literals
+  - [x] 14.6 Add support for array and tuple literals
     - Parse array literal syntax [value1, value2, value3]
     - Parse array initialization syntax [value; count]
     - Parse tuple literal syntax (value1, value2, value3)
     - Parse tuple indexing (.0, .1, .2)
     - _Requirements: 14.1-14.10, 15.1-15.6_
 
-  - [x]14.7 Write property test for explicit generic parameters
+  - [x] 14.7 Write property test for explicit generic parameters
     - **Property 24: Explicit generic parameters translate correctly**
     - **Validates: Requirements 38.18, 38.19, 38.20, 38.21**
 
-  - [x]14.8 Write unit tests for advanced parsing
+  - [x] 14.8 Write unit tests for advanced parsing
     - Test struct method parsing
     - Test explicit generic parameter parsing with parentheses and brackets
     - Test generic parameter nesting and alternation
@@ -589,46 +589,46 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - _Requirements: 14.1-14.10, 15.1-15.7, 16.1-16.7, 18.1-18.6, 19.1-19.9, 20.1-20.11, 38.1-38.28_
 
 - [x] 14.9 Update example directory with advanced features
-  - [x]14.9.1 Add struct method examples
+  - [x] 14.9.1 Add struct method examples
     - Create example/src/methods.crst with struct method examples
     - Include static method calls using @Type.method() syntax
     - Include instance method calls
     - _Requirements: 6.17, 6.18_
   
-  - [x]14.9.2 Add generic type parameter examples
+  - [x] 14.9.2 Add generic type parameter examples
     - Create example/src/generics.crst with generic examples
     - Include explicit generic parameters using parentheses/brackets syntax
     - Include type inference examples
     - _Requirements: 6.19, 6.20_
   
-  - [x]14.9.3 Add attribute and macro examples
+  - [x] 14.9.3 Add attribute and macro examples
     - Create example/src/attributes.crst with attribute examples
     - Create example/src/macros.crst with macro usage examples using double-underscore naming
     - Include __println__, __vec__, __assert__ examples (no ! suffix in Crusty)
     - _Requirements: 6.21, 6.22_
   
-  - [x]14.9.4 Add range and slice examples
+  - [x] 14.9.4 Add range and slice examples
     - Create example/src/ranges.crst with range syntax examples
     - Create example/src/slices.crst with slice examples
     - _Requirements: 6.23, 6.24_
   
-  - [x]14.9.5 Update example README
+  - [x] 14.9.5 Update example README
     - Update example/README.md with new examples
     - Document advanced features demonstrated
     - Add build and run instructions for each example
     - _Requirements: 6.25, 6.26_
   
-  - [x]14.9.6 Commit example updates
+  - [x] 14.9.6 Commit example updates
     - Stage all new example files
     - Create commit with message: "feat(task-14.9): add advanced feature examples"
     - Reference requirements: "Validates: Requirements 6.17-6.26"
     - _Requirements: 6.17-6.34_
   
-  - [x]14.9.7 Note: This task depends on Task 2.7 (Create example directory)
+  - [x] 14.9.7 Note: This task depends on Task 2.7 (Create example directory)
     - Note: Completed as part of Task 2.7.5-2.7.7
 
 - [x] 15. Implement #define macro support
-  - [x]15.1 Add #define parsing with delimiter types
+  - [x] 15.1 Add #define parsing with delimiter types
     - Parse #define directive with double-underscore macro names (__MACRO_NAME__)
     - Parse macro parameters with different delimiter types (parentheses, brackets, braces, none)
     - Detect and store delimiter type (MacroDelimiter::None, Parens, Brackets, Braces)
@@ -638,7 +638,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Validate macro names have double-underscore prefix and suffix
     - _Requirements: 26.1, 26.2, 26.3, 26.4, 26.5, 26.6, 26.7, 26.8_
   
-  - [x]15.2 Implement macro invocation parsing
+  - [x] 15.2 Implement macro invocation parsing
     - Recognize double-underscore pattern in identifiers as potential macro invocations
     - Build macro registry during parsing to track delimiter types
     - Parse macro invocations with correct delimiter based on #define declaration
@@ -646,7 +646,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Report error when macro is invoked with wrong delimiter type
     - _Requirements: 26.12, 26.13, 26.14_
   
-  - [x]15.3 Implement #define to macro_rules! translation
+  - [x] 15.3 Implement #define to macro_rules! translation
     - Translate double-underscore macro name to Rust snake_case macro_rules! name (removing underscores, adding !)
     - Translate parameters to Rust pattern variables ($param:expr)
     - Wrap macro body in Rust macro syntax
@@ -655,7 +655,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Translate macro invocations in body (remove __, add !)
     - _Requirements: 26.15, 26.16, 26.17, 26.18, 26.19_
   
-  - [x]15.4 Add macro validation
+  - [x] 15.4 Add macro validation
     - Validate #define syntax
     - Verify macro names have double-underscore prefix and suffix
     - Verify macro parameters are used consistently
@@ -664,11 +664,11 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Skip type checking for Expression::MacroCall nodes in semantic analyzer
     - _Requirements: 26.20, 26.21, 26.22, 26.23, 26.24_
   
-  - [x]15.5 Write property test for #define translation
+  - [x] 15.5 Write property test for #define translation
     - **Property 22: #define macros translate to macro_rules!**
     - **Validates: Requirements 26.15, 26.16, 26.17**
   
-  - [x]15.6 Write unit tests for #define macros with delimiter types
+  - [x] 15.6 Write unit tests for #define macros with delimiter types
     - Test parsing of simple macros with double-underscores
     - Test parsing of macros with different delimiter types (parens, brackets, braces, none)
     - Test parsing of macros with parameters
@@ -680,14 +680,14 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - _Requirements: 26.1-26.26_
 
 - [x] 16. Implement advanced code generation features
-  - [x]16.1 Add struct method code generation
+  - [x] 16.1 Add struct method code generation
     - Translate struct methods to Rust impl blocks
     - Translate self parameters correctly
     - Translate static methods (associated functions)
     - Translate @Type.method() calls to Rust Type::method()
     - _Requirements: 16.8, 16.9, 16.10, 16.11, 21.13_
   
-  - [x]16.2 Add explicit generic parameter code generation
+  - [x] 16.2 Add explicit generic parameter code generation
     - Translate parentheses syntax to Rust turbofish with angle brackets (Type(T) → Type::<T>)
     - Translate nested generics with alternating parentheses/brackets to nested angle brackets (Type(Inner[T]) → Type::<Inner<T>>)
     - Translate multiple type parameters (Type(T1, T2) → Type::<T1, T2>)
@@ -695,31 +695,31 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Handle optional @ prefix correctly
     - _Requirements: 38.18, 38.19, 38.20, 38.21_
   
-  - [x]16.3 Add typedef code generation
+  - [x] 16.3 Add typedef code generation
     - Translate typedef to Rust type aliases
     - Handle struct typedef patterns
     - _Requirements: 25.9, 25.10_
   
-  - [x]16.4 Add NULL and Option code generation
+  - [x] 16.4 Add NULL and Option code generation
     - Translate NULL to @Option.None (which becomes Option::None in Rust)
     - Translate NULL comparisons to is_none()/is_some() (special case transformation)
     - _Requirements: 28.4, 28.5, 28.6, 28.7, 28.8_
     - _Note: NULL is the ONLY semantic transformation - it's a C keyword with no Rust equivalent_
   
-  - [x]16.5 Add struct initializer code generation
+  - [x] 16.5 Add struct initializer code generation
     - Translate C-style designated initializers to Rust struct literals
     - Handle partial initialization
     - Handle nested struct initialization
     - _Requirements: 33.6, 33.7, 33.8, 33.9_
   
-  - [x]16.6 Add switch statement code generation
+  - [x] 16.6 Add switch statement code generation
     - Translate switch statements to Rust match expressions
     - Translate case labels to match arms
     - Translate multiple case values to OR patterns
     - Translate default case to wildcard pattern
     - _Requirements: 45.7, 45.8, 45.9, 45.10_
   
-  - [x]16.7 Add error handling code generation
+  - [x] 16.7 Add error handling code generation
     - Translate Type? to Result<Type, E> (syntax transformation)
     - expr? passes through to Rust ? operator (no transformation needed)
     - Method names pass through unchanged (.is_err(), .is_ok(), .unwrap())
@@ -727,7 +727,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - _Requirements: 46.8, 46.9, 46.10 (updated to syntax-only)_
     - _Note: Crusty follows transparent syntax transpilation - only syntax transforms, not semantics_
   
-  - [x]16.8 Write property tests for advanced code generation
+  - [x] 16.8 Write property tests for advanced code generation
     - **Property 9: Type casts translate to 'as' operator**
     - **Validates: Requirements 27.5**
     - **Property 10: Sizeof translates to std::mem functions**
@@ -753,7 +753,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - **Property 24: Explicit generic parameters translate correctly**
     - **Validates: Requirements 38.18, 38.19, 38.20, 38.21**
   
-  - [x]16.9 Write unit tests for advanced code generation
+  - [x] 16.9 Write unit tests for advanced code generation
     - Test NULL and Option translation
     - Test struct initializer translation
     - Test switch statement translation
@@ -796,13 +796,13 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Handle nested functions with no captures
     - _Requirements: 59.11, 59.12, 59.13, 59.14, 59.15, 59.16_
   
-  - [x]17.5 Add validation rules for nested functions
+  - [x] 17.5 Add validation rules for nested functions
     - Verify nested functions cannot be declared static
     - Verify nested functions cannot contain nested functions (no multi-level nesting)
     - Ensure proper type compatibility for function pointers
     - _Requirements: 59.18, 59.19, 59.17_
   
-  - [ ]17.6 Write property test for nested function translation
+  - [ ] 17.6 Write property test for nested function translation
     - **Property 35: Nested functions translate to Rust closures**
     - **Validates: Requirements 59.11, 59.12, 59.13**
   
@@ -820,43 +820,43 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 19. Implement VTable to trait translation
-  - [ ]19.1 Detect VTable struct patterns
+  - [ ] 19.1 Detect VTable struct patterns
     - Identify typedef struct with function pointer fields
     - Recognize VTable suffix naming convention
     - Detect void *self or typed self pointers in function signatures
     - _Requirements: 17.1-17.5_
   
-  - [ ]19.2 Generate Rust trait definitions from VTables
+  - [ ] 19.2 Generate Rust trait definitions from VTables
     - Translate VTable structs to Rust trait definitions
     - Translate function pointer fields to trait method signatures
     - Translate void *self to &self or &mut self based on semantics
     - _Requirements: 17.6, 17.7, 17.8_
   
-  - [ ]19.3 Generate trait implementations
+  - [ ] 19.3 Generate trait implementations
     - Detect structs using VTable fields
     - Generate trait implementations for those structs
     - Handle trait object usage (dyn Trait)
     - _Requirements: 17.9, 17.10_
   
-  - [ ]19.4 Write property test for VTable translation
+  - [ ] 19.4 Write property test for VTable translation
     - **Property 17: VTable structs translate to traits**
     - **Validates: Requirements 22.6**
   
-  - [ ]19.5 Write unit tests for VTable translation
+  - [ ] 19.5 Write unit tests for VTable translation
     - Test VTable detection
     - Test trait generation
     - Test trait implementation generation
     - _Requirements: 17.1-17.14_
 
 - [ ] 20. Implement module system and visibility
-  - [ ]20.1 Add namespace parsing and code generation
+  - [ ] 20.1 Add namespace parsing and code generation
     - Parse namespace declarations (namespace name { ... })
     - Support nested namespaces
     - Translate namespaces to Rust mod blocks
     - Merge multiple namespace blocks with same name
     - _Requirements: 42.1-42.7_
   
-  - [ ]20.2 Add #import and #export directive parsing and code generation
+  - [ ] 20.2 Add #import and #export directive parsing and code generation
     - Parse #import directives for module imports (private use statements)
     - Parse #export directives for module re-exports (pub use statements)
     - Translate #import to Rust use statements
@@ -864,17 +864,17 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Support importing Rust std library modules
     - _Requirements: 50.1, 50.2, 50.3, 50.4, 50.5, 50.6_
   
-  - [ ]20.3 Implement visibility rules
+  - [ ] 20.3 Implement visibility rules
     - Recognize underscore-prefixed identifiers as private
     - Mark struct fields as pub or private based on naming
     - Mark functions as pub or private based on static keyword and naming
     - _Requirements: 43.1-43.6_
   
-  - [ ]20.4 Write property test for module translation
+  - [ ] 20.4 Write property test for module translation
     - **Property 21: Module directives translate correctly**
     - **Validates: Requirements 47.3, 48.5**
   
-  - [ ]20.5 Write unit tests for module system
+  - [ ] 20.5 Write unit tests for module system
     - Test namespace parsing and generation
     - Test #import directive handling (private imports)
     - Test #export directive handling (public re-exports)
@@ -927,46 +927,46 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Ensure doc comments maintain their position relative to code elements
     - _Requirements: 53.1, 53.2, 53.3, 53.10_
   
-  - [ ]24.2 Write unit tests for doc comment preservation
+  - [ ] 24.2 Write unit tests for doc comment preservation
     - Test that doc comments are preserved during transpilation
     - Test that doc comment content is unchanged
     - Test that doc comment positions are correct
     - _Requirements: 53.1-53.10_
 
 - [ ] 25. Implement crustydoc wrapper tool
-  - [ ]25.1 Create crustydoc CLI
+  - [ ] 25.1 Create crustydoc CLI
     - Create separate binary target for crustydoc
     - Parse command-line arguments (input file, --output, --open, -D, --document-private-items)
     - Support passing through additional rustdoc options after --
     - _Requirements: 54.1, 54.6, 54.12_
   
-  - [ ]25.2 Implement transpile-and-document workflow
+  - [ ] 25.2 Implement transpile-and-document workflow
     - Transpile Crusty source file to Rust
     - Invoke rustdoc on generated Rust code
     - Pass through all rustdoc command-line options
     - Capture rustdoc output and errors
     - _Requirements: 54.4, 54.5, 54.6, 54.9, 54.10_
   
-  - [ ]25.3 Implement error mapping
+  - [ ] 25.3 Implement error mapping
     - Parse rustdoc error messages
     - Map Rust source locations back to Crusty source locations
     - Report errors with Crusty file paths and line numbers
     - Preserve rustdoc error messages and suggestions
     - _Requirements: 54.11, 55.4_
   
-  - [ ]25.4 Add Cargo integration support
+  - [ ] 25.4 Add Cargo integration support
     - Support --manifest-path option for Cargo projects
     - Coordinate with build.rs for multi-file transpilation
     - Invoke cargo doc with appropriate options
     - _Requirements: 54.7, 54.8_
   
-  - [ ]25.5 Implement documentation validation
+  - [ ] 25.5 Implement documentation validation
     - Support rustdoc's -D missing-docs flag
     - Support --document-private-items flag
     - Report documentation coverage from rustdoc output
     - _Requirements: 55.1, 55.2, 55.3, 55.5_
   
-  - [ ]25.6 Write unit tests for crustydoc
+  - [ ] 25.6 Write unit tests for crustydoc
     - Test that doc comments are preserved during transpilation
     - Test that doc comment content is unchanged
     - Test that doc comment positions are correct
