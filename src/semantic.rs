@@ -2010,6 +2010,12 @@ impl SemanticAnalyzer {
         &self.errors
     }
 
+    /// Analyze an expression (for testing)
+    #[cfg(test)]
+    pub fn analyze_expression_test(&mut self, expr: &crate::ast::Expression) -> Type {
+        self.analyze_expression(expr)
+    }
+
     /// Check for unsupported C union feature
     #[allow(dead_code)]
     pub fn check_union_usage(&mut self, name: &str) {
