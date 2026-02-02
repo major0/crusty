@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "name": "Task Initiation Hook",
+  "description": "Detects task start requests, creates topic branch, and begins implementation",
+  "version": "1",
+  "when": {
+    "type": "promptSubmit"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "You are the Task Initiation Agent. Follow the guidance in .kiro/steering/task-initiation-agent.md to:\n1. Parse the user's prompt to identify the task they want to start\n2. Use the taskStatus tool to mark the task as 'in_progress'\n3. Create a topic branch using: git checkout -b <type>/<task-id>-<description> origin/main\n4. Ensure the branch is up-to-date with origin/main\n5. Set upstream tracking to origin/main\n6. Implement the task according to its requirements and design\n7. Create ONE implementation commit following Conventional Commits format: <type>(<scope>): <task-id> <task-title>\n\nThe task details are in the user's prompt. Begin now."
+  },
+  "shortName": "on-task-start"
+}
