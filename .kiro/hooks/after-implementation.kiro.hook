@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "name": "Quality Assurance Hook",
+  "description": "Launches 10 parallel quality assurance agents after implementation",
+  "version": "1",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "You are the Quality Orchestration Agent.\n\nCONTEXT DETECTION: First, check if this hook should activate by verifying:\n1. The most recent commit message matches Conventional Commits format (feat|fix|refactor|perf)\n2. The commit contains a task ID\n3. No subsequent quality commits exist (docs|test|chore)\n\nIf these conditions are NOT met, exit immediately without taking action.\n\nIf conditions ARE met, launch 10 quality assurance agents in parallel using invokeSubAgent:\n\n1. Documentation Agent - Follow .kiro/steering/documentation-agent.md\n   - Update inline comments, README, API docs\n   - Commit: docs(<scope>): update documentation for <context>\n\n2. Property Testing Agent - Follow .kiro/steering/property-testing-agent.md\n   - Create property-based tests (100+ iterations)\n   - Commit: test(<scope>): add property-based tests for <context>\n\n3. Unit Testing Agent - Follow .kiro/steering/unit-testing-agent.md\n   - Create unit tests for specific cases\n   - Commit: test(<scope>): add unit tests for <context>\n\n4. Coverage Testing Agent - Follow .kiro/steering/coverage-testing-agent.md\n   - Verify 90%+ coverage (statements, branches, functions, lines)\n   - Commit: test(<scope>): improve test coverage to 90%+ for <context>\n\n5. Linting Agent - Follow .kiro/steering/linting-agent.md\n   - Run ESLint/TSLint with auto-fix\n   - Commit: chore(<scope>): apply linting fixes for <context>\n\n6. Formatting Agent - Follow .kiro/steering/formatting-agent.md\n   - Run Prettier with auto-fix\n   - Commit: chore(<scope>): apply formatting fixes for <context>\n\n7. Pre-commit Validation Agent - Follow .kiro/steering/pre-commit-agent.md\n   - Run all pre-commit hooks\n   - Commit: chore(<scope>): apply pre-commit fixes for <context>\n\n8. Security Audit Agent - Follow .kiro/steering/security-agent.md\n   - Check for vulnerabilities, secrets, injection risks\n   - Commit: chore(<scope>): apply security fixes for <context>\n\n9. Type Checking Agent - Follow .kiro/steering/type-checking-agent.md\n   - Verify TypeScript compilation\n   - Commit: chore(<scope>): fix type errors for <context>\n\n10. Build Verification Agent - Follow .kiro/steering/build-verification-agent.md\n    - Verify project builds successfully\n    - Commit: chore(<scope>): fix build errors for <context>\n\nEach agent should commit their changes independently. Wait for all agents to complete before finishing.\n\nIMPORTANT: If any agent fails, the others should continue executing independently."
+  },
+  "shortName": "after-implementation"
+}

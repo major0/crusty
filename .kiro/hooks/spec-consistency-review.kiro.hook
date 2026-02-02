@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Spec Consistency Review",
+  "description": "When spec files (requirements.md, design.md, tasks.md) are modified, systematically review all requirements, design docs, tasks, README, and agent directives to verify consistency, logical grouping, and dependency ordering",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [".kiro/specs/**/requirements.md", ".kiro/specs/**/design.md", ".kiro/specs/**/tasks.md"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A spec file has been modified. Perform a comprehensive consistency review:\n\n1. **Read all spec documents**: Review requirements.md, design.md, and tasks.md for the modified spec\n2. **Verify consistency**: Ensure design aligns with requirements, and tasks implement the design\n3. **Check logical grouping**: Confirm tasks are logically organized and grouped appropriately\n4. **Validate dependencies**: Verify task ordering respects dependencies (no task depends on incomplete work)\n5. **Review README**: Check if README.md needs updates to reflect spec changes\n6. **Check agent directives**: Review .kiro/steering/*.md files for consistency with spec changes\n7. **Review hooks**: Verify .kiro/hooks/*.kiro.hook files align with current workflow\n\nReport any inconsistencies, missing dependencies, or areas needing updates. Suggest specific improvements to maintain coherence across all project documentation."
+  },
+  "workspaceFolderName": "kiro-workers",
+  "shortName": "spec-consistency-review"
+}
