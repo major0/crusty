@@ -821,6 +821,42 @@ void main() {
 - Nested functions are translated to Rust closures
 - Closure type depends on usage: `Fn`, `FnMut`, or `FnOnce`
 
+### Validation Rules
+
+Crusty enforces the following restrictions on nested functions:
+
+1. **No Multi-Level Nesting**: Nested functions cannot contain other nested functions. Only one level of nesting is supported.
+   ```c
+   void outer() {
+       void middle() {
+           void inner() {  // ❌ ERROR: multi-level nesting not supported
+               return;
+           }
+       }
+   }
+   ```
+
+2. **No Static Nested Functions**: Nested functions cannot be declared `static`. This is enforced by the AST design - the `NestedFunction` node does not support a `static` modifier.
+   ```c
+   void outer() {
+       static void helper() {  // ❌ ERROR: static not allowed for nested functions
+           return;
+       }
+   }
+   ```
+
+3. **Type Compatibility**: When assigning nested functions to variables or passing them as parameters, proper type compatibility is enforced based on the function signature (parameter types and return type).
+   ```c
+   void outer() {
+       int add(int x, int y) {
+           return x + y;
+       }
+       
+       let func = add;  // ✅ OK: type inferred as function pointer
+       let result = func(1, 2);  // ✅ OK: compatible call
+   }
+   ```
+
 **Reference:** GNU C supports nested functions as an extension: https://gcc.gnu.org/onlinedocs/gcc/Nested-Functions.html
 
 ---

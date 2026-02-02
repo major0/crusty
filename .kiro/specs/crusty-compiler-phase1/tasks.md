@@ -796,7 +796,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Handle nested functions with no captures
     - _Requirements: 59.11, 59.12, 59.13, 59.14, 59.15, 59.16_
   
-  - [ ]17.5 Add validation rules for nested functions
+  - [x]17.5 Add validation rules for nested functions
     - Verify nested functions cannot be declared static
     - Verify nested functions cannot contain nested functions (no multi-level nesting)
     - Ensure proper type compatibility for function pointers

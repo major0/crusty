@@ -220,9 +220,9 @@ mod tests {
     #[test]
     fn test_generate_float_literal() {
         let gen = CodeGenerator::new(TargetLanguage::Rust);
-        let expr = Expression::Literal(Literal::Float(3.14));
+        let expr = Expression::Literal(Literal::Float(2.5));
         let result = gen.generate_expression_string(&expr);
-        assert_eq!(result, "3.14");
+        assert_eq!(result, "2.5");
     }
 
     #[test]

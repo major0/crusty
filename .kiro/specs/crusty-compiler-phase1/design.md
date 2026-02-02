@@ -1109,6 +1109,16 @@ pub fn outer_function() {
 6. Nested functions cannot be declared `static`
 7. Multi-level nesting is not supported (nested functions cannot contain nested functions)
 
+**Validation Rules (Task 17.5):**
+
+The Semantic_Analyzer enforces three key validation rules for nested functions:
+
+1. **No Multi-Level Nesting (Requirement 59.19)**: Nested functions cannot contain other nested functions. The analyzer tracks whether it's currently inside a nested function using the `inside_nested_function` flag. If this flag is true when encountering another nested function, an error is raised.
+
+2. **No Static Nested Functions (Requirement 59.18)**: Nested functions cannot be declared `static`. This is enforced by the AST design - the `NestedFunction` AST node does not have a `static` field, making it impossible to represent static nested functions in the AST.
+
+3. **Type Compatibility for Function Pointers (Requirement 59.17)**: When nested functions are assigned to variables or passed as parameters, the analyzer verifies type compatibility based on the function signature (parameter types and return type). The nested function is registered in the symbol table with a `Type::Function` type that includes its complete signature.
+
 **Parsing Strategy:**
 - The Parser recognizes function declarations within function bodies
 - Nested functions use the same syntax as top-level functions

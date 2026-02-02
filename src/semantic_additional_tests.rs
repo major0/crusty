@@ -579,7 +579,7 @@ mod tests {
                 Statement::Let {
                     name: Ident::new("float_val"),
                     ty: None,
-                    init: Some(Expression::Literal(Literal::Float(3.14))),
+                    init: Some(Expression::Literal(Literal::Float(2.5))),
                     mutable: false,
                 },
                 Statement::Let {
