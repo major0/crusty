@@ -9,6 +9,7 @@ mod tests {
     use crate::error::{Position, SemanticErrorKind, Span};
     use crate::semantic::SemanticAnalyzer;
 
+    #[allow(dead_code)]
     fn create_span() -> Span {
         Span::new(Position::new(0, 0), Position::new(0, 0))
     }
@@ -364,7 +365,7 @@ mod tests {
             doc_comments: vec![],
         };
 
-        analyzer.analyze(&file);
+        let _ = analyzer.analyze(&file);
         // Just verify no crashes - field access through reference should work
         assert!(
             analyzer.errors().is_empty()
