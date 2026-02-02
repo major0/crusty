@@ -469,6 +469,10 @@ pub struct SemanticAnalyzer {
     modified_variables: std::collections::HashSet<String>,
     /// Track the expected return type for the current function being analyzed
     expected_return_type: Option<Type>,
+    /// Track if we're currently inside a nested function (for multi-level nesting detection)
+    /// This flag is set to true when analyzing a nested function body and is used to reject
+    /// nested functions within nested functions (Requirement 59.19: no multi-level nesting).
+    inside_nested_function: bool,
 }
 
 impl SemanticAnalyzer {
@@ -481,6 +485,7 @@ impl SemanticAnalyzer {
             nested_function_captures: HashMap::new(),
             modified_variables: std::collections::HashSet::new(),
             expected_return_type: None,
+            inside_nested_function: false,
         }
     }
 
@@ -1291,6 +1296,32 @@ impl SemanticAnalyzer {
                 return_type,
                 body,
             } => {
+                // ============================================================================
+                // NESTED FUNCTION VALIDATION (Task 17.5)
+                // ============================================================================
+                // This section implements three key validation rules for nested functions:
+                // 1. Reject multi-level nesting (Requirement 59.19)
+                // 2. Prevent static nested functions (Requirement 59.18 - enforced by AST)
+                // 3. Ensure type compatibility for function pointers (Requirement 59.17)
+
+                // Requirement 59.19: Verify nested functions cannot contain nested functions (no multi-level nesting)
+                // We track whether we're currently inside a nested function using the `inside_nested_function` flag.
+                // If this flag is true when we encounter another nested function, we reject it.
+                if self.inside_nested_function {
+                    self.errors.push(SemanticError::new(
+                        Span::new(
+                            crate::error::Position::new(0, 0),
+                            crate::error::Position::new(0, 0),
+                        ),
+                        SemanticErrorKind::UnsupportedFeature,
+                        format!(
+                            "nested function '{}' cannot contain nested functions (multi-level nesting not supported)",
+                            name.name
+                        ),
+                    ));
+                    return;
+                }
+
                 // Verify function name doesn't use double-underscore pattern (reserved for macros)
                 if name.name.starts_with("__") && name.name.ends_with("__") {
                     self.errors.push(SemanticError::new(
@@ -1306,7 +1337,9 @@ impl SemanticAnalyzer {
                     ));
                 }
 
-                // Register the nested function in the current scope so it can be called
+                // Requirement 59.17: Register the nested function with proper type for type compatibility checking
+                // This allows the nested function to be assigned to variables and passed as parameters
+                // with proper type checking based on its signature (parameter types and return type).
                 let func_type = if let Some(ref ret_type) = return_type {
                     Type::Function {
                         params: params.iter().map(|p| p.ty.clone()).collect(),
@@ -1380,6 +1413,12 @@ impl SemanticAnalyzer {
                     Some(Type::Primitive(crate::ast::PrimitiveType::Void))
                 };
 
+                // Mark that we're inside a nested function (for multi-level nesting detection)
+                // This flag is checked at the start of this function to reject nested functions
+                // within nested functions (Requirement 59.19).
+                let was_inside_nested = self.inside_nested_function;
+                self.inside_nested_function = true;
+
                 // Enter new scope for nested function
                 self.symbol_table.enter_scope();
 
@@ -1408,6 +1447,9 @@ impl SemanticAnalyzer {
 
                 // Exit nested function scope
                 self.symbol_table.exit_scope();
+
+                // Restore previous nested function state
+                self.inside_nested_function = was_inside_nested;
 
                 // Restore previous return type
                 self.expected_return_type = old_return_type;
@@ -2012,6 +2054,7 @@ impl SemanticAnalyzer {
 
     /// Analyze an expression (for testing)
     #[cfg(test)]
+    #[allow(dead_code)]
     pub fn analyze_expression_test(&mut self, expr: &crate::ast::Expression) -> Type {
         self.analyze_expression(expr)
     }

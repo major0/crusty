@@ -528,7 +528,7 @@ mod tests {
                 Statement::Expr(Expression::Literal(Literal::Null)),
                 Statement::Expr(Expression::Literal(Literal::String("hello".to_string()))),
                 Statement::Expr(Expression::Literal(Literal::Char('a'))),
-                Statement::Expr(Expression::Literal(Literal::Float(3.14))),
+                Statement::Expr(Expression::Literal(Literal::Float(2.5))),
             ]),
             doc_comments: vec![],
             attributes: vec![],
