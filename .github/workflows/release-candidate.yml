@@ -1,0 +1,70 @@
+# Release Candidate
+#
+# Entry-point workflow that creates release candidates for release branches.
+# Validates issue references, runs full CI checks, and creates RC tags.
+#
+# Triggers:
+#   - Pushes to release/vX.Y branches
+#   - Manual workflow dispatch
+#
+# Process:
+#   1. Validates that commits reference valid open issues
+#   2. Runs full CI checks (same as pull-request-default)
+#   3. Creates release candidate tag (vX.Y.Z-rcN)
+#
+# Issue reference requirements:
+#   - Commits must use: close #N, fix #N, resolve #N, or related-to #N
+#   - At least one referenced issue must exist and be open
+
+name: Release Candidate
+
+on:
+  push:
+    branches:
+      - 'release/v*'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git reference to check out'
+        required: false
+        type: string
+      branch:
+        description: 'Release branch name'
+        required: false
+        type: string
+
+jobs:
+  # Validate issue reference in PR commits
+  validate-issue-reference:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0
+      
+      - name: Validate issue reference
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          .github/scripts/validate-issue-reference.sh \
+            "origin/main" \
+            "${{ inputs.ref || github.ref }}"
+  
+  # Run all CI checks
+  ci-checks:
+    needs: validate-issue-reference
+    uses: ./.github/workflows/pull-request-default.yml
+    with:
+      ref: ${{ inputs.ref || github.ref }}
+      branch: ${{ inputs.branch || github.ref }}
+  
+  # Create release candidate tag
+  create-rc-tag:
+    needs: ci-checks
+    uses: ./.github/workflows/release-tag.yml
+    with:
+      ref: ${{ inputs.ref || github.sha }}
+      branch: ${{ inputs.branch || github.ref }}
+      tag-type: release-candidate

@@ -1,0 +1,49 @@
+# Property-Based Tests
+#
+# Component workflow that runs property-based tests using proptest.
+# Can be called from other workflows or run manually.
+#
+# Inputs:
+#   ref: Git reference to check out (required)
+#
+# Usage:
+#   Called by pull-request-default.yml for PR validation
+
+name: Property-Based Tests
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Git reference to check out'
+        required: true
+        type: string
+
+jobs:
+  proptest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Run property tests
+        run: cargo test --lib --verbose
+        env:
+          PROPTEST_CASES: 100

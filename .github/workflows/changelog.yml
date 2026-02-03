@@ -1,0 +1,53 @@
+# Changelog Generation
+#
+# Component workflow that generates changelog between release tags.
+# Uses generate-changelog.sh script to create CHANGELOG.md.
+#
+# Inputs:
+#   ref: Git reference for the release (required)
+#   tag: Release tag name (required)
+#
+# Outputs:
+#   changelog-artifact: Name of uploaded changelog artifact
+#
+# Usage:
+#   Called by release-publish.yml during release process
+
+name: Changelog Generation
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Git reference for the release'
+        required: true
+        type: string
+      tag:
+        description: 'Release tag name'
+        required: true
+        type: string
+    outputs:
+      changelog-artifact:
+        description: 'Name of uploaded changelog artifact'
+        value: changelog
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+      
+      - name: Generate changelog
+        run: |
+          CURRENT_TAG="${{ inputs.tag }}"
+          .github/scripts/generate-changelog.sh "$CURRENT_TAG"
+      
+      - name: Upload changelog
+        uses: actions/upload-artifact@v4
+        with:
+          name: changelog
+          path: CHANGELOG.md

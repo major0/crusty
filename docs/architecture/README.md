@@ -12,3 +12,4 @@ Documentation for the Crusty compiler architecture and internal components.
 - [Build Integration](build-integration.md) - Cargo and build.rs integration
 - [Error Handling](error-handling.md) - Compiler error hierarchy and reporting
 - [Tooling](tooling.md) - crustydoc and crustyfmt developer tools
+- [CI/CD](ci-cd.md) - Modular CI/CD pipeline architecture

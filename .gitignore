@@ -5,6 +5,7 @@ Cargo.lock
 # Generated Rust files from Crusty sources
 *.rs.bk
 *.crst.rs
+*.ast
 
 # Test artifacts
 proptest-regressions/

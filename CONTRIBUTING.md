@@ -158,6 +158,33 @@ Then create a pull request on GitHub with:
 - Reference to related issues (if any)
 - Screenshots or examples (if applicable)
 
+### 7. CI/CD Checks
+
+All pull requests automatically run through CI/CD workflows:
+
+**Automated Checks:**
+- Pre-commit hook validation
+- Code formatting (rustfmt)
+- Security audit (cargo-audit)
+- Linting (clippy)
+- Multi-platform builds (Linux, macOS, Windows)
+- Unit tests
+- Property-based tests
+- Code coverage (90% threshold)
+
+**What to do if CI fails:**
+- Review the failed check in the GitHub Actions tab
+- Fix the issue locally
+- Run the same check locally to verify the fix
+- Push the fix to your branch (CI will re-run automatically)
+
+**Common CI failures:**
+- **Format check fails**: Run `cargo fmt` locally
+- **Clippy fails**: Run `cargo clippy -- -D warnings` and fix warnings
+- **Tests fail**: Run `cargo test` locally and fix failing tests
+- **Coverage below threshold**: Add tests to increase coverage
+- **Security audit fails**: Update dependencies with security vulnerabilities
+
 ## Contribution Guidelines
 
 ### Code Style
@@ -320,6 +347,80 @@ Reviewers will check for:
 - **Questions**: Open a [GitHub Discussion](https://github.com/major0/crusty/discussions)
 - **Bugs**: Open a [GitHub Issue](https://github.com/major0/crusty/issues)
 - **Chat**: (Coming soon)
+
+## Release Process
+
+The project uses a structured release process with automated CI/CD workflows.
+
+### Release Branches
+
+Releases are managed through release branches:
+- Branch naming: `release/vX.Y` (e.g., `release/v1.2`)
+- Each release branch represents a minor version series
+- Patch releases are tagged on the release branch
+
+### Release Candidate Process
+
+1. **Create release branch** from main:
+   ```bash
+   git checkout -b release/v1.2 main
+   git push origin release/v1.2
+   ```
+
+2. **Automatic validation** runs on push:
+   - Validates issue references in commits
+   - Runs full CI checks
+   - Creates release candidate tag (e.g., `v1.2.0-rc1`)
+
+3. **Issue reference requirement**:
+   - All commits in release branch PRs must reference an issue
+   - Use: `close #N`, `fix #N`, `resolve #N`, or `related-to #N`
+   - At least one referenced issue must be open
+
+4. **Testing release candidates**:
+   - Test the RC thoroughly
+   - If issues found, fix on release branch and push
+   - New RC tag is created automatically (e.g., `v1.2.0-rc2`)
+
+### Final Release Process
+
+1. **Create release tag** on the release branch:
+   ```bash
+   git tag v1.2.0
+   git push origin v1.2.0
+   ```
+
+2. **Automatic release workflow** runs:
+   - Verifies tag placement on correct branch
+   - Verifies version ancestry (v1.2.0 must descend from v1.2.0-rc tags)
+   - Runs full CI checks
+   - Builds release artifacts for all platforms
+   - Generates changelog
+   - Creates GitHub release
+   - Updates version alias tags (v1.2 and v1)
+
+3. **Version alias tags**:
+   - `v1.2` always points to latest patch (v1.2.3)
+   - `v1` always points to latest minor (v1.5.2)
+   - Allows users to track latest releases
+
+### Release Requirements
+
+- Release tags must be on the correct release branch
+- Version history must be linear (each version builds on previous)
+- All CI checks must pass
+- Code coverage must meet 90% threshold
+- No security vulnerabilities in dependencies
+
+### Shell Script Standards
+
+All CI/CD shell scripts follow strict POSIX compliance standards:
+- Pure POSIX sh (no bashisms)
+- Use `test` command instead of `[` or `[[`
+- Quote all parameter expansions
+- Pass shellcheck validation
+
+See [.kiro/steering/shell-scripts.md](.kiro/steering/shell-scripts.md) for complete standards.
 
 ## Recognition
 

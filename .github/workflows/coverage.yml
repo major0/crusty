@@ -1,0 +1,87 @@
+# Coverage Measurement
+#
+# Component workflow that measures code coverage and enforces thresholds.
+# Uses cargo-llvm-cov to generate coverage reports.
+#
+# Inputs:
+#   ref: Git reference to check out (required)
+#   min-line-coverage: Minimum line coverage percentage (required)
+#   min-branch-coverage: Minimum branch coverage percentage (required)
+#   min-function-coverage: Minimum function coverage percentage (required)
+#
+# Usage:
+#   Called by pull-request-default.yml with 90% thresholds
+
+name: Coverage Measurement
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Git reference to check out'
+        required: true
+        type: string
+      min-line-coverage:
+        description: 'Minimum line coverage percentage'
+        required: true
+        type: number
+      min-branch-coverage:
+        description: 'Minimum branch coverage percentage'
+        required: true
+        type: number
+      min-function-coverage:
+        description: 'Minimum function coverage percentage'
+        required: true
+        type: number
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov
+      
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Generate coverage
+        run: |
+          cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+          cargo llvm-cov report --json --output-path coverage.json
+      
+      - name: Parse coverage metrics and check thresholds
+        id: parse
+        run: |
+          .github/scripts/check-coverage.sh \
+            "${{ inputs.min-line-coverage }}" \
+            "${{ inputs.min-branch-coverage }}" \
+            "${{ inputs.min-function-coverage }}" \
+            "coverage.json" \
+            "${GITHUB_OUTPUT}"
+      
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            lcov.info
+            coverage.json

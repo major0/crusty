@@ -1,0 +1,49 @@
+# Linting
+#
+# Component workflow that runs clippy for code quality checks.
+# Can be called from other workflows or run manually.
+#
+# Inputs:
+#   ref: Git reference to check out (required)
+#
+# Usage:
+#   Called by pull-request-default.yml for PR validation
+
+name: Linting
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Git reference to check out'
+        required: true
+        type: string
+
+jobs:
+  clippy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings

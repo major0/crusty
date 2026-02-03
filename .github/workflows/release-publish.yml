@@ -1,0 +1,114 @@
+# Release Publish
+#
+# Entry-point workflow that publishes final releases from version tags.
+# Verifies tag placement, runs CI, builds artifacts, and creates GitHub release.
+#
+# Triggers:
+#   - Pushes of version tags (vX.Y.Z format)
+#   - Manual workflow dispatch
+#
+# Process:
+#   1. Verifies tag is on correct release branch (release/vX.Y)
+#   2. Verifies version ancestry (vX.Y.Z descends from vX.Y.(Z-1))
+#   3. Runs full CI checks
+#   4. Builds release artifacts for all platforms
+#   5. Generates changelog
+#   6. Creates GitHub release with artifacts
+#   7. Updates version alias tags (vX.Y and vX)
+#
+# Requirements:
+#   - Tag must be on release/vX.Y branch
+#   - Version history must be linear
+#   - All CI checks must pass
+
+name: Release Publish
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag name'
+        required: false
+        type: string
+
+jobs:
+  # Verify tag placement and ancestry
+  verify-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+      
+      - name: Verify release tag
+        id: verify
+        run: |
+          TAG="${{ inputs.tag || github.ref_name }}"
+          .github/scripts/verify-release-tag.sh "$TAG" "${GITHUB_OUTPUT}"
+  
+  # Run all CI checks
+  ci-checks:
+    needs: verify-tag
+    uses: ./.github/workflows/pull-request-default.yml
+    with:
+      ref: ${{ inputs.tag || github.ref }}
+  
+  # Build release artifacts for all platforms
+  build-artifacts:
+    needs: ci-checks
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    uses: ./.github/workflows/build.yml
+    with:
+      platform: ${{ matrix.os }}
+      ref: ${{ inputs.tag || github.ref }}
+      release-mode: true
+  
+  # Generate changelog
+  generate-changelog:
+    needs: ci-checks
+    uses: ./.github/workflows/changelog.yml
+    with:
+      ref: ${{ inputs.tag || github.ref }}
+      tag: ${{ inputs.tag || github.ref_name }}
+  
+  # Publish GitHub release
+  publish-release:
+    needs: [build-artifacts, generate-changelog]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+      
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ inputs.tag || github.ref_name }}"
+          
+          # Create release with changelog
+          gh release create "$TAG" \
+            --title "Release $TAG" \
+            --notes-file changelog/CHANGELOG.md \
+            release-ubuntu-latest/* \
+            release-macos-latest/* \
+            release-windows-latest/*
+  
+  # Update version alias tags
+  update-version-aliases:
+    needs: publish-release
+    uses: ./.github/workflows/version-alias-tags.yml
+    with:
+      tag: ${{ inputs.tag || github.ref_name }}
+      ref: ${{ inputs.tag || github.ref }}
