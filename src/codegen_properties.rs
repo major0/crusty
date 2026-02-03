@@ -893,4 +893,203 @@ mod tests {
                 "Explicit generic parameters should use turbofish syntax: {}", output);
         }
     }
+
+    // Property 35: Nested functions translate to Rust closures
+    // Validates: Requirements 59.11, 59.12, 59.13
+    proptest! {
+        #[test]
+        fn prop_nested_function_translates_to_closure(
+            nested_name in arb_ident(),
+            param_name in arb_ident(),
+            param_type in arb_primitive_type(),
+            return_type in arb_primitive_type()
+        ) {
+            use crate::semantic::SemanticAnalyzer;
+
+            // Create a nested function with parameters and return type
+            let nested_func = Statement::NestedFunction {
+                name: nested_name.clone(),
+                params: vec![Param {
+                    name: param_name.clone(),
+                    ty: param_type.clone(),
+                }],
+                return_type: Some(return_type.clone()),
+                body: Block {
+                    statements: vec![Statement::Return(Some(Expression::Ident(param_name.clone())))],
+                },
+            };
+
+            // Create an outer function containing the nested function
+            let outer_func = Function {
+                visibility: Visibility::Public,
+                name: Ident::new("outer"),
+                params: vec![],
+                return_type: Some(Type::Primitive(PrimitiveType::Void)),
+                body: Block {
+                    statements: vec![nested_func],
+                },
+                doc_comments: vec![],
+                attributes: vec![],
+            };
+
+            let file = File {
+                items: vec![Item::Function(outer_func)],
+                doc_comments: vec![],
+            };
+
+            // Run semantic analysis to get captures
+            let mut analyzer = SemanticAnalyzer::new();
+            let _ = analyzer.analyze(&file);
+
+            // Generate code with captures
+            let mut gen_with_captures = CodeGenerator::new(TargetLanguage::Rust);
+            gen_with_captures.set_captures(analyzer.get_all_captures().clone());
+            let output = gen_with_captures.generate(&file);
+
+            // Verify nested function translates to closure
+            // Should contain: let <name> = |<params>| -> <return_type>
+            prop_assert!(output.contains(&format!("let {} = |", nested_name.name)),
+                "Nested function should translate to closure binding: {}", output);
+
+            // Should contain parameter name
+            prop_assert!(output.contains(&param_name.name),
+                "Closure should contain parameter name '{}': {}", param_name.name, output);
+
+            // Should contain closure syntax with pipes
+            prop_assert!(output.contains('|'),
+                "Closure should use pipe syntax: {}", output);
+        }
+
+        #[test]
+        fn prop_nested_function_with_immutable_capture(
+            nested_name in arb_ident(),
+            capture_var in arb_ident(),
+            return_type in arb_primitive_type()
+        ) {
+            use crate::semantic::SemanticAnalyzer;
+
+            // Create a nested function that captures an immutable variable
+            let nested_func = Statement::NestedFunction {
+                name: nested_name.clone(),
+                params: vec![],
+                return_type: Some(return_type.clone()),
+                body: Block {
+                    statements: vec![Statement::Return(Some(Expression::Ident(capture_var.clone())))],
+                },
+            };
+
+            // Create an outer function with a variable and nested function
+            let outer_func = Function {
+                visibility: Visibility::Public,
+                name: Ident::new("outer"),
+                params: vec![],
+                return_type: Some(Type::Primitive(PrimitiveType::Void)),
+                body: Block {
+                    statements: vec![
+                        Statement::Let {
+                            name: capture_var.clone(),
+                            ty: Some(return_type.clone()),
+                            init: Some(Expression::Literal(Literal::Int(42))),
+                            mutable: false,
+                        },
+                        nested_func,
+                    ],
+                },
+                doc_comments: vec![],
+                attributes: vec![],
+            };
+
+            let file = File {
+                items: vec![Item::Function(outer_func)],
+                doc_comments: vec![],
+            };
+
+            // Run semantic analysis to get captures
+            let mut analyzer = SemanticAnalyzer::new();
+            let _ = analyzer.analyze(&file);
+
+            // Generate code with captures
+            let mut gen_with_captures = CodeGenerator::new(TargetLanguage::Rust);
+            gen_with_captures.set_captures(analyzer.get_all_captures().clone());
+            let output = gen_with_captures.generate(&file);
+
+            // Verify nested function translates to closure (Fn trait for immutable capture)
+            prop_assert!(output.contains(&format!("let {} = ||", nested_name.name)),
+                "Nested function with immutable capture should translate to closure: {}", output);
+
+            // Should reference the captured variable
+            prop_assert!(output.contains(&capture_var.name),
+                "Closure should reference captured variable '{}': {}", capture_var.name, output);
+        }
+
+        #[test]
+        fn prop_nested_function_with_mutable_capture(
+            nested_name in arb_ident(),
+            capture_var in arb_ident()
+        ) {
+            use crate::semantic::SemanticAnalyzer;
+
+            // Create a nested function that mutates a captured variable
+            let nested_func = Statement::NestedFunction {
+                name: nested_name.clone(),
+                params: vec![],
+                return_type: Some(Type::Primitive(PrimitiveType::Void)),
+                body: Block {
+                    statements: vec![
+                        Statement::Expr(Expression::Binary {
+                            left: Box::new(Expression::Ident(capture_var.clone())),
+                            op: BinaryOp::Assign,
+                            right: Box::new(Expression::Binary {
+                                left: Box::new(Expression::Ident(capture_var.clone())),
+                                op: BinaryOp::Add,
+                                right: Box::new(Expression::Literal(Literal::Int(1))),
+                            }),
+                        }),
+                    ],
+                },
+            };
+
+            // Create an outer function with a mutable variable and nested function
+            let outer_func = Function {
+                visibility: Visibility::Public,
+                name: Ident::new("outer"),
+                params: vec![],
+                return_type: Some(Type::Primitive(PrimitiveType::Void)),
+                body: Block {
+                    statements: vec![
+                        Statement::Var {
+                            name: capture_var.clone(),
+                            ty: Some(Type::Primitive(PrimitiveType::I32)),
+                            init: Some(Expression::Literal(Literal::Int(0))),
+                        },
+                        nested_func,
+                    ],
+                },
+                doc_comments: vec![],
+                attributes: vec![],
+            };
+
+            let file = File {
+                items: vec![Item::Function(outer_func)],
+                doc_comments: vec![],
+            };
+
+            // Run semantic analysis to get captures
+            let mut analyzer = SemanticAnalyzer::new();
+            let _ = analyzer.analyze(&file);
+
+            // Generate code with captures
+            let mut gen_with_captures = CodeGenerator::new(TargetLanguage::Rust);
+            gen_with_captures.set_captures(analyzer.get_all_captures().clone());
+            let output = gen_with_captures.generate(&file);
+
+            // Verify nested function translates to mutable closure (FnMut trait for mutable capture)
+            prop_assert!(output.contains(&format!("let mut {} = ||", nested_name.name)),
+                "Nested function with mutable capture should translate to mut closure: {}", output);
+
+            // Should reference the captured variable
+            prop_assert!(output.contains(&capture_var.name),
+                "Closure should reference captured variable '{}': {}", capture_var.name, output);
+        }
+    }
 }
