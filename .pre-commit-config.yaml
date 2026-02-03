@@ -3,7 +3,7 @@ repos:
     hooks:
       - id: crustyc-syntax
         name: Crusty Syntax Check
-        entry: cargo run --bin crustyc -- --check
+        entry: .github/scripts/check-crusty-syntax.sh
         language: system
         files: \.crst$
         pass_filenames: true
@@ -22,3 +22,10 @@ repos:
         files: \.rs$
         pass_filenames: false
         args: ["-D", "warnings"]
+      
+      - id: shellcheck
+        name: ShellCheck
+        entry: shellcheck
+        language: system
+        files: \.sh$
+        args: ["--color=always"]

@@ -1,0 +1,55 @@
+# Release Tagging
+#
+# Component workflow that creates release candidate tags.
+# Uses create-rc-tag.sh script to generate vX.Y.Z-rcN tags.
+#
+# Inputs:
+#   ref: Git reference to tag (required)
+#   branch: Release branch name, e.g., release/v1.2 (required)
+#   tag-type: Type of tag to create (required)
+#
+# Outputs:
+#   tag: The created tag name
+#
+# Usage:
+#   Called by release-candidate.yml to create RC tags
+
+name: Release Tagging
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Git reference to tag'
+        required: true
+        type: string
+      branch:
+        description: 'Release branch name (e.g., release/v1.2)'
+        required: true
+        type: string
+      tag-type:
+        description: 'Type of tag to create'
+        required: true
+        type: string
+    outputs:
+      tag:
+        description: 'The created tag name'
+        value: ${{ jobs.create-tag.outputs.tag }}
+
+jobs:
+  create-tag:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.create-rc-tag.outputs.tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+      
+      - name: Create release candidate tag
+        id: create-rc-tag
+        run: |
+          BRANCH="${{ inputs.branch }}"
+          .github/scripts/create-rc-tag.sh "$BRANCH" "${GITHUB_OUTPUT}"

@@ -1,0 +1,47 @@
+# Unit Tests
+#
+# Component workflow that runs unit tests (lib and bin tests).
+# Can be called from other workflows or run manually.
+#
+# Inputs:
+#   ref: Git reference to check out (required)
+#
+# Usage:
+#   Called by pull-request-default.yml for PR validation
+
+name: Unit Tests
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Git reference to check out'
+        required: true
+        type: string
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Run unit tests
+        run: cargo test --lib --bins --verbose
