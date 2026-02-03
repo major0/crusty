@@ -802,7 +802,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Ensure proper type compatibility for function pointers
     - _Requirements: 59.18, 59.19, 59.17_
   
-  - [ ] 17.6 Write property test for nested function translation
+  - [x] 17.6 Write property test for nested function translation
     - **Property 35: Nested functions translate to Rust closures**
     - **Validates: Requirements 59.11, 59.12, 59.13**
   
