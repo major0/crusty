@@ -816,7 +816,7 @@ Phase 1 establishes Crusty as a working **one-way transpiler** from Crusty synta
     - Test error cases (static nested functions, multi-level nesting)
     - _Requirements: 59.1-59.25_
 
-- [ ] 18. Checkpoint - Ensure advanced features work correctly
+- [x] 18. Checkpoint - Ensure advanced features work correctly
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 19. Implement VTable to trait translation
