@@ -1,0 +1,55 @@
+# Version Alias Tags
+#
+# Component workflow that updates version alias tags (vX and vX.Y).
+# Uses update-version-alias.sh script to point aliases to latest releases.
+#
+# Inputs:
+#   tag: Full semantic version tag, e.g., v1.2.3 (required)
+#   ref: Git reference for the tag (required)
+#
+# Outputs:
+#   minor-alias: The vX.Y alias tag that was updated
+#   major-alias: The vX alias tag that was updated
+#
+# Usage:
+#   Called by release-publish.yml after creating GitHub release
+
+name: Version Alias Tags
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Full semantic version tag (e.g., v1.2.3)'
+        required: true
+        type: string
+      ref:
+        description: 'Git reference for the tag'
+        required: true
+        type: string
+    outputs:
+      minor-alias:
+        description: 'The vX.Y alias tag that was updated'
+        value: ${{ jobs.update-aliases.outputs.minor-alias }}
+      major-alias:
+        description: 'The vX alias tag that was updated'
+        value: ${{ jobs.update-aliases.outputs.major-alias }}
+
+jobs:
+  update-aliases:
+    runs-on: ubuntu-latest
+    outputs:
+      minor-alias: ${{ steps.update-aliases.outputs.minor-alias }}
+      major-alias: ${{ steps.update-aliases.outputs.major-alias }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+      
+      - name: Update version alias tags
+        id: update-aliases
+        run: |
+          TAG="${{ inputs.tag }}"
+          .github/scripts/update-version-alias.sh "$TAG" "${GITHUB_OUTPUT}"

@@ -1,0 +1,3 @@
+# ShellCheck configuration for GitHub Actions scripts
+# Enable all optional checks
+enable=all

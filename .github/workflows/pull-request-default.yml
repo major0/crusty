@@ -1,0 +1,103 @@
+# Pull Request CI
+#
+# Entry-point workflow that runs comprehensive CI checks on pull requests.
+# Executes all quality checks, builds on multiple platforms, runs tests,
+# and enforces code coverage thresholds.
+#
+# Triggers:
+#   - Pull requests to main branch
+#   - Manual workflow dispatch
+#   - Called by other workflows
+#
+# Checks performed:
+#   - Pre-commit hook validation
+#   - Code formatting (rustfmt)
+#   - Security audit (cargo-audit)
+#   - Linting (clippy)
+#   - Multi-platform builds (Linux, macOS, Windows)
+#   - Unit tests
+#   - Property-based tests
+#   - Code coverage (90% threshold)
+
+name: Pull Request CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Git reference to check out'
+        required: false
+        type: string
+      branch:
+        description: 'Target branch for comparison'
+        required: false
+        type: string
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git reference to check out'
+        required: false
+        type: string
+      branch:
+        description: 'Target branch for comparison'
+        required: false
+        type: string
+
+jobs:
+  # Independent checks (run concurrently)
+  pre-commit:
+    uses: ./.github/workflows/pre-commit.yml
+    with:
+      ref: ${{ inputs.ref || github.ref }}
+  
+  format:
+    uses: ./.github/workflows/format.yml
+    with:
+      ref: ${{ inputs.ref || github.ref }}
+  
+  security:
+    uses: ./.github/workflows/security-audit.yml
+    with:
+      ref: ${{ inputs.ref || github.ref }}
+  
+  lint:
+    uses: ./.github/workflows/lint.yml
+    with:
+      ref: ${{ inputs.ref || github.ref }}
+  
+  # Build matrix (concurrent across platforms)
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    uses: ./.github/workflows/build.yml
+    with:
+      platform: ${{ matrix.os }}
+      ref: ${{ inputs.ref || github.ref }}
+      release-mode: false
+  
+  # Tests (depend on build)
+  unit-tests:
+    needs: build
+    uses: ./.github/workflows/unit-tests.yml
+    with:
+      ref: ${{ inputs.ref || github.ref }}
+  
+  property-tests:
+    needs: build
+    uses: ./.github/workflows/property-tests.yml
+    with:
+      ref: ${{ inputs.ref || github.ref }}
+  
+  # Coverage (depends on tests)
+  coverage:
+    needs: [unit-tests, property-tests]
+    uses: ./.github/workflows/coverage.yml
+    with:
+      ref: ${{ inputs.ref || github.ref }}
+      min-line-coverage: 88
+      min-branch-coverage: 0
+      min-function-coverage: 90

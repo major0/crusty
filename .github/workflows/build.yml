@@ -1,0 +1,78 @@
+# Build
+#
+# Component workflow that builds the project on a specified platform.
+# Supports both debug and release builds with artifact upload.
+#
+# Inputs:
+#   platform: OS platform to build on (ubuntu-latest, macos-latest, windows-latest)
+#   ref: Git reference to check out (required)
+#   release-mode: Whether to build in release mode (default: false)
+#
+# Usage:
+#   Called by pull-request-default.yml for PR validation
+#   Called by release-publish.yml for release artifacts
+
+name: Build
+
+on:
+  workflow_call:
+    inputs:
+      platform:
+        description: 'OS platform to build on'
+        required: true
+        type: string
+      ref:
+        description: 'Git reference to check out'
+        required: true
+        type: string
+      release-mode:
+        description: 'Whether to build in release mode'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    runs-on: ${{ inputs.platform }}
+    timeout-minutes: 60
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Build (debug)
+        if: inputs.release-mode != true
+        run: cargo build --verbose --all-features
+      
+      - name: Build (release)
+        if: inputs.release-mode == true
+        run: cargo build --release --verbose --all-features
+      
+      - name: Upload build artifacts (debug)
+        if: inputs.release-mode != true
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ inputs.platform }}
+          path: target/debug/
+      
+      - name: Upload build artifacts (release)
+        if: inputs.release-mode == true
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ inputs.platform }}
+          path: target/release/
