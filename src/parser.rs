@@ -5322,6 +5322,33 @@ peg::parser! {
             = kw_null() { Literal::Null }
 
         // ====================================================================
+        // IDENTIFIERS
+        // ====================================================================
+        // Identifiers are names for variables, functions, types, etc.
+        //
+        // Regular identifiers: start with letter or underscore, followed by
+        // letters, digits, or underscores (e.g., foo, _bar, test123)
+        //
+        // Macro identifiers: double-underscore prefix and suffix (e.g., __FILE__, __LINE__)
+        //
+        // Identifiers cannot be keywords. The !keyword() negative lookahead
+        // ensures that keywords like "let", "var", "if" are not parsed as identifiers.
+
+        /// Identifier: name that is not a keyword
+        /// Returns Ident
+        pub rule ident() -> Ident
+            = !keyword() n:$((['a'..='z' | 'A'..='Z' | '_']) ident_char()*)
+            { Ident::new(n) }
+
+        /// Macro identifier: __NAME__ style (double underscore prefix and suffix)
+        /// Returns Ident
+        /// The middle part must start with a letter or underscore, followed by any ident chars,
+        /// but we need to ensure we don't consume the trailing __
+        pub rule macro_ident() -> Ident
+            = "__" n:$((['a'..='z' | 'A'..='Z' | '_']) (!"__" ident_char())*) "__"
+            { Ident::new(format!("__{n}__")) }
+
+        // ====================================================================
         // MINIMAL TEST GRAMMAR
         // ====================================================================
 
@@ -6085,6 +6112,200 @@ mod peg_tests {
             crusty_peg_parser::char_literal("'\\''"),
             Ok(Literal::Char('\''))
         );
+    }
+}
+
+// ============================================================================
+// IDENTIFIER TESTS (Task 2.4)
+// ============================================================================
+
+#[cfg(test)]
+mod identifier_tests {
+    use super::*;
+
+    #[test]
+    fn test_peg_ident_basic() {
+        // Test basic identifiers
+        assert_eq!(crusty_peg_parser::ident("hello"), Ok(Ident::new("hello")));
+        assert_eq!(crusty_peg_parser::ident("foo"), Ok(Ident::new("foo")));
+        assert_eq!(crusty_peg_parser::ident("bar"), Ok(Ident::new("bar")));
+    }
+
+    #[test]
+    fn test_peg_ident_with_underscore() {
+        // Test identifiers with underscores
+        assert_eq!(
+            crusty_peg_parser::ident("foo_bar"),
+            Ok(Ident::new("foo_bar"))
+        );
+        assert_eq!(crusty_peg_parser::ident("_test"), Ok(Ident::new("_test")));
+        assert_eq!(crusty_peg_parser::ident("_"), Ok(Ident::new("_")));
+        assert_eq!(
+            crusty_peg_parser::ident("__private"),
+            Ok(Ident::new("__private"))
+        );
+    }
+
+    #[test]
+    fn test_peg_ident_with_numbers() {
+        // Test identifiers with numbers
+        assert_eq!(
+            crusty_peg_parser::ident("test123"),
+            Ok(Ident::new("test123"))
+        );
+        assert_eq!(crusty_peg_parser::ident("var1"), Ok(Ident::new("var1")));
+        assert_eq!(crusty_peg_parser::ident("x1y2z3"), Ok(Ident::new("x1y2z3")));
+    }
+
+    #[test]
+    fn test_peg_ident_mixed_case() {
+        // Test identifiers with mixed case
+        assert_eq!(
+            crusty_peg_parser::ident("MyClass"),
+            Ok(Ident::new("MyClass"))
+        );
+        assert_eq!(
+            crusty_peg_parser::ident("camelCase"),
+            Ok(Ident::new("camelCase"))
+        );
+        assert_eq!(
+            crusty_peg_parser::ident("CONSTANT"),
+            Ok(Ident::new("CONSTANT"))
+        );
+    }
+
+    #[test]
+    fn test_peg_ident_not_keyword() {
+        // Test that keywords are NOT parsed as identifiers
+        assert!(crusty_peg_parser::ident("let").is_err());
+        assert!(crusty_peg_parser::ident("var").is_err());
+        assert!(crusty_peg_parser::ident("if").is_err());
+        assert!(crusty_peg_parser::ident("while").is_err());
+        assert!(crusty_peg_parser::ident("for").is_err());
+        assert!(crusty_peg_parser::ident("return").is_err());
+        assert!(crusty_peg_parser::ident("int").is_err());
+        assert!(crusty_peg_parser::ident("float").is_err());
+        assert!(crusty_peg_parser::ident("bool").is_err());
+        assert!(crusty_peg_parser::ident("true").is_err());
+        assert!(crusty_peg_parser::ident("false").is_err());
+        assert!(crusty_peg_parser::ident("NULL").is_err());
+    }
+
+    #[test]
+    fn test_peg_ident_keyword_prefix() {
+        // Test that identifiers with keyword prefixes are valid
+        assert_eq!(crusty_peg_parser::ident("letter"), Ok(Ident::new("letter")));
+        assert_eq!(
+            crusty_peg_parser::ident("variable"),
+            Ok(Ident::new("variable"))
+        );
+        assert_eq!(crusty_peg_parser::ident("ifelse"), Ok(Ident::new("ifelse")));
+        assert_eq!(
+            crusty_peg_parser::ident("integer"),
+            Ok(Ident::new("integer"))
+        );
+        assert_eq!(
+            crusty_peg_parser::ident("return_value"),
+            Ok(Ident::new("return_value"))
+        );
+    }
+
+    #[test]
+    fn test_peg_ident_cannot_start_with_number() {
+        // Test that identifiers cannot start with a number
+        assert!(crusty_peg_parser::ident("123abc").is_err());
+        assert!(crusty_peg_parser::ident("0test").is_err());
+        assert!(crusty_peg_parser::ident("9var").is_err());
+    }
+
+    #[test]
+    fn test_peg_ident_single_char() {
+        // Test single character identifiers
+        assert_eq!(crusty_peg_parser::ident("a"), Ok(Ident::new("a")));
+        assert_eq!(crusty_peg_parser::ident("x"), Ok(Ident::new("x")));
+        assert_eq!(crusty_peg_parser::ident("Z"), Ok(Ident::new("Z")));
+        assert_eq!(crusty_peg_parser::ident("_"), Ok(Ident::new("_")));
+    }
+
+    #[test]
+    fn test_peg_ident_long() {
+        // Test long identifiers
+        let long_ident = "this_is_a_very_long_identifier_name_with_many_characters";
+        assert_eq!(
+            crusty_peg_parser::ident(long_ident),
+            Ok(Ident::new(long_ident))
+        );
+    }
+
+    #[test]
+    fn test_peg_macro_ident_basic() {
+        // Test basic macro identifiers
+        assert_eq!(
+            crusty_peg_parser::macro_ident("__FILE__"),
+            Ok(Ident::new("__FILE__"))
+        );
+        assert_eq!(
+            crusty_peg_parser::macro_ident("__LINE__"),
+            Ok(Ident::new("__LINE__"))
+        );
+        assert_eq!(
+            crusty_peg_parser::macro_ident("__DATE__"),
+            Ok(Ident::new("__DATE__"))
+        );
+    }
+
+    #[test]
+    fn test_peg_macro_ident_custom() {
+        // Test custom macro identifiers
+        assert_eq!(
+            crusty_peg_parser::macro_ident("__MY_MACRO__"),
+            Ok(Ident::new("__MY_MACRO__"))
+        );
+        assert_eq!(
+            crusty_peg_parser::macro_ident("__test__"),
+            Ok(Ident::new("__test__"))
+        );
+        assert_eq!(
+            crusty_peg_parser::macro_ident("__foo_bar_123__"),
+            Ok(Ident::new("__foo_bar_123__"))
+        );
+    }
+
+    #[test]
+    fn test_peg_macro_ident_requires_double_underscore() {
+        // Test that macro identifiers require double underscore prefix and suffix
+        assert!(crusty_peg_parser::macro_ident("_FILE_").is_err());
+        assert!(crusty_peg_parser::macro_ident("__FILE_").is_err());
+        assert!(crusty_peg_parser::macro_ident("_FILE__").is_err());
+        assert!(crusty_peg_parser::macro_ident("FILE").is_err());
+    }
+
+    #[test]
+    fn test_peg_macro_ident_cannot_be_empty() {
+        // Test that macro identifiers cannot be empty between underscores
+        assert!(crusty_peg_parser::macro_ident("____").is_err());
+    }
+
+    #[test]
+    fn test_peg_macro_ident_must_start_with_letter_or_underscore() {
+        // Test that macro identifiers must start with letter or underscore after __
+        assert!(crusty_peg_parser::macro_ident("__123__").is_err());
+        assert!(crusty_peg_parser::macro_ident("__9test__").is_err());
+    }
+
+    #[test]
+    fn test_peg_ident_vs_macro_ident() {
+        // Test that regular ident can parse identifiers with double underscores
+        // but they're not macro identifiers
+        assert_eq!(
+            crusty_peg_parser::ident("__private"),
+            Ok(Ident::new("__private"))
+        );
+        assert_eq!(crusty_peg_parser::ident("test__"), Ok(Ident::new("test__")));
+
+        // But macro_ident requires both prefix and suffix
+        assert!(crusty_peg_parser::macro_ident("__private").is_err());
+        assert!(crusty_peg_parser::macro_ident("test__").is_err());
     }
 }
 
