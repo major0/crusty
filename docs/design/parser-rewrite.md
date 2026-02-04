@@ -33,7 +33,14 @@ PEG workarounds for C-like syntax include eliminating left recursion (which chan
 
 ### Decision
 
-While pest offers a simpler learning curve, the technical fit of LR parsing for C-like languages is significant. The project initially chose pest for ease of use, then reconsidered in favor of rust-peg (a PEG parser with left-recursion support via the `precedence!` macro), which provides the best of both worlds — PEG simplicity with efficient precedence handling.
+The project chose rust-peg — a PEG parser that supports left recursion via the `#[cache_left_rec]` attribute. This combines PEG simplicity with the ability to write C-like left-recursive grammars naturally, without the transformation overhead that standard PEG parsers require.
+
+rust-peg advantages over both alternatives:
+- PEG ordered choice for natural ambiguity resolution (no shift/reduce conflicts)
+- Left recursion support via `#[cache_left_rec]` — write `expr = expr "+" term` directly
+- Inline grammar in Rust code for better type integration
+- Packrat parsing with memoization for performance
+- `precedence!` macro for clean operator precedence handling
 
 ## Examples
 
