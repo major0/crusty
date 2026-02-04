@@ -357,19 +357,39 @@ git commit -m "chore(<scope>): apply code quality fixes for <context>
 - Should reference the same scope as implementation
 - Body should summarize all quality improvements (including CI/CD fixes)
 
-### Step 10: Force Push to PR Branch
+### Step 10: Verify Branch Tracking and Force Push
+
+Before pushing, verify the branch is tracking origin/main:
+
+```bash
+# Check branch tracking
+git branch -vv | grep "$(git branch --show-current)"
+```
+
+**Expected output should show tracking origin/main**:
+```
+* feat/1.2-user-login abc1234 [origin/main>] feat(auth): 1.2 Implement user login endpoint
+```
+
+**If not tracking origin/main**:
+```bash
+# Set upstream tracking to origin/main
+git branch --set-upstream-to=origin/main
+```
 
 Push the updated commits to the PR branch:
 
 ```bash
-# Force push with lease (safer than --force)
-git push --force-with-lease origin HEAD
+# Force push with lease (no need to specify origin/branch since we track origin/main)
+git push --force-with-lease
 ```
 
 **Force push with lease**:
 - Safer than `--force` because it checks if remote has unexpected changes
 - Prevents overwriting others' work
 - Fails if remote branch has commits you don't have locally
+
+**Important**: Do NOT use `git push --force-with-lease origin <branch-name>` as this pattern requires command approval. Since the branch tracks origin/main, simply use `git push --force-with-lease`.
 
 **If push fails**:
 - Fetch latest: `git fetch origin`
