@@ -2,20 +2,20 @@
 
 ## Introduction
 
-This specification defines the requirements for rewriting the Crusty parser from a hand-written recursive descent parser to a formal PEG (Parsing Expression Grammar) based parser using the pest parser generator. The current parser has fundamental issues with backtracking and ambiguous grammar, particularly with cast expressions like `(Type)(expr)`. The lexer's iterator-based design makes proper state restoration nearly impossible, leading to parsing bugs that cannot be fixed without a complete rewrite.
+This specification defines the requirements for rewriting the Crusty parser from a hand-written recursive descent parser to a formal PEG (Parsing Expression Grammar) based parser using the rust-peg parser generator. The current parser has fundamental issues with backtracking and ambiguous grammar, particularly with cast expressions like `(Type)(expr)`. The lexer's iterator-based design makes proper state restoration nearly impossible, leading to parsing bugs that cannot be fixed without a complete rewrite.
 
 ## Glossary
 
 - **Parser**: The component that converts a stream of tokens into an Abstract Syntax Tree (AST)
 - **PEG**: Parsing Expression Grammar, a formal grammar notation that eliminates ambiguity through ordered choice
-- **pest**: A Rust parser generator that uses PEG grammars
+- **rust-peg**: A Rust parser generator that uses PEG grammars embedded directly in Rust code
 - **AST**: Abstract Syntax Tree, the structured representation of source code
 - **Cast_Expression**: A type cast operation in the form `(Type)(expr)`
 - **Backtracking**: The ability of a parser to restore state and try alternative parsing paths
 - **Grammar**: The formal specification of the language syntax
-- **Lexer**: The component that converts source text into tokens (will be replaced by pest's built-in tokenization)
-- **Parse_Tree**: The intermediate tree structure produced by pest before conversion to AST
-- **Rule**: A named grammar production in pest syntax
+- **Lexer**: The component that converts source text into tokens (will be integrated into rust-peg rules)
+- **Rule**: A named grammar production in rust-peg syntax
+- **Action**: Rust code embedded in grammar rules that builds AST nodes directly
 
 ## Requirements
 
@@ -25,12 +25,12 @@ This specification defines the requirements for rewriting the Crusty parser from
 
 #### Acceptance Criteria
 
-1. THE Grammar SHALL be defined in pest syntax in a `.pest` file
+1. THE Grammar SHALL be defined using rust-peg's peg! macro with embedded Rust actions
 2. THE Grammar SHALL include all Crusty language constructs (functions, structs, enums, typedefs, statements, expressions)
 3. THE Grammar SHALL use PEG ordered choice to resolve ambiguities
 4. THE Grammar SHALL be documented with comments explaining complex rules
-5. THE Grammar SHALL handle whitespace and comments implicitly through pest's WHITESPACE rule
-6. THE Grammar SHALL define precedence for operators through grammar structure
+5. THE Grammar SHALL handle whitespace and comments explicitly through dedicated rules
+6. THE Grammar SHALL define precedence for operators through grammar structure and precedence climbing
 7. THE Grammar SHALL support all existing Crusty syntax including attributes, macros, and nested functions
 
 ### Requirement 2: Cast Expression Parsing
@@ -56,7 +56,7 @@ This specification defines the requirements for rewriting the Crusty parser from
 2. WHEN a parse error occurs, THE Parser SHALL report what was expected
 3. WHEN a parse error occurs, THE Parser SHALL report what was found
 4. THE Parser SHALL provide error messages that are more descriptive than the current parser
-5. THE Parser SHALL leverage pest's built-in error reporting capabilities
+5. THE Parser SHALL leverage rust-peg's built-in error reporting with expected! macro
 6. WHEN multiple parse errors exist, THE Parser SHALL report the first error encountered
 
 ### Requirement 4: AST Compatibility
@@ -97,7 +97,7 @@ This specification defines the requirements for rewriting the Crusty parser from
 5. THE Parser SHALL parse attributes (e.g., `#[derive(Debug)]`)
 6. THE Parser SHALL parse macro definitions (`#define`)
 7. THE Parser SHALL parse all statement types (let, var, const, if, while, for, switch, return, break, continue)
-8. THE Parser SHALL parse all expression types (literals, binary ops, unary ops, calls, field access, index, cast, ternary, etc.)
+8. THE Parser SHALL parse all expression types (literals, binary ops, unary ops, calls, field access, index, cast, ternary, comma, etc.)
 9. THE Parser SHALL parse all type expressions (primitives, pointers, references, arrays, tuples, generics)
 10. THE Parser SHALL parse nested functions
 11. THE Parser SHALL parse labeled loops
@@ -105,6 +105,8 @@ This specification defines the requirements for rewriting the Crusty parser from
 13. THE Parser SHALL parse struct initialization expressions
 14. THE Parser SHALL parse range expressions
 15. THE Parser SHALL parse macro invocations
+16. THE Parser SHALL parse comma expressions (e.g., `i++, --n`)
+17. THE Parser SHALL parse comma-separated expressions in for loop initializers and increments (e.g., `for (int i=1, j=2; i < 100; i++, j+=2)`)
 
 ### Requirement 7: Performance
 
@@ -115,7 +117,7 @@ This specification defines the requirements for rewriting the Crusty parser from
 1. THE Parser SHALL parse files at a rate comparable to or faster than the current parser
 2. THE Parser SHALL not introduce performance regressions greater than 20% on typical source files
 3. THE Parser SHALL handle large source files (>10,000 lines) without excessive memory usage
-4. THE Parser SHALL leverage pest's optimized parsing algorithms
+4. THE Parser SHALL leverage rust-peg's optimized packrat parsing with memoization
 
 ### Requirement 8: Maintainability
 
@@ -126,9 +128,9 @@ This specification defines the requirements for rewriting the Crusty parser from
 1. THE Grammar SHALL be organized into logical sections (items, statements, expressions, types, etc.)
 2. THE Grammar SHALL use descriptive rule names that match AST node types
 3. THE Grammar SHALL include comments explaining non-obvious rules
-4. THE Parser SHALL separate grammar definition (`.pest` file) from AST building (Rust code)
+4. THE Parser SHALL integrate grammar rules with AST building actions in the same peg! macro
 5. THE Parser SHALL use helper functions to reduce code duplication in AST building
-6. THE Parser SHALL have clear error handling for malformed parse trees
+6. THE Parser SHALL have clear error handling using rust-peg's error mechanisms
 
 ### Requirement 9: Integration
 
@@ -151,5 +153,5 @@ This specification defines the requirements for rewriting the Crusty parser from
 1. THE Grammar SHALL include comments explaining each major rule
 2. THE Parser SHALL include doc comments on public functions
 3. THE Parser SHALL include examples of grammar patterns in comments
-4. THE Parser SHALL document any pest-specific idioms or patterns used
+4. THE Parser SHALL document any rust-peg-specific idioms or patterns used
 5. THE Parser SHALL include a README or design document explaining the grammar structure
