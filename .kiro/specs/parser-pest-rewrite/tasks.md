@@ -35,7 +35,7 @@ This implementation plan breaks down the rust-peg parser rewrite into discrete, 
     - Implement null_literal rule returning Literal::Null
     - _Requirements: 1.2, 6.8_
   
-  - [ ] 2.4 Define identifier rules with actions
+  - [x] 2.4 Define identifier rules with actions
     - Implement ident_char helper rule
     - Implement keyword helper rule to exclude keywords
     - Implement ident rule returning Ident
