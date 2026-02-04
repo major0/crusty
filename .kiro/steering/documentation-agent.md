@@ -6,13 +6,13 @@ inclusion: manual
 
 ## Purpose
 
-Update inline comments, README files, and API documentation to reflect the changes made during task implementation. Ensure all code is well-documented and user-facing documentation is accurate and complete.
+Update inline documentation comments, README files, and API documentation to reflect changes made during task implementation. Ensure all Rust code is well-documented using doc comments and user-facing documentation is accurate and complete.
 
 ## Context
 
 You have access to:
-- **Modified code files**: All files changed during implementation
-- **Existing documentation**: README.md, API docs, inline comments
+- **Modified code files**: All Rust (.rs) files changed during implementation
+- **Existing documentation**: README.md, doc comments, module-level docs
 - **Implementation commit**: The commit message and changes from the implementation
 - **Task details**: tasks.md, requirements.md, and design.md files
 - **All Kiro tools**: File operations, git commands
@@ -24,41 +24,80 @@ You have access to:
 Review the implementation commit to understand what changed:
 
 ```bash
-# View the implementation commit
+# View implementation commit
 git log -1 --stat
 
-# View the actual changes
+# View actual changes
 git diff HEAD~1
 ```
 
-Identify what documentation needs to be updated:
-- New functions, classes, or modules that need inline comments
+Identify what documentation needs updating:
+- New public functions, structs, or modules that need doc comments
 - Changed APIs that need updated documentation
 - New features that need README updates
 - Configuration changes that need documentation
 
-### Step 2: Update Inline Comments
+### Step 2: Update Inline Doc Comments
 
-For each modified code file:
+For each modified Rust file:
 
-1. **Add JSDoc/TSDoc comments** for new functions and classes:
-   ```typescript
-   /**
-    * Brief description of what the function does
-    * 
-    * @param paramName - Description of parameter
-    * @returns Description of return value
-    * @throws Description of any errors thrown
-    * @example
-    * ```typescript
-    * exampleUsage();
-    * ```
-    */
+1. **Add doc comments** for new public items:
+   ```rust
+   /// Parses a Crusty function declaration into an AST node.
+   ///
+   /// # Arguments
+   ///
+   /// * `input` - The Crusty source code to parse
+   ///
+   /// # Returns
+   ///
+   /// Returns `Ok(FunctionDecl)` if parsing succeeds, or `Err(ParseError)`
+   /// if the input is invalid.
+   ///
+   /// # Examples
+   ///
+   /// ```
+   /// use crustyc::parser::parse_function;
+   ///
+   /// let input = "int add(int a, int b) { return a + b; }";
+   /// let result = parse_function(input);
+   /// assert!(result.is_ok());
+   /// ```
+   ///
+   /// # Errors
+   ///
+   /// Returns `ParseError` if:
+   /// - The input contains invalid syntax
+   /// - Required tokens are missing
+   /// - Type annotations are malformed
+   pub fn parse_function(input: &str) -> Result<FunctionDecl, ParseError> {
+       // Implementation
+   }
    ```
 
-2. **Update existing comments** that are now outdated due to changes
+2. **Update existing doc comments** that are now outdated
 
-3. **Add clarifying comments** for complex logic or non-obvious implementations
+3. **Add module-level documentation**:
+   ```rust
+   //! Parser module for the Crusty compiler.
+   //!
+   //! This module provides functions for parsing Crusty source code into
+   //! an Abstract Syntax Tree (AST). The parser handles:
+   //!
+   //! - Function declarations
+   //! - Struct definitions
+   //! - Type annotations
+   //! - Expression parsing
+   //!
+   //! # Examples
+   //!
+   //! ```
+   //! use crustyc::parser::parse;
+   //!
+   //! let source = "int main() { return 0; }";
+   //! let ast = parse(source)?;
+   //! ```
+   ```
 
 4. **Remove obsolete comments** that no longer apply
 
@@ -78,9 +117,9 @@ If the implementation adds new features or changes existing functionality:
 
 ### Step 4: Update API Documentation
 
-If the project has separate API documentation (e.g., in `docs/` directory):
+If the project has separate API documentation:
 
-1. **Update API reference** for changed endpoints, functions, or classes
+1. **Update API reference** for changed functions, structs, or modules
 
 2. **Add examples** showing how to use new features
 
@@ -96,7 +135,11 @@ Before committing:
 
 1. **Check for broken links** in Markdown files
 
-2. **Verify code examples** actually work (run them if possible)
+2. **Verify code examples** actually work:
+   ```bash
+   # Test doc examples
+   cargo test --doc
+   ```
 
 3. **Check spelling and grammar** in user-facing documentation
 
@@ -106,7 +149,7 @@ Before committing:
 
 ### Step 6: Commit Documentation Changes
 
-If documentation changes were made, create a commit:
+If documentation changes were made:
 
 ```bash
 git add .
@@ -114,65 +157,39 @@ git commit -m "docs(<scope>): update documentation for <context>"
 ```
 
 **Examples**:
-- `docs(auth): update documentation for user login endpoint`
-- `docs(api): update documentation for task management`
+- `docs(parser): update documentation for parser module`
+- `docs(codegen): update documentation for code generation`
 - `docs(readme): update documentation for installation process`
 
 **Scope guidelines**:
-- Use the same scope as the implementation commit when possible
+- Use the same scope as implementation commit
 - Use "readme" for README.md changes
 - Use "api" for API documentation changes
-- Use the module/feature name for inline comment updates
-
-**Context guidelines**:
-- Briefly describe what was documented
-- Reference the feature or component that was documented
-- Keep it concise (under 72 characters total if possible)
-
-### Step 7: Handle No Changes Scenario
-
-If no documentation updates are needed (e.g., internal refactoring with no API changes):
-
-1. **Verify this is correct** - are you sure nothing needs documentation?
-
-2. **Report to user**: "No documentation updates needed for this implementation"
-
-3. **Do not create an empty commit**
+- Use module name for inline doc comment updates
 
 ## Commit Format
 
 ```
 docs(<scope>): update documentation for <context>
 
-<optional body with details>
-- Updated inline comments for X
+<optional body>
+- Updated doc comments for X
 - Added API documentation for Y
 - Updated README with Z
 
 <optional footer>
 ```
 
-**Required elements**:
-- **type**: Always "docs"
-- **scope**: The area of documentation (auth, api, readme, etc.)
-- **context**: Brief description of what was documented
-
-**Optional elements**:
-- **body**: Detailed list of documentation changes
-- **footer**: Related issues or breaking changes
-
 ## Success Criteria
 
-Verify that all of the following are true before completing:
-
-1. ✅ All new public functions/classes have inline documentation
+1. ✅ All new public functions/structs have doc comments
 2. ✅ All changed APIs have updated documentation
 3. ✅ README.md reflects current functionality (if applicable)
 4. ✅ Code examples in documentation are accurate and working
 5. ✅ No broken links in Markdown files
 6. ✅ Documentation is clear, concise, and helpful
-7. ✅ Commit message follows the specified format
-8. ✅ Changes are committed (or explicitly noted as not needed)
+7. ✅ Commit message follows format
+8. ✅ Changes committed (or noted as not needed)
 
 ## Error Handling
 
@@ -181,10 +198,37 @@ Verify that all of the following are true before completing:
 **Scenario**: Implementation is internal and requires no documentation updates
 
 **Action**:
-- Verify this is truly the case by reviewing all changes
-- Report to user: "Reviewed implementation - no documentation updates needed"
+- Verify by reviewing all changes
+- Report: "Reviewed implementation - no documentation updates needed"
 - Do not create a commit
 - Exit successfully
+
+### Doc Tests Fail
+
+**Scenario**: Code examples in doc comments don't compile or fail
+
+**Action**:
+- Capture test failure output
+- Fix code examples to work correctly
+- Re-run doc tests
+- Commit fixes
+
+**Example response**:
+```
+Doc test failed:
+
+Error in src/parser.rs:
+```
+---- parser::parse_function (line 45) stdout ----
+error[E0425]: cannot find function `parse_function` in this scope
+
+Fixed code example to include correct import:
+```rust
+use crustyc::parser::parse_function;
+```
+
+Re-running doc tests... ✓ All doc tests passing
+```
 
 ### Unclear What to Document
 
@@ -193,77 +237,18 @@ Verify that all of the following are true before completing:
 **Action**:
 - List what you understand about the changes
 - List specific questions about what should be documented
-- Ask the user for guidance
+- Ask user for guidance
 - Do not guess or make assumptions
-
-**Example response**:
-```
-The implementation added a new authentication system, but I need clarification:
-
-1. Should the README include setup instructions for the auth system?
-2. Should API documentation cover all internal auth functions or just public ones?
-3. Are there security considerations that should be documented?
-
-Please provide guidance on documentation scope.
-```
 
 ### Documentation Conflicts
 
 **Scenario**: Existing documentation conflicts with new implementation
 
 **Action**:
-- Identify the specific conflicts
-- Determine if the implementation or documentation is correct
+- Identify specific conflicts
+- Determine if implementation or documentation is correct
 - If implementation is correct, update documentation
 - If documentation is correct, report potential bug to user
-
-**Example response**:
-```
-Found conflict: README states that login requires email, but implementation uses username.
-
-This could be:
-1. Documentation is outdated (I'll update it)
-2. Implementation is incorrect (needs fixing)
-
-Please confirm which is correct.
-```
-
-### Broken Examples
-
-**Scenario**: Code examples in documentation don't work with new implementation
-
-**Action**:
-- Update examples to work with new implementation
-- Test examples if possible (run them)
-- If examples can't be fixed, report to user
-
-**Example response**:
-```
-Updated code examples in README to work with new API:
-- Changed authentication example to use new token format
-- Updated error handling example to match new error types
-- Verified all examples compile and run successfully
-```
-
-### Large Documentation Changes
-
-**Scenario**: Implementation requires extensive documentation updates
-
-**Action**:
-- Prioritize critical documentation (API changes, breaking changes)
-- Update inline comments first (most important)
-- Update README for user-facing changes
-- Note if additional documentation work is needed
-
-**Example response**:
-```
-Completed critical documentation updates:
-- Added inline comments for all new functions
-- Updated README with new feature usage
-- Updated API docs for changed endpoints
-
-Note: Comprehensive tutorial documentation may be needed in a follow-up task.
-```
 
 ## Notes
 
@@ -271,6 +256,8 @@ Note: Comprehensive tutorial documentation may be needed in a follow-up task.
 - **Be Concise**: Don't over-document obvious code
 - **Be Accurate**: Ensure documentation matches implementation exactly
 - **Be Helpful**: Include examples and common use cases
-- **Be Consistent**: Follow existing documentation style and conventions
-- **Don't Assume**: If unclear what to document, ask the user
+- **Be Consistent**: Follow Rust documentation conventions
+- **Doc Comments**: Use `///` for item documentation, `//!` for module documentation
+- **Doc Tests**: Code examples in doc comments are automatically tested
+- **Rustdoc**: Documentation is generated with `cargo doc`
 - **Quality Over Quantity**: Good documentation is clear and useful, not just comprehensive

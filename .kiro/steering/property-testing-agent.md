@@ -6,17 +6,17 @@ inclusion: manual
 
 ## Purpose
 
-Create property-based tests that verify universal properties hold across all inputs using a property-based testing library. Property tests should run 100+ iterations to discover edge cases and ensure correctness across the input space.
+Create property-based tests that verify universal properties hold across all inputs using proptest, Rust's property-based testing library. Property tests should run 100+ iterations to discover edge cases and ensure correctness across the input space.
 
 ## Context
 
 You have access to:
-- **Implementation code**: All files changed during implementation
+- **Implementation code**: All Rust files changed during implementation
 - **Design document**: Contains correctness properties to test
 - **Requirements document**: Contains acceptance criteria
 - **Implementation commit**: The commit message and changes from the implementation
 - **Task details**: tasks.md, requirements.md, and design.md files
-- **All Kiro tools**: File operations, git commands, test execution
+- **All Kiro tools**: File operations, git commands, cargo test
 
 ## Instructions
 
@@ -25,10 +25,10 @@ You have access to:
 Review the design document to find correctness properties:
 
 ```bash
-# View the implementation commit
+# View implementation commit
 git log -1 --stat
 
-# View the actual changes
+# View actual changes
 git diff HEAD~1
 ```
 
@@ -37,143 +37,202 @@ Look for the "Correctness Properties" section in the design document. Each prope
 - Hold true across all valid inputs
 - Be verifiable through automated testing
 
-### Step 2: Determine Testing Framework
+### Step 2: Proptest Framework
 
-Identify the property-based testing framework for the project:
+This project uses **proptest** for property-based testing:
 
-**Common frameworks**:
-- **JavaScript/TypeScript**: fast-check
-- **Python**: Hypothesis
-- **Rust**: proptest or quickcheck
-- **Java**: jqwik or QuickTheories
-- **Haskell**: QuickCheck
+**Add to Cargo.toml** (if not already present):
+```toml
+[dev-dependencies]
+proptest = "1.4"
+```
 
-If no framework is installed, check package.json, requirements.txt, Cargo.toml, or other dependency files to determine the project language, then install the appropriate framework.
+**Import proptest**:
+```rust
+use proptest::prelude::*;
+```
 
 ### Step 3: Create Property Test Files
 
-Create property test files following the project's test organization:
+Add property tests to source files or create separate test files:
 
-**Naming conventions**:
-- TypeScript/JavaScript: `*.property.test.ts` or `*.property.test.js`
-- Python: `test_*_property.py` or `*_property_test.py`
-- Rust: `property_tests.rs` or within `tests/` directory
-- Java: `*PropertyTest.java`
+**Inline property tests**:
+```rust
+// In src/parser.rs
 
-**Location**:
-- Co-locate with source files when possible
-- Use `tests/property/` directory for centralized property tests
-- Follow existing test organization patterns in the project
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn test_parse_roundtrip(input in ".*") {
+            // Property test implementation
+        }
+    }
+}
+```
+
+**Separate property test files**:
+```rust
+// In src/parser_properties.rs
+
+use proptest::prelude::*;
+use crate::parser::*;
+
+proptest! {
+    #[test]
+    fn test_parser_properties(input in ".*") {
+        // Property test implementation
+    }
+}
+```
 
 ### Step 4: Write Property Tests
 
 For each property in the design document:
 
-1. **Create a generator** that produces random valid inputs:
-   ```typescript
-   // Example with fast-check
-   const arbitraryUser = fc.record({
-     username: fc.string({ minLength: 3, maxLength: 20 }),
-     email: fc.emailAddress(),
-     age: fc.integer({ min: 18, max: 120 })
-   });
+1. **Create a strategy** that generates random valid inputs:
+   ```rust
+   use proptest::prelude::*;
+   
+   // Strategy for valid identifiers
+   fn identifier_strategy() -> impl Strategy<Value = String> {
+       "[a-zA-Z_][a-zA-Z0-9_]*"
+   }
+   
+   // Strategy for valid function declarations
+   fn function_strategy() -> impl Strategy<Value = String> {
+       (identifier_strategy(), identifier_strategy())
+           .prop_map(|(ret_type, name)| {
+               format!("{} {}() {{}}", ret_type, name)
+           })
+   }
    ```
 
 2. **Write the property test** with 100+ iterations:
-   ```typescript
-   // Example with fast-check
-   it('Property 1: User creation always generates valid ID', () => {
-     fc.assert(
-       fc.property(arbitraryUser, (user) => {
-         const created = createUser(user);
-         return created.id !== null && created.id > 0;
-       }),
-       { numRuns: 100 }
-     );
-   });
+   ```rust
+   proptest! {
+       #![proptest_config(ProptestConfig::with_cases(100))]
+       
+       #[test]
+       fn property_parse_roundtrip(input in function_strategy()) {
+           // Parse the input
+           let ast = parse_function(&input).unwrap();
+           
+           // Generate code from AST
+           let output = generate_code(&ast);
+           
+           // Parse the output
+           let ast2 = parse_function(&output).unwrap();
+           
+           // Property: Parsing is idempotent
+           prop_assert_eq!(ast, ast2);
+       }
+   }
    ```
 
 3. **Add property documentation** linking to design:
-   ```typescript
-   /**
-    * Property 1: User creation always generates valid ID
-    * 
-    * Validates: Requirements 1.2, 1.3
-    * 
-    * For any valid user input, the createUser function should
-    * return a user object with a non-null, positive integer ID.
-    */
+   ```rust
+   /// Property 1: Parse-Generate Roundtrip
+   /// 
+   /// Validates: Requirements 1.2, 1.3
+   /// 
+   /// For any valid Crusty input, parsing and then generating code
+   /// should produce an AST that parses to the same AST.
+   proptest! {
+       #[test]
+       fn property_parse_roundtrip(input in function_strategy()) {
+           // Test implementation
+       }
+   }
    ```
 
-4. **Use smart generators** that constrain to valid input space:
-   - Don't generate invalid inputs that should be rejected
-   - Focus on valid inputs that should produce correct outputs
-   - Use domain-specific constraints (e.g., valid email formats, positive numbers)
+4. **Use smart strategies** that constrain to valid input space:
+   ```rust
+   // Don't generate invalid inputs
+   fn valid_type_strategy() -> impl Strategy<Value = String> {
+       prop_oneof![
+           Just("int".to_string()),
+           Just("void".to_string()),
+           Just("char".to_string()),
+           Just("float".to_string()),
+       ]
+   }
+   
+   // Generate valid function names
+   fn function_name_strategy() -> impl Strategy<Value = String> {
+       "[a-zA-Z_][a-zA-Z0-9_]{0,30}"
+   }
+   ```
 
 ### Step 5: Configure Test Iterations
 
 Ensure property tests run at least 100 iterations:
 
-**fast-check (JavaScript/TypeScript)**:
-```typescript
-fc.assert(fc.property(...), { numRuns: 100 });
-```
-
-**Hypothesis (Python)**:
-```python
-@given(st.integers())
-@settings(max_examples=100)
-def test_property(value):
-    ...
-```
-
-**proptest (Rust)**:
 ```rust
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(100))]
+    
     #[test]
-    fn test_property(value in any::<i32>()) {
-        ...
+    fn property_test(input in any::<String>()) {
+        // Test implementation
     }
+}
+```
+
+**Configuration options**:
+```rust
+ProptestConfig {
+    cases: 100,                    // Number of test cases
+    max_shrink_iters: 1000,       // Shrinking iterations
+    max_shrink_time: 10000,       // Shrinking timeout (ms)
+    ..ProptestConfig::default()
 }
 ```
 
 ### Step 6: Run Property Tests
 
-Execute the property tests to verify they pass:
+Execute property tests to verify they pass:
 
 ```bash
-# TypeScript/JavaScript
-npm test -- --testPathPattern=property
+# Run all tests (including property tests)
+cargo test
 
-# Python
-pytest -k property
-
-# Rust
+# Run only property tests
 cargo test property
 
-# Java
-./gradlew test --tests '*PropertyTest'
+# Run with verbose output
+cargo test property -- --nocapture
+
+# Run with specific seed for reproducibility
+PROPTEST_SEED=12345 cargo test property
 ```
 
 If tests fail:
-1. **Analyze the counterexample** provided by the testing framework
-2. **Determine if it's a bug** in the implementation or test
-3. **Fix the issue** (either code or test)
-4. **Re-run tests** to verify the fix
+1. **Analyze the counterexample** provided by proptest
+2. **Determine if it's a bug** in implementation or test
+3. **Fix the issue** (code or test)
+4. **Re-run tests** to verify fix
+
+**Proptest shrinking**:
+- Proptest automatically shrinks failing inputs to minimal examples
+- Shrunk examples are easier to debug
+- Shrinking results are saved in `proptest-regressions/`
 
 ### Step 7: Validate Test Coverage
 
-Ensure property tests cover the key properties from the design document:
+Ensure property tests cover key properties from design:
 
-1. **Check each property** is tested
-2. **Verify test names** clearly indicate which property they test
-3. **Ensure generators** produce appropriate input distributions
-4. **Confirm iterations** are set to 100+
+1. Check each property is tested
+2. Verify test names clearly indicate which property
+3. Ensure strategies produce appropriate input distributions
+4. Confirm iterations are set to 100+
 
 ### Step 8: Commit Property Tests
 
-If property tests were created, commit them:
+If property tests were created:
 
 ```bash
 git add .
@@ -181,34 +240,20 @@ git commit -m "test(<scope>): add property-based tests for <context>"
 ```
 
 **Examples**:
-- `test(auth): add property-based tests for user authentication`
-- `test(api): add property-based tests for task management`
-- `test(validation): add property-based tests for input validation`
+- `test(parser): add property-based tests for parsing`
+- `test(codegen): add property-based tests for code generation`
+- `test(semantic): add property-based tests for type checking`
 
 **Scope guidelines**:
-- Use the same scope as the implementation commit when possible
-- Use the module/feature name being tested
-- Keep it concise and descriptive
-
-**Context guidelines**:
-- Briefly describe what properties are being tested
-- Reference the feature or component under test
-- Keep it concise (under 72 characters total if possible)
-
-### Step 9: Handle No Properties Scenario
-
-If the design document has no correctness properties or properties are not testable:
-
-1. **Verify this is correct** - check the design document thoroughly
-2. **Report to user**: "No property-based tests needed - design document contains no testable properties"
-3. **Do not create an empty commit**
+- Use the same scope as implementation commit
+- Use module name (parser, codegen, semantic, etc.)
 
 ## Commit Format
 
 ```
 test(<scope>): add property-based tests for <context>
 
-<optional body with details>
+<optional body>
 - Added property tests for X (Property 1, 2, 3)
 - Configured 100+ iterations per test
 - Verified all properties pass
@@ -217,27 +262,16 @@ test(<scope>): add property-based tests for <context>
 Validates: Requirements X.Y, X.Z
 ```
 
-**Required elements**:
-- **type**: Always "test"
-- **scope**: The area being tested (auth, api, validation, etc.)
-- **context**: Brief description of what properties are tested
-
-**Optional elements**:
-- **body**: Detailed list of properties tested
-- **footer**: Requirements validated by these tests
-
 ## Success Criteria
 
-Verify that all of the following are true before completing:
-
-1. ✅ All testable properties from design document have property tests
+1. ✅ All testable properties from design have property tests
 2. ✅ Each property test runs 100+ iterations
-3. ✅ Property tests use appropriate generators for input space
+3. ✅ Property tests use appropriate strategies for input space
 4. ✅ Test names clearly indicate which property they verify
 5. ✅ Tests include documentation linking to design properties
 6. ✅ All property tests pass successfully
-7. ✅ Commit message follows the specified format
-8. ✅ Changes are committed (or explicitly noted as not needed)
+7. ✅ Commit message follows format
+8. ✅ Changes committed (or noted as not needed)
 
 ## Error Handling
 
@@ -246,138 +280,73 @@ Verify that all of the following are true before completing:
 **Scenario**: Design document has no "Correctness Properties" section
 
 **Action**:
-- Verify by searching the design document for "property", "correctness", "invariant"
-- Report to user: "No correctness properties found in design document - property tests cannot be created"
+- Search design document for "property", "correctness", "invariant"
+- Report: "No correctness properties found - property tests cannot be created"
 - Do not create tests or commits
 - Exit successfully
-
-### No Testing Framework
-
-**Scenario**: Project has no property-based testing framework installed
-
-**Action**:
-- Identify the project language
-- Recommend appropriate framework (fast-check, Hypothesis, proptest, etc.)
-- Ask user if they want to install the framework
-- If yes, install and proceed; if no, report and exit
-
-**Example response**:
-```
-No property-based testing framework found. This is a TypeScript project.
-
-Recommended framework: fast-check
-
-Would you like me to:
-1. Install fast-check: npm install --save-dev fast-check @types/fast-check
-2. Skip property-based tests for now
-
-Please advise.
-```
 
 ### Property Test Failures
 
 **Scenario**: Property tests fail with counterexamples
 
 **Action**:
-- Capture the counterexample from the test output
-- Analyze whether it's a bug in implementation or test
-- If implementation bug: fix the code and re-run tests
-- If test bug: fix the test and re-run tests
-- If unclear: report to user with counterexample details
+- Capture counterexample from proptest output
+- Analyze if bug is in implementation or test
+- Fix implementation or test as needed
+- Re-run tests
 
 **Example response**:
 ```
 Property test failed with counterexample:
 
-Property: User creation always generates valid ID
-Counterexample: { username: "", email: "test@example.com", age: 18 }
-Error: Username cannot be empty
+Property: Parse-Generate Roundtrip
+Counterexample: "int main() { return 0; }"
+Error: Generated code missing return statement
 
-This appears to be a validation bug - the implementation should reject empty usernames.
+This appears to be a code generation bug.
 
-Fixing implementation to add username validation...
+Fixing codegen to include return statements...
 ```
 
 ### Unclear Properties
 
-**Scenario**: Design properties are ambiguous or unclear
+**Scenario**: Design properties are ambiguous
 
 **Action**:
-- List the unclear properties
+- List unclear properties
 - Explain what is ambiguous
 - Ask user for clarification
 - Do not guess or make assumptions
 
-**Example response**:
-```
-Property 5 from design document is unclear:
-
-"For any valid input, the system should behave correctly"
-
-Questions:
-1. What constitutes "valid input"?
-2. What does "behave correctly" mean specifically?
-3. What observable behavior should be tested?
-
-Please clarify this property so I can write an appropriate test.
-```
-
 ### Generator Complexity
 
-**Scenario**: Creating appropriate generators is complex or unclear
+**Scenario**: Creating appropriate strategies is complex
 
 **Action**:
-- Start with simple generators
-- Gradually add constraints as needed
-- Document generator assumptions
+- Start with simple strategies
+- Gradually add constraints
+- Document strategy assumptions
 - Ask user if unsure about constraints
-
-**Example response**:
-```
-Creating generator for user authentication property tests.
-
-Assumptions:
-- Usernames: 3-20 alphanumeric characters
-- Passwords: 8-128 characters, any printable ASCII
-- Emails: Valid email format
-
-Are these constraints appropriate, or should they be adjusted?
-```
 
 ### Performance Issues
 
-**Scenario**: Property tests take too long to run (>5 minutes)
+**Scenario**: Property tests take too long (>5 minutes)
 
 **Action**:
 - Identify slow tests
 - Consider reducing iterations for slow tests (but keep ≥100)
-- Optimize generators if possible
+- Optimize strategies if possible
 - Report to user if tests remain slow
-
-**Example response**:
-```
-Property tests are running slowly (estimated 10 minutes).
-
-Slow tests:
-- Property 3: Database transaction consistency (500ms per iteration)
-- Property 7: File system operations (300ms per iteration)
-
-Options:
-1. Keep 100 iterations (10 min total)
-2. Reduce to 50 iterations for slow tests (5 min total)
-3. Optimize test setup/teardown
-
-Please advise.
-```
 
 ## Notes
 
-- **Properties vs Examples**: Property tests verify universal truths; unit tests verify specific examples. Both are valuable.
-- **Smart Generators**: Constrain generators to valid input space - don't test invalid inputs that should be rejected.
-- **Counterexamples**: When tests fail, the counterexample is valuable - it reveals edge cases or bugs.
-- **Shrinking**: Most PBT frameworks automatically shrink counterexamples to minimal failing cases.
-- **Determinism**: Property tests should be deterministic (same seed = same results) for reproducibility.
-- **Documentation**: Always link property tests to design document properties for traceability.
-- **Iteration Count**: 100 iterations is a minimum; increase for critical properties or complex input spaces.
-- **Test Independence**: Each property test should be independent and not rely on other tests.
-
+- **Properties vs Examples**: Property tests verify universal truths; unit tests verify specific examples
+- **Smart Strategies**: Constrain strategies to valid input space
+- **Counterexamples**: When tests fail, counterexamples reveal edge cases or bugs
+- **Shrinking**: Proptest automatically shrinks counterexamples to minimal failing cases
+- **Determinism**: Property tests are deterministic with same seed
+- **Documentation**: Always link property tests to design document properties
+- **Iteration Count**: 100 iterations minimum; increase for critical properties
+- **Test Independence**: Each property test should be independent
+- **Regression Files**: Proptest saves failing cases in `proptest-regressions/`
+- **Rust Idioms**: Follow Rust testing conventions and proptest best practices
