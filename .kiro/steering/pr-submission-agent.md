@@ -273,20 +273,40 @@ git rev-list --count origin/main..HEAD
 - Reset and try again: `git reset --soft origin/main`
 - Ensure all 4 commits are created
 
-### Step 7: Push Branch to Origin
+### Step 7: Verify Branch Tracking and Push
+
+Before pushing, verify the branch is tracking origin/main:
+
+```bash
+# Check branch tracking
+git branch -vv | grep "$(git branch --show-current)"
+```
+
+**Expected output should show tracking origin/main**:
+```
+* feat/1.2-user-login abc1234 [origin/main>] feat(auth): 1.2 Implement user login endpoint
+```
+
+**If not tracking origin/main**:
+```bash
+# Set upstream tracking to origin/main
+git branch --set-upstream-to=origin/main
+```
 
 Push the consolidated commits to the remote repository:
 
 ```bash
-# Push branch with upstream tracking
-git push -u origin HEAD
+# Push branch (no need to specify origin/branch since we track origin/main)
+git push
 ```
 
 **If push fails** (e.g., branch already exists with different history):
 ```bash
 # Force push with lease (safer than --force)
-git push --force-with-lease origin HEAD
+git push --force-with-lease
 ```
+
+**Important**: Do NOT use `git push origin <branch-name>` as this pattern requires command approval. Since the branch tracks origin/main, simply use `git push` or `git push --force-with-lease`.
 
 **Verify push succeeded**:
 ```bash

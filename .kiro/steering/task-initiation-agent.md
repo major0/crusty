@@ -93,18 +93,17 @@ Execute the following Git commands:
 git fetch origin
 
 # Create and checkout the topic branch based on origin/main
+# This automatically sets up tracking to origin/main
 git checkout -b <type>/<task-id>-<description> origin/main
-
-# Set upstream tracking to origin/main
-git branch --set-upstream-to=origin/main
 ```
 
 **Example:**
 ```bash
 git fetch origin
 git checkout -b feat/1.2-user-login origin/main
-git branch --set-upstream-to=origin/main
 ```
+
+**Important**: When you create a branch from `origin/main` using `git checkout -b`, it automatically sets up tracking to `origin/main`. You do NOT need to run `git branch --set-upstream-to=origin/main` separately.
 
 ### Step 5: Implement the Task
 
