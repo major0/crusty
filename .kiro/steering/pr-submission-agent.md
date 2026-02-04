@@ -88,15 +88,40 @@ git log origin/main..HEAD --format="%s" | cut -d: -f1 | sort | uniq -c
 
 ### Step 4: Perform Soft Reset
 
-Consolidate all commits by performing a soft reset against origin/main:
+**CRITICAL**: Always fetch all updates from origin and update local main before performing soft reset.
+
+Before consolidating commits, ensure you're working with the latest code:
 
 ```bash
-# Soft reset preserves all changes in staging area
+# Step 1: Fetch ALL updates from origin (REQUIRED)
+git fetch origin
+
+# Step 2: Update local main branch from origin/main (REQUIRED)
+git checkout main
+git pull origin main
+
+# Step 3: Return to topic branch
+git checkout -
+
+# Step 4: Verify branch is up-to-date with origin/main
+git log HEAD..origin/main --oneline
+
+# Step 5: If origin/main has updates, rebase on latest origin/main
+if [ -n "$(git log HEAD..origin/main --oneline)" ]; then
+  git rebase origin/main
+fi
+
+# Step 6: Perform soft reset to consolidate commits
 git reset --soft origin/main
 
-# Verify all changes are staged
+# Step 7: Verify all changes are staged
 git status
 ```
+
+**Important**:
+- ALWAYS fetch and update local main before soft reset
+- This ensures the PR is based on the latest code
+- Prevents merge conflicts and ensures clean history
 
 **Critical**: The soft reset removes all commits from the branch history but keeps all file changes staged. This allows creating a clean commit history.
 

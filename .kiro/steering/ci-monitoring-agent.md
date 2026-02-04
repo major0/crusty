@@ -153,23 +153,36 @@ Analyze each failure to determine if it can be automatically fixed:
 
 ### Step 6: Pull Latest Changes
 
+**CRITICAL**: Always fetch all updates from origin and update local main before applying fixes.
+
 Before applying fixes, ensure the branch is up-to-date:
 
 ```bash
-# Fetch latest from origin
+# Step 1: Fetch ALL updates from origin (REQUIRED)
 git fetch origin
 
-# Check if origin/main has new commits
+# Step 2: Update local main branch from origin/main (REQUIRED)
+git checkout main
+git pull origin main
+
+# Step 3: Return to topic branch
+git checkout -
+
+# Step 4: Check if origin/main has new commits since branch creation
 git log HEAD..origin/main --oneline
 
-# If origin/main has updates, merge them
-git merge origin/main
-
-# Or rebase if preferred
-git rebase origin/main
+# Step 5: If origin/main has updates, rebase on latest origin/main
+if [ -n "$(git log HEAD..origin/main --oneline)" ]; then
+  git rebase origin/main
+fi
 ```
 
-**If merge conflicts occur**:
+**Important**:
+- ALWAYS fetch and update local main before applying fixes
+- This ensures fixes are applied on top of the latest code
+- Prevents merge conflicts when the PR is eventually merged
+
+**If merge conflicts occur during rebase**:
 - Report conflicts to user
 - Provide conflict resolution guidance
 - Exit without attempting fixes
