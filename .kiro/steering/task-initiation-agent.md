@@ -86,13 +86,20 @@ Create a descriptive branch name using the pattern: `<type>/<task-id>-<descripti
 - `refactor/2.1-api-structure`
 - `perf/4-query-optimization`
 
-Execute the following Git commands:
+**CRITICAL**: Always fetch all updates from origin and update local main before creating or updating any topic branch.
+
+Execute the following Git commands in order:
 
 ```bash
-# Fetch latest changes from origin
+# Step 1: Fetch ALL updates from origin (REQUIRED)
 git fetch origin
 
-# Create and checkout the topic branch based on origin/main
+# Step 2: Update local main branch from origin/main (REQUIRED)
+# This ensures your local main is synchronized with the remote
+git checkout main
+git pull origin main
+
+# Step 3: Create and checkout the topic branch based on origin/main
 # This automatically sets up tracking to origin/main
 git checkout -b <type>/<task-id>-<description> origin/main
 ```
@@ -100,10 +107,22 @@ git checkout -b <type>/<task-id>-<description> origin/main
 **Example:**
 ```bash
 git fetch origin
+git checkout main
+git pull origin main
 git checkout -b feat/1.2-user-login origin/main
 ```
 
-**Important**: When you create a branch from `origin/main` using `git checkout -b`, it automatically sets up tracking to `origin/main`. You do NOT need to run `git branch --set-upstream-to=origin/main` separately.
+**Important**: 
+- When you create a branch from `origin/main` using `git checkout -b`, it automatically sets up tracking to `origin/main`. You do NOT need to run `git branch --set-upstream-to=origin/main` separately.
+- ALWAYS fetch and update local main before creating the topic branch to ensure you're working with the latest code.
+- If updating an existing topic branch, fetch and rebase on the latest origin/main:
+  ```bash
+  git fetch origin
+  git checkout main
+  git pull origin main
+  git checkout <existing-branch>
+  git rebase origin/main
+  ```
 
 ### Step 5: Implement the Task
 
