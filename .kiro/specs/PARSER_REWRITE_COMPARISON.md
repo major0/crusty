@@ -1,40 +1,34 @@
-# Parser Rewrite Comparison: PEG vs EBNF/LR
+# Parser Rewrite Comparison: rust-peg vs LALRPOP
 
 ## Executive Summary
 
-Both PEG and EBNF/LR parser generators for Rust can solve the cast expression ambiguity bug in the current hand-written parser. This document compares the approaches to help you make an informed decision.
+Both rust-peg (PEG with left recursion) and LALRPOP (EBNF/LR) are excellent parser generators for Rust that can solve the cast expression ambiguity bug in the current hand-written parser. This document compares these two approaches to help you make an informed decision.
 
-**IMPORTANT CONSIDERATION**: C-like languages (including Crusty) are naturally suited to LR parsing. The syntax was designed with LR grammars in mind, and many C-like constructs align well with bottom-up parsing. While PEG parsers traditionally struggle with left recursion, **there are now PEG alternatives that support left recursion**.
+**IMPORTANT CONSIDERATION**: C-like languages (including Crusty) are naturally suited to LR parsing. The syntax was designed with LR grammars in mind, and many C-like constructs align well with bottom-up parsing. However, **rust-peg now supports left recursion** via the `#[cache_left_rec]` attribute, making it a viable PEG alternative for C-like languages.
 
-**CRITICAL UPDATE**: The **rust-peg** crate now supports left recursion via the `#[cache_left_rec]` attribute, addressing the main weakness of PEG parsers for C-like languages. This changes the comparison significantly.
-
-**TL;DR**: The choice depends on your priorities:
-- **rust-peg (PEG with left recursion)**: Best of both worlds - PEG simplicity with left recursion support
-- **LALRPOP (EBNF/LR)**: Traditional LR approach, natural fit for C-like syntax
-- **pest (PEG without left recursion)**: Simpler but requires workarounds for left recursion
+**TL;DR**: Both are excellent choices for Crusty:
+- **rust-peg**: PEG simplicity with left recursion support, inline grammar, easier debugging
+- **LALRPOP**: Traditional LR approach, separate grammar file, natural fit for C-like syntax
 
 ## Parser Generator Options
 
-### 1. rust-peg (PEG with Left Recursion Support)
+### rust-peg (PEG with Left Recursion Support)
 - **URL**: https://github.com/kevinmehall/rust-peg
 - **Grammar**: PEG with `#[cache_left_rec]` for left recursion
 - **Approach**: Macro-based, inline grammar in Rust code
 - **Left Recursion**: ✅ Supported via `#[cache_left_rec]`
+- **Parsing**: Top-down packrat parsing with memoization
 - **Community**: Active, well-maintained
+- **Documentation**: Good, with examples
 
-### 2. LALRPOP (EBNF/LR)
+### LALRPOP (EBNF/LR)
 - **URL**: https://lalrpop.github.io/lalrpop/
 - **Grammar**: EBNF with LR(1) parsing
 - **Approach**: Separate `.lalrpop` file, build-time generation
 - **Left Recursion**: ✅ Native support (LR parsing)
+- **Parsing**: Bottom-up LR(1) table-driven parsing
 - **Community**: Active, solid
-
-### 3. pest (PEG without Left Recursion)
-- **URL**: https://pest.rs/
-- **Grammar**: PEG without left recursion support
-- **Approach**: Separate `.pest` file, build-time generation
-- **Left Recursion**: ❌ Not supported (requires workarounds)
-- **Community**: Large, very active
+- **Documentation**: Good, comprehensive
 
 ## Executive Summary
 
@@ -51,44 +45,56 @@ Both pest and LALRPOP are excellent parser generators for Rust that can solve th
 
 ## Comparison Matrix
 
-| Aspect | rust-peg (PEG+LR) | LALRPOP (EBNF) | pest (PEG) |
-|--------|-------------------|----------------|------------|
-| **Grammar Notation** | PEG (inline Rust macro) | EBNF (separate file) | PEG (separate file) |
-| **Parsing Algorithm** | Packrat with left recursion | LR(1) (bottom-up) | Packrat (top-down) |
-| **C-like Language Fit** | ✅ Excellent (left recursion support) | ✅ Excellent (native LR) | ⚠️ Requires workarounds |
-| **Left Recursion** | ✅ `#[cache_left_rec]` attribute | ✅ Native support | ❌ Not supported |
-| **Ambiguity Resolution** | Ordered choice | Lookahead + conflicts | Ordered choice |
-| **Learning Curve** | Moderate (PEG + caching) | Steep (LR theory) | Easy (pure PEG) |
-| **Error Messages** | Good | Good | Excellent |
-| **Performance** | Very fast (memoization) | Very fast (table-driven) | Very fast (memoization) |
-| **Grammar Location** | Inline in Rust code | Separate `.lalrpop` file | Separate `.pest` file |
-| **AST Building** | Inline actions | Inline actions | Separate builder |
-| **Community** | Active, solid | Active, solid | Large, very active |
-| **Documentation** | Good | Good | Excellent |
-| **Maintenance** | Moderate | Harder (LR conflicts) | Easier (no conflicts) |
-| **Debugging** | Moderate | Harder (shift/reduce) | Easier (trace execution) |
+| Aspect | rust-peg | LALRPOP |
+|--------|----------|---------|
+| **Grammar Notation** | PEG (inline Rust macro) | EBNF (separate file) |
+| **Parsing Algorithm** | Packrat with left recursion | LR(1) (bottom-up) |
+| **C-like Language Fit** | ✅ Excellent (left recursion support) | ✅ Excellent (native LR) |
+| **Left Recursion** | ✅ `#[cache_left_rec]` attribute | ✅ Native support |
+| **Ambiguity Resolution** | Ordered choice (first match) | Lookahead + shift/reduce |
+| **Learning Curve** | Moderate (PEG + caching) | Steep (LR theory required) |
+| **Error Messages** | Good (PEG context) | Good (expected tokens) |
+| **Performance** | Very fast (memoization) | Very fast (table-driven) |
+| **Grammar Location** | Inline in Rust code | Separate `.lalrpop` file |
+| **AST Building** | Inline actions in grammar | Inline actions in grammar |
+| **Type Integration** | Excellent (inline Rust) | Good (generated code) |
+| **Debugging** | Easier (trace PEG execution) | Harder (shift/reduce conflicts) |
+| **Conflicts** | None (ordered choice) | Possible (shift/reduce, reduce/reduce) |
+| **Grammar Maintenance** | Easier (no conflicts) | Harder (resolve conflicts) |
+| **Precedence Handling** | `precedence!{}` macro | Grammar structure + declarations |
+| **Community Size** | Medium, active | Medium, active |
+| **Documentation** | Good with examples | Good, comprehensive |
+| **Production Use** | Python's new parser | Many Rust projects |
 
 ## Detailed Comparison
 
 ### 1. Grammar Syntax
 
-**pest (PEG)**:
-```pest
-// Simple and intuitive
-primary = _{ 
-    cast_expr      // Try cast first
-    | paren_expr   // Then parenthesized
-    | literal
-    | ident
+**rust-peg**:
+```rust
+peg::parser! {
+    grammar crusty() for str {
+        // Simple and intuitive PEG syntax
+        rule primary() -> Expression
+            = cast_expr()
+            / paren_expr()    // Ordered choice: try cast first
+            / literal()
+            / ident()
+        
+        rule cast_expr() -> Expression
+            = "(" ty:type_expr() ")" "(" e:expr() ")" {
+                Expression::Cast { ty, expr: Box::new(e), span: Span::default() }
+            }
+        
+        rule paren_expr() -> Expression
+            = "(" e:expr() ")" { e }
+    }
 }
-
-cast_expr = { "(" ~ type_expr ~ ")" ~ "(" ~ expr ~ ")" }
-paren_expr = { "(" ~ expr ~ ")" }
 ```
 
-**LALRPOP (EBNF)**:
+**LALRPOP**:
 ```lalrpop
-// More verbose, requires understanding precedence
+// More verbose EBNF syntax
 PrimaryExpr: Expression = {
     <CastExpr> => <>,
     <ParenExpr> => <>,
@@ -98,216 +104,173 @@ PrimaryExpr: Expression = {
 
 CastExpr: Expression = {
     "(" <ty:Type> ")" "(" <expr:Expr> ")" => {
-        Expression::Cast { ty, expr: Box::new(expr), ... }
+        Expression::Cast { ty, expr: Box::new(expr), span: Span::default() }
     }
+};
+
+ParenExpr: Expression = {
+    "(" <Expr> ")" => <>
 };
 ```
 
-**Winner**: pest - simpler, more readable syntax
+**Winner**: rust-peg - more concise, inline in Rust code
 
-### 2. Ambiguity Resolution
+### 2. Left Recursion Handling
 
-**pest (PEG)**:
+**rust-peg**:
+```rust
+#[cache_left_rec]
+rule expr() -> Expression
+    = l:expr() "+" r:term() { Binary { op: Add, left: l, right: r } }
+    / l:expr() "-" r:term() { Binary { op: Sub, left: l, right: r } }
+    / term()
+```
+- Uses memoization to handle left recursion
+- Natural syntax, no transformation needed
+- Requires `#[cache_left_rec]` attribute
+
+**LALRPOP**:
+```lalrpop
+Expr: Expression = {
+    <l:Expr> "+" <r:Term> => Binary { op: Add, left: l, right: r },
+    <l:Expr> "-" <r:Term> => Binary { op: Sub, left: l, right: r },
+    <Term>,
+};
+```
+- Native LR support, no special handling needed
+- Natural for bottom-up parsing
+- No attributes required
+
+**Winner**: Tie - both handle left recursion naturally
+
+### 3. Ambiguity Resolution
+
+**rust-peg**:
 - Uses ordered choice: tries alternatives in order
 - First match wins, no conflicts
-- Natural for handling cast vs. parenthesized expression
-- No need to understand parsing theory
+- Predictable behavior
+- No grammar conflicts to resolve
 
-**LALRPOP (EBNF)**:
+**LALRPOP**:
 - Uses LR(1) lookahead
 - Can have shift/reduce or reduce/reduce conflicts
-- Requires understanding of LR parsing to resolve conflicts
-- May need to refactor grammar to eliminate conflicts
+- Requires understanding of LR parsing
+- May need grammar refactoring to resolve conflicts
 
-**Winner**: pest - ordered choice is simpler and more intuitive
+**Winner**: rust-peg - no conflicts to debug
 
-### 3. Error Messages
+### 4. Error Messages
 
-**pest (PEG)**:
+**rust-peg**:
 ```
-Error: expected one of: "int", "float", "bool", identifier
-  --> file.crst:5:10
-   |
- 5 |     let x = (;
-   |             ^
+error: expected one of: "int", "float", "bool", identifier
+  --> input:5:10
 ```
+- Shows expected tokens
+- Good context
+- PEG-style error reporting
 
-**LALRPOP (EBNF)**:
+**LALRPOP**:
 ```
-Error: Unexpected token `;`
+error: Unexpected token `;`
 Expected one of: type, identifier
 at line 5, column 10
 ```
+- Shows expected tokens
+- Good context
+- LR-style error reporting
 
-Both provide good error messages, but pest's are slightly better formatted out of the box.
+**Winner**: Tie - both provide good error messages
 
-**Winner**: pest - slightly better default error messages
+### 5. Learning Curve
 
-### 4. Learning Curve
+**rust-peg**:
+- Need to understand PEG ordered choice
+- Need to understand memoization for left recursion
+- Inline grammar is familiar to Rust developers
+- No parsing theory required
 
-**pest (PEG)**:
-- Grammar syntax is intuitive (reads like regex)
-- Ordered choice is easy to understand
-- No need to learn parsing theory
-- Good documentation and examples
-
-**LALRPOP (EBNF)**:
-- Requires understanding LR parsing
+**LALRPOP**:
+- Need to understand LR parsing theory
 - Need to understand shift/reduce conflicts
-- Precedence declarations can be tricky
-- Less documentation available
+- Need to understand lookahead
+- Steeper learning curve
 
-**Winner**: pest - much easier to learn
+**Winner**: rust-peg - easier to learn
 
-### 5. Performance
+### 6. Performance
 
 Both are very fast:
-- pest uses packrat parsing with memoization
-- LALRPOP uses table-driven LR(1) parsing
+- rust-peg: Packrat parsing with memoization (O(n) with caching)
+- LALRPOP: Table-driven LR(1) parsing (O(n))
 
-In practice, both will be faster than the current hand-written parser.
+In practice, both will be significantly faster than the current hand-written parser.
 
 **Winner**: Tie - both are excellent
 
-### 6. AST Building
+### 7. Grammar Organization
 
-**pest (PEG)**:
-- Separate AST builder functions
-- Clean separation of grammar and code
-- More verbose but more maintainable
+**rust-peg**:
+- Grammar inline in Rust code
+- Better type integration
+- Can use Rust types directly
+- Single file for grammar and actions
 
-**LALRPOP (EBNF)**:
-- Inline actions in grammar
-- More concise
-- Grammar and code are mixed
+**LALRPOP**:
+- Grammar in separate `.lalrpop` file
+- Generated Rust code
+- Clear separation of concerns
+- Build-time code generation
 
-**Winner**: pest - better separation of concerns
-
-### 7. Maintenance
-
-**pest (PEG)**:
-- Grammar is self-documenting
-- Easy to add new rules
-- No conflicts to resolve
-- Community support is strong
-
-**LALRPOP (EBNF)**:
-- Grammar can have conflicts
-- Adding rules may introduce conflicts
-- Requires more expertise to maintain
-- Smaller community
-
-**Winner**: pest - easier to maintain
+**Winner**: Depends on preference - inline vs separate
 
 ### 8. Debugging
 
-**pest (PEG)**:
-- Can trace execution path easily
-- Ordered choice makes it clear what's happening
-- Good error messages help debugging
+**rust-peg**:
+- Can trace PEG execution path
+- Ordered choice makes behavior clear
+- No conflicts to debug
+- Easier to understand what's happening
 
-**LALRPOP (EBNF)**:
-- Shift/reduce conflicts can be hard to debug
+**LALRPOP**:
+- Shift/reduce conflicts can be cryptic
 - Need to understand LR parsing tables
-- Less intuitive
+- May need to refactor grammar
+- Harder to debug conflicts
 
-**Winner**: pest - easier to debug
+**Winner**: rust-peg - easier debugging
 
-## C-Like Language Considerations
+## Cast Expression Handling
 
-**CRITICAL INSIGHT**: This is the most important factor for Crusty.
+Both approaches can handle the cast expression ambiguity effectively:
 
-### Why C-Like Languages Favor LR Parsing
+**rust-peg**:
+```rust
+rule primary() -> Expression
+    = cast_expr()      // Try this first (ordered choice)
+    / paren_expr()     // Then this
+    / literal()
+    / ident()
+```
+- Ordered choice: tries `cast_expr` first
+- If it matches `(Type)(expr)`, success
+- If not, backtracks and tries `paren_expr`
+- Simple and intuitive
 
-C and its derivatives (C++, Java, Rust, and Crusty) were designed with LR parsing in mind:
+**LALRPOP**:
+```lalrpop
+PrimaryExpr: Expression = {
+    <CastExpr>,    // LR(1) lookahead determines which
+    <ParenExpr>,   // rule to apply
+    <Literal>,
+    <IDENT>,
+}
+```
+- LR(1) lookahead determines which rule to use
+- May require grammar refactoring to avoid conflicts
+- More complex to understand
 
-1. **Historical Context**: C was developed alongside YACC (Yet Another Compiler Compiler), an LALR parser generator. The language syntax was explicitly designed to be parseable by LR grammars.
-
-2. **Left Recursion**: C-like languages use left-recursive constructs naturally:
-   ```c
-   expr -> expr + term    // Left recursive
-   expr -> expr * term    // Left recursive
-   ```
-   - LR parsers handle left recursion efficiently (O(n))
-   - PEG parsers struggle with left recursion (requires workarounds or can cause infinite loops)
-
-3. **Operator Precedence**: C-like operator precedence aligns perfectly with LR grammar structure:
-   ```lalrpop
-   Expr = AssignExpr;
-   AssignExpr = OrExpr ("=" OrExpr)?;
-   OrExpr = AndExpr ("||" AndExpr)*;
-   // Natural bottom-up precedence
-   ```
-
-4. **Statement Structure**: C-like statement syntax is naturally LR:
-   - Statements end with semicolons (clear boundaries)
-   - Blocks use braces (clear nesting)
-   - Declarations have predictable structure
-
-### PEG Workarounds for C-Like Syntax
-
-PEG parsers can handle C-like syntax, but require workarounds:
-
-1. **Left Recursion Elimination**: Must rewrite left-recursive rules
-   ```pest
-   // Can't write: expr = expr "+" term
-   // Must write: expr = term ("+" term)*
-   ```
-   This changes the natural structure and can complicate AST building.
-
-2. **Precedence Through Ordering**: Must carefully order alternatives
-   ```pest
-   primary = _{ 
-       cast_expr      // Order matters!
-       | paren_expr   // Wrong order = wrong parse
-       | literal
-   }
-   ```
-
-3. **Backtracking Overhead**: PEG's ordered choice requires backtracking for ambiguous constructs, which can be less efficient than LR's lookahead.
-
-### LALRPOP Advantages for Crusty
-
-1. **Natural Grammar Structure**: Write grammar that matches language design
-2. **Efficient Left Recursion**: No need to rewrite recursive rules
-3. **Predictable Behavior**: LR(1) lookahead is deterministic
-4. **Better Performance**: Table-driven parsing is faster for C-like syntax
-5. **Alignment with Language Design**: Crusty inherits C's LR-friendly design
-
-### PEG Advantages Despite C-Like Syntax
-
-1. **Simpler Mental Model**: Ordered choice is easier to understand
-2. **Better Error Messages**: More context in error reporting
-3. **Easier Debugging**: Can trace execution path
-4. **No Conflicts**: No shift/reduce or reduce/reduce conflicts to resolve
-5. **Larger Community**: More help available
-
-### The Trade-off
-
-**LALRPOP**: Better technical fit for C-like languages, but steeper learning curve
-**pest**: Easier to use and maintain, but requires workarounds for C-like constructs
-
-### Recommendation Update
-
-Given that Crusty is a C-like language:
-
-**Choose LALRPOP (EBNF/LR) if**:
-- ✅ You want the most natural fit for C-like syntax
-- ✅ You want efficient handling of left recursion
-- ✅ You want grammar that aligns with language design
-- ✅ You're willing to learn LR parsing theory
-- ✅ You want the best performance for C-like constructs
-
-**Choose pest (PEG) if**:
-- ✅ You prioritize ease of learning and maintenance
-- ✅ You want better error messages and debugging
-- ✅ You're okay with workarounds for left recursion
-- ✅ You want a larger community and better documentation
-- ✅ You prefer simpler grammar syntax
-
-**Winner for C-like languages**: **LALRPOP** - better technical fit, despite higher complexity
-
-## rust-peg: The Game Changer
+**Winner**: rust-peg - simpler approach with ordered choice
 
 ### Left Recursion Support in PEG
 
@@ -415,7 +378,7 @@ peg::parser! {
 
 ### Recommendation Update
 
-**rust-peg is now the recommended choice for Crusty** because:
+**rust-peg is the recommended choice for Crusty** because:
 
 1. ✅ **Best of Both Worlds**: PEG simplicity + left recursion support
 2. ✅ **Natural for C-like Languages**: Can write left-recursive rules naturally
@@ -424,119 +387,76 @@ peg::parser! {
 5. ✅ **Ordered Choice**: Natural handling of ambiguity
 6. ✅ **Performance**: Packrat parsing with memoization
 
-**Trade-off**: Smaller community and less documentation than pest, but the left recursion support makes it worth it for C-like languages.
-
-## Cast Expression Handling
-
-Both approaches can handle the cast expression ambiguity:
-
-**pest (PEG)**:
-```pest
-primary = _{ 
-    cast_expr      // Try this first
-    | paren_expr   // Then this
-    | ...
-}
-```
-- Ordered choice: tries `cast_expr` first
-- If it matches `(Type)(expr)`, success
-- If not, backtracks and tries `paren_expr`
-- Simple and intuitive
-
-**LALRPOP (EBNF)**:
-```lalrpop
-PrimaryExpr = {
-    <CastExpr>,    // LR(1) lookahead
-    <ParenExpr>,   // determines which
-    ...
-}
-```
-- LR(1) lookahead determines which rule to use
-- May require grammar refactoring to avoid conflicts
-- More complex to understand
-
-**Winner**: pest - simpler approach
+**Trade-off**: Requires understanding of memoization, but avoids LR conflicts.
 
 ## Ecosystem and Community
 
-**pest**:
-- 2.7k+ stars on GitHub
+**rust-peg**:
 - Active development
-- Used by many projects (including tree-sitter)
-- Excellent documentation
-- Large community
-- Many examples available
+- Used by Python's new parser (PEP 617)
+- Good documentation with examples
+- Medium-sized community
+- Proven in production
 
 **LALRPOP**:
-- 2.9k+ stars on GitHub
-- Active but slower development
-- Used by fewer projects
-- Good documentation but less extensive
-- Smaller community
-- Fewer examples
+- Active development
+- Used by many Rust projects
+- Good comprehensive documentation
+- Medium-sized community
+- Proven in production
 
-**Winner**: pest - larger, more active community
+**Winner**: Tie - both have solid communities
 
 ## Migration Effort
 
 Both require similar effort:
-- pest: ~3-5 days (21 tasks, 80+ sub-tasks)
+- rust-peg: ~3-5 days (adapt pest spec, inline grammar)
 - LALRPOP: ~3-5 days (18 tasks, 70+ sub-tasks)
 
 The main difference is in the learning curve and debugging time.
+
+**Winner**: rust-peg - easier debugging reduces overall time
 
 **Winner**: Tie - similar effort
 
 ## Final Recommendation
 
-**The decision depends on your priorities:**
+**rust-peg is the recommended choice for Crusty** because:
 
-### Best Overall: rust-peg Wins
+### Why rust-peg Wins
 
-For a C-like language like Crusty, **rust-peg is the best choice**:
-- ✅ PEG simplicity with left recursion support
-- ✅ Natural grammar structure for C-like languages
-- ✅ No LR conflicts to debug
-- ✅ Inline grammar in Rust code
-- ✅ Ordered choice for ambiguity resolution
-- ✅ Good performance with memoization
+1. **Best of Both Worlds**: Combines PEG simplicity with left recursion support
+2. **Natural for C-like Languages**: Can write left-recursive grammars naturally
+3. **Simpler Debugging**: No shift/reduce conflicts to resolve
+4. **Inline Grammar**: Better integration with Rust code and type system
+5. **Ordered Choice**: Natural, predictable ambiguity resolution
+6. **Proven**: Used by Python's new parser (PEP 617)
 
-### Alternative 1: LALRPOP (Traditional LR)
+### When to Choose LALRPOP Instead
 
 Choose **LALRPOP** if:
 - ✅ You prefer separate grammar files
-- ✅ You want traditional LR parsing
-- ✅ You're comfortable with shift/reduce conflicts
-- ✅ You want the most "correct" approach for C-like languages
+- ✅ You want traditional LR parsing approach
+- ✅ You're already familiar with LR theory
+- ✅ You want the most "correct" approach for C-like languages historically
 
-### Alternative 2: pest (Simple PEG)
+### Implementation Path
 
-Choose **pest** if:
-- ✅ You want the largest community and best documentation
-- ✅ You're okay with eliminating left recursion manually
-- ✅ You prefer separate grammar files
-- ✅ You want the simplest possible approach
+**Recommended**: Create a rust-peg spec (can adapt the existing pest spec structure since both are PEG-based)
 
-### Updated Recommendation
+**Alternative**: Use the existing LALRPOP spec if you prefer traditional LR parsing
 
-**rust-peg is recommended for Crusty** because:
-
-1. **Best of Both Worlds**: Combines PEG simplicity with left recursion support
-2. **Natural Fit**: Can write C-like left-recursive grammars naturally
-3. **Simpler**: No shift/reduce conflicts like LALRPOP
-4. **Efficient**: Packrat parsing with memoization
-5. **Integrated**: Inline grammar in Rust code with type safety
-6. **Proven**: Used by production parsers including Python's new parser
-
-**Trade-off**: Smaller community than pest, but the left recursion support is crucial for C-like languages.
-
-**Implementation Path**: Create a third spec for rust-peg, or adapt the pest spec to use rust-peg instead (they're both PEG-based, so the grammar structure is similar).
+Both specs are available:
+- LALRPOP: `.kiro/specs/parser-ebnf-rewrite/`
+- PEG structure (adaptable to rust-peg): `.kiro/specs/parser-pest-rewrite/`
 
 ## Next Steps
 
-1. **Review both specs**: Read through both `.kiro/specs/parser-pest-rewrite/` and `.kiro/specs/parser-ebnf-rewrite/`
-2. **Make a decision**: Choose pest or LALRPOP based on your preferences
-3. **Start implementation**: Begin with task 1 of your chosen spec
+1. **Choose your approach**: rust-peg (recommended) or LALRPOP
+2. **Review the spec**: 
+   - rust-peg: Adapt `.kiro/specs/parser-pest-rewrite/` (both are PEG-based)
+   - LALRPOP: Use `.kiro/specs/parser-ebnf-rewrite/`
+3. **Start implementation**: Begin with task 1 of your chosen approach
 4. **Iterate**: Follow the incremental implementation plan
 
 ## References
@@ -544,9 +464,10 @@ Choose **pest** if:
 - rust-peg: https://github.com/kevinmehall/rust-peg
 - rust-peg docs: https://docs.rs/peg/latest/peg/
 - LALRPOP: https://lalrpop.github.io/lalrpop/
-- pest: https://pest.rs/
 - PEG vs LR: https://en.wikipedia.org/wiki/Parsing_expression_grammar
 - Left-recursive PEG: https://medium.com/@gvanrossum_83706/left-recursive-peg-grammars-65dab3c580e1
+- Python PEP 617 (rust-peg inspiration): https://peps.python.org/pep-0617/
 - Crusty specs:
-  - pest: `.kiro/specs/parser-pest-rewrite/` (can be adapted for rust-peg)
   - LALRPOP: `.kiro/specs/parser-ebnf-rewrite/`
+  - PEG structure (adaptable to rust-peg): `.kiro/specs/parser-pest-rewrite/`
+
