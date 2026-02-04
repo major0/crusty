@@ -99,10 +99,20 @@ format!("Value: {}", x);
 
 Crusty macros use double-underscore naming (`__name__`) without the `!` suffix. The `!` is Rust-specific syntax and is added during transpilation.
 
+### Comma Operator
+```c
+for (int i = 1, j = 2; i < 100; i++, j += 2) {
+    // ...
+}
+```
+
+The comma operator has the lowest precedence and is left-associative. It evaluates its left operand, discards the result, then evaluates and returns its right operand. This is particularly important in for-loop initializers and increments where multiple expressions need to be evaluated in sequence.
+
 ## Formal Grammar
 
 ```ebnf
-expr       = ternary_expr ;
+expr       = comma_expr ;
+comma_expr = ternary_expr ("," ternary_expr)* ;
 ternary    = logical_or ("?" expr ":" expr)? ;
 logical_or = logical_and ("||" logical_and)* ;
 logical_and = equality ("&&" equality)* ;
