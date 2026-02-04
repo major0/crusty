@@ -21,15 +21,19 @@ Two parser generators were evaluated for the rewrite:
 | AST Building | Separate builder functions | Inline actions in grammar |
 | Debugging | Trace execution path | Shift/reduce conflict analysis |
 
-### Decision: pest
+### C-Like Language Considerations
 
-pest was chosen for Crusty because:
+C and its derivatives were historically designed alongside YACC, an LR parser generator. This has implications:
 
-1. PEG ordered choice naturally resolves the cast expression ambiguity — try `(Type)(expr)` first, backtrack to `(expr)` if it fails
-2. Grammar syntax is simpler and more maintainable
-3. No shift/reduce conflicts to debug
-4. Larger community and better documentation
-5. Clean separation between grammar definition and AST construction
+- Left recursion is natural in C-like syntax (e.g., `expr + expr`) — efficient in LR, problematic in PEG
+- Operator precedence aligns with LR grammar structure
+- Statement structure (semicolons, braces) is naturally LR-friendly
+
+PEG workarounds for C-like syntax include eliminating left recursion (which changes the natural grammar structure), encoding precedence through rule ordering, and accepting backtracking overhead for ambiguous constructs.
+
+### Decision
+
+While pest offers a simpler learning curve, the technical fit of LR parsing for C-like languages is significant. The project initially chose pest for ease of use, then reconsidered in favor of rust-peg (a PEG parser with left-recursion support via the `precedence!` macro), which provides the best of both worlds — PEG simplicity with efficient precedence handling.
 
 ## Examples
 
