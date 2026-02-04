@@ -21,7 +21,7 @@ This implementation plan breaks down the rust-peg parser rewrite into discrete, 
     - Implement block_comment rule for /* */ comments
     - _Requirements: 1.5_
   
-  - [ ] 2.2 Define keyword rules with lookahead
+  - [x] 2.2 Define keyword rules with lookahead
     - Create rules for all Crusty keywords (let, var, const, if, else, while, for, return, break, continue, struct, enum, typedef, static, etc.)
     - Use !ident_char() lookahead to ensure keywords don't match as prefixes
     - _Requirements: 1.2_
