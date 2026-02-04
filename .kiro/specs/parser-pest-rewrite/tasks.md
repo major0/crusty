@@ -43,7 +43,7 @@ This implementation plan breaks down the rust-peg parser rewrite into discrete, 
     - _Requirements: 1.2_
 
 - [ ] 3. Define type expression grammar with precedence! macro
-  - [ ] 3.1 Define primitive type rules with actions
+  - [x] 3.1 Define primitive type rules with actions
     - Create rules for int, i32, i64, u32, u64, float, f32, f64, bool, char, void
     - Return Type::Primitive variants
     - _Requirements: 1.2, 6.9_
