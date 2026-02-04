@@ -14,7 +14,7 @@ This implementation plan breaks down the rust-peg parser rewrite into discrete, 
   - _Requirements: 1.1, 9.5_
 
 - [ ] 2. Define core grammar structure with whitespace and comments
-  - [ ] 2.1 Define whitespace and comment rules
+  - [x] 2.1 Define whitespace and comment rules
     - Implement _ rule for optional whitespace (quiet!)
     - Implement __ rule for required whitespace
     - Implement line_comment rule for // comments

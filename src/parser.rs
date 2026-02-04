@@ -5140,4 +5140,51 @@ mod peg_tests {
         let result = crusty_peg_parser::test_int("/* block comment */ 42");
         assert_eq!(result, Ok(42));
     }
+
+    #[test]
+    fn test_peg_mixed_whitespace_and_comments() {
+        // Test mixed whitespace and comments
+        let result = crusty_peg_parser::test_int("  /* comment */  42  // trailing\n");
+        assert_eq!(result, Ok(42));
+
+        let result = crusty_peg_parser::test_int("\t\n  // comment\n  /* block */  \n  42  \n");
+        assert_eq!(result, Ok(42));
+    }
+
+    #[test]
+    fn test_peg_nested_block_comments_not_supported() {
+        // Nested block comments are not supported in C-style comments
+        // This should parse the first /* */ and then fail on the remaining text
+        let result = crusty_peg_parser::test_int("/* outer /* inner */ */ 42");
+        // This will fail because after the first */ the parser sees */ 42 which is invalid
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_peg_line_comment_without_newline() {
+        // Line comments at end of input (no trailing newline)
+        let result = crusty_peg_parser::test_int("42 // comment");
+        assert_eq!(result, Ok(42));
+    }
+
+    #[test]
+    fn test_peg_multiple_line_comments() {
+        // Multiple line comments
+        let result = crusty_peg_parser::test_int("// first\n// second\n42");
+        assert_eq!(result, Ok(42));
+    }
+
+    #[test]
+    fn test_peg_block_comment_multiline() {
+        // Block comment spanning multiple lines
+        let result = crusty_peg_parser::test_int("/* line 1\n   line 2\n   line 3 */ 42");
+        assert_eq!(result, Ok(42));
+    }
+
+    #[test]
+    fn test_peg_whitespace_types() {
+        // Test different whitespace types: space, tab, newline, carriage return
+        let result = crusty_peg_parser::test_int(" \t\r\n42\n\r\t ");
+        assert_eq!(result, Ok(42));
+    }
 }
