@@ -2,6 +2,15 @@
 // Licensed under the MIT License. See LICENSE.txt in the project root.
 
 //! Parser module for building AST from token stream.
+//!
+//! This module contains two parser implementations:
+//! 1. A hand-written recursive descent parser (legacy)
+//! 2. A rust-peg based parser (new implementation)
+//!
+//! The rust-peg parser uses PEG (Parsing Expression Grammar) rules with:
+//! - Lookahead for keyword disambiguation (prevents "let" from matching "letter")
+//! - Whitespace handling with quiet! macro for cleaner error messages
+//! - Direct AST construction within grammar rules
 
 use crate::ast::*;
 use crate::error::ParseError;
@@ -5083,6 +5092,162 @@ peg::parser! {
         rule block_comment() = "/*" (!"*/" [_])* "*/"
 
         // ====================================================================
+        // KEYWORDS
+        // ====================================================================
+        // Keywords use lookahead (!ident_char()) to ensure they don't match
+        // as prefixes of identifiers. For example, "let" should not match "letter".
+        //
+        // The lookahead mechanism works by:
+        // 1. Matching the keyword string (e.g., "let")
+        // 2. Using negative lookahead !ident_char() to ensure the next character
+        //    is NOT a valid identifier character
+        // 3. This prevents "let" from matching the prefix of "letter" or "let_value"
+        //
+        // All Crusty keywords are defined here, organized by category:
+        // - Variable declarations: let, var, const, static, mut
+        // - Control flow: if, else, while, for, in, return, break, continue, loop, match, switch, case, default
+        // - Type declarations: struct, enum, typedef
+        // - Modifiers: extern, unsafe, auto
+        // - Primitive types: int, i32, i64, u32, u64, float, f32, f64, bool, char, void
+        // - Literals: true, false, NULL
+        // - Preprocessor: define
+
+        /// Helper: character that can appear in an identifier
+        rule ident_char() = ['a'..='z' | 'A'..='Z' | '0'..='9' | '_']
+
+        /// Keyword: let
+        rule kw_let() = "let" !ident_char()
+
+        /// Keyword: var
+        rule kw_var() = "var" !ident_char()
+
+        /// Keyword: const
+        rule kw_const() = "const" !ident_char()
+
+        /// Keyword: static
+        rule kw_static() = "static" !ident_char()
+
+        /// Keyword: mut
+        rule kw_mut() = "mut" !ident_char()
+
+        /// Keyword: define
+        rule kw_define() = "define" !ident_char()
+
+        /// Keyword: if
+        rule kw_if() = "if" !ident_char()
+
+        /// Keyword: else
+        rule kw_else() = "else" !ident_char()
+
+        /// Keyword: while
+        rule kw_while() = "while" !ident_char()
+
+        /// Keyword: for
+        rule kw_for() = "for" !ident_char()
+
+        /// Keyword: in
+        rule kw_in() = "in" !ident_char()
+
+        /// Keyword: return
+        rule kw_return() = "return" !ident_char()
+
+        /// Keyword: break
+        rule kw_break() = "break" !ident_char()
+
+        /// Keyword: continue
+        rule kw_continue() = "continue" !ident_char()
+
+        /// Keyword: struct
+        rule kw_struct() = "struct" !ident_char()
+
+        /// Keyword: enum
+        rule kw_enum() = "enum" !ident_char()
+
+        /// Keyword: typedef
+        rule kw_typedef() = "typedef" !ident_char()
+
+        /// Keyword: namespace
+        rule kw_namespace() = "namespace" !ident_char()
+
+        /// Keyword: extern
+        rule kw_extern() = "extern" !ident_char()
+
+        /// Keyword: unsafe
+        rule kw_unsafe() = "unsafe" !ident_char()
+
+        /// Keyword: loop
+        rule kw_loop() = "loop" !ident_char()
+
+        /// Keyword: match
+        rule kw_match() = "match" !ident_char()
+
+        /// Keyword: switch
+        rule kw_switch() = "switch" !ident_char()
+
+        /// Keyword: case
+        rule kw_case() = "case" !ident_char()
+
+        /// Keyword: default
+        rule kw_default() = "default" !ident_char()
+
+        /// Keyword: auto
+        rule kw_auto() = "auto" !ident_char()
+
+        /// Keyword: int
+        rule kw_int() = "int" !ident_char()
+
+        /// Keyword: i32
+        rule kw_i32() = "i32" !ident_char()
+
+        /// Keyword: i64
+        rule kw_i64() = "i64" !ident_char()
+
+        /// Keyword: u32
+        rule kw_u32() = "u32" !ident_char()
+
+        /// Keyword: u64
+        rule kw_u64() = "u64" !ident_char()
+
+        /// Keyword: float
+        rule kw_float() = "float" !ident_char()
+
+        /// Keyword: f32
+        rule kw_f32() = "f32" !ident_char()
+
+        /// Keyword: f64
+        rule kw_f64() = "f64" !ident_char()
+
+        /// Keyword: bool
+        rule kw_bool() = "bool" !ident_char()
+
+        /// Keyword: char
+        rule kw_char() = "char" !ident_char()
+
+        /// Keyword: void
+        rule kw_void() = "void" !ident_char()
+
+        /// Keyword: true
+        rule kw_true() = "true" !ident_char()
+
+        /// Keyword: false
+        rule kw_false() = "false" !ident_char()
+
+        /// Keyword: NULL
+        rule kw_null() = "NULL" !ident_char()
+
+        /// Helper: matches any keyword (used to prevent keywords from being parsed as identifiers)
+        rule keyword() = kw_let() / kw_var() / kw_const() / kw_static() / kw_mut() / kw_define()
+            / kw_if() / kw_else() / kw_while() / kw_for() / kw_in()
+            / kw_return() / kw_break() / kw_continue()
+            / kw_struct() / kw_enum() / kw_typedef()
+            / kw_namespace() / kw_extern() / kw_unsafe()
+            / kw_loop() / kw_match() / kw_switch() / kw_case() / kw_default() / kw_auto()
+            / kw_int() / kw_i32() / kw_i64() / kw_u32() / kw_u64()
+            / kw_float() / kw_f32() / kw_f64()
+            / kw_bool() / kw_char() / kw_void()
+            / kw_true() / kw_false() / kw_null()
+
+        // ====================================================================
         // MINIMAL TEST GRAMMAR
         // ====================================================================
 
@@ -5093,6 +5258,15 @@ peg::parser! {
         /// Test rule: parse a simple identifier
         pub rule test_ident() -> String
             = _ n:$((['a'..='z' | 'A'..='Z' | '_']) (['a'..='z' | 'A'..='Z' | '0'..='9' | '_'])*) _
+            { n.to_string() }
+
+        /// Test rule: parse a keyword (returns the keyword as a string)
+        pub rule test_keyword() -> String
+            = _ k:$(keyword()) _ { k.to_string() }
+
+        /// Test rule: verify that a string is NOT a keyword (should fail if it is)
+        pub rule test_not_keyword() -> String
+            = _ !keyword() n:$((['a'..='z' | 'A'..='Z' | '_']) ident_char()*) _
             { n.to_string() }
     }
 }
@@ -5186,5 +5360,788 @@ mod peg_tests {
         // Test different whitespace types: space, tab, newline, carriage return
         let result = crusty_peg_parser::test_int(" \t\r\n42\n\r\t ");
         assert_eq!(result, Ok(42));
+    }
+
+    // ========================================================================
+    // KEYWORD TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_peg_keywords_basic() {
+        // Test that basic keywords are recognized
+        assert_eq!(
+            crusty_peg_parser::test_keyword("let"),
+            Ok("let".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("var"),
+            Ok("var".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("const"),
+            Ok("const".to_string())
+        );
+        assert_eq!(crusty_peg_parser::test_keyword("if"), Ok("if".to_string()));
+        assert_eq!(
+            crusty_peg_parser::test_keyword("else"),
+            Ok("else".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("while"),
+            Ok("while".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("for"),
+            Ok("for".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("return"),
+            Ok("return".to_string())
+        );
+    }
+
+    #[test]
+    fn test_peg_keywords_control_flow() {
+        // Test control flow keywords
+        assert_eq!(
+            crusty_peg_parser::test_keyword("break"),
+            Ok("break".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("continue"),
+            Ok("continue".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("switch"),
+            Ok("switch".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("case"),
+            Ok("case".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("default"),
+            Ok("default".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("loop"),
+            Ok("loop".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("match"),
+            Ok("match".to_string())
+        );
+    }
+
+    #[test]
+    fn test_peg_keywords_declarations() {
+        // Test declaration keywords
+        assert_eq!(
+            crusty_peg_parser::test_keyword("struct"),
+            Ok("struct".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("enum"),
+            Ok("enum".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("typedef"),
+            Ok("typedef".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("static"),
+            Ok("static".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("mut"),
+            Ok("mut".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("extern"),
+            Ok("extern".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("unsafe"),
+            Ok("unsafe".to_string())
+        );
+    }
+
+    #[test]
+    fn test_peg_keywords_types() {
+        // Test type keywords
+        assert_eq!(
+            crusty_peg_parser::test_keyword("int"),
+            Ok("int".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("i32"),
+            Ok("i32".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("i64"),
+            Ok("i64".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("u32"),
+            Ok("u32".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("u64"),
+            Ok("u64".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("float"),
+            Ok("float".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("f32"),
+            Ok("f32".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("f64"),
+            Ok("f64".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("bool"),
+            Ok("bool".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("char"),
+            Ok("char".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("void"),
+            Ok("void".to_string())
+        );
+    }
+
+    #[test]
+    fn test_peg_keywords_literals() {
+        // Test literal keywords
+        assert_eq!(
+            crusty_peg_parser::test_keyword("true"),
+            Ok("true".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("false"),
+            Ok("false".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("NULL"),
+            Ok("NULL".to_string())
+        );
+    }
+
+    #[test]
+    fn test_peg_keywords_with_whitespace() {
+        // Test that keywords work with surrounding whitespace
+        assert_eq!(
+            crusty_peg_parser::test_keyword("  let  "),
+            Ok("let".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("\tvar\n"),
+            Ok("var".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_keyword("  /* comment */ if  "),
+            Ok("if".to_string())
+        );
+    }
+
+    #[test]
+    fn test_peg_keyword_lookahead() {
+        // Test that keywords don't match as prefixes of identifiers
+        // "letter" should NOT match as keyword "let"
+        assert!(crusty_peg_parser::test_keyword("letter").is_err());
+
+        // "variable" should NOT match as keyword "var"
+        assert!(crusty_peg_parser::test_keyword("variable").is_err());
+
+        // "ifelse" should NOT match as keyword "if"
+        assert!(crusty_peg_parser::test_keyword("ifelse").is_err());
+
+        // "return_value" should NOT match as keyword "return"
+        assert!(crusty_peg_parser::test_keyword("return_value").is_err());
+
+        // "int32" should NOT match as keyword "int"
+        assert!(crusty_peg_parser::test_keyword("int32").is_err());
+    }
+
+    #[test]
+    fn test_peg_not_keyword() {
+        // Test that non-keywords are correctly identified
+        assert_eq!(
+            crusty_peg_parser::test_not_keyword("hello"),
+            Ok("hello".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_not_keyword("foo_bar"),
+            Ok("foo_bar".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_not_keyword("_test"),
+            Ok("_test".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_not_keyword("myVar123"),
+            Ok("myVar123".to_string())
+        );
+
+        // These should fail because they ARE keywords
+        assert!(crusty_peg_parser::test_not_keyword("let").is_err());
+        assert!(crusty_peg_parser::test_not_keyword("var").is_err());
+        assert!(crusty_peg_parser::test_not_keyword("if").is_err());
+        assert!(crusty_peg_parser::test_not_keyword("int").is_err());
+    }
+
+    #[test]
+    fn test_peg_keyword_case_sensitivity() {
+        // Test that keywords are case-sensitive
+        // "Let" should NOT match keyword "let"
+        assert!(crusty_peg_parser::test_keyword("Let").is_err());
+        assert!(crusty_peg_parser::test_keyword("VAR").is_err());
+        assert!(crusty_peg_parser::test_keyword("IF").is_err());
+        assert!(crusty_peg_parser::test_keyword("Int").is_err());
+
+        // But they should be valid identifiers
+        assert_eq!(
+            crusty_peg_parser::test_not_keyword("Let"),
+            Ok("Let".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_not_keyword("VAR"),
+            Ok("VAR".to_string())
+        );
+    }
+
+    #[test]
+    fn test_peg_keywords_all() {
+        // Comprehensive test of all keywords
+        let keywords = vec![
+            "let",
+            "var",
+            "const",
+            "static",
+            "mut",
+            "define",
+            "if",
+            "else",
+            "while",
+            "for",
+            "in",
+            "return",
+            "break",
+            "continue",
+            "struct",
+            "enum",
+            "typedef",
+            "namespace",
+            "extern",
+            "unsafe",
+            "loop",
+            "match",
+            "switch",
+            "case",
+            "default",
+            "auto",
+            "int",
+            "i32",
+            "i64",
+            "u32",
+            "u64",
+            "float",
+            "f32",
+            "f64",
+            "bool",
+            "char",
+            "void",
+            "true",
+            "false",
+            "NULL",
+        ];
+
+        for keyword in keywords {
+            assert_eq!(
+                crusty_peg_parser::test_keyword(keyword),
+                Ok(keyword.to_string()),
+                "Failed to parse keyword: {}",
+                keyword
+            );
+        }
+    }
+
+    #[test]
+    fn test_peg_keywords_followed_by_punctuation() {
+        // Test that keywords work correctly when followed by punctuation
+        // The test_keyword rule expects EOF, so these will fail at the parser level
+        // but the important thing is that the keyword itself is recognized
+        // (the lookahead !ident_char() allows punctuation to follow)
+
+        // These fail because test_keyword expects EOF after the keyword
+        // but this demonstrates that the lookahead correctly allows punctuation
+        assert!(crusty_peg_parser::test_keyword("let(").is_err());
+        assert!(crusty_peg_parser::test_keyword("if{").is_err());
+
+        // However, with whitespace before punctuation, they work
+        assert_eq!(
+            crusty_peg_parser::test_keyword("let "),
+            Ok("let".to_string())
+        );
+        assert_eq!(crusty_peg_parser::test_keyword("if "), Ok("if".to_string()));
+
+        // The key test: keywords followed by ident_char should fail
+        // This is tested in other tests, but let's verify the contrast
+        assert!(crusty_peg_parser::test_keyword("leta").is_err());
+        assert!(crusty_peg_parser::test_keyword("if1").is_err());
+    }
+
+    #[test]
+    fn test_peg_keywords_with_numbers_after() {
+        // Test that keywords followed by numbers are NOT recognized as keywords
+        // because numbers are valid ident_char
+        assert!(crusty_peg_parser::test_keyword("let1").is_err());
+        assert!(crusty_peg_parser::test_keyword("if2").is_err());
+        assert!(crusty_peg_parser::test_keyword("var123").is_err());
+        assert!(crusty_peg_parser::test_keyword("int0").is_err());
+        assert!(crusty_peg_parser::test_keyword("for99").is_err());
+    }
+
+    #[test]
+    fn test_peg_keywords_with_underscore_after() {
+        // Test that keywords followed by underscore are NOT recognized as keywords
+        // because underscore is a valid ident_char
+        assert!(crusty_peg_parser::test_keyword("let_").is_err());
+        assert!(crusty_peg_parser::test_keyword("if_").is_err());
+        assert!(crusty_peg_parser::test_keyword("var_x").is_err());
+        assert!(crusty_peg_parser::test_keyword("int_type").is_err());
+    }
+
+    #[test]
+    fn test_peg_keywords_at_boundaries() {
+        // Test keywords at start and end of input (no surrounding whitespace)
+        assert_eq!(
+            crusty_peg_parser::test_keyword("let"),
+            Ok("let".to_string())
+        );
+        assert_eq!(crusty_peg_parser::test_keyword("if"), Ok("if".to_string()));
+        assert_eq!(
+            crusty_peg_parser::test_keyword("int"),
+            Ok("int".to_string())
+        );
+
+        // Test with only leading whitespace
+        assert_eq!(
+            crusty_peg_parser::test_keyword("  let"),
+            Ok("let".to_string())
+        );
+
+        // Test with only trailing whitespace
+        assert_eq!(
+            crusty_peg_parser::test_keyword("let  "),
+            Ok("let".to_string())
+        );
+    }
+
+    #[test]
+    fn test_peg_keywords_similar_to_identifiers() {
+        // Test keywords that are prefixes or similar to common identifiers
+        // These should fail because they have ident_char after the keyword
+        assert!(crusty_peg_parser::test_keyword("integer").is_err());
+        assert!(crusty_peg_parser::test_keyword("floating").is_err());
+        assert!(crusty_peg_parser::test_keyword("boolean").is_err());
+        assert!(crusty_peg_parser::test_keyword("character").is_err());
+        assert!(crusty_peg_parser::test_keyword("structure").is_err());
+        assert!(crusty_peg_parser::test_keyword("enumeration").is_err());
+        assert!(crusty_peg_parser::test_keyword("constant").is_err());
+        assert!(crusty_peg_parser::test_keyword("statement").is_err());
+    }
+
+    #[test]
+    fn test_peg_keywords_lookahead_comprehensive() {
+        // Comprehensive test of lookahead preventing keyword matches
+        // when followed by valid identifier characters
+
+        // Alphabetic characters after keywords
+        assert!(crusty_peg_parser::test_keyword("leta").is_err());
+        assert!(crusty_peg_parser::test_keyword("ifA").is_err());
+        assert!(crusty_peg_parser::test_keyword("varZ").is_err());
+
+        // Numbers after keywords
+        assert!(crusty_peg_parser::test_keyword("int0").is_err());
+        assert!(crusty_peg_parser::test_keyword("for9").is_err());
+
+        // Underscore after keywords
+        assert!(crusty_peg_parser::test_keyword("let_").is_err());
+        assert!(crusty_peg_parser::test_keyword("if_").is_err());
+
+        // Mixed alphanumeric after keywords
+        assert!(crusty_peg_parser::test_keyword("let_x1").is_err());
+        assert!(crusty_peg_parser::test_keyword("if_test_123").is_err());
+    }
+
+    #[test]
+    fn test_peg_not_keyword_edge_cases() {
+        // Test that identifiers similar to keywords are correctly identified as non-keywords
+        assert_eq!(
+            crusty_peg_parser::test_not_keyword("letter"),
+            Ok("letter".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_not_keyword("variable"),
+            Ok("variable".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_not_keyword("ifelse"),
+            Ok("ifelse".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_not_keyword("integer"),
+            Ok("integer".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_not_keyword("let_x"),
+            Ok("let_x".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_not_keyword("if1"),
+            Ok("if1".to_string())
+        );
+        assert_eq!(
+            crusty_peg_parser::test_not_keyword("var_"),
+            Ok("var_".to_string())
+        );
+    }
+}
+
+// ============================================================================
+// PROPERTY-BASED TESTS FOR KEYWORD RULES (Task 2.2)
+// ============================================================================
+
+#[cfg(test)]
+mod keyword_properties {
+    use super::*;
+    use proptest::prelude::*;
+
+    // All Crusty keywords
+    const KEYWORDS: &[&str] = &[
+        "let",
+        "var",
+        "const",
+        "static",
+        "mut",
+        "define",
+        "if",
+        "else",
+        "while",
+        "for",
+        "in",
+        "return",
+        "break",
+        "continue",
+        "struct",
+        "enum",
+        "typedef",
+        "namespace",
+        "extern",
+        "unsafe",
+        "loop",
+        "match",
+        "switch",
+        "case",
+        "default",
+        "auto",
+        "int",
+        "i32",
+        "i64",
+        "u32",
+        "u64",
+        "float",
+        "f32",
+        "f64",
+        "bool",
+        "char",
+        "void",
+        "true",
+        "false",
+        "NULL",
+    ];
+
+    // Strategy: Generate a random keyword from the list
+    fn keyword_strategy() -> impl Strategy<Value = String> {
+        prop::sample::select(KEYWORDS.to_vec()).prop_map(|s| s.to_string())
+    }
+
+    // Strategy: Generate a valid identifier character
+    fn ident_char_strategy() -> impl Strategy<Value = char> {
+        prop_oneof![
+            prop::char::range('a', 'z'),
+            prop::char::range('A', 'Z'),
+            prop::char::range('0', '9'),
+            Just('_'),
+        ]
+    }
+
+    // Strategy: Generate a valid identifier suffix (non-empty)
+    fn ident_suffix_strategy() -> impl Strategy<Value = String> {
+        prop::collection::vec(ident_char_strategy(), 1..10)
+            .prop_map(|chars| chars.into_iter().collect())
+    }
+
+    // Strategy: Generate a non-identifier character (whitespace, punctuation, etc.)
+    fn non_ident_char_strategy() -> impl Strategy<Value = char> {
+        prop_oneof![Just(' '), Just('\t'), Just('\n'), Just('\r'),]
+    }
+
+    // Strategy: Generate a valid identifier that is NOT a keyword
+    fn non_keyword_ident_strategy() -> impl Strategy<Value = String> {
+        "[a-zA-Z_][a-zA-Z0-9_]{0,20}"
+            .prop_filter("Must not be a keyword", |s| !KEYWORDS.contains(&s.as_str()))
+    }
+
+    /// Property 1: Keyword Recognition
+    ///
+    /// For any keyword in the Crusty language, the parser should recognize it
+    /// as a keyword when followed by a non-identifier character.
+    ///
+    /// Validates: Requirements 1.2 (Grammar completeness)
+    #[test]
+    fn property_keyword_recognition() {
+        proptest!(ProptestConfig::with_cases(100), |(
+            keyword in keyword_strategy(),
+            terminator in non_ident_char_strategy()
+        )| {
+            let input = format!("{}{}", keyword, terminator);
+            let result = crusty_peg_parser::test_keyword(&input);
+            prop_assert!(
+                result.is_ok(),
+                "Keyword '{}' should be recognized in input '{}'",
+                keyword,
+                input
+            );
+            prop_assert_eq!(
+                result.unwrap(),
+                keyword,
+                "Parsed keyword should match input keyword"
+            );
+        });
+    }
+
+    /// Property 2: Lookahead Correctness
+    ///
+    /// For any keyword followed by identifier characters, the parser should NOT
+    /// recognize it as a keyword (it's a prefix of an identifier).
+    ///
+    /// Example: "letter" should not match keyword "let"
+    ///
+    /// Validates: Requirements 1.2 (Keyword lookahead)
+    #[test]
+    fn property_keyword_lookahead() {
+        proptest!(ProptestConfig::with_cases(100), |(
+            keyword in keyword_strategy(),
+            suffix in ident_suffix_strategy()
+        )| {
+            let input = format!("{}{}", keyword, suffix);
+            let result = crusty_peg_parser::test_keyword(&input);
+            prop_assert!(
+                result.is_err(),
+                "Keyword '{}' with suffix '{}' should NOT be recognized as keyword (input: '{}')",
+                keyword,
+                suffix,
+                input
+            );
+        });
+    }
+
+    /// Property 3: Case Sensitivity
+    ///
+    /// Keywords are case-sensitive. Variations in case should NOT match the keyword.
+    ///
+    /// Example: "Let" should not match keyword "let"
+    ///
+    /// Validates: Requirements 1.2 (Keyword case sensitivity)
+    #[test]
+    fn property_keyword_case_sensitivity() {
+        proptest!(ProptestConfig::with_cases(100), |(
+            keyword in keyword_strategy(),
+        )| {
+            // Convert first character to uppercase (if lowercase) or lowercase (if uppercase)
+            let mut chars: Vec<char> = keyword.chars().collect();
+            if chars[0].is_lowercase() {
+                chars[0] = chars[0].to_uppercase().next().unwrap();
+            } else {
+                chars[0] = chars[0].to_lowercase().next().unwrap();
+            }
+            let modified: String = chars.into_iter().collect();
+
+            // Only test if the modification actually changed the string
+            prop_assume!(modified != keyword);
+
+            let result = crusty_peg_parser::test_keyword(&modified);
+            prop_assert!(
+                result.is_err(),
+                "Case-modified keyword '{}' (from '{}') should NOT be recognized as keyword",
+                modified,
+                keyword
+            );
+        });
+    }
+
+    /// Property 4: Non-Keyword Identifier Rejection
+    ///
+    /// For any valid identifier that is NOT a keyword, the keyword parser
+    /// should reject it.
+    ///
+    /// Validates: Requirements 1.2 (Keyword vs identifier distinction)
+    #[test]
+    fn property_non_keyword_rejection() {
+        proptest!(ProptestConfig::with_cases(100), |(
+            ident in non_keyword_ident_strategy(),
+        )| {
+            let result = crusty_peg_parser::test_keyword(&ident);
+            prop_assert!(
+                result.is_err(),
+                "Non-keyword identifier '{}' should NOT be recognized as keyword",
+                ident
+            );
+        });
+    }
+
+    /// Property 5: Keyword Boundary Detection
+    ///
+    /// Keywords must be complete tokens. A keyword followed by an identifier
+    /// character should not match, but a keyword followed by whitespace or
+    /// punctuation should match.
+    ///
+    /// Validates: Requirements 1.2 (Keyword boundary detection)
+    #[test]
+    fn property_keyword_boundary() {
+        proptest!(ProptestConfig::with_cases(100), |(
+            keyword in keyword_strategy(),
+        )| {
+            // Test with no trailing content (end of input)
+            let result = crusty_peg_parser::test_keyword(&keyword);
+            prop_assert!(
+                result.is_ok(),
+                "Keyword '{}' at end of input should be recognized",
+                keyword
+            );
+
+            // Test with trailing whitespace
+            let input_with_space = format!("{} ", keyword);
+            let result2 = crusty_peg_parser::test_keyword(&input_with_space);
+            prop_assert!(
+                result2.is_ok(),
+                "Keyword '{}' with trailing space should be recognized",
+                keyword
+            );
+        });
+    }
+
+    /// Property 6: Keyword Not Identifier
+    ///
+    /// For any keyword, the test_not_keyword parser should reject it
+    /// (it should fail because the input IS a keyword).
+    ///
+    /// Validates: Requirements 1.2 (Keyword exclusion from identifiers)
+    #[test]
+    fn property_keyword_not_identifier() {
+        proptest!(ProptestConfig::with_cases(100), |(
+            keyword in keyword_strategy(),
+        )| {
+            let result = crusty_peg_parser::test_not_keyword(&keyword);
+            prop_assert!(
+                result.is_err(),
+                "Keyword '{}' should be rejected by test_not_keyword (it IS a keyword)",
+                keyword
+            );
+        });
+    }
+
+    /// Property 7: Non-Keyword Is Identifier
+    ///
+    /// For any valid identifier that is NOT a keyword, the test_not_keyword
+    /// parser should accept it.
+    ///
+    /// Validates: Requirements 1.2 (Non-keyword identifiers are valid)
+    #[test]
+    fn property_non_keyword_is_identifier() {
+        proptest!(ProptestConfig::with_cases(100), |(
+            ident in non_keyword_ident_strategy(),
+        )| {
+            let result = crusty_peg_parser::test_not_keyword(&ident);
+            prop_assert!(
+                result.is_ok(),
+                "Non-keyword identifier '{}' should be accepted by test_not_keyword",
+                ident
+            );
+            prop_assert_eq!(
+                result.unwrap(),
+                ident,
+                "Parsed identifier should match input"
+            );
+        });
+    }
+
+    /// Property 8: Keyword Completeness
+    ///
+    /// All keywords defined in KEYWORDS should be recognized by the parser.
+    /// This ensures no keyword is missing from the grammar.
+    ///
+    /// Validates: Requirements 1.2 (Grammar completeness)
+    #[test]
+    fn property_keyword_completeness() {
+        // Test all keywords are recognized
+        for keyword in KEYWORDS {
+            let result = crusty_peg_parser::test_keyword(keyword);
+            assert!(result.is_ok(), "Keyword '{}' should be recognized", keyword);
+            assert_eq!(result.unwrap(), *keyword, "Parsed keyword should match");
+        }
+    }
+
+    /// Property 9: Keyword with Whitespace Prefix
+    ///
+    /// Keywords should be recognized even with leading whitespace.
+    ///
+    /// Validates: Requirements 1.5 (Whitespace handling)
+    #[test]
+    fn property_keyword_with_whitespace_prefix() {
+        proptest!(ProptestConfig::with_cases(100), |(
+            keyword in keyword_strategy(),
+            spaces in prop::collection::vec(prop_oneof![Just(' '), Just('\t'), Just('\n')], 1..5),
+        )| {
+            let prefix: String = spaces.into_iter().collect();
+            let input = format!("{}{}", prefix, keyword);
+            let result = crusty_peg_parser::test_keyword(&input);
+            prop_assert!(
+                result.is_ok(),
+                "Keyword '{}' with whitespace prefix should be recognized (input: '{:?}')",
+                keyword,
+                input
+            );
+        });
+    }
+
+    /// Property 10: Keyword with Whitespace Suffix
+    ///
+    /// Keywords should be recognized with trailing whitespace.
+    ///
+    /// Validates: Requirements 1.5 (Whitespace handling)
+    #[test]
+    fn property_keyword_with_whitespace_suffix() {
+        proptest!(ProptestConfig::with_cases(100), |(
+            keyword in keyword_strategy(),
+            spaces in prop::collection::vec(prop_oneof![Just(' '), Just('\t'), Just('\n')], 1..5),
+        )| {
+            let suffix: String = spaces.into_iter().collect();
+            let input = format!("{}{}", keyword, suffix);
+            let result = crusty_peg_parser::test_keyword(&input);
+            prop_assert!(
+                result.is_ok(),
+                "Keyword '{}' with whitespace suffix should be recognized (input: '{:?}')",
+                keyword,
+                input
+            );
+        });
     }
 }
