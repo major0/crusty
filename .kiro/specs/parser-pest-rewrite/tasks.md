@@ -26,7 +26,7 @@ This implementation plan breaks down the rust-peg parser rewrite into discrete, 
     - Use !ident_char() lookahead to ensure keywords don't match as prefixes
     - _Requirements: 1.2_
   
-  - [ ] 2.3 Define literal rules with actions
+  - [x] 2.3 Define literal rules with actions
     - Implement int_literal rule returning Literal::Int
     - Implement float_literal rule returning Literal::Float
     - Implement string_literal rule with escape sequences returning Literal::String
