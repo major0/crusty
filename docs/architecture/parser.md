@@ -6,7 +6,26 @@ The parser is the second phase of the Crusty compiler. It consumes the token str
 
 ## Rationale
 
-A recursive descent parser was chosen for its simplicity and ability to produce clear error messages. The parser uses operator precedence climbing for expression parsing, which handles C's complex operator precedence rules naturally.
+A recursive descent parser was initially chosen for its simplicity and ability to produce clear error messages. The parser uses operator precedence climbing for expression parsing, which handles C's complex operator precedence rules naturally.
+
+### Parser Rewrite
+
+The hand-written parser was later rewritten using rust-peg, a PEG parser generator with left recursion support. The rewrite addresses limitations around backtracking and ambiguous grammar handling — particularly C-style cast expressions `(Type)(expr)` vs parenthesized expressions `(expr)`.
+
+The rewrite architecture:
+
+```
+Source Code → rust-peg Parser (from inline grammar)
+            → Parse Tree
+            → AST Builder (custom Rust code)
+            → AST (existing ast.rs structures)
+```
+
+Key design decisions:
+- Inline grammar in Rust code for type integration
+- Maintain full AST compatibility — no changes to downstream phases
+- `precedence!` macro for operator precedence
+- Ordered choice for cast expression ambiguity resolution
 
 ## Examples
 
