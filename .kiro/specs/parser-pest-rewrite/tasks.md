@@ -57,14 +57,14 @@ This implementation plan breaks down the rust-peg parser rewrite into discrete, 
     - Implement slice_type rule
     - _Requirements: 1.2, 6.9_
   
-  - [ ] 3.3 Define type_expr rule with precedence! macro
+  - [x] 3.3 Define type_expr rule with precedence! macro
     - Use precedence! to handle type operators
     - Include all type forms with correct precedence
     - Return Type enum variants
     - _Requirements: 1.2, 6.9_
 
 - [ ] 4. Define expression grammar with precedence! macro
-  - [ ] 4.1 Define primary expression rules with actions
+  - [x] 4.1 Define primary expression rules with actions
     - Implement literal_expr rule returning Expression::Literal
     - Implement ident_expr rule returning Expression::Ident
     - Implement paren_expr rule (returns inner expression)
