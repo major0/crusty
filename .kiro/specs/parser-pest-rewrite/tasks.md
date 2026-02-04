@@ -48,7 +48,7 @@ This implementation plan breaks down the rust-peg parser rewrite into discrete, 
     - Return Type::Primitive variants
     - _Requirements: 1.2, 6.9_
   
-  - [ ] 3.2 Define complex type rules using precedence! macro
+  - [x] 3.2 Define complex type rules using precedence! macro
     - Implement pointer_type in precedence! (t:@ "*")
     - Implement reference_type in precedence! ("&" "mut"? _ t:@)
     - Implement array_type in precedence! (t:@ "[" _ size? _ "]")

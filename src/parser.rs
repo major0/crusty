@@ -5432,6 +5432,158 @@ peg::parser! {
             / primitive_void()
 
         // ====================================================================
+        // COMPLEX TYPES (Task 3.2)
+        // ====================================================================
+        // Complex type expressions: pointers, references, arrays, tuples, generics, slices
+        //
+        // Type operators have the following precedence (highest to lowest):
+        // 1. Postfix: pointer (*), array ([N]), slice ([])
+        // 2. Prefix: reference (&, &mut)
+        // 3. Primary: primitives, identifiers, tuples, generics, parenthesized
+        //
+        // Examples:
+        // - int* -> Pointer to int
+        // - &int -> Reference to int
+        // - &mut int -> Mutable reference to int
+        // - int[10] -> Array of 10 ints
+        // - int[] -> Slice of ints
+        // - (int, bool) -> Tuple of int and bool
+        // - Vec<int> -> Generic Vec with int argument
+        // - int** -> Pointer to pointer to int
+        // - &int* -> Reference to pointer to int
+
+        /// Auto type (type inference)
+        /// Returns Type::Auto
+        pub rule auto_type() -> Type
+            = kw_auto() { Type::Auto }
+
+        /// Identifier type (user-defined type name)
+        /// Returns Type::Ident
+        pub rule ident_type() -> Type
+            = n:ident() { Type::Ident(n) }
+
+        /// Tuple type: (T1, T2, ...) or (T,) or ()
+        /// Returns Type::Tuple
+        /// Note: Empty tuple () is valid, single-element tuple (T,) requires trailing comma
+        /// A single type in parentheses without trailing comma (T) is NOT a tuple,
+        /// it's a parenthesized type expression.
+        pub rule tuple_type() -> Type
+            = "(" _ types:type_list_for_tuple() _ ")" {
+                Type::Tuple { types }
+            }
+
+        /// Helper: comma-separated type list for tuples
+        /// This rule specifically handles tuple syntax:
+        /// - Empty: () -> []
+        /// - Single with trailing comma: (T,) -> [T]
+        /// - Multiple: (T1, T2) -> [T1, T2]
+        /// Note: Single type without comma (T) should NOT match this rule
+        rule type_list_for_tuple() -> Vec<Type>
+            = types:(t:type_expr() ** (_ "," _)) _ ","? {
+                types
+            }
+
+        /// Helper: Tuple-specific type list that requires either:
+        /// - Empty list (for unit tuple)
+        /// - Single element with trailing comma
+        /// - Two or more elements
+        rule tuple_type_list() -> Vec<Type>
+            // Empty tuple
+            = "" { vec![] }
+
+        /// Generic type: Base<T1, T2, ...>
+        /// Returns Type::Generic
+        /// Note: Must have at least one type argument
+        pub rule generic_type() -> Type
+            = base:type_base() _ "<" _ args:type_list() _ ">" {
+                Type::Generic { base: Box::new(base), args }
+            }
+
+        /// Helper: comma-separated type list (non-empty)
+        rule type_list() -> Vec<Type>
+            = types:(t:type_expr() ** (_ "," _)) {?
+                if types.is_empty() {
+                    Err("expected at least one type argument")
+                } else {
+                    Ok(types)
+                }
+            }
+
+        /// Base type for generics (primitive or identifier, not complex)
+        rule type_base() -> Type
+            = primitive_type()
+            / ident_type()
+
+        /// Type expression using precedence! macro
+        /// Handles all type operators with correct precedence
+        ///
+        /// Precedence levels (from lowest to highest):
+        /// 1. Reference prefix: &T, &mut T
+        /// 2. Postfix operators: T*, T[N], T[]
+        /// 3. Primary types: primitives, identifiers, tuples, generics, auto, parenthesized
+        ///
+        /// Note: The precedence! macro handles left-to-right associativity for postfix
+        /// operators, so int** parses as (int*)* (pointer to pointer).
+        pub rule type_expr() -> Type = precedence!{
+            // Level 1: Reference prefix (lowest precedence)
+            // &mut T - mutable reference
+            "&" _ kw_mut() __ t:@ {
+                Type::Reference { ty: Box::new(t), mutable: true }
+            }
+            // &T - immutable reference
+            "&" _ t:@ {
+                Type::Reference { ty: Box::new(t), mutable: false }
+            }
+            --
+            // Level 2: Postfix operators (higher precedence)
+            // T* - pointer type
+            t:(@) _ "*" {
+                Type::Pointer { ty: Box::new(t), mutable: false }
+            }
+            // T[N] - array type with size
+            t:(@) _ "[" _ n:int_literal() _ "]" {
+                if let Literal::Int(size) = n {
+                    Type::Array { ty: Box::new(t), size: Some(size as usize) }
+                } else {
+                    unreachable!()
+                }
+            }
+            // T[] - slice type (array without size)
+            t:(@) _ "[" _ "]" {
+                Type::Slice { ty: Box::new(t) }
+            }
+            --
+            // Level 3: Primary types (highest precedence)
+            // Generic type: Base<T1, T2, ...>
+            // Must come before ident_type to avoid consuming the base identifier
+            base:type_base() _ "<" _ args:type_list() _ ">" {
+                Type::Generic { base: Box::new(base), args }
+            }
+            // Empty tuple: ()
+            "(" _ ")" {
+                Type::Tuple { types: vec![] }
+            }
+            // Single-element tuple with trailing comma: (T,)
+            "(" _ t:type_expr() _ "," _ ")" {
+                Type::Tuple { types: vec![t] }
+            }
+            // Multi-element tuple: (T1, T2, ...)
+            "(" _ first:type_expr() _ "," _ rest:(type_expr() ** (_ "," _)) _ ","? _ ")" {
+                let mut types = vec![first];
+                types.extend(rest);
+                Type::Tuple { types }
+            }
+            // Parenthesized type for grouping (single type without comma)
+            "(" _ t:type_expr() _ ")" { t }
+            // Auto type
+            kw_auto() { Type::Auto }
+            // Primitive types
+            t:primitive_type() { t }
+            // Identifier types (user-defined)
+            t:ident_type() { t }
+        }
+
+        // ====================================================================
         // MINIMAL TEST GRAMMAR
         // ====================================================================
 
@@ -6599,6 +6751,1157 @@ mod primitive_type_tests {
         assert!(crusty_peg_parser::primitive_type("double").is_err());
         assert!(crusty_peg_parser::primitive_type("long").is_err());
         assert!(crusty_peg_parser::primitive_type("short").is_err());
+    }
+}
+
+// ============================================================================
+// COMPLEX TYPE TESTS (Task 3.2)
+// ============================================================================
+
+#[cfg(test)]
+mod complex_type_tests {
+    use super::*;
+
+    // ========================================================================
+    // POINTER TYPE TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_peg_pointer_type_basic() {
+        // Test basic pointer types: T*
+        assert_eq!(
+            crusty_peg_parser::type_expr("int*"),
+            Ok(Type::Pointer {
+                ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                mutable: false
+            })
+        );
+        assert_eq!(
+            crusty_peg_parser::type_expr("bool*"),
+            Ok(Type::Pointer {
+                ty: Box::new(Type::Primitive(PrimitiveType::Bool)),
+                mutable: false
+            })
+        );
+        assert_eq!(
+            crusty_peg_parser::type_expr("char*"),
+            Ok(Type::Pointer {
+                ty: Box::new(Type::Primitive(PrimitiveType::Char)),
+                mutable: false
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_pointer_type_double() {
+        // Test double pointer: T**
+        assert_eq!(
+            crusty_peg_parser::type_expr("int**"),
+            Ok(Type::Pointer {
+                ty: Box::new(Type::Pointer {
+                    ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                    mutable: false
+                }),
+                mutable: false
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_pointer_type_triple() {
+        // Test triple pointer: T***
+        assert_eq!(
+            crusty_peg_parser::type_expr("int***"),
+            Ok(Type::Pointer {
+                ty: Box::new(Type::Pointer {
+                    ty: Box::new(Type::Pointer {
+                        ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                        mutable: false
+                    }),
+                    mutable: false
+                }),
+                mutable: false
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_pointer_type_with_whitespace() {
+        // Test pointer types with whitespace
+        assert_eq!(
+            crusty_peg_parser::type_expr("int *"),
+            Ok(Type::Pointer {
+                ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                mutable: false
+            })
+        );
+        assert_eq!(
+            crusty_peg_parser::type_expr("int  *"),
+            Ok(Type::Pointer {
+                ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                mutable: false
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_pointer_to_identifier_type() {
+        // Test pointer to user-defined type
+        assert_eq!(
+            crusty_peg_parser::type_expr("MyType*"),
+            Ok(Type::Pointer {
+                ty: Box::new(Type::Ident(Ident::new("MyType"))),
+                mutable: false
+            })
+        );
+    }
+
+    // ========================================================================
+    // REFERENCE TYPE TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_peg_reference_type_immutable() {
+        // Test immutable reference: &T
+        assert_eq!(
+            crusty_peg_parser::type_expr("&int"),
+            Ok(Type::Reference {
+                ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                mutable: false
+            })
+        );
+        assert_eq!(
+            crusty_peg_parser::type_expr("&bool"),
+            Ok(Type::Reference {
+                ty: Box::new(Type::Primitive(PrimitiveType::Bool)),
+                mutable: false
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_reference_type_mutable() {
+        // Test mutable reference: &mut T
+        assert_eq!(
+            crusty_peg_parser::type_expr("&mut int"),
+            Ok(Type::Reference {
+                ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                mutable: true
+            })
+        );
+        assert_eq!(
+            crusty_peg_parser::type_expr("&mut bool"),
+            Ok(Type::Reference {
+                ty: Box::new(Type::Primitive(PrimitiveType::Bool)),
+                mutable: true
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_reference_to_pointer() {
+        // Test reference to pointer: &T*
+        assert_eq!(
+            crusty_peg_parser::type_expr("&int*"),
+            Ok(Type::Reference {
+                ty: Box::new(Type::Pointer {
+                    ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                    mutable: false
+                }),
+                mutable: false
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_reference_mutable_to_pointer() {
+        // Test mutable reference to pointer: &mut T*
+        assert_eq!(
+            crusty_peg_parser::type_expr("&mut int*"),
+            Ok(Type::Reference {
+                ty: Box::new(Type::Pointer {
+                    ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                    mutable: false
+                }),
+                mutable: true
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_reference_to_identifier_type() {
+        // Test reference to user-defined type
+        assert_eq!(
+            crusty_peg_parser::type_expr("&MyType"),
+            Ok(Type::Reference {
+                ty: Box::new(Type::Ident(Ident::new("MyType"))),
+                mutable: false
+            })
+        );
+        assert_eq!(
+            crusty_peg_parser::type_expr("&mut MyType"),
+            Ok(Type::Reference {
+                ty: Box::new(Type::Ident(Ident::new("MyType"))),
+                mutable: true
+            })
+        );
+    }
+
+    // ========================================================================
+    // ARRAY TYPE TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_peg_array_type_basic() {
+        // Test basic array types: T[N]
+        assert_eq!(
+            crusty_peg_parser::type_expr("int[10]"),
+            Ok(Type::Array {
+                ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                size: Some(10)
+            })
+        );
+        assert_eq!(
+            crusty_peg_parser::type_expr("bool[5]"),
+            Ok(Type::Array {
+                ty: Box::new(Type::Primitive(PrimitiveType::Bool)),
+                size: Some(5)
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_array_type_large_size() {
+        // Test array with large size
+        assert_eq!(
+            crusty_peg_parser::type_expr("int[1000]"),
+            Ok(Type::Array {
+                ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                size: Some(1000)
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_array_type_with_whitespace() {
+        // Test array types with whitespace
+        assert_eq!(
+            crusty_peg_parser::type_expr("int[ 10 ]"),
+            Ok(Type::Array {
+                ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                size: Some(10)
+            })
+        );
+        assert_eq!(
+            crusty_peg_parser::type_expr("int [10]"),
+            Ok(Type::Array {
+                ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                size: Some(10)
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_array_of_pointers() {
+        // Test array of pointers: T*[N]
+        assert_eq!(
+            crusty_peg_parser::type_expr("int*[10]"),
+            Ok(Type::Array {
+                ty: Box::new(Type::Pointer {
+                    ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                    mutable: false
+                }),
+                size: Some(10)
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_pointer_to_array() {
+        // Test pointer to array: (T[N])*
+        // Note: This requires parentheses to group the array type
+        assert_eq!(
+            crusty_peg_parser::type_expr("(int[10])*"),
+            Ok(Type::Pointer {
+                ty: Box::new(Type::Array {
+                    ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                    size: Some(10)
+                }),
+                mutable: false
+            })
+        );
+    }
+
+    // ========================================================================
+    // SLICE TYPE TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_peg_slice_type_basic() {
+        // Test basic slice types: T[]
+        assert_eq!(
+            crusty_peg_parser::type_expr("int[]"),
+            Ok(Type::Slice {
+                ty: Box::new(Type::Primitive(PrimitiveType::Int))
+            })
+        );
+        assert_eq!(
+            crusty_peg_parser::type_expr("bool[]"),
+            Ok(Type::Slice {
+                ty: Box::new(Type::Primitive(PrimitiveType::Bool))
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_slice_type_with_whitespace() {
+        // Test slice types with whitespace
+        assert_eq!(
+            crusty_peg_parser::type_expr("int[ ]"),
+            Ok(Type::Slice {
+                ty: Box::new(Type::Primitive(PrimitiveType::Int))
+            })
+        );
+        assert_eq!(
+            crusty_peg_parser::type_expr("int []"),
+            Ok(Type::Slice {
+                ty: Box::new(Type::Primitive(PrimitiveType::Int))
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_slice_of_pointers() {
+        // Test slice of pointers: T*[]
+        assert_eq!(
+            crusty_peg_parser::type_expr("int*[]"),
+            Ok(Type::Slice {
+                ty: Box::new(Type::Pointer {
+                    ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                    mutable: false
+                })
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_reference_to_slice() {
+        // Test reference to slice: &T[]
+        assert_eq!(
+            crusty_peg_parser::type_expr("&int[]"),
+            Ok(Type::Reference {
+                ty: Box::new(Type::Slice {
+                    ty: Box::new(Type::Primitive(PrimitiveType::Int))
+                }),
+                mutable: false
+            })
+        );
+    }
+
+    // ========================================================================
+    // TUPLE TYPE TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_peg_tuple_type_empty() {
+        // Test empty tuple: ()
+        assert_eq!(
+            crusty_peg_parser::type_expr("()"),
+            Ok(Type::Tuple { types: vec![] })
+        );
+    }
+
+    #[test]
+    fn test_peg_tuple_type_single() {
+        // Test single-element tuple: (T,)
+        // Note: Single element without trailing comma is just parenthesized type
+        assert_eq!(
+            crusty_peg_parser::type_expr("(int,)"),
+            Ok(Type::Tuple {
+                types: vec![Type::Primitive(PrimitiveType::Int)]
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_tuple_type_two_elements() {
+        // Test two-element tuple: (T1, T2)
+        assert_eq!(
+            crusty_peg_parser::type_expr("(int, bool)"),
+            Ok(Type::Tuple {
+                types: vec![
+                    Type::Primitive(PrimitiveType::Int),
+                    Type::Primitive(PrimitiveType::Bool)
+                ]
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_tuple_type_three_elements() {
+        // Test three-element tuple: (T1, T2, T3)
+        assert_eq!(
+            crusty_peg_parser::type_expr("(int, bool, char)"),
+            Ok(Type::Tuple {
+                types: vec![
+                    Type::Primitive(PrimitiveType::Int),
+                    Type::Primitive(PrimitiveType::Bool),
+                    Type::Primitive(PrimitiveType::Char)
+                ]
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_tuple_type_with_trailing_comma() {
+        // Test tuple with trailing comma
+        assert_eq!(
+            crusty_peg_parser::type_expr("(int, bool,)"),
+            Ok(Type::Tuple {
+                types: vec![
+                    Type::Primitive(PrimitiveType::Int),
+                    Type::Primitive(PrimitiveType::Bool)
+                ]
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_tuple_type_with_complex_types() {
+        // Test tuple with complex types
+        assert_eq!(
+            crusty_peg_parser::type_expr("(int*, &bool)"),
+            Ok(Type::Tuple {
+                types: vec![
+                    Type::Pointer {
+                        ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                        mutable: false
+                    },
+                    Type::Reference {
+                        ty: Box::new(Type::Primitive(PrimitiveType::Bool)),
+                        mutable: false
+                    }
+                ]
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_pointer_to_tuple() {
+        // Test pointer to tuple: (T1, T2)*
+        assert_eq!(
+            crusty_peg_parser::type_expr("(int, bool)*"),
+            Ok(Type::Pointer {
+                ty: Box::new(Type::Tuple {
+                    types: vec![
+                        Type::Primitive(PrimitiveType::Int),
+                        Type::Primitive(PrimitiveType::Bool)
+                    ]
+                }),
+                mutable: false
+            })
+        );
+    }
+
+    // ========================================================================
+    // GENERIC TYPE TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_peg_generic_type_single_arg() {
+        // Test generic type with single argument: T<A>
+        assert_eq!(
+            crusty_peg_parser::type_expr("Vec<int>"),
+            Ok(Type::Generic {
+                base: Box::new(Type::Ident(Ident::new("Vec"))),
+                args: vec![Type::Primitive(PrimitiveType::Int)]
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_generic_type_two_args() {
+        // Test generic type with two arguments: T<A, B>
+        assert_eq!(
+            crusty_peg_parser::type_expr("Map<int, bool>"),
+            Ok(Type::Generic {
+                base: Box::new(Type::Ident(Ident::new("Map"))),
+                args: vec![
+                    Type::Primitive(PrimitiveType::Int),
+                    Type::Primitive(PrimitiveType::Bool)
+                ]
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_generic_type_nested() {
+        // Test nested generic type: T<A<B>>
+        assert_eq!(
+            crusty_peg_parser::type_expr("Vec<Vec<int>>"),
+            Ok(Type::Generic {
+                base: Box::new(Type::Ident(Ident::new("Vec"))),
+                args: vec![Type::Generic {
+                    base: Box::new(Type::Ident(Ident::new("Vec"))),
+                    args: vec![Type::Primitive(PrimitiveType::Int)]
+                }]
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_generic_type_with_pointer() {
+        // Test generic type with pointer argument: T<A*>
+        assert_eq!(
+            crusty_peg_parser::type_expr("Vec<int*>"),
+            Ok(Type::Generic {
+                base: Box::new(Type::Ident(Ident::new("Vec"))),
+                args: vec![Type::Pointer {
+                    ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                    mutable: false
+                }]
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_generic_type_with_whitespace() {
+        // Test generic type with whitespace
+        assert_eq!(
+            crusty_peg_parser::type_expr("Vec< int >"),
+            Ok(Type::Generic {
+                base: Box::new(Type::Ident(Ident::new("Vec"))),
+                args: vec![Type::Primitive(PrimitiveType::Int)]
+            })
+        );
+        assert_eq!(
+            crusty_peg_parser::type_expr("Map< int , bool >"),
+            Ok(Type::Generic {
+                base: Box::new(Type::Ident(Ident::new("Map"))),
+                args: vec![
+                    Type::Primitive(PrimitiveType::Int),
+                    Type::Primitive(PrimitiveType::Bool)
+                ]
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_pointer_to_generic() {
+        // Test pointer to generic type: T<A>*
+        assert_eq!(
+            crusty_peg_parser::type_expr("Vec<int>*"),
+            Ok(Type::Pointer {
+                ty: Box::new(Type::Generic {
+                    base: Box::new(Type::Ident(Ident::new("Vec"))),
+                    args: vec![Type::Primitive(PrimitiveType::Int)]
+                }),
+                mutable: false
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_reference_to_generic() {
+        // Test reference to generic type: &T<A>
+        assert_eq!(
+            crusty_peg_parser::type_expr("&Vec<int>"),
+            Ok(Type::Reference {
+                ty: Box::new(Type::Generic {
+                    base: Box::new(Type::Ident(Ident::new("Vec"))),
+                    args: vec![Type::Primitive(PrimitiveType::Int)]
+                }),
+                mutable: false
+            })
+        );
+    }
+
+    // ========================================================================
+    // AUTO TYPE TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_peg_auto_type() {
+        // Test auto type
+        assert_eq!(crusty_peg_parser::type_expr("auto"), Ok(Type::Auto));
+    }
+
+    #[test]
+    fn test_peg_pointer_to_auto() {
+        // Test pointer to auto: auto*
+        assert_eq!(
+            crusty_peg_parser::type_expr("auto*"),
+            Ok(Type::Pointer {
+                ty: Box::new(Type::Auto),
+                mutable: false
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_reference_to_auto() {
+        // Test reference to auto: &auto
+        assert_eq!(
+            crusty_peg_parser::type_expr("&auto"),
+            Ok(Type::Reference {
+                ty: Box::new(Type::Auto),
+                mutable: false
+            })
+        );
+    }
+
+    // ========================================================================
+    // IDENTIFIER TYPE TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_peg_identifier_type() {
+        // Test user-defined type names
+        assert_eq!(
+            crusty_peg_parser::type_expr("MyType"),
+            Ok(Type::Ident(Ident::new("MyType")))
+        );
+        assert_eq!(
+            crusty_peg_parser::type_expr("SomeStruct"),
+            Ok(Type::Ident(Ident::new("SomeStruct")))
+        );
+    }
+
+    #[test]
+    fn test_peg_identifier_type_with_underscore() {
+        // Test user-defined type names with underscores
+        assert_eq!(
+            crusty_peg_parser::type_expr("my_type"),
+            Ok(Type::Ident(Ident::new("my_type")))
+        );
+        assert_eq!(
+            crusty_peg_parser::type_expr("_PrivateType"),
+            Ok(Type::Ident(Ident::new("_PrivateType")))
+        );
+    }
+
+    // ========================================================================
+    // PARENTHESIZED TYPE TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_peg_parenthesized_type() {
+        // Test parenthesized type for grouping
+        assert_eq!(
+            crusty_peg_parser::type_expr("(int)"),
+            Ok(Type::Primitive(PrimitiveType::Int))
+        );
+    }
+
+    #[test]
+    fn test_peg_parenthesized_pointer() {
+        // Test parenthesized pointer type
+        assert_eq!(
+            crusty_peg_parser::type_expr("(int*)"),
+            Ok(Type::Pointer {
+                ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                mutable: false
+            })
+        );
+    }
+
+    // ========================================================================
+    // COMPLEX COMBINATION TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_peg_complex_type_combination_1() {
+        // Test: &mut int*[10]
+        // Should be: mutable reference to array of pointers to int
+        assert_eq!(
+            crusty_peg_parser::type_expr("&mut int*[10]"),
+            Ok(Type::Reference {
+                ty: Box::new(Type::Array {
+                    ty: Box::new(Type::Pointer {
+                        ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                        mutable: false
+                    }),
+                    size: Some(10)
+                }),
+                mutable: true
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_complex_type_combination_2() {
+        // Test: Vec<int*>[]
+        // Should be: slice of generic Vec with pointer argument
+        assert_eq!(
+            crusty_peg_parser::type_expr("Vec<int*>[]"),
+            Ok(Type::Slice {
+                ty: Box::new(Type::Generic {
+                    base: Box::new(Type::Ident(Ident::new("Vec"))),
+                    args: vec![Type::Pointer {
+                        ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                        mutable: false
+                    }]
+                })
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_complex_type_combination_3() {
+        // Test: (int, bool)*[]
+        // Should be: slice of pointers to tuple
+        assert_eq!(
+            crusty_peg_parser::type_expr("(int, bool)*[]"),
+            Ok(Type::Slice {
+                ty: Box::new(Type::Pointer {
+                    ty: Box::new(Type::Tuple {
+                        types: vec![
+                            Type::Primitive(PrimitiveType::Int),
+                            Type::Primitive(PrimitiveType::Bool)
+                        ]
+                    }),
+                    mutable: false
+                })
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_type_expr_preserves_primitives() {
+        // Test that type_expr correctly parses primitive types
+        assert_eq!(
+            crusty_peg_parser::type_expr("int"),
+            Ok(Type::Primitive(PrimitiveType::Int))
+        );
+        assert_eq!(
+            crusty_peg_parser::type_expr("i32"),
+            Ok(Type::Primitive(PrimitiveType::I32))
+        );
+        assert_eq!(
+            crusty_peg_parser::type_expr("float"),
+            Ok(Type::Primitive(PrimitiveType::Float))
+        );
+        assert_eq!(
+            crusty_peg_parser::type_expr("bool"),
+            Ok(Type::Primitive(PrimitiveType::Bool))
+        );
+        assert_eq!(
+            crusty_peg_parser::type_expr("void"),
+            Ok(Type::Primitive(PrimitiveType::Void))
+        );
+    }
+}
+
+// ============================================================================
+// PROPERTY-BASED TESTS FOR COMPLEX TYPE RULES (Task 3.2)
+// ============================================================================
+
+#[cfg(test)]
+mod complex_type_properties {
+    use super::*;
+    use proptest::prelude::*;
+
+    // All primitive type names
+    const PRIMITIVE_TYPES: &[&str] = &[
+        "int", "i32", "i64", "u32", "u64", "float", "f32", "f64", "bool", "char", "void",
+    ];
+
+    // Strategy: Generate a random primitive type name
+    fn primitive_type_strategy() -> impl Strategy<Value = String> {
+        prop::sample::select(PRIMITIVE_TYPES.to_vec()).prop_map(|s| s.to_string())
+    }
+
+    // Strategy: Generate a valid identifier (not a keyword)
+    fn ident_strategy() -> impl Strategy<Value = String> {
+        "[A-Z][a-zA-Z0-9_]{0,10}".prop_filter("Must not be a keyword", |s| {
+            !matches!(
+                s.as_str(),
+                "int"
+                    | "i32"
+                    | "i64"
+                    | "u32"
+                    | "u64"
+                    | "float"
+                    | "f32"
+                    | "f64"
+                    | "bool"
+                    | "char"
+                    | "void"
+                    | "auto"
+                    | "let"
+                    | "var"
+                    | "const"
+                    | "if"
+                    | "else"
+                    | "while"
+                    | "for"
+                    | "return"
+                    | "struct"
+                    | "enum"
+                    | "typedef"
+                    | "NULL"
+                    | "true"
+                    | "false"
+            )
+        })
+    }
+
+    // Strategy: Generate a small array size
+    fn array_size_strategy() -> impl Strategy<Value = usize> {
+        1usize..100
+    }
+
+    /// Property 1: Pointer Type Parsing
+    ///
+    /// For any primitive type T, the parser should correctly parse T* as a pointer type.
+    ///
+    /// Validates: Requirements 1.2, 6.9 (Type expressions)
+    #[test]
+    fn property_pointer_type_parsing() {
+        proptest!(ProptestConfig::with_cases(100), |(
+            prim in primitive_type_strategy()
+        )| {
+            let input = format!("{}*", prim);
+            let result = crusty_peg_parser::type_expr(&input);
+            prop_assert!(
+                result.is_ok(),
+                "Pointer type '{}' should parse successfully",
+                input
+            );
+            if let Ok(Type::Pointer { ty, mutable }) = result {
+                prop_assert!(!mutable, "Pointer should not be mutable");
+                prop_assert!(
+                    matches!(*ty, Type::Primitive(_)),
+                    "Inner type should be primitive"
+                );
+            } else {
+                prop_assert!(false, "Result should be a Pointer type");
+            }
+        });
+    }
+
+    /// Property 2: Double Pointer Type Parsing
+    ///
+    /// For any primitive type T, the parser should correctly parse T** as a pointer to pointer.
+    ///
+    /// Validates: Requirements 1.2, 6.9 (Type expressions)
+    #[test]
+    fn property_double_pointer_type_parsing() {
+        proptest!(ProptestConfig::with_cases(100), |(
+            prim in primitive_type_strategy()
+        )| {
+            let input = format!("{}**", prim);
+            let result = crusty_peg_parser::type_expr(&input);
+            prop_assert!(
+                result.is_ok(),
+                "Double pointer type '{}' should parse successfully",
+                input
+            );
+            if let Ok(Type::Pointer { ty: outer, .. }) = result {
+                if let Type::Pointer { ty: inner, .. } = *outer {
+                    prop_assert!(
+                        matches!(*inner, Type::Primitive(_)),
+                        "Innermost type should be primitive"
+                    );
+                } else {
+                    prop_assert!(false, "Outer pointer should contain inner pointer");
+                }
+            } else {
+                prop_assert!(false, "Result should be a Pointer type");
+            }
+        });
+    }
+
+    /// Property 3: Reference Type Parsing
+    ///
+    /// For any primitive type T, the parser should correctly parse &T as an immutable reference.
+    ///
+    /// Validates: Requirements 1.2, 6.9 (Type expressions)
+    #[test]
+    fn property_reference_type_parsing() {
+        proptest!(ProptestConfig::with_cases(100), |(
+            prim in primitive_type_strategy()
+        )| {
+            let input = format!("&{}", prim);
+            let result = crusty_peg_parser::type_expr(&input);
+            prop_assert!(
+                result.is_ok(),
+                "Reference type '{}' should parse successfully",
+                input
+            );
+            if let Ok(Type::Reference { ty, mutable }) = result {
+                prop_assert!(!mutable, "Reference should be immutable");
+                prop_assert!(
+                    matches!(*ty, Type::Primitive(_)),
+                    "Inner type should be primitive"
+                );
+            } else {
+                prop_assert!(false, "Result should be a Reference type");
+            }
+        });
+    }
+
+    /// Property 4: Mutable Reference Type Parsing
+    ///
+    /// For any primitive type T, the parser should correctly parse &mut T as a mutable reference.
+    ///
+    /// Validates: Requirements 1.2, 6.9 (Type expressions)
+    #[test]
+    fn property_mutable_reference_type_parsing() {
+        proptest!(ProptestConfig::with_cases(100), |(
+            prim in primitive_type_strategy()
+        )| {
+            let input = format!("&mut {}", prim);
+            let result = crusty_peg_parser::type_expr(&input);
+            prop_assert!(
+                result.is_ok(),
+                "Mutable reference type '{}' should parse successfully",
+                input
+            );
+            if let Ok(Type::Reference { ty, mutable }) = result {
+                prop_assert!(mutable, "Reference should be mutable");
+                prop_assert!(
+                    matches!(*ty, Type::Primitive(_)),
+                    "Inner type should be primitive"
+                );
+            } else {
+                prop_assert!(false, "Result should be a Reference type");
+            }
+        });
+    }
+
+    /// Property 5: Array Type Parsing
+    ///
+    /// For any primitive type T and size N, the parser should correctly parse T[N] as an array.
+    ///
+    /// Validates: Requirements 1.2, 6.9 (Type expressions)
+    #[test]
+    fn property_array_type_parsing() {
+        proptest!(ProptestConfig::with_cases(100), |(
+            prim in primitive_type_strategy(),
+            size in array_size_strategy()
+        )| {
+            let input = format!("{}[{}]", prim, size);
+            let result = crusty_peg_parser::type_expr(&input);
+            prop_assert!(
+                result.is_ok(),
+                "Array type '{}' should parse successfully",
+                input
+            );
+            if let Ok(Type::Array { ty, size: parsed_size }) = result {
+                prop_assert_eq!(parsed_size, Some(size), "Array size should match");
+                prop_assert!(
+                    matches!(*ty, Type::Primitive(_)),
+                    "Inner type should be primitive"
+                );
+            } else {
+                prop_assert!(false, "Result should be an Array type");
+            }
+        });
+    }
+
+    /// Property 6: Slice Type Parsing
+    ///
+    /// For any primitive type T, the parser should correctly parse T[] as a slice.
+    ///
+    /// Validates: Requirements 1.2, 6.9 (Type expressions)
+    #[test]
+    fn property_slice_type_parsing() {
+        proptest!(ProptestConfig::with_cases(100), |(
+            prim in primitive_type_strategy()
+        )| {
+            let input = format!("{}[]", prim);
+            let result = crusty_peg_parser::type_expr(&input);
+            prop_assert!(
+                result.is_ok(),
+                "Slice type '{}' should parse successfully",
+                input
+            );
+            if let Ok(Type::Slice { ty }) = result {
+                prop_assert!(
+                    matches!(*ty, Type::Primitive(_)),
+                    "Inner type should be primitive"
+                );
+            } else {
+                prop_assert!(false, "Result should be a Slice type");
+            }
+        });
+    }
+
+    /// Property 7: Generic Type Parsing
+    ///
+    /// For any identifier I and primitive type T, the parser should correctly parse I<T> as a generic.
+    ///
+    /// Validates: Requirements 1.2, 6.9 (Type expressions)
+    #[test]
+    fn property_generic_type_parsing() {
+        proptest!(ProptestConfig::with_cases(100), |(
+            ident in ident_strategy(),
+            prim in primitive_type_strategy()
+        )| {
+            let input = format!("{}<{}>", ident, prim);
+            let result = crusty_peg_parser::type_expr(&input);
+            prop_assert!(
+                result.is_ok(),
+                "Generic type '{}' should parse successfully",
+                input
+            );
+            if let Ok(Type::Generic { base, args }) = result {
+                prop_assert!(
+                    matches!(*base, Type::Ident(_)),
+                    "Base type should be identifier"
+                );
+                prop_assert_eq!(args.len(), 1, "Should have one type argument");
+                prop_assert!(
+                    matches!(args[0], Type::Primitive(_)),
+                    "Type argument should be primitive"
+                );
+            } else {
+                prop_assert!(false, "Result should be a Generic type");
+            }
+        });
+    }
+
+    /// Property 8: Tuple Type Parsing (Two Elements)
+    ///
+    /// For any two primitive types T1 and T2, the parser should correctly parse (T1, T2) as a tuple.
+    ///
+    /// Validates: Requirements 1.2, 6.9 (Type expressions)
+    #[test]
+    fn property_tuple_type_parsing() {
+        proptest!(ProptestConfig::with_cases(100), |(
+            prim1 in primitive_type_strategy(),
+            prim2 in primitive_type_strategy()
+        )| {
+            let input = format!("({}, {})", prim1, prim2);
+            let result = crusty_peg_parser::type_expr(&input);
+            prop_assert!(
+                result.is_ok(),
+                "Tuple type '{}' should parse successfully",
+                input
+            );
+            if let Ok(Type::Tuple { types }) = result {
+                prop_assert_eq!(types.len(), 2, "Tuple should have two elements");
+                prop_assert!(
+                    matches!(types[0], Type::Primitive(_)),
+                    "First element should be primitive"
+                );
+                prop_assert!(
+                    matches!(types[1], Type::Primitive(_)),
+                    "Second element should be primitive"
+                );
+            } else {
+                prop_assert!(false, "Result should be a Tuple type");
+            }
+        });
+    }
+
+    /// Property 9: Parenthesized Type Unwrapping
+    ///
+    /// For any primitive type T, the parser should correctly parse (T) and unwrap it to T.
+    ///
+    /// Validates: Requirements 1.2, 6.9 (Type expressions)
+    #[test]
+    fn property_parenthesized_type_unwrapping() {
+        proptest!(ProptestConfig::with_cases(100), |(
+            prim in primitive_type_strategy()
+        )| {
+            let input = format!("({})", prim);
+            let result = crusty_peg_parser::type_expr(&input);
+            prop_assert!(
+                result.is_ok(),
+                "Parenthesized type '{}' should parse successfully",
+                input
+            );
+            // Should unwrap to primitive, not tuple
+            prop_assert!(
+                matches!(result, Ok(Type::Primitive(_))),
+                "Parenthesized type should unwrap to primitive, not tuple"
+            );
+        });
+    }
+
+    /// Property 10: Reference to Pointer Parsing
+    ///
+    /// For any primitive type T, the parser should correctly parse &T* as reference to pointer.
+    ///
+    /// Validates: Requirements 1.2, 6.9 (Type expressions)
+    #[test]
+    fn property_reference_to_pointer_parsing() {
+        proptest!(ProptestConfig::with_cases(100), |(
+            prim in primitive_type_strategy()
+        )| {
+            let input = format!("&{}*", prim);
+            let result = crusty_peg_parser::type_expr(&input);
+            prop_assert!(
+                result.is_ok(),
+                "Reference to pointer type '{}' should parse successfully",
+                input
+            );
+            if let Ok(Type::Reference { ty, mutable }) = result {
+                prop_assert!(!mutable, "Reference should be immutable");
+                if let Type::Pointer { ty: inner, .. } = *ty {
+                    prop_assert!(
+                        matches!(*inner, Type::Primitive(_)),
+                        "Innermost type should be primitive"
+                    );
+                } else {
+                    prop_assert!(false, "Reference should contain pointer");
+                }
+            } else {
+                prop_assert!(false, "Result should be a Reference type");
+            }
+        });
+    }
+
+    /// Property 11: Whitespace Invariance for Types
+    ///
+    /// For any primitive type T, adding whitespace around type operators should not change the result.
+    ///
+    /// Validates: Requirements 1.5 (Whitespace handling)
+    #[test]
+    fn property_type_whitespace_invariance() {
+        proptest!(ProptestConfig::with_cases(100), |(
+            prim in primitive_type_strategy()
+        )| {
+            // Test pointer with and without whitespace
+            let no_space = format!("{}*", prim);
+            let with_space = format!("{} *", prim);
+
+            let result1 = crusty_peg_parser::type_expr(&no_space);
+            let result2 = crusty_peg_parser::type_expr(&with_space);
+
+            prop_assert!(result1.is_ok(), "No-space version should parse");
+            prop_assert!(result2.is_ok(), "With-space version should parse");
+            prop_assert_eq!(result1, result2, "Results should be equal regardless of whitespace");
+        });
+    }
+
+    /// Property 12: Identifier Type Parsing
+    ///
+    /// For any valid identifier, the parser should correctly parse it as an identifier type.
+    ///
+    /// Validates: Requirements 1.2, 6.9 (Type expressions)
+    #[test]
+    fn property_identifier_type_parsing() {
+        proptest!(ProptestConfig::with_cases(100), |(
+            ident in ident_strategy()
+        )| {
+            let result = crusty_peg_parser::type_expr(&ident);
+            prop_assert!(
+                result.is_ok(),
+                "Identifier type '{}' should parse successfully",
+                ident
+            );
+            if let Ok(Type::Ident(parsed_ident)) = result {
+                prop_assert_eq!(
+                    parsed_ident.name, ident,
+                    "Parsed identifier should match input"
+                );
+            } else {
+                prop_assert!(false, "Result should be an Ident type");
+            }
+        });
     }
 }
 
