@@ -5349,6 +5349,89 @@ peg::parser! {
             { Ident::new(format!("__{n}__")) }
 
         // ====================================================================
+        // TYPES
+        // ====================================================================
+        // Type expressions represent the types of values in Crusty.
+        //
+        // Primitive types: int, i32, i64, u32, u64, float, f32, f64, bool, char, void
+        // Complex types: pointers (*T), references (&T, &mut T), arrays (T[N]),
+        //                tuples ((T1, T2)), generics (T<A, B>), slices (T[])
+        //
+        // Type parsing uses the precedence! macro to handle type operators
+        // like pointer (*) and reference (&) with correct precedence.
+
+        /// Primitive type: int
+        /// Returns Type::Primitive(PrimitiveType::Int)
+        pub rule primitive_int() -> Type
+            = kw_int() { Type::Primitive(PrimitiveType::Int) }
+
+        /// Primitive type: i32
+        /// Returns Type::Primitive(PrimitiveType::I32)
+        pub rule primitive_i32() -> Type
+            = kw_i32() { Type::Primitive(PrimitiveType::I32) }
+
+        /// Primitive type: i64
+        /// Returns Type::Primitive(PrimitiveType::I64)
+        pub rule primitive_i64() -> Type
+            = kw_i64() { Type::Primitive(PrimitiveType::I64) }
+
+        /// Primitive type: u32
+        /// Returns Type::Primitive(PrimitiveType::U32)
+        pub rule primitive_u32() -> Type
+            = kw_u32() { Type::Primitive(PrimitiveType::U32) }
+
+        /// Primitive type: u64
+        /// Returns Type::Primitive(PrimitiveType::U64)
+        pub rule primitive_u64() -> Type
+            = kw_u64() { Type::Primitive(PrimitiveType::U64) }
+
+        /// Primitive type: float
+        /// Returns Type::Primitive(PrimitiveType::Float)
+        pub rule primitive_float() -> Type
+            = kw_float() { Type::Primitive(PrimitiveType::Float) }
+
+        /// Primitive type: f32
+        /// Returns Type::Primitive(PrimitiveType::F32)
+        pub rule primitive_f32() -> Type
+            = kw_f32() { Type::Primitive(PrimitiveType::F32) }
+
+        /// Primitive type: f64
+        /// Returns Type::Primitive(PrimitiveType::F64)
+        pub rule primitive_f64() -> Type
+            = kw_f64() { Type::Primitive(PrimitiveType::F64) }
+
+        /// Primitive type: bool
+        /// Returns Type::Primitive(PrimitiveType::Bool)
+        pub rule primitive_bool() -> Type
+            = kw_bool() { Type::Primitive(PrimitiveType::Bool) }
+
+        /// Primitive type: char
+        /// Returns Type::Primitive(PrimitiveType::Char)
+        pub rule primitive_char() -> Type
+            = kw_char() { Type::Primitive(PrimitiveType::Char) }
+
+        /// Primitive type: void
+        /// Returns Type::Primitive(PrimitiveType::Void)
+        pub rule primitive_void() -> Type
+            = kw_void() { Type::Primitive(PrimitiveType::Void) }
+
+        /// Any primitive type
+        /// Returns Type::Primitive variant
+        /// Note: Order matters for PEG - longer matches first (i32 before int, f32 before float)
+        pub rule primitive_type() -> Type
+            = primitive_i32()
+            / primitive_i64()
+            / primitive_u32()
+            / primitive_u64()
+            / primitive_int()
+            / primitive_f32()
+            / primitive_f64()
+            / primitive_float()
+            / primitive_bool()
+            / primitive_char()
+            / primitive_void()
+
+        // ====================================================================
         // MINIMAL TEST GRAMMAR
         // ====================================================================
 
@@ -6306,6 +6389,216 @@ mod identifier_tests {
         // But macro_ident requires both prefix and suffix
         assert!(crusty_peg_parser::macro_ident("__private").is_err());
         assert!(crusty_peg_parser::macro_ident("test__").is_err());
+    }
+}
+
+// ============================================================================
+// PRIMITIVE TYPE TESTS (Task 3.1)
+// ============================================================================
+
+#[cfg(test)]
+mod primitive_type_tests {
+    use super::*;
+
+    #[test]
+    fn test_peg_primitive_int() {
+        // Test int type
+        assert_eq!(
+            crusty_peg_parser::primitive_int("int"),
+            Ok(Type::Primitive(PrimitiveType::Int))
+        );
+    }
+
+    #[test]
+    fn test_peg_primitive_i32() {
+        // Test i32 type
+        assert_eq!(
+            crusty_peg_parser::primitive_i32("i32"),
+            Ok(Type::Primitive(PrimitiveType::I32))
+        );
+    }
+
+    #[test]
+    fn test_peg_primitive_i64() {
+        // Test i64 type
+        assert_eq!(
+            crusty_peg_parser::primitive_i64("i64"),
+            Ok(Type::Primitive(PrimitiveType::I64))
+        );
+    }
+
+    #[test]
+    fn test_peg_primitive_u32() {
+        // Test u32 type
+        assert_eq!(
+            crusty_peg_parser::primitive_u32("u32"),
+            Ok(Type::Primitive(PrimitiveType::U32))
+        );
+    }
+
+    #[test]
+    fn test_peg_primitive_u64() {
+        // Test u64 type
+        assert_eq!(
+            crusty_peg_parser::primitive_u64("u64"),
+            Ok(Type::Primitive(PrimitiveType::U64))
+        );
+    }
+
+    #[test]
+    fn test_peg_primitive_float() {
+        // Test float type
+        assert_eq!(
+            crusty_peg_parser::primitive_float("float"),
+            Ok(Type::Primitive(PrimitiveType::Float))
+        );
+    }
+
+    #[test]
+    fn test_peg_primitive_f32() {
+        // Test f32 type
+        assert_eq!(
+            crusty_peg_parser::primitive_f32("f32"),
+            Ok(Type::Primitive(PrimitiveType::F32))
+        );
+    }
+
+    #[test]
+    fn test_peg_primitive_f64() {
+        // Test f64 type
+        assert_eq!(
+            crusty_peg_parser::primitive_f64("f64"),
+            Ok(Type::Primitive(PrimitiveType::F64))
+        );
+    }
+
+    #[test]
+    fn test_peg_primitive_bool() {
+        // Test bool type
+        assert_eq!(
+            crusty_peg_parser::primitive_bool("bool"),
+            Ok(Type::Primitive(PrimitiveType::Bool))
+        );
+    }
+
+    #[test]
+    fn test_peg_primitive_char() {
+        // Test char type
+        assert_eq!(
+            crusty_peg_parser::primitive_char("char"),
+            Ok(Type::Primitive(PrimitiveType::Char))
+        );
+    }
+
+    #[test]
+    fn test_peg_primitive_void() {
+        // Test void type
+        assert_eq!(
+            crusty_peg_parser::primitive_void("void"),
+            Ok(Type::Primitive(PrimitiveType::Void))
+        );
+    }
+
+    #[test]
+    fn test_peg_primitive_type_all() {
+        // Test primitive_type rule with all primitive types
+        assert_eq!(
+            crusty_peg_parser::primitive_type("int"),
+            Ok(Type::Primitive(PrimitiveType::Int))
+        );
+        assert_eq!(
+            crusty_peg_parser::primitive_type("i32"),
+            Ok(Type::Primitive(PrimitiveType::I32))
+        );
+        assert_eq!(
+            crusty_peg_parser::primitive_type("i64"),
+            Ok(Type::Primitive(PrimitiveType::I64))
+        );
+        assert_eq!(
+            crusty_peg_parser::primitive_type("u32"),
+            Ok(Type::Primitive(PrimitiveType::U32))
+        );
+        assert_eq!(
+            crusty_peg_parser::primitive_type("u64"),
+            Ok(Type::Primitive(PrimitiveType::U64))
+        );
+        assert_eq!(
+            crusty_peg_parser::primitive_type("float"),
+            Ok(Type::Primitive(PrimitiveType::Float))
+        );
+        assert_eq!(
+            crusty_peg_parser::primitive_type("f32"),
+            Ok(Type::Primitive(PrimitiveType::F32))
+        );
+        assert_eq!(
+            crusty_peg_parser::primitive_type("f64"),
+            Ok(Type::Primitive(PrimitiveType::F64))
+        );
+        assert_eq!(
+            crusty_peg_parser::primitive_type("bool"),
+            Ok(Type::Primitive(PrimitiveType::Bool))
+        );
+        assert_eq!(
+            crusty_peg_parser::primitive_type("char"),
+            Ok(Type::Primitive(PrimitiveType::Char))
+        );
+        assert_eq!(
+            crusty_peg_parser::primitive_type("void"),
+            Ok(Type::Primitive(PrimitiveType::Void))
+        );
+    }
+
+    #[test]
+    fn test_peg_primitive_type_not_identifier() {
+        // Test that primitive types are not parsed as identifiers
+        // (they should fail because they ARE keywords)
+        assert!(crusty_peg_parser::ident("int").is_err());
+        assert!(crusty_peg_parser::ident("i32").is_err());
+        assert!(crusty_peg_parser::ident("float").is_err());
+        assert!(crusty_peg_parser::ident("bool").is_err());
+        assert!(crusty_peg_parser::ident("void").is_err());
+    }
+
+    #[test]
+    fn test_peg_primitive_type_lookahead() {
+        // Test that primitive types don't match as prefixes of identifiers
+        // "integer" should NOT match as "int"
+        assert!(crusty_peg_parser::primitive_int("integer").is_err());
+        assert!(crusty_peg_parser::primitive_float("floating").is_err());
+        assert!(crusty_peg_parser::primitive_bool("boolean").is_err());
+        assert!(crusty_peg_parser::primitive_char("character").is_err());
+    }
+
+    #[test]
+    fn test_peg_primitive_type_order() {
+        // Test that longer type names are matched before shorter ones
+        // i32 should match before int, f32 should match before float
+        // This is important because "i32" starts with "i" which could match "int" prefix
+        assert_eq!(
+            crusty_peg_parser::primitive_type("i32"),
+            Ok(Type::Primitive(PrimitiveType::I32))
+        );
+        assert_eq!(
+            crusty_peg_parser::primitive_type("i64"),
+            Ok(Type::Primitive(PrimitiveType::I64))
+        );
+        assert_eq!(
+            crusty_peg_parser::primitive_type("f32"),
+            Ok(Type::Primitive(PrimitiveType::F32))
+        );
+        assert_eq!(
+            crusty_peg_parser::primitive_type("f64"),
+            Ok(Type::Primitive(PrimitiveType::F64))
+        );
+    }
+
+    #[test]
+    fn test_peg_primitive_type_invalid() {
+        // Test that invalid type names are rejected
+        assert!(crusty_peg_parser::primitive_type("string").is_err());
+        assert!(crusty_peg_parser::primitive_type("double").is_err());
+        assert!(crusty_peg_parser::primitive_type("long").is_err());
+        assert!(crusty_peg_parser::primitive_type("short").is_err());
     }
 }
 
