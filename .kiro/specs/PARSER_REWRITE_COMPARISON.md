@@ -4,12 +4,11 @@
 
 Both pest and LALRPOP are excellent parser generators for Rust that can solve the cast expression ambiguity bug in the current hand-written parser. This document compares the two approaches to help you make an informed decision.
 
-**TL;DR Recommendation**: **pest** is recommended for Crusty because:
-- Simpler grammar syntax (PEG is more intuitive than EBNF)
-- Better error messages out of the box
-- Easier to learn and maintain
-- More active community and better documentation
-- Ordered choice naturally handles ambiguity without conflicts
+**IMPORTANT CONSIDERATION**: C-like languages (including Crusty) are naturally suited to LR parsing. The syntax was designed with LR grammars in mind, and many C-like constructs align well with bottom-up parsing. While PEG parsers can handle C-like syntax through ordered choice and backtracking, LALRPOP's LR(1) approach may be more natural for this language family.
+
+**TL;DR**: The choice depends on your priorities:
+- **LALRPOP (EBNF/LR)**: Better fit for C-like syntax, more efficient for left-recursive grammars, natural alignment with language design
+- **pest (PEG)**: Simpler to learn and maintain, better error messages, larger community, easier debugging
 
 ## Comparison Matrix
 
@@ -17,6 +16,7 @@ Both pest and LALRPOP are excellent parser generators for Rust that can solve th
 |--------|-----------|----------------|
 | **Grammar Notation** | PEG (Parsing Expression Grammar) | EBNF (Extended Backus-Naur Form) |
 | **Parsing Algorithm** | Packrat parsing (top-down) | LR(1) (bottom-up) |
+| **C-like Language Fit** | Requires workarounds for left recursion | Natural fit (C designed for LR) |
 | **Ambiguity Resolution** | Ordered choice (first match wins) | Lookahead + grammar conflicts |
 | **Learning Curve** | Easier (more intuitive) | Steeper (requires understanding LR parsing) |
 | **Error Messages** | Excellent (shows what was expected) | Good (but requires more work) |
@@ -174,6 +174,100 @@ In practice, both will be faster than the current hand-written parser.
 
 **Winner**: pest - easier to debug
 
+## C-Like Language Considerations
+
+**CRITICAL INSIGHT**: This is the most important factor for Crusty.
+
+### Why C-Like Languages Favor LR Parsing
+
+C and its derivatives (C++, Java, Rust, and Crusty) were designed with LR parsing in mind:
+
+1. **Historical Context**: C was developed alongside YACC (Yet Another Compiler Compiler), an LALR parser generator. The language syntax was explicitly designed to be parseable by LR grammars.
+
+2. **Left Recursion**: C-like languages use left-recursive constructs naturally:
+   ```c
+   expr -> expr + term    // Left recursive
+   expr -> expr * term    // Left recursive
+   ```
+   - LR parsers handle left recursion efficiently (O(n))
+   - PEG parsers struggle with left recursion (requires workarounds or can cause infinite loops)
+
+3. **Operator Precedence**: C-like operator precedence aligns perfectly with LR grammar structure:
+   ```lalrpop
+   Expr = AssignExpr;
+   AssignExpr = OrExpr ("=" OrExpr)?;
+   OrExpr = AndExpr ("||" AndExpr)*;
+   // Natural bottom-up precedence
+   ```
+
+4. **Statement Structure**: C-like statement syntax is naturally LR:
+   - Statements end with semicolons (clear boundaries)
+   - Blocks use braces (clear nesting)
+   - Declarations have predictable structure
+
+### PEG Workarounds for C-Like Syntax
+
+PEG parsers can handle C-like syntax, but require workarounds:
+
+1. **Left Recursion Elimination**: Must rewrite left-recursive rules
+   ```pest
+   // Can't write: expr = expr "+" term
+   // Must write: expr = term ("+" term)*
+   ```
+   This changes the natural structure and can complicate AST building.
+
+2. **Precedence Through Ordering**: Must carefully order alternatives
+   ```pest
+   primary = _{ 
+       cast_expr      // Order matters!
+       | paren_expr   // Wrong order = wrong parse
+       | literal
+   }
+   ```
+
+3. **Backtracking Overhead**: PEG's ordered choice requires backtracking for ambiguous constructs, which can be less efficient than LR's lookahead.
+
+### LALRPOP Advantages for Crusty
+
+1. **Natural Grammar Structure**: Write grammar that matches language design
+2. **Efficient Left Recursion**: No need to rewrite recursive rules
+3. **Predictable Behavior**: LR(1) lookahead is deterministic
+4. **Better Performance**: Table-driven parsing is faster for C-like syntax
+5. **Alignment with Language Design**: Crusty inherits C's LR-friendly design
+
+### PEG Advantages Despite C-Like Syntax
+
+1. **Simpler Mental Model**: Ordered choice is easier to understand
+2. **Better Error Messages**: More context in error reporting
+3. **Easier Debugging**: Can trace execution path
+4. **No Conflicts**: No shift/reduce or reduce/reduce conflicts to resolve
+5. **Larger Community**: More help available
+
+### The Trade-off
+
+**LALRPOP**: Better technical fit for C-like languages, but steeper learning curve
+**pest**: Easier to use and maintain, but requires workarounds for C-like constructs
+
+### Recommendation Update
+
+Given that Crusty is a C-like language:
+
+**Choose LALRPOP (EBNF/LR) if**:
+- ✅ You want the most natural fit for C-like syntax
+- ✅ You want efficient handling of left recursion
+- ✅ You want grammar that aligns with language design
+- ✅ You're willing to learn LR parsing theory
+- ✅ You want the best performance for C-like constructs
+
+**Choose pest (PEG) if**:
+- ✅ You prioritize ease of learning and maintenance
+- ✅ You want better error messages and debugging
+- ✅ You're okay with workarounds for left recursion
+- ✅ You want a larger community and better documentation
+- ✅ You prefer simpler grammar syntax
+
+**Winner for C-like languages**: **LALRPOP** - better technical fit, despite higher complexity
+
 ## Cast Expression Handling
 
 Both approaches can handle the cast expression ambiguity:
@@ -237,32 +331,39 @@ The main difference is in the learning curve and debugging time.
 
 ## Recommendation
 
-**Choose pest (PEG) if**:
-- ✅ You want simpler, more intuitive grammar syntax
-- ✅ You want easier maintenance and debugging
-- ✅ You want better error messages out of the box
-- ✅ You want a larger community and better documentation
-- ✅ You want to avoid learning LR parsing theory
-- ✅ You prefer separation of grammar and AST building code
+**The decision depends on your priorities:**
 
-**Choose LALRPOP (EBNF) if**:
-- ⚠️ You already know LR parsing theory
-- ⚠️ You prefer inline actions in grammar
-- ⚠️ You want to use EBNF notation specifically
-- ⚠️ You need the absolute best performance (marginal difference)
+### Technical Fit: LALRPOP Wins
 
-## Final Recommendation
+For a C-like language like Crusty, **LALRPOP is the better technical fit**:
+- ✅ C-like languages were designed for LR parsing
+- ✅ Natural handling of left recursion
+- ✅ Grammar structure aligns with language design
+- ✅ More efficient for C-like operator precedence
+- ✅ Predictable LR(1) behavior
 
-**pest is the better choice for Crusty** because:
+### Ease of Use: pest Wins
 
-1. **Simpler**: PEG ordered choice is more intuitive than LR conflicts
-2. **Easier to maintain**: No shift/reduce conflicts to debug
-3. **Better errors**: Excellent error messages out of the box
-4. **Larger community**: More help available, more examples
-5. **Better docs**: Comprehensive documentation and tutorials
-6. **Natural fit**: Ordered choice naturally handles cast expression ambiguity
+For developer experience, **pest is easier**:
+- ✅ Simpler grammar syntax
+- ✅ Better error messages
+- ✅ Easier to learn and debug
+- ✅ Larger community
+- ✅ No LR conflicts to resolve
 
-The only advantage of LALRPOP is if you already have deep knowledge of LR parsing and prefer EBNF notation. For most developers, pest will be easier to learn, use, and maintain.
+### Final Recommendation
+
+**LALRPOP is recommended for Crusty** because:
+
+1. **Natural Fit**: C-like languages are designed for LR parsing
+2. **Efficient**: Better performance for left-recursive constructs
+3. **Aligned**: Grammar structure matches language design
+4. **Predictable**: LR(1) lookahead is deterministic
+5. **Professional**: Used by production compilers for C-like languages
+
+**Trade-off**: You'll need to invest time learning LR parsing theory and debugging shift/reduce conflicts, but you'll get a parser that naturally fits the language design.
+
+**Alternative**: If ease of use is more important than technical fit, choose pest. It can handle C-like syntax with workarounds, and the simpler mental model may be worth the trade-off.
 
 ## Next Steps
 
