@@ -6,17 +6,17 @@ inclusion: manual
 
 ## Purpose
 
-Create unit tests for specific examples and edge cases that verify correct behavior of individual functions, classes, and modules. Unit tests complement property-based tests by testing concrete scenarios, boundary conditions, and error handling.
+Create unit tests for specific examples and edge cases that verify correct behavior of individual functions, modules, and components. Unit tests complement property-based tests by testing concrete scenarios, boundary conditions, and error handling using Rust's built-in test framework.
 
 ## Context
 
 You have access to:
-- **Implementation code**: All files changed during implementation
+- **Implementation code**: All Rust files changed during implementation
 - **Design document**: Contains architecture and component specifications
 - **Requirements document**: Contains acceptance criteria and functional requirements
 - **Implementation commit**: The commit message and changes from the implementation
 - **Task details**: tasks.md, requirements.md, and design.md files
-- **All Kiro tools**: File operations, git commands, test execution
+- **All Kiro tools**: File operations, git commands, cargo test
 
 ## Instructions
 
@@ -25,204 +25,200 @@ You have access to:
 Review the implementation to identify testable units:
 
 ```bash
-# View the implementation commit
+# View implementation commit
 git log -1 --stat
 
-# View the actual changes
+# View actual changes
 git diff HEAD~1
 ```
 
 Look for:
 - **New functions**: Each public function should have unit tests
-- **New classes**: Each class should have tests for its methods
-- **New modules**: Each module should have integration tests
-- **Edge cases**: Boundary values, empty inputs, null/undefined handling
-- **Error conditions**: Invalid inputs, exceptions, error messages
+- **New modules**: Each module should have tests
+- **Edge cases**: Boundary values, empty inputs, None/Some handling
+- **Error conditions**: Invalid inputs, Result::Err cases, panics
 
-### Step 2: Determine Testing Framework
+### Step 2: Rust Testing Framework
 
-Identify the testing framework for the project:
+This project uses Rust's built-in testing framework:
 
-**Common frameworks**:
-- **JavaScript/TypeScript**: Jest, Mocha, Vitest
-- **Python**: pytest, unittest
-- **Rust**: built-in test framework
-- **Java**: JUnit, TestNG
-- **Go**: built-in testing package
+**Test organization**:
+- Inline tests: `#[cfg(test)]` modules in source files
+- Separate test files: Files in `tests/` directory
+- Integration tests: Files in `tests/` for public API testing
 
-Check existing test files to determine the framework and testing patterns used in the project.
+**Test attributes**:
+- `#[test]` - Mark function as test
+- `#[should_panic]` - Test should panic
+- `#[ignore]` - Skip test unless explicitly run
 
-### Step 3: Create Unit Test Files
+### Step 3: Create Unit Test Modules
 
-Create unit test files following the project's test organization:
+Add test modules to source files or create separate test files:
 
-**Naming conventions**:
-- TypeScript/JavaScript: `*.test.ts`, `*.test.js`, `*.spec.ts`, `*.spec.js`
-- Python: `test_*.py` or `*_test.py`
-- Rust: `tests.rs` or `#[cfg(test)]` modules
-- Java: `*Test.java`
-- Go: `*_test.go`
+**Inline tests** (preferred for unit tests):
+```rust
+// In src/parser.rs
 
-**Location**:
-- Co-locate tests with source files when possible (e.g., `user.ts` → `user.test.ts`)
-- Use `tests/` or `__tests__/` directory for centralized tests
-- Follow existing test organization patterns in the project
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_function() {
+        let input = "int add(int a, int b) { return a + b; }";
+        let result = parse_function(input);
+        assert!(result.is_ok());
+    }
+}
+```
+
+**Separate test files** (for integration tests):
+```rust
+// In tests/parser_tests.rs
+
+use crustyc::parser::*;
+
+#[test]
+fn test_parse_complex_function() {
+    // Test implementation
+}
+```
 
 ### Step 4: Write Unit Tests
 
-For each testable unit, write focused unit tests:
+For each testable unit, write focused tests:
 
 1. **Test happy path** - Verify correct behavior with valid inputs:
-   ```typescript
-   // Example with Jest
-   describe('createUser', () => {
-     it('should create a user with valid input', () => {
-       const user = createUser({
-         username: 'john_doe',
-         email: 'john@example.com',
-         age: 25
-       });
-       
-       expect(user.id).toBeDefined();
-       expect(user.username).toBe('john_doe');
-       expect(user.email).toBe('john@example.com');
-       expect(user.age).toBe(25);
-     });
-   });
+   ```rust
+   #[test]
+   fn test_parse_valid_function() {
+       let input = "void main() {}";
+       let result = parse_function(input);
+       assert!(result.is_ok());
+       let func = result.unwrap();
+       assert_eq!(func.name, "main");
+       assert_eq!(func.return_type, "void");
+   }
    ```
 
 2. **Test edge cases** - Verify behavior at boundaries:
-   ```typescript
-   it('should handle minimum age boundary', () => {
-     const user = createUser({
-       username: 'young_user',
-       email: 'young@example.com',
-       age: 18
-     });
-     
-     expect(user.age).toBe(18);
-   });
+   ```rust
+   #[test]
+   fn test_parse_empty_function() {
+       let input = "void empty() {}";
+       let result = parse_function(input);
+       assert!(result.is_ok());
+   }
    
-   it('should handle maximum age boundary', () => {
-     const user = createUser({
-       username: 'old_user',
-       email: 'old@example.com',
-       age: 120
-     });
-     
-     expect(user.age).toBe(120);
-   });
+   #[test]
+   fn test_parse_function_with_many_params() {
+       let input = "int func(int a, int b, int c, int d) {}";
+       let result = parse_function(input);
+       assert!(result.is_ok());
+       assert_eq!(result.unwrap().params.len(), 4);
+   }
    ```
 
 3. **Test error conditions** - Verify proper error handling:
-   ```typescript
-   it('should throw error for invalid email', () => {
-     expect(() => {
-       createUser({
-         username: 'john_doe',
-         email: 'invalid-email',
-         age: 25
-       });
-     }).toThrow('Invalid email format');
-   });
+   ```rust
+   #[test]
+   fn test_parse_invalid_syntax() {
+       let input = "invalid syntax here";
+       let result = parse_function(input);
+       assert!(result.is_err());
+   }
    
-   it('should throw error for age below minimum', () => {
-     expect(() => {
-       createUser({
-         username: 'young_user',
-         email: 'young@example.com',
-         age: 17
-       });
-     }).toThrow('Age must be at least 18');
-   });
+   #[test]
+   #[should_panic(expected = "unexpected token")]
+   fn test_parse_panics_on_invalid_token() {
+       parse_function_unchecked("@#$%");
+   }
    ```
 
-4. **Test special cases** - Empty inputs, null/undefined, special characters:
-   ```typescript
-   it('should handle empty username', () => {
-     expect(() => {
-       createUser({
-         username: '',
-         email: 'test@example.com',
-         age: 25
-       });
-     }).toThrow('Username cannot be empty');
-   });
+4. **Test special cases** - Empty inputs, None values, special characters:
+   ```rust
+   #[test]
+   fn test_parse_empty_input() {
+       let result = parse_function("");
+       assert!(result.is_err());
+   }
    
-   it('should handle null values', () => {
-     expect(() => {
-       createUser(null);
-     }).toThrow('User data is required');
-   });
+   #[test]
+   fn test_parse_with_special_chars() {
+       let input = "void func_with_underscore() {}";
+       let result = parse_function(input);
+       assert!(result.is_ok());
+   }
    ```
 
 ### Step 5: Write Descriptive Test Names
 
-Use clear, descriptive test names that explain what is being tested:
+Use clear, descriptive test names:
 
 **Good test names**:
-- `should create user with valid input`
-- `should throw error when email is invalid`
-- `should handle empty username gracefully`
-- `should return null when user not found`
+- `test_parse_valid_function`
+- `test_parse_returns_error_on_invalid_syntax`
+- `test_codegen_handles_empty_block`
+- `test_semantic_analysis_detects_type_mismatch`
 
 **Bad test names**:
 - `test1`
 - `works`
-- `user test`
-- `should work correctly`
+- `parser_test`
+- `test_function`
 
 ### Step 6: Keep Tests Focused and Minimal
 
 Follow these principles:
 
-1. **One assertion per test** (when possible) - Makes failures easier to diagnose
-2. **Test one thing** - Each test should verify one specific behavior
-3. **Avoid over-testing** - Don't test framework functionality or trivial code
-4. **No mocks for simple tests** - Use real implementations when possible
-5. **Use mocks sparingly** - Only mock external dependencies (APIs, databases, file system)
+1. **One assertion per test** (when possible)
+2. **Test one thing** - Each test verifies one behavior
+3. **Avoid over-testing** - Don't test standard library functionality
+4. **No mocks for simple tests** - Use real implementations
+5. **Use test helpers** - Extract common setup into helper functions
 
 ### Step 7: Run Unit Tests
 
-Execute the unit tests to verify they pass:
+Execute tests to verify they pass:
 
 ```bash
-# TypeScript/JavaScript
-npm test
-
-# Python
-pytest
-
-# Rust
+# Run all tests
 cargo test
 
-# Java
-./gradlew test
+# Run specific test
+cargo test test_parse_valid_function
 
-# Go
-go test ./...
+# Run tests in specific module
+cargo test parser::tests
+
+# Run with output
+cargo test -- --nocapture
+
+# Run ignored tests
+cargo test -- --ignored
 ```
 
 If tests fail:
-1. **Analyze the failure** - Read the error message carefully
-2. **Check the implementation** - The code may have a bug
-3. **Check the test** - The test may have incorrect expectations
-4. **Fix the issue** - Update code or test as needed
-5. **Re-run tests** - Verify the fix works
+1. Analyze failure message
+2. Check implementation for bugs
+3. Check test for incorrect expectations
+4. Fix issue
+5. Re-run tests
 
 ### Step 8: Validate Test Coverage
 
 Ensure unit tests cover important scenarios:
 
-1. **Check all public functions** are tested
-2. **Check edge cases** are covered (boundaries, empty inputs, null values)
-3. **Check error conditions** are tested
-4. **Verify test names** are clear and descriptive
-5. **Ensure tests are independent** - Each test should run in isolation
+1. Check all public functions are tested
+2. Check edge cases are covered
+3. Check error conditions are tested
+4. Verify test names are clear
+5. Ensure tests are independent
 
 ### Step 9: Commit Unit Tests
 
-If unit tests were created, commit them:
+If unit tests were created:
 
 ```bash
 git add .
@@ -230,196 +226,103 @@ git commit -m "test(<scope>): add unit tests for <context>"
 ```
 
 **Examples**:
-- `test(auth): add unit tests for user authentication`
-- `test(api): add unit tests for task management endpoints`
-- `test(validation): add unit tests for input validation`
-- `test(utils): add unit tests for helper functions`
+- `test(parser): add unit tests for function parsing`
+- `test(codegen): add unit tests for code generation`
+- `test(semantic): add unit tests for type checking`
 
 **Scope guidelines**:
-- Use the same scope as the implementation commit when possible
-- Use the module/feature name being tested
-- Keep it concise and descriptive
-
-**Context guidelines**:
-- Briefly describe what is being tested
-- Reference the feature or component under test
-- Keep it concise (under 72 characters total if possible)
-
-### Step 10: Handle No Tests Needed Scenario
-
-If no unit tests are needed (e.g., only configuration changes, documentation updates):
-
-1. **Verify this is correct** - check if there's truly nothing to test
-2. **Report to user**: "No unit tests needed - implementation contains no testable logic"
-3. **Do not create an empty commit**
+- Use the same scope as implementation commit
+- Use module name (parser, codegen, semantic, etc.)
 
 ## Commit Format
 
 ```
 test(<scope>): add unit tests for <context>
 
-<optional body with details>
+<optional body>
 - Added tests for X function (happy path, edge cases, errors)
-- Added tests for Y class (constructor, methods, error handling)
+- Added tests for Y module (various scenarios)
 - Verified all tests pass
 
 <optional footer>
 Validates: Requirements X.Y, X.Z
 ```
 
-**Required elements**:
-- **type**: Always "test"
-- **scope**: The area being tested (auth, api, validation, utils, etc.)
-- **context**: Brief description of what is being tested
-
-**Optional elements**:
-- **body**: Detailed list of tests added
-- **footer**: Requirements validated by these tests
-
 ## Success Criteria
 
-Verify that all of the following are true before completing:
-
 1. ✅ All new public functions have unit tests
-2. ✅ All new classes have tests for their methods
-3. ✅ Edge cases are tested (boundaries, empty inputs, null values)
-4. ✅ Error conditions are tested (invalid inputs, exceptions)
+2. ✅ All new modules have tests
+3. ✅ Edge cases tested (boundaries, empty inputs, None values)
+4. ✅ Error conditions tested (invalid inputs, panics)
 5. ✅ Test names are clear and descriptive
-6. ✅ Tests are focused and minimal (no over-testing)
+6. ✅ Tests are focused and minimal
 7. ✅ All unit tests pass successfully
-8. ✅ Commit message follows the specified format
-9. ✅ Changes are committed (or explicitly noted as not needed)
+8. ✅ Commit message follows format
+9. ✅ Changes committed (or noted as not needed)
 
 ## Error Handling
 
 ### No Testable Code
 
-**Scenario**: Implementation contains no testable logic (e.g., only configuration files)
+**Scenario**: Implementation contains no testable logic
 
 **Action**:
-- Verify by reviewing the implementation changes
-- Report to user: "No unit tests needed - implementation contains no testable logic"
+- Verify by reviewing implementation changes
+- Report: "No unit tests needed - implementation contains no testable logic"
 - Do not create tests or commits
 - Exit successfully
-
-### No Testing Framework
-
-**Scenario**: Project has no testing framework installed
-
-**Action**:
-- Identify the project language
-- Recommend appropriate framework (Jest, pytest, etc.)
-- Ask user if they want to install the framework
-- If yes, install and proceed; if no, report and exit
-
-**Example response**:
-```
-No testing framework found. This is a TypeScript project.
-
-Recommended framework: Jest
-
-Would you like me to:
-1. Install Jest: npm install --save-dev jest @types/jest ts-jest
-2. Skip unit tests for now
-
-Please advise.
-```
 
 ### Test Failures
 
 **Scenario**: Unit tests fail after creation
 
 **Action**:
-- Capture the test failure output
-- Analyze whether it's a bug in implementation or test
-- If implementation bug: fix the code and re-run tests
-- If test bug: fix the test and re-run tests
-- If unclear: report to user with failure details
+- Capture test failure output
+- Analyze if bug is in implementation or test
+- Fix implementation or test as needed
+- Re-run tests
 
 **Example response**:
 ```
 Unit test failed:
 
-Test: should create user with valid input
-Error: Expected user.id to be defined, but got undefined
+Test: test_parse_valid_function
+Error: assertion failed: result.is_ok()
+  left: Err(ParseError("unexpected token"))
 
-This appears to be an implementation bug - the createUser function is not generating an ID.
+This appears to be an implementation bug in the parser.
 
-Fixing implementation to add ID generation...
+Fixing implementation...
 ```
 
 ### Unclear Requirements
 
-**Scenario**: Requirements or expected behavior are unclear
+**Scenario**: Expected behavior is unclear
 
 **Action**:
 - List what is unclear
-- Explain what information is needed
 - Ask user for clarification
 - Do not guess or make assumptions
 
-**Example response**:
-```
-The implementation added a new validateEmail function, but the expected behavior is unclear:
-
-Questions:
-1. Should it accept international email addresses?
-2. Should it validate that the domain exists?
-3. What error message should it return for invalid emails?
-
-Please clarify the requirements so I can write appropriate tests.
-```
-
 ### Existing Tests
 
-**Scenario**: Tests already exist for the implemented functionality
+**Scenario**: Tests already exist for functionality
 
 **Action**:
-- Review existing tests to see if they cover the new functionality
-- If coverage is sufficient: report to user and skip creating new tests
-- If coverage is insufficient: add tests for uncovered scenarios
-- Update existing tests if they need modification
-
-**Example response**:
-```
-Found existing tests for user authentication in tests/auth.test.ts.
-
-Existing coverage:
-- ✅ User login with valid credentials
-- ✅ User login with invalid password
-- ❌ User login with non-existent username (not covered)
-
-Adding test for non-existent username scenario...
-```
-
-### Test Organization Unclear
-
-**Scenario**: Project has no clear test organization pattern
-
-**Action**:
-- Check for existing test files to identify patterns
-- If no pattern exists, use common conventions for the language
-- Co-locate tests with source files when possible
-- Ask user if unsure about organization
-
-**Example response**:
-```
-No existing test files found. Proposing test organization:
-
-- Co-locate tests with source files: src/auth/user.ts → src/auth/user.test.ts
-- Use Jest as testing framework
-- Follow naming convention: *.test.ts
-
-Is this organization acceptable?
-```
+- Review existing tests
+- If coverage sufficient: skip creating new tests
+- If coverage insufficient: add tests for uncovered scenarios
+- Update existing tests if needed
 
 ## Notes
 
-- **Unit vs Property Tests**: Unit tests verify specific examples; property tests verify universal truths. Both are valuable and complementary.
-- **Test Independence**: Each test should be independent and not rely on other tests or shared state.
-- **Minimal Mocking**: Use real implementations when possible; only mock external dependencies.
-- **Descriptive Names**: Test names should clearly explain what is being tested and what the expected outcome is.
-- **Edge Cases Matter**: Boundary values, empty inputs, and null handling often reveal bugs.
-- **Error Testing**: Testing error conditions is just as important as testing success cases.
-- **Keep It Simple**: Don't over-engineer tests; simple, focused tests are easier to maintain.
-- **Test Real Functionality**: Never use mocks or fake data to make tests pass - tests must validate real functionality.
+- **Unit vs Property Tests**: Unit tests verify specific examples; property tests verify universal truths
+- **Test Independence**: Each test should be independent
+- **Minimal Mocking**: Use real implementations when possible
+- **Descriptive Names**: Test names should explain what is tested
+- **Edge Cases Matter**: Boundary values and None handling often reveal bugs
+- **Error Testing**: Testing error conditions is as important as success cases
+- **Keep It Simple**: Simple, focused tests are easier to maintain
+- **Test Real Functionality**: Tests must validate real functionality, not mocked behavior
+- **Rust Conventions**: Follow Rust testing conventions and idioms
+- **Documentation Tests**: Consider adding doc tests for public APIs
