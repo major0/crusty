@@ -6,7 +6,7 @@ This implementation plan breaks down the rust-peg parser rewrite into discrete, 
 
 ## Tasks
 
-- [ ] 1. Set up rust-peg infrastructure
+- [x] 1. Set up rust-peg infrastructure
   - Add peg dependency to Cargo.toml
   - Create basic peg! macro structure in parser.rs
   - Create minimal grammar with simple rule to verify code generation works

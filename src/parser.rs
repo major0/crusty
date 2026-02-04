@@ -5050,3 +5050,94 @@ fn test_macro_with_only_suffix_rejected() {
             .contains("must have double-underscore prefix and suffix"));
     }
 }
+
+// ============================================================================
+// PEG PARSER (NEW IMPLEMENTATION)
+// ============================================================================
+
+// PEG-based parser for Crusty language
+// This is a new implementation using rust-peg that will eventually replace
+// the hand-written recursive descent parser above.
+peg::parser! {
+    pub grammar crusty_peg_parser() for str {
+        // ====================================================================
+        // WHITESPACE AND COMMENTS
+        // ====================================================================
+
+        /// Optional whitespace (quiet - doesn't appear in error messages)
+        rule _ = quiet!{(whitespace() / comment())*}
+
+        /// Required whitespace
+        rule __ = quiet!{(whitespace() / comment())+}
+
+        /// Single whitespace character
+        rule whitespace() = [' ' | '\t' | '\r' | '\n']
+
+        /// Comment (line or block)
+        rule comment() = line_comment() / block_comment()
+
+        /// Line comment: // ... \n
+        rule line_comment() = "//" (!"\n" [_])* "\n"?
+
+        /// Block comment: /* ... */
+        rule block_comment() = "/*" (!"*/" [_])* "*/"
+
+        // ====================================================================
+        // MINIMAL TEST GRAMMAR
+        // ====================================================================
+
+        /// Test rule: parse a simple integer literal
+        pub rule test_int() -> i64
+            = _ n:$(['0'..='9']+) _ { n.parse().unwrap() }
+
+        /// Test rule: parse a simple identifier
+        pub rule test_ident() -> String
+            = _ n:$((['a'..='z' | 'A'..='Z' | '_']) (['a'..='z' | 'A'..='Z' | '0'..='9' | '_'])*) _
+            { n.to_string() }
+    }
+}
+
+#[cfg(test)]
+mod peg_tests {
+    use super::*;
+
+    #[test]
+    fn test_peg_int_parsing() {
+        // Test that rust-peg compiles and generates parser code
+        let result = crusty_peg_parser::test_int("42");
+        assert_eq!(result, Ok(42));
+
+        let result = crusty_peg_parser::test_int("  123  ");
+        assert_eq!(result, Ok(123));
+    }
+
+    #[test]
+    fn test_peg_ident_parsing() {
+        // Test that rust-peg compiles and generates parser code
+        let result = crusty_peg_parser::test_ident("hello");
+        assert_eq!(result, Ok("hello".to_string()));
+
+        let result = crusty_peg_parser::test_ident("  foo_bar  ");
+        assert_eq!(result, Ok("foo_bar".to_string()));
+
+        let result = crusty_peg_parser::test_ident("_test123");
+        assert_eq!(result, Ok("_test123".to_string()));
+    }
+
+    #[test]
+    fn test_peg_whitespace_handling() {
+        // Test that whitespace is handled correctly
+        let result = crusty_peg_parser::test_int("   42   ");
+        assert_eq!(result, Ok(42));
+    }
+
+    #[test]
+    fn test_peg_comment_handling() {
+        // Test that comments are handled correctly
+        let result = crusty_peg_parser::test_int("// comment\n42");
+        assert_eq!(result, Ok(42));
+
+        let result = crusty_peg_parser::test_int("/* block comment */ 42");
+        assert_eq!(result, Ok(42));
+    }
+}
