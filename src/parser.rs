@@ -5584,6 +5584,134 @@ peg::parser! {
         }
 
         // ====================================================================
+        // EXPRESSIONS (Task 4)
+        // ====================================================================
+        // Expression parsing handles all value-producing constructs in Crusty.
+        //
+        // Primary expressions are the atomic building blocks:
+        // - Literals: integers, floats, strings, chars, bools, null
+        // - Identifiers: variable and function names
+        // - Parenthesized expressions: (expr)
+        // - Struct initialization: Type { field: value, ... }
+        // - Array literals: [elem1, elem2, ...]
+        // - Tuple literals: (elem1, elem2, ...)
+        //
+        // Task 4.1: Define primary expression rules with actions
+
+        /// Literal expression: wraps a literal value
+        /// Returns Expression::Literal
+        pub rule literal_expr() -> Expression
+            = _ l:literal() _ { Expression::Literal(l) }
+
+        /// Any literal value
+        rule literal() -> Literal
+            = float_literal()  // Must come before int_literal (longer match)
+            / int_literal()
+            / string_literal()
+            / char_literal()
+            / bool_literal()
+            / null_literal()
+
+        /// Identifier expression: a variable or function name
+        /// Returns Expression::Ident
+        pub rule ident_expr() -> Expression
+            = _ i:ident() _ { Expression::Ident(i) }
+
+        /// Parenthesized expression: (expr)
+        /// Returns the inner expression (parentheses are for grouping only)
+        pub rule paren_expr() -> Expression
+            = _ "(" _ e:expr() _ ")" _ { e }
+
+        /// Struct initialization: Type { field: value, ... }
+        /// Returns Expression::StructInit
+        pub rule struct_init() -> Expression
+            = _ ty:struct_init_type() _ "{" _ fields:struct_init_fields()? _ "}" _ {
+                Expression::StructInit {
+                    ty,
+                    fields: fields.unwrap_or_default(),
+                }
+            }
+
+        /// Type for struct initialization (identifier or generic)
+        rule struct_init_type() -> Type
+            = base:ident() _ "<" _ args:type_list() _ ">" {
+                Type::Generic {
+                    base: Box::new(Type::Ident(base)),
+                    args,
+                }
+            }
+            / i:ident() { Type::Ident(i) }
+
+        /// Struct initialization fields: field: value, ...
+        rule struct_init_fields() -> Vec<(Ident, Expression)>
+            = first:struct_init_field() rest:(_ "," _ f:struct_init_field() { f })* (_ ",")? {
+                let mut fields = vec![first];
+                fields.extend(rest);
+                fields
+            }
+
+        /// Single struct initialization field: field: value
+        rule struct_init_field() -> (Ident, Expression)
+            = name:ident() _ ":" _ value:expr() { (name, value) }
+
+        /// Array literal: [elem1, elem2, ...]
+        /// Returns Expression::ArrayLit
+        pub rule array_lit() -> Expression
+            = _ "[" _ elements:array_elements()? _ "]" _ {
+                Expression::ArrayLit {
+                    elements: elements.unwrap_or_default(),
+                }
+            }
+
+        /// Array elements: comma-separated expressions
+        rule array_elements() -> Vec<Expression>
+            = first:expr() rest:(_ "," _ e:expr() { e })* (_ ",")? {
+                let mut elements = vec![first];
+                elements.extend(rest);
+                elements
+            }
+
+        /// Tuple literal: (elem1, elem2, ...) with at least 2 elements or trailing comma
+        /// Returns Expression::TupleLit
+        /// Note: Single element without trailing comma is a parenthesized expression
+        pub rule tuple_lit() -> Expression
+            = _ "(" _ ")" _ {
+                // Empty tuple
+                Expression::TupleLit { elements: vec![] }
+            }
+            / _ "(" _ first:expr() _ "," _ ")" _ {
+                // Single element tuple with trailing comma
+                Expression::TupleLit { elements: vec![first] }
+            }
+            / _ "(" _ first:expr() _ "," _ rest:(e:expr() ** (_ "," _)) _ ","? _ ")" _ {
+                // Multi-element tuple
+                let mut elements = vec![first];
+                elements.extend(rest);
+                Expression::TupleLit { elements }
+            }
+
+        /// Primary expression: the atomic building blocks of expressions
+        /// Order matters for PEG ordered choice:
+        /// 1. Tuple literal (must check for comma after first element)
+        /// 2. Parenthesized expression (single element without comma)
+        /// 3. Struct initialization (Type { ... })
+        /// 4. Array literal ([...])
+        /// 5. Literal expression (numbers, strings, etc.)
+        /// 6. Identifier expression (variable names)
+        pub rule primary() -> Expression
+            = tuple_lit()
+            / paren_expr()
+            / struct_init()
+            / array_lit()
+            / literal_expr()
+            / ident_expr()
+
+        /// Placeholder expr rule for use in other rules
+        /// This will be replaced with the full precedence! macro in task 4.5
+        pub rule expr() -> Expression
+            = primary()
+
+        // ====================================================================
         // MINIMAL TEST GRAMMAR
         // ====================================================================
 
@@ -8234,5 +8362,408 @@ mod keyword_properties {
                 input
             );
         });
+    }
+}
+
+// ============================================================================
+// PRIMARY EXPRESSION TESTS (Task 4.1)
+// ============================================================================
+
+#[cfg(test)]
+mod primary_expression_tests {
+    use super::*;
+
+    // ========================================================================
+    // LITERAL EXPRESSION TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_literal_expr_int() {
+        let result = crusty_peg_parser::literal_expr("42");
+        assert_eq!(result, Ok(Expression::Literal(Literal::Int(42))));
+    }
+
+    #[test]
+    fn test_literal_expr_float() {
+        let result = crusty_peg_parser::literal_expr("3.15");
+        assert_eq!(result, Ok(Expression::Literal(Literal::Float(3.15))));
+    }
+
+    #[test]
+    fn test_literal_expr_string() {
+        let result = crusty_peg_parser::literal_expr("\"hello\"");
+        assert_eq!(
+            result,
+            Ok(Expression::Literal(Literal::String("hello".to_string())))
+        );
+    }
+
+    #[test]
+    fn test_literal_expr_char() {
+        let result = crusty_peg_parser::literal_expr("'a'");
+        assert_eq!(result, Ok(Expression::Literal(Literal::Char('a'))));
+    }
+
+    #[test]
+    fn test_literal_expr_bool_true() {
+        let result = crusty_peg_parser::literal_expr("true");
+        assert_eq!(result, Ok(Expression::Literal(Literal::Bool(true))));
+    }
+
+    #[test]
+    fn test_literal_expr_bool_false() {
+        let result = crusty_peg_parser::literal_expr("false");
+        assert_eq!(result, Ok(Expression::Literal(Literal::Bool(false))));
+    }
+
+    #[test]
+    fn test_literal_expr_null() {
+        let result = crusty_peg_parser::literal_expr("NULL");
+        assert_eq!(result, Ok(Expression::Literal(Literal::Null)));
+    }
+
+    #[test]
+    fn test_literal_expr_with_whitespace() {
+        let result = crusty_peg_parser::literal_expr("  42  ");
+        assert_eq!(result, Ok(Expression::Literal(Literal::Int(42))));
+    }
+
+    // ========================================================================
+    // IDENTIFIER EXPRESSION TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_ident_expr_simple() {
+        let result = crusty_peg_parser::ident_expr("foo");
+        assert_eq!(result, Ok(Expression::Ident(Ident::new("foo"))));
+    }
+
+    #[test]
+    fn test_ident_expr_with_underscore() {
+        let result = crusty_peg_parser::ident_expr("foo_bar");
+        assert_eq!(result, Ok(Expression::Ident(Ident::new("foo_bar"))));
+    }
+
+    #[test]
+    fn test_ident_expr_with_numbers() {
+        let result = crusty_peg_parser::ident_expr("foo123");
+        assert_eq!(result, Ok(Expression::Ident(Ident::new("foo123"))));
+    }
+
+    #[test]
+    fn test_ident_expr_with_whitespace() {
+        let result = crusty_peg_parser::ident_expr("  foo  ");
+        assert_eq!(result, Ok(Expression::Ident(Ident::new("foo"))));
+    }
+
+    // ========================================================================
+    // PARENTHESIZED EXPRESSION TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_paren_expr_simple() {
+        let result = crusty_peg_parser::paren_expr("(42)");
+        assert_eq!(result, Ok(Expression::Literal(Literal::Int(42))));
+    }
+
+    #[test]
+    fn test_paren_expr_ident() {
+        let result = crusty_peg_parser::paren_expr("(foo)");
+        assert_eq!(result, Ok(Expression::Ident(Ident::new("foo"))));
+    }
+
+    #[test]
+    fn test_paren_expr_nested() {
+        let result = crusty_peg_parser::paren_expr("((42))");
+        assert_eq!(result, Ok(Expression::Literal(Literal::Int(42))));
+    }
+
+    #[test]
+    fn test_paren_expr_with_whitespace() {
+        let result = crusty_peg_parser::paren_expr("( 42 )");
+        assert_eq!(result, Ok(Expression::Literal(Literal::Int(42))));
+    }
+
+    // ========================================================================
+    // ARRAY LITERAL TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_array_lit_empty() {
+        let result = crusty_peg_parser::array_lit("[]");
+        assert_eq!(result, Ok(Expression::ArrayLit { elements: vec![] }));
+    }
+
+    #[test]
+    fn test_array_lit_single() {
+        let result = crusty_peg_parser::array_lit("[42]");
+        assert_eq!(
+            result,
+            Ok(Expression::ArrayLit {
+                elements: vec![Expression::Literal(Literal::Int(42))]
+            })
+        );
+    }
+
+    #[test]
+    fn test_array_lit_multiple() {
+        let result = crusty_peg_parser::array_lit("[1, 2, 3]");
+        assert_eq!(
+            result,
+            Ok(Expression::ArrayLit {
+                elements: vec![
+                    Expression::Literal(Literal::Int(1)),
+                    Expression::Literal(Literal::Int(2)),
+                    Expression::Literal(Literal::Int(3)),
+                ]
+            })
+        );
+    }
+
+    #[test]
+    fn test_array_lit_trailing_comma() {
+        let result = crusty_peg_parser::array_lit("[1, 2, 3,]");
+        assert_eq!(
+            result,
+            Ok(Expression::ArrayLit {
+                elements: vec![
+                    Expression::Literal(Literal::Int(1)),
+                    Expression::Literal(Literal::Int(2)),
+                    Expression::Literal(Literal::Int(3)),
+                ]
+            })
+        );
+    }
+
+    #[test]
+    fn test_array_lit_with_whitespace() {
+        let result = crusty_peg_parser::array_lit("[ 1 , 2 , 3 ]");
+        assert_eq!(
+            result,
+            Ok(Expression::ArrayLit {
+                elements: vec![
+                    Expression::Literal(Literal::Int(1)),
+                    Expression::Literal(Literal::Int(2)),
+                    Expression::Literal(Literal::Int(3)),
+                ]
+            })
+        );
+    }
+
+    // ========================================================================
+    // TUPLE LITERAL TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_tuple_lit_empty() {
+        let result = crusty_peg_parser::tuple_lit("()");
+        assert_eq!(result, Ok(Expression::TupleLit { elements: vec![] }));
+    }
+
+    #[test]
+    fn test_tuple_lit_single_with_comma() {
+        let result = crusty_peg_parser::tuple_lit("(42,)");
+        assert_eq!(
+            result,
+            Ok(Expression::TupleLit {
+                elements: vec![Expression::Literal(Literal::Int(42))]
+            })
+        );
+    }
+
+    #[test]
+    fn test_tuple_lit_two_elements() {
+        let result = crusty_peg_parser::tuple_lit("(1, 2)");
+        assert_eq!(
+            result,
+            Ok(Expression::TupleLit {
+                elements: vec![
+                    Expression::Literal(Literal::Int(1)),
+                    Expression::Literal(Literal::Int(2)),
+                ]
+            })
+        );
+    }
+
+    #[test]
+    fn test_tuple_lit_multiple() {
+        let result = crusty_peg_parser::tuple_lit("(1, 2, 3)");
+        assert_eq!(
+            result,
+            Ok(Expression::TupleLit {
+                elements: vec![
+                    Expression::Literal(Literal::Int(1)),
+                    Expression::Literal(Literal::Int(2)),
+                    Expression::Literal(Literal::Int(3)),
+                ]
+            })
+        );
+    }
+
+    #[test]
+    fn test_tuple_lit_trailing_comma() {
+        let result = crusty_peg_parser::tuple_lit("(1, 2, 3,)");
+        assert_eq!(
+            result,
+            Ok(Expression::TupleLit {
+                elements: vec![
+                    Expression::Literal(Literal::Int(1)),
+                    Expression::Literal(Literal::Int(2)),
+                    Expression::Literal(Literal::Int(3)),
+                ]
+            })
+        );
+    }
+
+    // ========================================================================
+    // STRUCT INIT TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_struct_init_empty() {
+        let result = crusty_peg_parser::struct_init("Point {}");
+        assert_eq!(
+            result,
+            Ok(Expression::StructInit {
+                ty: Type::Ident(Ident::new("Point")),
+                fields: vec![],
+            })
+        );
+    }
+
+    #[test]
+    fn test_struct_init_single_field() {
+        let result = crusty_peg_parser::struct_init("Point { x: 10 }");
+        assert_eq!(
+            result,
+            Ok(Expression::StructInit {
+                ty: Type::Ident(Ident::new("Point")),
+                fields: vec![(Ident::new("x"), Expression::Literal(Literal::Int(10)))],
+            })
+        );
+    }
+
+    #[test]
+    fn test_struct_init_multiple_fields() {
+        let result = crusty_peg_parser::struct_init("Point { x: 10, y: 20 }");
+        assert_eq!(
+            result,
+            Ok(Expression::StructInit {
+                ty: Type::Ident(Ident::new("Point")),
+                fields: vec![
+                    (Ident::new("x"), Expression::Literal(Literal::Int(10))),
+                    (Ident::new("y"), Expression::Literal(Literal::Int(20))),
+                ],
+            })
+        );
+    }
+
+    #[test]
+    fn test_struct_init_trailing_comma() {
+        let result = crusty_peg_parser::struct_init("Point { x: 10, y: 20, }");
+        assert_eq!(
+            result,
+            Ok(Expression::StructInit {
+                ty: Type::Ident(Ident::new("Point")),
+                fields: vec![
+                    (Ident::new("x"), Expression::Literal(Literal::Int(10))),
+                    (Ident::new("y"), Expression::Literal(Literal::Int(20))),
+                ],
+            })
+        );
+    }
+
+    #[test]
+    fn test_struct_init_generic_type() {
+        let result = crusty_peg_parser::struct_init("Vec<int> {}");
+        assert_eq!(
+            result,
+            Ok(Expression::StructInit {
+                ty: Type::Generic {
+                    base: Box::new(Type::Ident(Ident::new("Vec"))),
+                    args: vec![Type::Primitive(PrimitiveType::Int)],
+                },
+                fields: vec![],
+            })
+        );
+    }
+
+    // ========================================================================
+    // PRIMARY EXPRESSION TESTS (combined)
+    // ========================================================================
+
+    #[test]
+    fn test_primary_literal() {
+        let result = crusty_peg_parser::primary("42");
+        assert_eq!(result, Ok(Expression::Literal(Literal::Int(42))));
+    }
+
+    #[test]
+    fn test_primary_ident() {
+        let result = crusty_peg_parser::primary("foo");
+        assert_eq!(result, Ok(Expression::Ident(Ident::new("foo"))));
+    }
+
+    #[test]
+    fn test_primary_paren() {
+        let result = crusty_peg_parser::primary("(42)");
+        assert_eq!(result, Ok(Expression::Literal(Literal::Int(42))));
+    }
+
+    #[test]
+    fn test_primary_array() {
+        let result = crusty_peg_parser::primary("[1, 2, 3]");
+        assert_eq!(
+            result,
+            Ok(Expression::ArrayLit {
+                elements: vec![
+                    Expression::Literal(Literal::Int(1)),
+                    Expression::Literal(Literal::Int(2)),
+                    Expression::Literal(Literal::Int(3)),
+                ]
+            })
+        );
+    }
+
+    #[test]
+    fn test_primary_tuple() {
+        let result = crusty_peg_parser::primary("(1, 2)");
+        assert_eq!(
+            result,
+            Ok(Expression::TupleLit {
+                elements: vec![
+                    Expression::Literal(Literal::Int(1)),
+                    Expression::Literal(Literal::Int(2)),
+                ]
+            })
+        );
+    }
+
+    #[test]
+    fn test_primary_struct_init() {
+        let result = crusty_peg_parser::primary("Point { x: 10 }");
+        assert_eq!(
+            result,
+            Ok(Expression::StructInit {
+                ty: Type::Ident(Ident::new("Point")),
+                fields: vec![(Ident::new("x"), Expression::Literal(Literal::Int(10)))],
+            })
+        );
+    }
+
+    // ========================================================================
+    // EXPR RULE TESTS (placeholder)
+    // ========================================================================
+
+    #[test]
+    fn test_expr_literal() {
+        let result = crusty_peg_parser::expr("42");
+        assert_eq!(result, Ok(Expression::Literal(Literal::Int(42))));
+    }
+
+    #[test]
+    fn test_expr_ident() {
+        let result = crusty_peg_parser::expr("foo");
+        assert_eq!(result, Ok(Expression::Ident(Ident::new("foo"))));
     }
 }
