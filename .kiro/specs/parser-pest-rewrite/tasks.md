@@ -88,13 +88,13 @@ This implementation plan breaks down the rust-peg parser rewrite into discrete, 
     - Implement type_scoped_call rule returning Expression::TypeScopedCall
     - _Requirements: 1.2, 6.8, 6.12_
   
-  - [ ] 4.4 Define primary() rule with ordered choice
+  - [x] 4.4 Define primary() rule with ordered choice
     - Combine all primary expressions with ordered choice
     - Ensure cast_expr is tried first
     - Return Expression enum variants
     - _Requirements: 1.6, 6.8_
   
-  - [ ] 4.5 Define expr rule using precedence! macro
+  - [x] 4.5 Define expr rule using precedence! macro
     - Define all operator precedence levels (comma lowest to prefix/postfix highest)
     - Comma operator: , (lowest precedence, left-associative)
     - Assignment operators: =, +=, -=, *=, /=, %=, &=, |=, ^=, <<=, >>=

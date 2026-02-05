@@ -292,6 +292,12 @@ pub enum Expression {
         method: Ident,
         args: Vec<Expression>,
     },
+    /// Comma expression: evaluates left, discards result, evaluates and returns right
+    /// Used in for-loop increments like: i++, j--
+    Comma {
+        left: Box<Expression>,
+        right: Box<Expression>,
+    },
 }
 
 /// Type expressions
@@ -436,6 +442,12 @@ pub enum BinaryOp {
     SubAssign,
     MulAssign,
     DivAssign,
+    ModAssign,
+    BitAndAssign,
+    BitOrAssign,
+    BitXorAssign,
+    ShlAssign,
+    ShrAssign,
 }
 
 /// Unary operators

@@ -5671,7 +5671,7 @@ peg::parser! {
 
         /// Single struct initialization field: field: value
         rule struct_init_field() -> (Ident, Expression)
-            = name:ident() _ ":" _ value:expr() { (name, value) }
+            = name:ident() _ ":" _ value:assignment_expr() { (name, value) }
 
         /// Array literal: [elem1, elem2, ...]
         /// Returns Expression::ArrayLit
@@ -5684,7 +5684,7 @@ peg::parser! {
 
         /// Array elements: comma-separated expressions
         rule array_elements() -> Vec<Expression>
-            = first:expr() rest:(_ "," _ e:expr() { e })* (_ ",")? {
+            = first:assignment_expr() rest:(_ "," _ e:assignment_expr() { e })* (_ ",")? {
                 let mut elements = vec![first];
                 elements.extend(rest);
                 elements
@@ -5698,11 +5698,11 @@ peg::parser! {
                 // Empty tuple
                 Expression::TupleLit { elements: vec![] }
             }
-            / _ "(" _ first:expr() _ "," _ ")" _ {
+            / _ "(" _ first:assignment_expr() _ "," _ ")" _ {
                 // Single element tuple with trailing comma
                 Expression::TupleLit { elements: vec![first] }
             }
-            / _ "(" _ first:expr() _ "," _ rest:(e:expr() ** (_ "," _)) _ ","? _ ")" _ {
+            / _ "(" _ first:assignment_expr() _ "," _ rest:(e:assignment_expr() ** (_ "," _)) _ ","? _ ")" _ {
                 // Multi-element tuple
                 let mut elements = vec![first];
                 elements.extend(rest);
@@ -5788,7 +5788,7 @@ peg::parser! {
 
         /// Call arguments: comma-separated list of expressions
         rule call_args() -> Vec<Expression>
-            = first:expr() rest:(_ "," _ e:expr() { e })* (_ ",")? {
+            = first:assignment_expr() rest:(_ "," _ e:assignment_expr() { e })* (_ ",")? {
                 let mut args = vec![first];
                 args.extend(rest);
                 args
@@ -5867,10 +5867,612 @@ peg::parser! {
             = type_scoped_call()
             / postfix_expr()
 
-        /// Placeholder expr rule for use in other rules
-        /// This will be replaced with the full precedence! macro in task 4.5
-        pub rule expr() -> Expression
-            = primary()
+        // ====================================================================
+        // EXPRESSION GRAMMAR WITH PRECEDENCE (Task 4.5)
+        // ====================================================================
+        // This implements the full expression grammar using rust-peg's precedence! macro.
+        // Operators are organized from lowest to highest precedence.
+        //
+        // Precedence levels (lowest to highest):
+        // 1. Comma operator: ,
+        // 2. Assignment operators: =, +=, -=, *=, /=, %=, &=, |=, ^=, <<=, >>=
+        // 3. Ternary conditional: ? :
+        // 4. Logical OR: ||
+        // 5. Logical AND: &&
+        // 6. Bitwise OR: |
+        // 7. Bitwise XOR: ^
+        // 8. Bitwise AND: &
+        // 9. Equality: ==, !=
+        // 10. Comparison: <, >, <=, >=
+        // 11. Shift: <<, >>
+        // 12. Addition/Subtraction: +, -
+        // 13. Multiplication/Division/Modulo: *, /, %
+        // 14. Prefix unary: -, !, &, *, ++, --
+        // 15. Postfix unary: ++, -- (handled in postfix_expr)
+        // 16. Primary expressions (handled in primary())
+
+        /// Full expression rule using precedence! macro
+        /// Handles all operators with correct precedence and associativity
+        ///
+        /// Requirements validated: 1.6, 6.8, 6.16
+        pub rule expr() -> Expression = precedence!{
+            // Level 1: Comma operator (lowest precedence, left-associative)
+            // Used in for-loop increments: i++, j--
+            l:(@) _ "," _ r:@ {
+                Expression::Comma {
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            --
+            // Level 2: Assignment operators (right-associative)
+            // Note: Using (@) on right for right-associativity
+            l:@ _ "=" _ r:(@) {
+                Expression::Binary {
+                    op: BinaryOp::Assign,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:@ _ "+=" _ r:(@) {
+                Expression::Binary {
+                    op: BinaryOp::AddAssign,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:@ _ "-=" _ r:(@) {
+                Expression::Binary {
+                    op: BinaryOp::SubAssign,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:@ _ "*=" _ r:(@) {
+                Expression::Binary {
+                    op: BinaryOp::MulAssign,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:@ _ "/=" _ r:(@) {
+                Expression::Binary {
+                    op: BinaryOp::DivAssign,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:@ _ "%=" _ r:(@) {
+                Expression::Binary {
+                    op: BinaryOp::ModAssign,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:@ _ "&=" _ r:(@) {
+                Expression::Binary {
+                    op: BinaryOp::BitAndAssign,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:@ _ "|=" _ r:(@) {
+                Expression::Binary {
+                    op: BinaryOp::BitOrAssign,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:@ _ "^=" _ r:(@) {
+                Expression::Binary {
+                    op: BinaryOp::BitXorAssign,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:@ _ "<<=" _ r:(@) {
+                Expression::Binary {
+                    op: BinaryOp::ShlAssign,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:@ _ ">>=" _ r:(@) {
+                Expression::Binary {
+                    op: BinaryOp::ShrAssign,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            --
+            // Level 3: Ternary conditional (right-associative)
+            cond:@ _ "?" _ then_expr:expr() _ ":" _ else_expr:(@) {
+                Expression::Ternary {
+                    condition: Box::new(cond),
+                    then_expr: Box::new(then_expr),
+                    else_expr: Box::new(else_expr),
+                }
+            }
+            --
+            // Level 4: Logical OR (left-associative)
+            l:(@) _ "||" _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Or,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            --
+            // Level 5: Logical AND (left-associative)
+            l:(@) _ "&&" _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::And,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            --
+            // Level 6: Bitwise OR (left-associative)
+            // Note: Must not match || (handled above)
+            l:(@) _ "|" !['|' | '='] _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::BitOr,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            --
+            // Level 7: Bitwise XOR (left-associative)
+            l:(@) _ "^" !['='] _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::BitXor,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            --
+            // Level 8: Bitwise AND (left-associative)
+            // Note: Must not match && (handled above)
+            l:(@) _ "&" !['&' | '='] _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::BitAnd,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            --
+            // Level 9: Equality operators (left-associative)
+            l:(@) _ "==" _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Eq,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:(@) _ "!=" _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Ne,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            --
+            // Level 10: Comparison operators (left-associative)
+            // Note: Must handle <= and >= before < and >
+            l:(@) _ "<=" _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Le,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:(@) _ ">=" _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Ge,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:(@) _ "<" !['<' | '='] _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Lt,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:(@) _ ">" !['>' | '='] _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Gt,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            --
+            // Level 11: Shift operators (left-associative)
+            l:(@) _ "<<" !['='] _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Shl,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:(@) _ ">>" !['='] _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Shr,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            --
+            // Level 12: Addition and Subtraction (left-associative)
+            l:(@) _ "+" !['=' | '+'] _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Add,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:(@) _ "-" !['=' | '-' | '>'] _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Sub,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            --
+            // Level 13: Multiplication, Division, Modulo (left-associative)
+            l:(@) _ "*" !['='] _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Mul,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:(@) _ "/" !['='] _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Div,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:(@) _ "%" !['='] _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Mod,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            --
+            // Level 14: Prefix unary operators
+            // Note: ++ and -- must come BEFORE - to avoid matching - twice
+            "++" _ e:@ {
+                Expression::Unary {
+                    op: UnaryOp::PreInc,
+                    expr: Box::new(e),
+                }
+            }
+            "--" _ e:@ {
+                Expression::Unary {
+                    op: UnaryOp::PreDec,
+                    expr: Box::new(e),
+                }
+            }
+            "-" _ e:@ {
+                Expression::Unary {
+                    op: UnaryOp::Neg,
+                    expr: Box::new(e),
+                }
+            }
+            "!" _ e:@ {
+                Expression::Unary {
+                    op: UnaryOp::Not,
+                    expr: Box::new(e),
+                }
+            }
+            "&" _ e:@ {
+                Expression::Unary {
+                    op: UnaryOp::Ref,
+                    expr: Box::new(e),
+                }
+            }
+            "*" _ e:@ {
+                Expression::Unary {
+                    op: UnaryOp::Deref,
+                    expr: Box::new(e),
+                }
+            }
+            --
+            // Level 15: Primary expressions (highest precedence)
+            e:primary() { e }
+        }
+
+        /// Assignment expression: all operators except comma
+        /// Used in contexts where commas are separators (array literals, function args, etc.)
+        ///
+        /// This is the same as expr() but without the comma operator at the lowest level.
+        /// In C-like languages, the comma operator is excluded from:
+        /// - Array initializers: [1, 2, 3]
+        /// - Function arguments: func(a, b, c)
+        /// - Tuple literals: (a, b, c)
+        /// - Struct field initializers: Point { x: 1, y: 2 }
+        pub rule assignment_expr() -> Expression = precedence!{
+            // Level 1: Assignment operators (right-associative)
+            // Note: Using (@) on right for right-associativity
+            l:@ _ "=" _ r:(@) {
+                Expression::Binary {
+                    op: BinaryOp::Assign,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:@ _ "+=" _ r:(@) {
+                Expression::Binary {
+                    op: BinaryOp::AddAssign,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:@ _ "-=" _ r:(@) {
+                Expression::Binary {
+                    op: BinaryOp::SubAssign,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:@ _ "*=" _ r:(@) {
+                Expression::Binary {
+                    op: BinaryOp::MulAssign,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:@ _ "/=" _ r:(@) {
+                Expression::Binary {
+                    op: BinaryOp::DivAssign,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:@ _ "%=" _ r:(@) {
+                Expression::Binary {
+                    op: BinaryOp::ModAssign,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:@ _ "&=" _ r:(@) {
+                Expression::Binary {
+                    op: BinaryOp::BitAndAssign,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:@ _ "|=" _ r:(@) {
+                Expression::Binary {
+                    op: BinaryOp::BitOrAssign,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:@ _ "^=" _ r:(@) {
+                Expression::Binary {
+                    op: BinaryOp::BitXorAssign,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:@ _ "<<=" _ r:(@) {
+                Expression::Binary {
+                    op: BinaryOp::ShlAssign,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:@ _ ">>=" _ r:(@) {
+                Expression::Binary {
+                    op: BinaryOp::ShrAssign,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            --
+            // Level 2: Ternary conditional (right-associative)
+            cond:@ _ "?" _ then_expr:assignment_expr() _ ":" _ else_expr:(@) {
+                Expression::Ternary {
+                    condition: Box::new(cond),
+                    then_expr: Box::new(then_expr),
+                    else_expr: Box::new(else_expr),
+                }
+            }
+            --
+            // Level 3: Logical OR (left-associative)
+            l:(@) _ "||" _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Or,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            --
+            // Level 4: Logical AND (left-associative)
+            l:(@) _ "&&" _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::And,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            --
+            // Level 5: Bitwise OR (left-associative)
+            l:(@) _ "|" !['|' | '='] _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::BitOr,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            --
+            // Level 6: Bitwise XOR (left-associative)
+            l:(@) _ "^" !['='] _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::BitXor,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            --
+            // Level 7: Bitwise AND (left-associative)
+            l:(@) _ "&" !['&' | '='] _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::BitAnd,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            --
+            // Level 8: Equality operators (left-associative)
+            l:(@) _ "==" _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Eq,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:(@) _ "!=" _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Ne,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            --
+            // Level 9: Comparison operators (left-associative)
+            l:(@) _ "<=" _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Le,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:(@) _ ">=" _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Ge,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:(@) _ "<" !['<' | '='] _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Lt,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:(@) _ ">" !['>' | '='] _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Gt,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            --
+            // Level 10: Shift operators (left-associative)
+            l:(@) _ "<<" !['='] _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Shl,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:(@) _ ">>" !['='] _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Shr,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            --
+            // Level 11: Addition and Subtraction (left-associative)
+            l:(@) _ "+" !['=' | '+'] _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Add,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:(@) _ "-" !['=' | '-' | '>'] _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Sub,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            --
+            // Level 12: Multiplication, Division, Modulo (left-associative)
+            l:(@) _ "*" !['='] _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Mul,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:(@) _ "/" !['='] _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Div,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            l:(@) _ "%" !['='] _ r:@ {
+                Expression::Binary {
+                    op: BinaryOp::Mod,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                }
+            }
+            --
+            // Level 13: Prefix unary operators
+            // Note: ++ and -- must come BEFORE - to avoid matching - twice
+            "++" _ e:@ {
+                Expression::Unary {
+                    op: UnaryOp::PreInc,
+                    expr: Box::new(e),
+                }
+            }
+            "--" _ e:@ {
+                Expression::Unary {
+                    op: UnaryOp::PreDec,
+                    expr: Box::new(e),
+                }
+            }
+            "-" _ e:@ {
+                Expression::Unary {
+                    op: UnaryOp::Neg,
+                    expr: Box::new(e),
+                }
+            }
+            "!" _ e:@ {
+                Expression::Unary {
+                    op: UnaryOp::Not,
+                    expr: Box::new(e),
+                }
+            }
+            "&" _ e:@ {
+                Expression::Unary {
+                    op: UnaryOp::Ref,
+                    expr: Box::new(e),
+                }
+            }
+            "*" _ e:@ {
+                Expression::Unary {
+                    op: UnaryOp::Deref,
+                    expr: Box::new(e),
+                }
+            }
+            --
+            // Level 14: Primary expressions (highest precedence)
+            e:primary() { e }
+        }
 
         // ====================================================================
         // MINIMAL TEST GRAMMAR
@@ -9912,6 +10514,659 @@ mod call_access_expression_tests {
                 ty: Type::Ident(Ident::new("Vec")),
                 method: Ident::new("new"),
                 args: vec![],
+            })
+        );
+    }
+
+    // ========================================================================
+    // BINARY OPERATOR TESTS (Task 4.5)
+    // ========================================================================
+
+    #[test]
+    fn test_expr_binary_add() {
+        let result = crusty_peg_parser::expr("1 + 2");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::Add,
+                left: Box::new(Expression::Literal(Literal::Int(1))),
+                right: Box::new(Expression::Literal(Literal::Int(2))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_binary_sub() {
+        let result = crusty_peg_parser::expr("5 - 3");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::Sub,
+                left: Box::new(Expression::Literal(Literal::Int(5))),
+                right: Box::new(Expression::Literal(Literal::Int(3))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_binary_mul() {
+        let result = crusty_peg_parser::expr("2 * 3");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::Mul,
+                left: Box::new(Expression::Literal(Literal::Int(2))),
+                right: Box::new(Expression::Literal(Literal::Int(3))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_binary_div() {
+        let result = crusty_peg_parser::expr("10 / 2");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::Div,
+                left: Box::new(Expression::Literal(Literal::Int(10))),
+                right: Box::new(Expression::Literal(Literal::Int(2))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_binary_mod() {
+        let result = crusty_peg_parser::expr("10 % 3");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::Mod,
+                left: Box::new(Expression::Literal(Literal::Int(10))),
+                right: Box::new(Expression::Literal(Literal::Int(3))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_precedence_mul_over_add() {
+        // 1 + 2 * 3 should parse as 1 + (2 * 3)
+        let result = crusty_peg_parser::expr("1 + 2 * 3");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::Add,
+                left: Box::new(Expression::Literal(Literal::Int(1))),
+                right: Box::new(Expression::Binary {
+                    op: BinaryOp::Mul,
+                    left: Box::new(Expression::Literal(Literal::Int(2))),
+                    right: Box::new(Expression::Literal(Literal::Int(3))),
+                }),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_precedence_left_associative() {
+        // 1 - 2 - 3 should parse as (1 - 2) - 3
+        let result = crusty_peg_parser::expr("1 - 2 - 3");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::Sub,
+                left: Box::new(Expression::Binary {
+                    op: BinaryOp::Sub,
+                    left: Box::new(Expression::Literal(Literal::Int(1))),
+                    right: Box::new(Expression::Literal(Literal::Int(2))),
+                }),
+                right: Box::new(Expression::Literal(Literal::Int(3))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_comparison_eq() {
+        let result = crusty_peg_parser::expr("a == b");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::Eq,
+                left: Box::new(Expression::Ident(Ident::new("a"))),
+                right: Box::new(Expression::Ident(Ident::new("b"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_comparison_ne() {
+        let result = crusty_peg_parser::expr("a != b");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::Ne,
+                left: Box::new(Expression::Ident(Ident::new("a"))),
+                right: Box::new(Expression::Ident(Ident::new("b"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_comparison_lt() {
+        let result = crusty_peg_parser::expr("a < b");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::Lt,
+                left: Box::new(Expression::Ident(Ident::new("a"))),
+                right: Box::new(Expression::Ident(Ident::new("b"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_comparison_gt() {
+        let result = crusty_peg_parser::expr("a > b");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::Gt,
+                left: Box::new(Expression::Ident(Ident::new("a"))),
+                right: Box::new(Expression::Ident(Ident::new("b"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_comparison_le() {
+        let result = crusty_peg_parser::expr("a <= b");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::Le,
+                left: Box::new(Expression::Ident(Ident::new("a"))),
+                right: Box::new(Expression::Ident(Ident::new("b"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_comparison_ge() {
+        let result = crusty_peg_parser::expr("a >= b");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::Ge,
+                left: Box::new(Expression::Ident(Ident::new("a"))),
+                right: Box::new(Expression::Ident(Ident::new("b"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_logical_and() {
+        let result = crusty_peg_parser::expr("a && b");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::And,
+                left: Box::new(Expression::Ident(Ident::new("a"))),
+                right: Box::new(Expression::Ident(Ident::new("b"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_logical_or() {
+        let result = crusty_peg_parser::expr("a || b");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::Or,
+                left: Box::new(Expression::Ident(Ident::new("a"))),
+                right: Box::new(Expression::Ident(Ident::new("b"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_bitwise_and() {
+        let result = crusty_peg_parser::expr("a & b");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::BitAnd,
+                left: Box::new(Expression::Ident(Ident::new("a"))),
+                right: Box::new(Expression::Ident(Ident::new("b"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_bitwise_or() {
+        let result = crusty_peg_parser::expr("a | b");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::BitOr,
+                left: Box::new(Expression::Ident(Ident::new("a"))),
+                right: Box::new(Expression::Ident(Ident::new("b"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_bitwise_xor() {
+        let result = crusty_peg_parser::expr("a ^ b");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::BitXor,
+                left: Box::new(Expression::Ident(Ident::new("a"))),
+                right: Box::new(Expression::Ident(Ident::new("b"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_shift_left() {
+        let result = crusty_peg_parser::expr("a << b");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::Shl,
+                left: Box::new(Expression::Ident(Ident::new("a"))),
+                right: Box::new(Expression::Ident(Ident::new("b"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_shift_right() {
+        let result = crusty_peg_parser::expr("a >> b");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::Shr,
+                left: Box::new(Expression::Ident(Ident::new("a"))),
+                right: Box::new(Expression::Ident(Ident::new("b"))),
+            })
+        );
+    }
+
+    // ========================================================================
+    // ASSIGNMENT OPERATOR TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_expr_assign() {
+        let result = crusty_peg_parser::expr("a = b");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::Assign,
+                left: Box::new(Expression::Ident(Ident::new("a"))),
+                right: Box::new(Expression::Ident(Ident::new("b"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_add_assign() {
+        let result = crusty_peg_parser::expr("a += b");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::AddAssign,
+                left: Box::new(Expression::Ident(Ident::new("a"))),
+                right: Box::new(Expression::Ident(Ident::new("b"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_sub_assign() {
+        let result = crusty_peg_parser::expr("a -= b");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::SubAssign,
+                left: Box::new(Expression::Ident(Ident::new("a"))),
+                right: Box::new(Expression::Ident(Ident::new("b"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_mul_assign() {
+        let result = crusty_peg_parser::expr("a *= b");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::MulAssign,
+                left: Box::new(Expression::Ident(Ident::new("a"))),
+                right: Box::new(Expression::Ident(Ident::new("b"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_div_assign() {
+        let result = crusty_peg_parser::expr("a /= b");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::DivAssign,
+                left: Box::new(Expression::Ident(Ident::new("a"))),
+                right: Box::new(Expression::Ident(Ident::new("b"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_mod_assign() {
+        let result = crusty_peg_parser::expr("a %= b");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::ModAssign,
+                left: Box::new(Expression::Ident(Ident::new("a"))),
+                right: Box::new(Expression::Ident(Ident::new("b"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_bitand_assign() {
+        let result = crusty_peg_parser::expr("a &= b");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::BitAndAssign,
+                left: Box::new(Expression::Ident(Ident::new("a"))),
+                right: Box::new(Expression::Ident(Ident::new("b"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_bitor_assign() {
+        let result = crusty_peg_parser::expr("a |= b");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::BitOrAssign,
+                left: Box::new(Expression::Ident(Ident::new("a"))),
+                right: Box::new(Expression::Ident(Ident::new("b"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_bitxor_assign() {
+        let result = crusty_peg_parser::expr("a ^= b");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::BitXorAssign,
+                left: Box::new(Expression::Ident(Ident::new("a"))),
+                right: Box::new(Expression::Ident(Ident::new("b"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_shl_assign() {
+        let result = crusty_peg_parser::expr("a <<= b");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::ShlAssign,
+                left: Box::new(Expression::Ident(Ident::new("a"))),
+                right: Box::new(Expression::Ident(Ident::new("b"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_shr_assign() {
+        let result = crusty_peg_parser::expr("a >>= b");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::ShrAssign,
+                left: Box::new(Expression::Ident(Ident::new("a"))),
+                right: Box::new(Expression::Ident(Ident::new("b"))),
+            })
+        );
+    }
+
+    // ========================================================================
+    // UNARY OPERATOR TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_expr_unary_neg() {
+        let result = crusty_peg_parser::expr("-x");
+        assert_eq!(
+            result,
+            Ok(Expression::Unary {
+                op: UnaryOp::Neg,
+                expr: Box::new(Expression::Ident(Ident::new("x"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_unary_not() {
+        let result = crusty_peg_parser::expr("!x");
+        assert_eq!(
+            result,
+            Ok(Expression::Unary {
+                op: UnaryOp::Not,
+                expr: Box::new(Expression::Ident(Ident::new("x"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_unary_ref() {
+        let result = crusty_peg_parser::expr("&x");
+        assert_eq!(
+            result,
+            Ok(Expression::Unary {
+                op: UnaryOp::Ref,
+                expr: Box::new(Expression::Ident(Ident::new("x"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_unary_deref() {
+        let result = crusty_peg_parser::expr("*x");
+        assert_eq!(
+            result,
+            Ok(Expression::Unary {
+                op: UnaryOp::Deref,
+                expr: Box::new(Expression::Ident(Ident::new("x"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_unary_pre_inc() {
+        let result = crusty_peg_parser::expr("++x");
+        assert_eq!(
+            result,
+            Ok(Expression::Unary {
+                op: UnaryOp::PreInc,
+                expr: Box::new(Expression::Ident(Ident::new("x"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_unary_pre_dec() {
+        let result = crusty_peg_parser::expr("--x");
+        assert_eq!(
+            result,
+            Ok(Expression::Unary {
+                op: UnaryOp::PreDec,
+                expr: Box::new(Expression::Ident(Ident::new("x"))),
+            })
+        );
+    }
+
+    // ========================================================================
+    // TERNARY OPERATOR TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_expr_ternary() {
+        let result = crusty_peg_parser::expr("a ? b : c");
+        assert_eq!(
+            result,
+            Ok(Expression::Ternary {
+                condition: Box::new(Expression::Ident(Ident::new("a"))),
+                then_expr: Box::new(Expression::Ident(Ident::new("b"))),
+                else_expr: Box::new(Expression::Ident(Ident::new("c"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_ternary_with_expressions() {
+        let result = crusty_peg_parser::expr("x > 0 ? 1 : 0");
+        assert_eq!(
+            result,
+            Ok(Expression::Ternary {
+                condition: Box::new(Expression::Binary {
+                    op: BinaryOp::Gt,
+                    left: Box::new(Expression::Ident(Ident::new("x"))),
+                    right: Box::new(Expression::Literal(Literal::Int(0))),
+                }),
+                then_expr: Box::new(Expression::Literal(Literal::Int(1))),
+                else_expr: Box::new(Expression::Literal(Literal::Int(0))),
+            })
+        );
+    }
+
+    // ========================================================================
+    // COMMA OPERATOR TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_expr_comma() {
+        let result = crusty_peg_parser::expr("a, b");
+        assert_eq!(
+            result,
+            Ok(Expression::Comma {
+                left: Box::new(Expression::Ident(Ident::new("a"))),
+                right: Box::new(Expression::Ident(Ident::new("b"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_comma_chain() {
+        // a, b, c should parse as (a, b), c (left-associative)
+        let result = crusty_peg_parser::expr("a, b, c");
+        assert_eq!(
+            result,
+            Ok(Expression::Comma {
+                left: Box::new(Expression::Comma {
+                    left: Box::new(Expression::Ident(Ident::new("a"))),
+                    right: Box::new(Expression::Ident(Ident::new("b"))),
+                }),
+                right: Box::new(Expression::Ident(Ident::new("c"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_comma_with_increment() {
+        // Note: postfix ++ and -- are not yet implemented in the PEG parser
+        // This test uses prefix operators instead: ++i, --j
+        let result = crusty_peg_parser::expr("++i, --j");
+        assert_eq!(
+            result,
+            Ok(Expression::Comma {
+                left: Box::new(Expression::Unary {
+                    op: UnaryOp::PreInc,
+                    expr: Box::new(Expression::Ident(Ident::new("i"))),
+                }),
+                right: Box::new(Expression::Unary {
+                    op: UnaryOp::PreDec,
+                    expr: Box::new(Expression::Ident(Ident::new("j"))),
+                }),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_comma_lower_than_assignment() {
+        // a = b, c should parse as (a = b), c
+        let result = crusty_peg_parser::expr("a = b, c");
+        assert_eq!(
+            result,
+            Ok(Expression::Comma {
+                left: Box::new(Expression::Binary {
+                    op: BinaryOp::Assign,
+                    left: Box::new(Expression::Ident(Ident::new("a"))),
+                    right: Box::new(Expression::Ident(Ident::new("b"))),
+                }),
+                right: Box::new(Expression::Ident(Ident::new("c"))),
+            })
+        );
+    }
+
+    // ========================================================================
+    // COMPLEX EXPRESSION TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_expr_complex_arithmetic() {
+        // (1 + 2) * 3 - 4 / 2
+        let result = crusty_peg_parser::expr("(1 + 2) * 3 - 4 / 2");
+        // Should parse as ((1 + 2) * 3) - (4 / 2)
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_expr_complex_logical() {
+        // a && b || c && d
+        let result = crusty_peg_parser::expr("a && b || c && d");
+        // Should parse as (a && b) || (c && d) due to && having higher precedence than ||
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::Or,
+                left: Box::new(Expression::Binary {
+                    op: BinaryOp::And,
+                    left: Box::new(Expression::Ident(Ident::new("a"))),
+                    right: Box::new(Expression::Ident(Ident::new("b"))),
+                }),
+                right: Box::new(Expression::Binary {
+                    op: BinaryOp::And,
+                    left: Box::new(Expression::Ident(Ident::new("c"))),
+                    right: Box::new(Expression::Ident(Ident::new("d"))),
+                }),
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_assignment_right_associative() {
+        // a = b = c should parse as a = (b = c)
+        let result = crusty_peg_parser::expr("a = b = c");
+        assert_eq!(
+            result,
+            Ok(Expression::Binary {
+                op: BinaryOp::Assign,
+                left: Box::new(Expression::Ident(Ident::new("a"))),
+                right: Box::new(Expression::Binary {
+                    op: BinaryOp::Assign,
+                    left: Box::new(Expression::Ident(Ident::new("b"))),
+                    right: Box::new(Expression::Ident(Ident::new("c"))),
+                }),
             })
         );
     }
