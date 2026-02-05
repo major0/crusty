@@ -166,7 +166,7 @@ This implementation plan breaks down the rust-peg parser rewrite into discrete, 
     - Support attributes
     - _Requirements: 1.2, 6.1_
   
-  - [ ] 6.3 Define struct item rule with actions
+  - [x] 6.3 Define struct item rule with actions
     - Implement struct_def rule returning Item::Struct
     - Support field definitions with types and attributes
     - Support method definitions (functions inside struct)

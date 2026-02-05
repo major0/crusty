@@ -5090,6 +5090,16 @@ enum PostfixOp {
     PostDec,
 }
 
+/// Helper enum for struct members in struct parsing
+/// Used internally by the PEG parser to distinguish between fields and methods
+#[derive(Debug, Clone)]
+enum StructMember {
+    /// Struct field: Type name;
+    Field(Field),
+    /// Struct method: function declaration
+    Method(Function),
+}
+
 peg::parser! {
     pub grammar crusty_peg_parser() for str {
         // ====================================================================
@@ -7334,6 +7344,142 @@ peg::parser! {
             }
 
         // ====================================================================
+        // STRUCT ITEM (Task 6.3)
+        // ====================================================================
+        // Struct definitions are top-level items that define data structures.
+        //
+        // Syntax: [attributes] struct Name { fields_and_methods }
+        //
+        // Components:
+        // - Attributes: optional metadata like #[derive(Debug)]
+        // - Name: struct identifier
+        // - Fields: Type name; declarations
+        // - Methods: function declarations inside the struct
+        //
+        // Fields and methods can be interleaved in any order.
+        // Methods can be:
+        // - Instance methods: take self or var &self as first parameter
+        // - Static methods: marked with 'static' keyword, no self parameter
+        //
+        // Requirements validated: 1.2, 6.2
+
+        /// Struct item: struct definition with fields and methods
+        /// Syntax: [attributes] struct Name { fields_and_methods }
+        /// Returns Item::Struct
+        ///
+        /// Examples:
+        /// - struct Point { int x; int y; }
+        /// - struct Counter { int value; void increment(var &self) { self.value += 1; } }
+        /// - #[derive(Debug)] struct Data { int id; }
+        pub rule struct_def() -> Item
+            = _ attrs:attributes() _ kw_struct() __ name:ident() _ "{" _ members:struct_member()* _ "}" _ {
+                let mut fields = Vec::new();
+                let mut methods = Vec::new();
+
+                for member in members {
+                    match member {
+                        StructMember::Field(f) => fields.push(f),
+                        StructMember::Method(m) => methods.push(m),
+                    }
+                }
+
+                Item::Struct(Struct {
+                    visibility: Visibility::Public,
+                    name,
+                    fields,
+                    methods,
+                    doc_comments: Vec::new(),
+                    attributes: attrs,
+                })
+            }
+
+        /// Struct member: either a field or a method
+        /// Used internally to parse struct contents
+        rule struct_member() -> StructMember
+            = m:struct_method() { StructMember::Method(m) }
+            / f:struct_field() { StructMember::Field(f) }
+
+        /// Struct field: Type name;
+        /// Returns Field
+        ///
+        /// Examples:
+        /// - int x;
+        /// - bool active;
+        /// - #[serde(skip)] int internal;
+        rule struct_field() -> Field
+            = _ attrs:attributes() _ ty:type_expr() __ name:ident() _ ";" _ {
+                Field {
+                    visibility: Visibility::Public,
+                    name,
+                    ty,
+                    doc_comments: Vec::new(),
+                    attributes: attrs,
+                }
+            }
+
+        /// Struct method: function declaration inside a struct
+        /// Returns Function
+        ///
+        /// Methods can be:
+        /// - Instance methods: take self or var &self as first parameter
+        /// - Static methods: marked with 'static' keyword
+        ///
+        /// Examples:
+        /// - void print(self) { ... }
+        /// - int get_value(self) { return self.value; }
+        /// - void set_value(var &self, int v) { self.value = v; }
+        /// - static Point new(int x, int y) { ... }
+        rule struct_method() -> Function
+            // Static method with void return type
+            = _ attrs:attributes() _ kw_static() __ kw_void() __ name:ident() _ "(" _ params:function_params()? _ ")" _ body:block() _ {
+                Function {
+                    visibility: Visibility::Private,
+                    name,
+                    params: params.unwrap_or_default(),
+                    return_type: None,
+                    body,
+                    doc_comments: Vec::new(),
+                    attributes: attrs,
+                }
+            }
+            // Static method with explicit return type
+            / _ attrs:attributes() _ kw_static() __ return_type:type_expr() __ name:ident() _ "(" _ params:function_params()? _ ")" _ body:block() _ {
+                Function {
+                    visibility: Visibility::Private,
+                    name,
+                    params: params.unwrap_or_default(),
+                    return_type: Some(return_type),
+                    body,
+                    doc_comments: Vec::new(),
+                    attributes: attrs,
+                }
+            }
+            // Instance method with void return type
+            / _ attrs:attributes() _ kw_void() __ name:ident() _ "(" _ params:function_params()? _ ")" _ body:block() _ {
+                Function {
+                    visibility: Visibility::Public,
+                    name,
+                    params: params.unwrap_or_default(),
+                    return_type: None,
+                    body,
+                    doc_comments: Vec::new(),
+                    attributes: attrs,
+                }
+            }
+            // Instance method with explicit return type
+            / _ attrs:attributes() _ return_type:type_expr() __ name:ident() _ "(" _ params:function_params()? _ ")" _ body:block() _ {
+                Function {
+                    visibility: Visibility::Public,
+                    name,
+                    params: params.unwrap_or_default(),
+                    return_type: Some(return_type),
+                    body,
+                    doc_comments: Vec::new(),
+                    attributes: attrs,
+                }
+            }
+
+        // ====================================================================
         // MINIMAL TEST GRAMMAR
         // ====================================================================
 
@@ -8097,6 +8243,186 @@ mod peg_tests {
             crusty_peg_parser::char_literal("'\\''"),
             Ok(Literal::Char('\''))
         );
+    }
+
+    // ========================================================================
+    // STRUCT TESTS (Task 6.3)
+    // ========================================================================
+
+    #[test]
+    fn test_peg_struct_simple() {
+        // Test simple struct with fields only
+        let result = crusty_peg_parser::struct_def("struct Point { int x; int y; }");
+        assert!(
+            result.is_ok(),
+            "Failed to parse simple struct: {:?}",
+            result
+        );
+
+        if let Ok(Item::Struct(s)) = result {
+            assert_eq!(s.name.name, "Point");
+            assert_eq!(s.fields.len(), 2);
+            assert_eq!(s.fields[0].name.name, "x");
+            assert_eq!(s.fields[1].name.name, "y");
+            assert!(s.methods.is_empty());
+        } else {
+            panic!("Expected Item::Struct");
+        }
+    }
+
+    #[test]
+    fn test_peg_struct_empty() {
+        // Test empty struct
+        let result = crusty_peg_parser::struct_def("struct Empty { }");
+        assert!(result.is_ok(), "Failed to parse empty struct: {:?}", result);
+
+        if let Ok(Item::Struct(s)) = result {
+            assert_eq!(s.name.name, "Empty");
+            assert!(s.fields.is_empty());
+            assert!(s.methods.is_empty());
+        } else {
+            panic!("Expected Item::Struct");
+        }
+    }
+
+    #[test]
+    fn test_peg_struct_with_method() {
+        // Test struct with a method
+        let result = crusty_peg_parser::struct_def(
+            "struct Counter { int value; void increment(var &self) { self.value = self.value + 1; } }"
+        );
+        assert!(
+            result.is_ok(),
+            "Failed to parse struct with method: {:?}",
+            result
+        );
+
+        if let Ok(Item::Struct(s)) = result {
+            assert_eq!(s.name.name, "Counter");
+            assert_eq!(s.fields.len(), 1);
+            assert_eq!(s.fields[0].name.name, "value");
+            assert_eq!(s.methods.len(), 1);
+            assert_eq!(s.methods[0].name.name, "increment");
+        } else {
+            panic!("Expected Item::Struct");
+        }
+    }
+
+    #[test]
+    fn test_peg_struct_with_static_method() {
+        // Test struct with a static method
+        let result = crusty_peg_parser::struct_def(
+            "struct Point { int x; int y; static Point new(int x, int y) { return Point { x: x, y: y }; } }"
+        );
+        assert!(
+            result.is_ok(),
+            "Failed to parse struct with static method: {:?}",
+            result
+        );
+
+        if let Ok(Item::Struct(s)) = result {
+            assert_eq!(s.name.name, "Point");
+            assert_eq!(s.fields.len(), 2);
+            assert_eq!(s.methods.len(), 1);
+            assert_eq!(s.methods[0].name.name, "new");
+            // Static methods have Private visibility
+            assert_eq!(s.methods[0].visibility, Visibility::Private);
+        } else {
+            panic!("Expected Item::Struct");
+        }
+    }
+
+    #[test]
+    fn test_peg_struct_with_attributes() {
+        // Test struct with attributes
+        let result = crusty_peg_parser::struct_def("#[derive(Debug)] struct Data { int id; }");
+        assert!(
+            result.is_ok(),
+            "Failed to parse struct with attributes: {:?}",
+            result
+        );
+
+        if let Ok(Item::Struct(s)) = result {
+            assert_eq!(s.name.name, "Data");
+            assert_eq!(s.attributes.len(), 1);
+            assert_eq!(s.attributes[0].name.name, "derive");
+        } else {
+            panic!("Expected Item::Struct");
+        }
+    }
+
+    #[test]
+    fn test_peg_struct_field_with_attributes() {
+        // Test struct field with attributes
+        let result = crusty_peg_parser::struct_def(
+            "struct Config { #[serde(skip)] int internal; bool active; }",
+        );
+        assert!(
+            result.is_ok(),
+            "Failed to parse struct with field attributes: {:?}",
+            result
+        );
+
+        if let Ok(Item::Struct(s)) = result {
+            assert_eq!(s.name.name, "Config");
+            assert_eq!(s.fields.len(), 2);
+            assert_eq!(s.fields[0].name.name, "internal");
+            assert_eq!(s.fields[0].attributes.len(), 1);
+            assert_eq!(s.fields[1].name.name, "active");
+            assert!(s.fields[1].attributes.is_empty());
+        } else {
+            panic!("Expected Item::Struct");
+        }
+    }
+
+    #[test]
+    fn test_peg_struct_multiple_methods() {
+        // Test struct with multiple methods
+        let result = crusty_peg_parser::struct_def(
+            "struct Counter { 
+                int value; 
+                int get(self) { return self.value; }
+                void set(var &self, int v) { self.value = v; }
+            }",
+        );
+        assert!(
+            result.is_ok(),
+            "Failed to parse struct with multiple methods: {:?}",
+            result
+        );
+
+        if let Ok(Item::Struct(s)) = result {
+            assert_eq!(s.name.name, "Counter");
+            assert_eq!(s.fields.len(), 1);
+            assert_eq!(s.methods.len(), 2);
+            assert_eq!(s.methods[0].name.name, "get");
+            assert_eq!(s.methods[1].name.name, "set");
+        } else {
+            panic!("Expected Item::Struct");
+        }
+    }
+
+    #[test]
+    fn test_peg_struct_complex_types() {
+        // Test struct with complex field types
+        let result =
+            crusty_peg_parser::struct_def("struct Container { int* ptr; bool[10] flags; }");
+        assert!(
+            result.is_ok(),
+            "Failed to parse struct with complex types: {:?}",
+            result
+        );
+
+        if let Ok(Item::Struct(s)) = result {
+            assert_eq!(s.name.name, "Container");
+            assert_eq!(s.fields.len(), 2);
+            // Verify pointer type
+            assert!(matches!(s.fields[0].ty, Type::Pointer { .. }));
+            // Verify array type
+            assert!(matches!(s.fields[1].ty, Type::Array { .. }));
+        } else {
+            panic!("Expected Item::Struct");
+        }
     }
 }
 
