@@ -7480,6 +7480,88 @@ peg::parser! {
             }
 
         // ====================================================================
+        // ENUM ITEM (Task 6.4)
+        // ====================================================================
+        // Enum definitions are top-level items that define enumerated types.
+        //
+        // Syntax: [attributes] enum Name { Variant1, Variant2 = value, ... }
+        //
+        // Components:
+        // - Attributes: optional metadata like #[derive(Debug)]
+        // - Name: enum identifier
+        // - Variants: comma-separated list of variant names with optional explicit values
+        //
+        // Variants can have explicit integer values (e.g., Red = 0).
+        // If no explicit value is given, variants are auto-numbered starting from 0
+        // or from the previous variant's value + 1.
+        //
+        // Requirements validated: 1.2, 6.3
+
+        /// Enum item: enum definition with variants
+        /// Syntax: [attributes] enum Name { Variant1, Variant2 = value, ... }
+        /// Returns Item::Enum
+        ///
+        /// Examples:
+        /// - enum Color { Red, Green, Blue }
+        /// - enum Status { Ok = 0, Error = 1, Pending = 5 }
+        /// - #[derive(Debug)] enum Direction { North, South, East, West }
+        pub rule enum_def() -> Item
+            = _ attrs:attributes() _ kw_enum() __ name:ident() _ "{" _ variants:enum_variants() _ "}" _ {
+                Item::Enum(Enum {
+                    visibility: Visibility::Public,
+                    name,
+                    variants,
+                    doc_comments: Vec::new(),
+                    attributes: attrs,
+                })
+            }
+
+        /// Enum variants: comma-separated list of variants with auto-numbering
+        /// Returns Vec<EnumVariant> with values assigned
+        rule enum_variants() -> Vec<EnumVariant>
+            = variants:enum_variant_list()? {
+                let mut result = Vec::new();
+                let mut next_value: i64 = 0;
+
+                for (name, explicit_value) in variants.unwrap_or_default() {
+                    let value = match explicit_value {
+                        Some(v) => {
+                            next_value = v + 1;
+                            Some(v)
+                        }
+                        None => {
+                            let v = next_value;
+                            next_value += 1;
+                            Some(v)
+                        }
+                    };
+                    result.push(EnumVariant { name, value });
+                }
+
+                result
+            }
+
+        /// Enum variant list: comma-separated variants
+        /// Returns Vec<(Ident, Option<i64>)> - name and optional explicit value
+        rule enum_variant_list() -> Vec<(Ident, Option<i64>)>
+            = first:enum_variant_item() rest:(_ "," _ v:enum_variant_item() { v })* (_ ",")? {
+                let mut variants = vec![first];
+                variants.extend(rest);
+                variants
+            }
+
+        /// Single enum variant: Name or Name = value
+        /// Returns (Ident, Option<i64>)
+        rule enum_variant_item() -> (Ident, Option<i64>)
+            = name:ident() _ "=" _ value:int_literal_value() { (name, Some(value)) }
+            / name:ident() { (name, None) }
+
+        /// Integer literal value for enum variants
+        /// Returns i64
+        rule int_literal_value() -> i64
+            = n:$(['0'..='9']+) { n.parse().unwrap() }
+
+        // ====================================================================
         // MINIMAL TEST GRAMMAR
         // ====================================================================
 
@@ -8422,6 +8504,180 @@ mod peg_tests {
             assert!(matches!(s.fields[1].ty, Type::Array { .. }));
         } else {
             panic!("Expected Item::Struct");
+        }
+    }
+}
+
+// ============================================================================
+// ENUM TESTS (Task 6.4)
+// ============================================================================
+
+#[cfg(test)]
+mod enum_tests {
+    use super::*;
+
+    #[test]
+    fn test_peg_enum_simple() {
+        // Test simple enum with variants
+        let result = crusty_peg_parser::enum_def("enum Color { Red, Green, Blue }");
+        assert!(result.is_ok(), "Failed to parse simple enum: {:?}", result);
+
+        if let Ok(Item::Enum(e)) = result {
+            assert_eq!(e.name.name, "Color");
+            assert_eq!(e.variants.len(), 3);
+            assert_eq!(e.variants[0].name.name, "Red");
+            assert_eq!(e.variants[0].value, Some(0));
+            assert_eq!(e.variants[1].name.name, "Green");
+            assert_eq!(e.variants[1].value, Some(1));
+            assert_eq!(e.variants[2].name.name, "Blue");
+            assert_eq!(e.variants[2].value, Some(2));
+        } else {
+            panic!("Expected Item::Enum");
+        }
+    }
+
+    #[test]
+    fn test_peg_enum_empty() {
+        // Test empty enum
+        let result = crusty_peg_parser::enum_def("enum Empty { }");
+        assert!(result.is_ok(), "Failed to parse empty enum: {:?}", result);
+
+        if let Ok(Item::Enum(e)) = result {
+            assert_eq!(e.name.name, "Empty");
+            assert!(e.variants.is_empty());
+        } else {
+            panic!("Expected Item::Enum");
+        }
+    }
+
+    #[test]
+    fn test_peg_enum_with_explicit_values() {
+        // Test enum with explicit values
+        let result = crusty_peg_parser::enum_def("enum Status { Ok = 0, Error = 1, Pending = 5 }");
+        assert!(
+            result.is_ok(),
+            "Failed to parse enum with explicit values: {:?}",
+            result
+        );
+
+        if let Ok(Item::Enum(e)) = result {
+            assert_eq!(e.name.name, "Status");
+            assert_eq!(e.variants.len(), 3);
+            assert_eq!(e.variants[0].name.name, "Ok");
+            assert_eq!(e.variants[0].value, Some(0));
+            assert_eq!(e.variants[1].name.name, "Error");
+            assert_eq!(e.variants[1].value, Some(1));
+            assert_eq!(e.variants[2].name.name, "Pending");
+            assert_eq!(e.variants[2].value, Some(5));
+        } else {
+            panic!("Expected Item::Enum");
+        }
+    }
+
+    #[test]
+    fn test_peg_enum_mixed_values() {
+        // Test enum with mixed explicit and auto values
+        let result = crusty_peg_parser::enum_def("enum Mixed { A, B = 10, C, D = 20, E }");
+        assert!(
+            result.is_ok(),
+            "Failed to parse enum with mixed values: {:?}",
+            result
+        );
+
+        if let Ok(Item::Enum(e)) = result {
+            assert_eq!(e.name.name, "Mixed");
+            assert_eq!(e.variants.len(), 5);
+            assert_eq!(e.variants[0].name.name, "A");
+            assert_eq!(e.variants[0].value, Some(0)); // Auto: 0
+            assert_eq!(e.variants[1].name.name, "B");
+            assert_eq!(e.variants[1].value, Some(10)); // Explicit: 10
+            assert_eq!(e.variants[2].name.name, "C");
+            assert_eq!(e.variants[2].value, Some(11)); // Auto: 10 + 1 = 11
+            assert_eq!(e.variants[3].name.name, "D");
+            assert_eq!(e.variants[3].value, Some(20)); // Explicit: 20
+            assert_eq!(e.variants[4].name.name, "E");
+            assert_eq!(e.variants[4].value, Some(21)); // Auto: 20 + 1 = 21
+        } else {
+            panic!("Expected Item::Enum");
+        }
+    }
+
+    #[test]
+    fn test_peg_enum_with_attributes() {
+        // Test enum with attributes
+        let result = crusty_peg_parser::enum_def(
+            "#[derive(Debug)] enum Direction { North, South, East, West }",
+        );
+        assert!(
+            result.is_ok(),
+            "Failed to parse enum with attributes: {:?}",
+            result
+        );
+
+        if let Ok(Item::Enum(e)) = result {
+            assert_eq!(e.name.name, "Direction");
+            assert_eq!(e.attributes.len(), 1);
+            assert_eq!(e.attributes[0].name.name, "derive");
+            assert_eq!(e.variants.len(), 4);
+        } else {
+            panic!("Expected Item::Enum");
+        }
+    }
+
+    #[test]
+    fn test_peg_enum_trailing_comma() {
+        // Test enum with trailing comma
+        let result = crusty_peg_parser::enum_def("enum WithTrailing { A, B, C, }");
+        assert!(
+            result.is_ok(),
+            "Failed to parse enum with trailing comma: {:?}",
+            result
+        );
+
+        if let Ok(Item::Enum(e)) = result {
+            assert_eq!(e.name.name, "WithTrailing");
+            assert_eq!(e.variants.len(), 3);
+        } else {
+            panic!("Expected Item::Enum");
+        }
+    }
+
+    #[test]
+    fn test_peg_enum_single_variant() {
+        // Test enum with single variant
+        let result = crusty_peg_parser::enum_def("enum Single { Only }");
+        assert!(
+            result.is_ok(),
+            "Failed to parse single variant enum: {:?}",
+            result
+        );
+
+        if let Ok(Item::Enum(e)) = result {
+            assert_eq!(e.name.name, "Single");
+            assert_eq!(e.variants.len(), 1);
+            assert_eq!(e.variants[0].name.name, "Only");
+            assert_eq!(e.variants[0].value, Some(0));
+        } else {
+            panic!("Expected Item::Enum");
+        }
+    }
+
+    #[test]
+    fn test_peg_enum_with_whitespace() {
+        // Test enum with various whitespace
+        let result = crusty_peg_parser::enum_def("  enum  Spaced  {  A  ,  B  =  5  ,  C  }  ");
+        assert!(
+            result.is_ok(),
+            "Failed to parse enum with whitespace: {:?}",
+            result
+        );
+
+        if let Ok(Item::Enum(e)) = result {
+            assert_eq!(e.name.name, "Spaced");
+            assert_eq!(e.variants.len(), 3);
+            assert_eq!(e.variants[1].value, Some(5));
+        } else {
+            panic!("Expected Item::Enum");
         }
     }
 }

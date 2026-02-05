@@ -173,7 +173,7 @@ This implementation plan breaks down the rust-peg parser rewrite into discrete, 
     - Support static methods
     - _Requirements: 1.2, 6.2_
   
-  - [ ] 6.4 Define enum item rule with actions
+  - [x] 6.4 Define enum item rule with actions
     - Implement enum_def rule returning Item::Enum
     - Support explicit variant values
     - Support attributes on enums
