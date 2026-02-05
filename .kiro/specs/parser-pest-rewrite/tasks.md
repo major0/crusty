@@ -158,7 +158,7 @@ This implementation plan breaks down the rust-peg parser rewrite into discrete, 
     - Support attribute arguments (ident, literal, name=value)
     - _Requirements: 1.2, 6.5_
   
-  - [ ] 6.2 Define function item rule with actions
+  - [x] 6.2 Define function item rule with actions
     - Implement function rule returning Item::Function
     - Support parameter list with types and names
     - Support self parameters for methods

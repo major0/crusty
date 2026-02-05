@@ -7211,6 +7211,129 @@ peg::parser! {
             = attrs:attribute()* { attrs }
 
         // ====================================================================
+        // FUNCTION ITEM (Task 6.2)
+        // ====================================================================
+        // Function declarations are top-level items that define callable code.
+        //
+        // Syntax: [static] [return_type | void] name(params) { body }
+        //
+        // Components:
+        // - Visibility: static keyword makes function private, otherwise public
+        // - Return type: void for no return, or any type expression
+        // - Name: function identifier
+        // - Parameters: comma-separated list of Type name pairs
+        // - Body: block of statements
+        //
+        // For methods (functions inside structs):
+        // - self parameter: immutable reference to self
+        // - var &self parameter: mutable reference to self
+        //
+        // Requirements validated: 1.2, 6.1
+
+        /// Function item: top-level function declaration
+        /// Syntax: [attributes] [static] [return_type | void] name(params) { body }
+        /// Returns Item::Function
+        ///
+        /// Examples:
+        /// - void main() { }
+        /// - int add(int x, int y) { return x + y; }
+        /// - static void helper() { }
+        /// - #[test] void test_something() { }
+        pub rule function() -> Item
+            // With attributes, static, and void return type
+            = _ attrs:attributes() _ kw_static() __ kw_void() __ name:ident() _ "(" _ params:function_params()? _ ")" _ body:block() _ {
+                Item::Function(Function {
+                    visibility: Visibility::Private,
+                    name,
+                    params: params.unwrap_or_default(),
+                    return_type: None,
+                    body,
+                    doc_comments: Vec::new(),
+                    attributes: attrs,
+                })
+            }
+            // With attributes, static, and explicit return type
+            / _ attrs:attributes() _ kw_static() __ return_type:type_expr() __ name:ident() _ "(" _ params:function_params()? _ ")" _ body:block() _ {
+                Item::Function(Function {
+                    visibility: Visibility::Private,
+                    name,
+                    params: params.unwrap_or_default(),
+                    return_type: Some(return_type),
+                    body,
+                    doc_comments: Vec::new(),
+                    attributes: attrs,
+                })
+            }
+            // With attributes and void return type (public)
+            / _ attrs:attributes() _ kw_void() __ name:ident() _ "(" _ params:function_params()? _ ")" _ body:block() _ {
+                Item::Function(Function {
+                    visibility: Visibility::Public,
+                    name,
+                    params: params.unwrap_or_default(),
+                    return_type: None,
+                    body,
+                    doc_comments: Vec::new(),
+                    attributes: attrs,
+                })
+            }
+            // With attributes and explicit return type (public)
+            / _ attrs:attributes() _ return_type:type_expr() __ name:ident() _ "(" _ params:function_params()? _ ")" _ body:block() _ {
+                Item::Function(Function {
+                    visibility: Visibility::Public,
+                    name,
+                    params: params.unwrap_or_default(),
+                    return_type: Some(return_type),
+                    body,
+                    doc_comments: Vec::new(),
+                    attributes: attrs,
+                })
+            }
+
+        /// Function parameters: comma-separated list of parameters
+        /// Supports regular parameters and self parameters for methods
+        /// Returns Vec<Param>
+        ///
+        /// Examples:
+        /// - (int x, int y)
+        /// - (self)
+        /// - (var &self, int value)
+        /// - ()
+        rule function_params() -> Vec<Param>
+            = first:function_param() rest:(_ "," _ p:function_param() { p })* (_ ",")? {
+                let mut params = vec![first];
+                params.extend(rest);
+                params
+            }
+
+        /// Single function parameter
+        /// Supports:
+        /// - Regular parameter: Type name
+        /// - Self parameter: self (immutable reference)
+        /// - Mutable self parameter: var &self
+        rule function_param() -> Param
+            // Mutable self parameter: var &self
+            = kw_var() __ "&" _ "self" !ident_char() {
+                Param {
+                    name: Ident::new("self"),
+                    ty: Type::Reference {
+                        ty: Box::new(Type::Ident(Ident::new("Self"))),
+                        mutable: true,
+                    },
+                }
+            }
+            // Immutable self parameter: self
+            / "self" !ident_char() {
+                Param {
+                    name: Ident::new("self"),
+                    ty: Type::Ident(Ident::new("Self")),
+                }
+            }
+            // Regular parameter: Type name
+            / ty:type_expr() __ name:ident() {
+                Param { name, ty }
+            }
+
+        // ====================================================================
         // MINIMAL TEST GRAMMAR
         // ====================================================================
 
@@ -13994,5 +14117,360 @@ mod control_flow_tests {
         let result = crusty_peg_parser::statement("print(x);");
         assert!(result.is_ok());
         assert!(matches!(result.unwrap(), Statement::Expr(_)));
+    }
+}
+
+// ============================================================================
+// FUNCTION ITEM TESTS (Task 6.2)
+// ============================================================================
+
+#[cfg(test)]
+mod function_item_tests {
+    use super::*;
+
+    #[test]
+    fn test_peg_function_void_no_params() {
+        // Test simple void function with no parameters
+        let result = crusty_peg_parser::function("void main() { }");
+        assert!(result.is_ok());
+        let item = result.unwrap();
+        if let Item::Function(func) = item {
+            assert_eq!(func.name.name, "main");
+            assert!(func.params.is_empty());
+            assert!(func.return_type.is_none());
+            assert_eq!(func.visibility, Visibility::Public);
+            assert!(func.attributes.is_empty());
+        } else {
+            panic!("Expected Item::Function");
+        }
+    }
+
+    #[test]
+    fn test_peg_function_with_return_type() {
+        // Test function with return type
+        let result = crusty_peg_parser::function("int get_value() { return 42; }");
+        assert!(result.is_ok());
+        let item = result.unwrap();
+        if let Item::Function(func) = item {
+            assert_eq!(func.name.name, "get_value");
+            assert!(func.params.is_empty());
+            assert!(func.return_type.is_some());
+            if let Some(Type::Primitive(PrimitiveType::Int)) = func.return_type {
+                // OK
+            } else {
+                panic!("Expected int return type");
+            }
+        } else {
+            panic!("Expected Item::Function");
+        }
+    }
+
+    #[test]
+    fn test_peg_function_with_params() {
+        // Test function with parameters
+        let result = crusty_peg_parser::function("int add(int x, int y) { return x + y; }");
+        assert!(result.is_ok());
+        let item = result.unwrap();
+        if let Item::Function(func) = item {
+            assert_eq!(func.name.name, "add");
+            assert_eq!(func.params.len(), 2);
+            assert_eq!(func.params[0].name.name, "x");
+            assert_eq!(func.params[1].name.name, "y");
+        } else {
+            panic!("Expected Item::Function");
+        }
+    }
+
+    #[test]
+    fn test_peg_function_static() {
+        // Test static (private) function
+        let result = crusty_peg_parser::function("static void helper() { }");
+        assert!(result.is_ok());
+        let item = result.unwrap();
+        if let Item::Function(func) = item {
+            assert_eq!(func.name.name, "helper");
+            assert_eq!(func.visibility, Visibility::Private);
+        } else {
+            panic!("Expected Item::Function");
+        }
+    }
+
+    #[test]
+    fn test_peg_function_static_with_return_type() {
+        // Test static function with return type
+        let result = crusty_peg_parser::function("static int compute() { return 0; }");
+        assert!(result.is_ok());
+        let item = result.unwrap();
+        if let Item::Function(func) = item {
+            assert_eq!(func.name.name, "compute");
+            assert_eq!(func.visibility, Visibility::Private);
+            assert!(func.return_type.is_some());
+        } else {
+            panic!("Expected Item::Function");
+        }
+    }
+
+    #[test]
+    fn test_peg_function_with_attribute() {
+        // Test function with attribute
+        let result = crusty_peg_parser::function("#[test] void test_something() { }");
+        assert!(result.is_ok());
+        let item = result.unwrap();
+        if let Item::Function(func) = item {
+            assert_eq!(func.name.name, "test_something");
+            assert_eq!(func.attributes.len(), 1);
+            assert_eq!(func.attributes[0].name.name, "test");
+        } else {
+            panic!("Expected Item::Function");
+        }
+    }
+
+    #[test]
+    fn test_peg_function_with_multiple_attributes() {
+        // Test function with multiple attributes
+        let result = crusty_peg_parser::function("#[test] #[ignore] void test_slow() { }");
+        assert!(result.is_ok());
+        let item = result.unwrap();
+        if let Item::Function(func) = item {
+            assert_eq!(func.name.name, "test_slow");
+            assert_eq!(func.attributes.len(), 2);
+            assert_eq!(func.attributes[0].name.name, "test");
+            assert_eq!(func.attributes[1].name.name, "ignore");
+        } else {
+            panic!("Expected Item::Function");
+        }
+    }
+
+    #[test]
+    fn test_peg_function_with_pointer_return_type() {
+        // Test function with pointer return type
+        let result = crusty_peg_parser::function("int* get_ptr() { return NULL; }");
+        assert!(result.is_ok());
+        let item = result.unwrap();
+        if let Item::Function(func) = item {
+            assert_eq!(func.name.name, "get_ptr");
+            if let Some(Type::Pointer { .. }) = func.return_type {
+                // OK
+            } else {
+                panic!("Expected pointer return type");
+            }
+        } else {
+            panic!("Expected Item::Function");
+        }
+    }
+
+    #[test]
+    fn test_peg_function_with_reference_param() {
+        // Test function with reference parameter
+        let result = crusty_peg_parser::function("void modify(&int x) { }");
+        assert!(result.is_ok());
+        let item = result.unwrap();
+        if let Item::Function(func) = item {
+            assert_eq!(func.name.name, "modify");
+            assert_eq!(func.params.len(), 1);
+            if let Type::Reference { mutable, .. } = &func.params[0].ty {
+                assert!(!mutable);
+            } else {
+                panic!("Expected reference parameter type");
+            }
+        } else {
+            panic!("Expected Item::Function");
+        }
+    }
+
+    #[test]
+    fn test_peg_function_with_mutable_reference_param() {
+        // Test function with mutable reference parameter
+        let result = crusty_peg_parser::function("void modify(&mut int x) { }");
+        assert!(result.is_ok());
+        let item = result.unwrap();
+        if let Item::Function(func) = item {
+            assert_eq!(func.name.name, "modify");
+            assert_eq!(func.params.len(), 1);
+            if let Type::Reference { mutable, .. } = &func.params[0].ty {
+                assert!(*mutable);
+            } else {
+                panic!("Expected mutable reference parameter type");
+            }
+        } else {
+            panic!("Expected Item::Function");
+        }
+    }
+
+    #[test]
+    fn test_peg_function_self_param() {
+        // Test function with self parameter (for methods)
+        let result = crusty_peg_parser::function("void method(self) { }");
+        assert!(result.is_ok());
+        let item = result.unwrap();
+        if let Item::Function(func) = item {
+            assert_eq!(func.name.name, "method");
+            assert_eq!(func.params.len(), 1);
+            assert_eq!(func.params[0].name.name, "self");
+            if let Type::Ident(ident) = &func.params[0].ty {
+                assert_eq!(ident.name, "Self");
+            } else {
+                panic!("Expected Self type for self parameter");
+            }
+        } else {
+            panic!("Expected Item::Function");
+        }
+    }
+
+    #[test]
+    fn test_peg_function_var_self_param() {
+        // Test function with mutable self parameter (var &self)
+        let result = crusty_peg_parser::function("void mutate(var &self) { }");
+        assert!(result.is_ok());
+        let item = result.unwrap();
+        if let Item::Function(func) = item {
+            assert_eq!(func.name.name, "mutate");
+            assert_eq!(func.params.len(), 1);
+            assert_eq!(func.params[0].name.name, "self");
+            if let Type::Reference { mutable, ty } = &func.params[0].ty {
+                assert!(*mutable);
+                if let Type::Ident(ident) = ty.as_ref() {
+                    assert_eq!(ident.name, "Self");
+                } else {
+                    panic!("Expected Self type inside reference");
+                }
+            } else {
+                panic!("Expected mutable reference type for var &self parameter");
+            }
+        } else {
+            panic!("Expected Item::Function");
+        }
+    }
+
+    #[test]
+    fn test_peg_function_self_with_other_params() {
+        // Test function with self and other parameters
+        let result = crusty_peg_parser::function("void set_value(self, int value) { }");
+        assert!(result.is_ok());
+        let item = result.unwrap();
+        if let Item::Function(func) = item {
+            assert_eq!(func.name.name, "set_value");
+            assert_eq!(func.params.len(), 2);
+            assert_eq!(func.params[0].name.name, "self");
+            assert_eq!(func.params[1].name.name, "value");
+        } else {
+            panic!("Expected Item::Function");
+        }
+    }
+
+    #[test]
+    fn test_peg_function_with_whitespace() {
+        // Test function with various whitespace
+        let result = crusty_peg_parser::function("  void  main  (  )  {  }  ");
+        assert!(result.is_ok());
+        let item = result.unwrap();
+        if let Item::Function(func) = item {
+            assert_eq!(func.name.name, "main");
+        } else {
+            panic!("Expected Item::Function");
+        }
+    }
+
+    #[test]
+    fn test_peg_function_with_comments() {
+        // Test function with comments
+        let result = crusty_peg_parser::function("/* comment */ void main() { /* body */ }");
+        assert!(result.is_ok());
+        let item = result.unwrap();
+        if let Item::Function(func) = item {
+            assert_eq!(func.name.name, "main");
+        } else {
+            panic!("Expected Item::Function");
+        }
+    }
+
+    #[test]
+    fn test_peg_function_with_body_statements() {
+        // Test function with body containing statements
+        let result = crusty_peg_parser::function(
+            "int factorial(int n) { if (n <= 1) { return 1; } return n * factorial(n - 1); }",
+        );
+        assert!(result.is_ok());
+        let item = result.unwrap();
+        if let Item::Function(func) = item {
+            assert_eq!(func.name.name, "factorial");
+            assert!(!func.body.statements.is_empty());
+        } else {
+            panic!("Expected Item::Function");
+        }
+    }
+
+    #[test]
+    fn test_peg_function_trailing_comma_params() {
+        // Test function with trailing comma in parameters
+        let result = crusty_peg_parser::function("void func(int x, int y,) { }");
+        assert!(result.is_ok());
+        let item = result.unwrap();
+        if let Item::Function(func) = item {
+            assert_eq!(func.params.len(), 2);
+        } else {
+            panic!("Expected Item::Function");
+        }
+    }
+
+    #[test]
+    fn test_peg_function_generic_return_type() {
+        // Test function with generic return type
+        let result = crusty_peg_parser::function("Vec<int> get_list() { }");
+        assert!(result.is_ok());
+        let item = result.unwrap();
+        if let Item::Function(func) = item {
+            assert_eq!(func.name.name, "get_list");
+            if let Some(Type::Generic { base, args }) = func.return_type {
+                if let Type::Ident(ident) = base.as_ref() {
+                    assert_eq!(ident.name, "Vec");
+                }
+                assert_eq!(args.len(), 1);
+            } else {
+                panic!("Expected generic return type");
+            }
+        } else {
+            panic!("Expected Item::Function");
+        }
+    }
+
+    #[test]
+    fn test_peg_function_array_param() {
+        // Test function with array parameter
+        let result = crusty_peg_parser::function("void process(int[10] arr) { }");
+        assert!(result.is_ok());
+        let item = result.unwrap();
+        if let Item::Function(func) = item {
+            assert_eq!(func.name.name, "process");
+            assert_eq!(func.params.len(), 1);
+            if let Type::Array { .. } = &func.params[0].ty {
+                // OK
+            } else {
+                panic!("Expected array parameter type");
+            }
+        } else {
+            panic!("Expected Item::Function");
+        }
+    }
+
+    #[test]
+    fn test_peg_function_complex_signature() {
+        // Test function with complex signature
+        let result = crusty_peg_parser::function("#[inline] static int* complex_func(int* ptr, &mut int ref_val, Vec<int> vec) { return ptr; }");
+        assert!(result.is_ok());
+        let item = result.unwrap();
+        if let Item::Function(func) = item {
+            assert_eq!(func.name.name, "complex_func");
+            assert_eq!(func.visibility, Visibility::Private);
+            assert_eq!(func.attributes.len(), 1);
+            assert_eq!(func.params.len(), 3);
+            if let Some(Type::Pointer { .. }) = func.return_type {
+                // OK
+            } else {
+                panic!("Expected pointer return type");
+            }
+        } else {
+            panic!("Expected Item::Function");
+        }
     }
 }
