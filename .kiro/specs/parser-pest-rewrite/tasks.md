@@ -80,7 +80,7 @@ This implementation plan breaks down the rust-peg parser rewrite into discrete, 
     - Test with examples: (int)(x), (Type*)(expr), (int)(5+3)
     - _Requirements: 2.1, 2.2, 2.4, 2.5, 2.6_
   
-  - [ ] 4.3 Define call and access expression rules with actions
+  - [x] 4.3 Define call and access expression rules with actions
     - Implement call_expr rule returning Expression::Call
     - Implement field_access rule returning Expression::FieldAccess
     - Implement index_expr rule returning Expression::Index
