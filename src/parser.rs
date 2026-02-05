@@ -7562,6 +7562,54 @@ peg::parser! {
             = n:$(['0'..='9']+) { n.parse().unwrap() }
 
         // ====================================================================
+        // TYPEDEF ITEM (Task 6.5)
+        // ====================================================================
+        // Typedef declarations create type aliases.
+        //
+        // Syntax: [static] typedef TargetType AliasName;
+        //
+        // Components:
+        // - Visibility: static keyword makes typedef private, otherwise public
+        // - Target type: the type being aliased
+        // - Alias name: the new name for the type
+        //
+        // Examples:
+        // - typedef int MyInt;
+        // - typedef int* IntPtr;
+        // - static typedef float PrivateFloat;
+        //
+        // Requirements validated: 1.2, 6.4
+
+        /// Typedef item: type alias declaration
+        /// Syntax: [static] typedef TargetType AliasName;
+        /// Returns Item::Typedef
+        ///
+        /// Examples:
+        /// - typedef int MyInt;
+        /// - typedef int* IntPtr;
+        /// - typedef Vec<int> IntVec;
+        /// - static typedef float PrivateFloat;
+        pub rule typedef_def() -> Item
+            // Static typedef (private visibility)
+            = _ kw_static() __ kw_typedef() __ target:type_expr() __ name:ident() _ ";" _ {
+                Item::Typedef(Typedef {
+                    visibility: Visibility::Private,
+                    name,
+                    target,
+                    doc_comments: Vec::new(),
+                })
+            }
+            // Public typedef
+            / _ kw_typedef() __ target:type_expr() __ name:ident() _ ";" _ {
+                Item::Typedef(Typedef {
+                    visibility: Visibility::Public,
+                    name,
+                    target,
+                    doc_comments: Vec::new(),
+                })
+            }
+
+        // ====================================================================
         // MINIMAL TEST GRAMMAR
         // ====================================================================
 
@@ -8678,6 +8726,187 @@ mod enum_tests {
             assert_eq!(e.variants[1].value, Some(5));
         } else {
             panic!("Expected Item::Enum");
+        }
+    }
+}
+
+// ============================================================================
+// TYPEDEF TESTS (Task 6.5)
+// ============================================================================
+
+#[cfg(test)]
+mod typedef_tests {
+    use super::*;
+
+    #[test]
+    fn test_peg_typedef_simple() {
+        // Test simple typedef with primitive type
+        let result = crusty_peg_parser::typedef_def("typedef int MyInt;");
+        assert!(result.is_ok());
+
+        if let Ok(Item::Typedef(t)) = result {
+            assert_eq!(t.name.name, "MyInt");
+            assert!(matches!(t.target, Type::Primitive(PrimitiveType::Int)));
+            assert_eq!(t.visibility, Visibility::Public);
+        } else {
+            panic!("Expected Item::Typedef");
+        }
+    }
+
+    #[test]
+    fn test_peg_typedef_static() {
+        // Test static typedef (private visibility)
+        let result = crusty_peg_parser::typedef_def("static typedef int PrivateInt;");
+        assert!(result.is_ok());
+
+        if let Ok(Item::Typedef(t)) = result {
+            assert_eq!(t.name.name, "PrivateInt");
+            assert!(matches!(t.target, Type::Primitive(PrimitiveType::Int)));
+            assert_eq!(t.visibility, Visibility::Private);
+        } else {
+            panic!("Expected Item::Typedef");
+        }
+    }
+
+    #[test]
+    fn test_peg_typedef_pointer() {
+        // Test typedef with pointer type
+        let result = crusty_peg_parser::typedef_def("typedef int* IntPtr;");
+        assert!(result.is_ok());
+
+        if let Ok(Item::Typedef(t)) = result {
+            assert_eq!(t.name.name, "IntPtr");
+            assert!(matches!(t.target, Type::Pointer { .. }));
+        } else {
+            panic!("Expected Item::Typedef");
+        }
+    }
+
+    #[test]
+    fn test_peg_typedef_reference() {
+        // Test typedef with reference type
+        let result = crusty_peg_parser::typedef_def("typedef &int IntRef;");
+        assert!(result.is_ok());
+
+        if let Ok(Item::Typedef(t)) = result {
+            assert_eq!(t.name.name, "IntRef");
+            assert!(matches!(t.target, Type::Reference { .. }));
+        } else {
+            panic!("Expected Item::Typedef");
+        }
+    }
+
+    #[test]
+    fn test_peg_typedef_mutable_reference() {
+        // Test typedef with mutable reference type
+        let result = crusty_peg_parser::typedef_def("typedef &mut int MutIntRef;");
+        assert!(result.is_ok());
+
+        if let Ok(Item::Typedef(t)) = result {
+            assert_eq!(t.name.name, "MutIntRef");
+            if let Type::Reference { mutable, .. } = t.target {
+                assert!(mutable);
+            } else {
+                panic!("Expected Type::Reference");
+            }
+        } else {
+            panic!("Expected Item::Typedef");
+        }
+    }
+
+    #[test]
+    fn test_peg_typedef_array() {
+        // Test typedef with array type
+        let result = crusty_peg_parser::typedef_def("typedef int[10] IntArray;");
+        assert!(result.is_ok());
+
+        if let Ok(Item::Typedef(t)) = result {
+            assert_eq!(t.name.name, "IntArray");
+            assert!(matches!(t.target, Type::Array { .. }));
+        } else {
+            panic!("Expected Item::Typedef");
+        }
+    }
+
+    #[test]
+    fn test_peg_typedef_generic() {
+        // Test typedef with generic type
+        let result = crusty_peg_parser::typedef_def("typedef Vec<int> IntVec;");
+        assert!(result.is_ok());
+
+        if let Ok(Item::Typedef(t)) = result {
+            assert_eq!(t.name.name, "IntVec");
+            if let Type::Generic { base, .. } = t.target {
+                if let Type::Ident(ident) = *base {
+                    assert_eq!(ident.name, "Vec");
+                } else {
+                    panic!("Expected Type::Ident as base");
+                }
+            } else {
+                panic!("Expected Type::Generic");
+            }
+        } else {
+            panic!("Expected Item::Typedef");
+        }
+    }
+
+    #[test]
+    fn test_peg_typedef_custom_type() {
+        // Test typedef with custom type name
+        let result = crusty_peg_parser::typedef_def("typedef MyStruct MyAlias;");
+        assert!(result.is_ok());
+
+        if let Ok(Item::Typedef(t)) = result {
+            assert_eq!(t.name.name, "MyAlias");
+            if let Type::Ident(ident) = t.target {
+                assert_eq!(ident.name, "MyStruct");
+            } else {
+                panic!("Expected Type::Ident");
+            }
+        } else {
+            panic!("Expected Item::Typedef");
+        }
+    }
+
+    #[test]
+    fn test_peg_typedef_with_whitespace() {
+        // Test typedef with various whitespace
+        let result = crusty_peg_parser::typedef_def("  typedef   int   MyInt  ;  ");
+        assert!(result.is_ok());
+
+        if let Ok(Item::Typedef(t)) = result {
+            assert_eq!(t.name.name, "MyInt");
+            assert!(matches!(t.target, Type::Primitive(PrimitiveType::Int)));
+        } else {
+            panic!("Expected Item::Typedef");
+        }
+    }
+
+    #[test]
+    fn test_peg_typedef_float() {
+        // Test typedef with float type
+        let result = crusty_peg_parser::typedef_def("typedef float MyFloat;");
+        assert!(result.is_ok());
+
+        if let Ok(Item::Typedef(t)) = result {
+            assert_eq!(t.name.name, "MyFloat");
+            assert!(matches!(t.target, Type::Primitive(PrimitiveType::Float)));
+        } else {
+            panic!("Expected Item::Typedef");
+        }
+    }
+
+    #[test]
+    fn test_peg_typedef_bool() {
+        // Test typedef with bool type
+        let result = crusty_peg_parser::typedef_def("typedef bool MyBool;");
+        assert!(result.is_ok());
+
+        if let Ok(Item::Typedef(t)) = result {
+            assert_eq!(t.name.name, "MyBool");
+            assert!(matches!(t.target, Type::Primitive(PrimitiveType::Bool)));
+        } else {
+            panic!("Expected Item::Typedef");
         }
     }
 }
