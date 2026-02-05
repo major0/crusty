@@ -5248,6 +5248,80 @@ peg::parser! {
             / kw_true() / kw_false() / kw_null()
 
         // ====================================================================
+        // LITERALS
+        // ====================================================================
+        // Literal values: integers, floats, strings, characters, booleans, null
+        //
+        // Integer literals: decimal digits (e.g., 42, 123)
+        // Float literals: decimal digits with decimal point (e.g., 3.14, 0.5)
+        // String literals: double-quoted with escape sequences (e.g., "hello", "line\n")
+        // Character literals: single-quoted (e.g., 'a', '\n')
+        // Boolean literals: true, false
+        // Null literal: NULL
+
+        /// Integer literal: one or more decimal digits
+        /// Returns Literal::Int
+        pub rule int_literal() -> Literal
+            = n:$(['0'..='9']+) {
+                Literal::Int(n.parse().unwrap())
+            }
+
+        /// Float literal: decimal digits with decimal point
+        /// Returns Literal::Float
+        pub rule float_literal() -> Literal
+            = n:$(
+                (['0'..='9']+ "." ['0'..='9']+ (['e' | 'E'] ['+' | '-']? ['0'..='9']+)?)
+                / (['0'..='9']+ ['e' | 'E'] ['+' | '-']? ['0'..='9']+)
+            ) {
+                Literal::Float(n.parse().unwrap())
+            }
+
+        /// String literal: double-quoted with escape sequences
+        /// Returns Literal::String
+        pub rule string_literal() -> Literal
+            = "\"" s:string_content()* "\"" {
+                Literal::String(s.into_iter().collect())
+            }
+
+        /// String content: either an escape sequence or a regular character
+        rule string_content() -> char
+            = escape_sequence()
+            / c:$([^ '"' | '\\']) { c.chars().next().unwrap() }
+
+        /// Escape sequences in strings and characters
+        rule escape_sequence() -> char
+            = "\\\\" { '\\' }
+            / "\\n" { '\n' }
+            / "\\r" { '\r' }
+            / "\\t" { '\t' }
+            / "\\\"" { '"' }
+            / "\\'" { '\'' }
+            / "\\0" { '\0' }
+
+        /// Character literal: single-quoted
+        /// Returns Literal::Char
+        pub rule char_literal() -> Literal
+            = "'" c:char_content() "'" {
+                Literal::Char(c)
+            }
+
+        /// Character content: either an escape sequence or a regular character
+        rule char_content() -> char
+            = escape_sequence()
+            / c:$([^ '\'' | '\\']) { c.chars().next().unwrap() }
+
+        /// Boolean literal: true or false
+        /// Returns Literal::Bool
+        pub rule bool_literal() -> Literal
+            = kw_true() { Literal::Bool(true) }
+            / kw_false() { Literal::Bool(false) }
+
+        /// Null literal: NULL
+        /// Returns Literal::Null
+        pub rule null_literal() -> Literal
+            = kw_null() { Literal::Null }
+
+        // ====================================================================
         // MINIMAL TEST GRAMMAR
         // ====================================================================
 
@@ -5810,6 +5884,206 @@ mod peg_tests {
         assert_eq!(
             crusty_peg_parser::test_not_keyword("var_"),
             Ok("var_".to_string())
+        );
+    }
+
+    // ========================================================================
+    // LITERAL TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_peg_int_literal() {
+        // Test integer literals
+        assert_eq!(crusty_peg_parser::int_literal("42"), Ok(Literal::Int(42)));
+        assert_eq!(crusty_peg_parser::int_literal("0"), Ok(Literal::Int(0)));
+        assert_eq!(
+            crusty_peg_parser::int_literal("123456789"),
+            Ok(Literal::Int(123456789))
+        );
+    }
+
+    #[test]
+    fn test_peg_float_literal() {
+        // Test float literals with decimal point
+        assert_eq!(
+            crusty_peg_parser::float_literal("3.15"),
+            Ok(Literal::Float(3.15))
+        );
+        assert_eq!(
+            crusty_peg_parser::float_literal("0.5"),
+            Ok(Literal::Float(0.5))
+        );
+        assert_eq!(
+            crusty_peg_parser::float_literal("123.456"),
+            Ok(Literal::Float(123.456))
+        );
+
+        // Test scientific notation
+        assert_eq!(
+            crusty_peg_parser::float_literal("1.5e10"),
+            Ok(Literal::Float(1.5e10))
+        );
+        assert_eq!(
+            crusty_peg_parser::float_literal("2.0E-5"),
+            Ok(Literal::Float(2.0e-5))
+        );
+        assert_eq!(
+            crusty_peg_parser::float_literal("3e8"),
+            Ok(Literal::Float(3e8))
+        );
+    }
+
+    #[test]
+    fn test_peg_string_literal() {
+        // Test basic string literals
+        assert_eq!(
+            crusty_peg_parser::string_literal("\"hello\""),
+            Ok(Literal::String("hello".to_string()))
+        );
+        assert_eq!(
+            crusty_peg_parser::string_literal("\"\""),
+            Ok(Literal::String("".to_string()))
+        );
+        assert_eq!(
+            crusty_peg_parser::string_literal("\"hello world\""),
+            Ok(Literal::String("hello world".to_string()))
+        );
+
+        // Test escape sequences
+        assert_eq!(
+            crusty_peg_parser::string_literal("\"hello\\nworld\""),
+            Ok(Literal::String("hello\nworld".to_string()))
+        );
+        assert_eq!(
+            crusty_peg_parser::string_literal("\"tab\\there\""),
+            Ok(Literal::String("tab\there".to_string()))
+        );
+        assert_eq!(
+            crusty_peg_parser::string_literal("\"quote\\\"here\""),
+            Ok(Literal::String("quote\"here".to_string()))
+        );
+        assert_eq!(
+            crusty_peg_parser::string_literal("\"backslash\\\\here\""),
+            Ok(Literal::String("backslash\\here".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_peg_char_literal() {
+        // Test basic character literals
+        assert_eq!(
+            crusty_peg_parser::char_literal("'a'"),
+            Ok(Literal::Char('a'))
+        );
+        assert_eq!(
+            crusty_peg_parser::char_literal("'Z'"),
+            Ok(Literal::Char('Z'))
+        );
+        assert_eq!(
+            crusty_peg_parser::char_literal("'5'"),
+            Ok(Literal::Char('5'))
+        );
+
+        // Test escape sequences
+        assert_eq!(
+            crusty_peg_parser::char_literal("'\\n'"),
+            Ok(Literal::Char('\n'))
+        );
+        assert_eq!(
+            crusty_peg_parser::char_literal("'\\t'"),
+            Ok(Literal::Char('\t'))
+        );
+        assert_eq!(
+            crusty_peg_parser::char_literal("'\\''"),
+            Ok(Literal::Char('\''))
+        );
+        assert_eq!(
+            crusty_peg_parser::char_literal("'\\\\'"),
+            Ok(Literal::Char('\\'))
+        );
+    }
+
+    #[test]
+    fn test_peg_bool_literal() {
+        // Test boolean literals
+        assert_eq!(
+            crusty_peg_parser::bool_literal("true"),
+            Ok(Literal::Bool(true))
+        );
+        assert_eq!(
+            crusty_peg_parser::bool_literal("false"),
+            Ok(Literal::Bool(false))
+        );
+    }
+
+    #[test]
+    fn test_peg_null_literal() {
+        // Test null literal
+        assert_eq!(crusty_peg_parser::null_literal("NULL"), Ok(Literal::Null));
+    }
+
+    #[test]
+    fn test_peg_literal_with_whitespace() {
+        // Test that literals work with surrounding whitespace
+        // Note: The literal rules don't consume whitespace themselves,
+        // but the _ rule can be used in higher-level rules
+    }
+
+    #[test]
+    fn test_peg_string_escape_sequences_comprehensive() {
+        // Test all supported escape sequences
+        assert_eq!(
+            crusty_peg_parser::string_literal("\"\\n\""),
+            Ok(Literal::String("\n".to_string()))
+        );
+        assert_eq!(
+            crusty_peg_parser::string_literal("\"\\r\""),
+            Ok(Literal::String("\r".to_string()))
+        );
+        assert_eq!(
+            crusty_peg_parser::string_literal("\"\\t\""),
+            Ok(Literal::String("\t".to_string()))
+        );
+        assert_eq!(
+            crusty_peg_parser::string_literal("\"\\0\""),
+            Ok(Literal::String("\0".to_string()))
+        );
+        assert_eq!(
+            crusty_peg_parser::string_literal("\"\\\\\""),
+            Ok(Literal::String("\\".to_string()))
+        );
+        assert_eq!(
+            crusty_peg_parser::string_literal("\"\\\"\""),
+            Ok(Literal::String("\"".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_peg_char_escape_sequences_comprehensive() {
+        // Test all supported escape sequences for chars
+        assert_eq!(
+            crusty_peg_parser::char_literal("'\\n'"),
+            Ok(Literal::Char('\n'))
+        );
+        assert_eq!(
+            crusty_peg_parser::char_literal("'\\r'"),
+            Ok(Literal::Char('\r'))
+        );
+        assert_eq!(
+            crusty_peg_parser::char_literal("'\\t'"),
+            Ok(Literal::Char('\t'))
+        );
+        assert_eq!(
+            crusty_peg_parser::char_literal("'\\0'"),
+            Ok(Literal::Char('\0'))
+        );
+        assert_eq!(
+            crusty_peg_parser::char_literal("'\\\\'"),
+            Ok(Literal::Char('\\'))
+        );
+        assert_eq!(
+            crusty_peg_parser::char_literal("'\\''"),
+            Ok(Literal::Char('\''))
         );
     }
 }
