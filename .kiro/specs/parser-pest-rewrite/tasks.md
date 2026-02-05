@@ -121,7 +121,7 @@ This implementation plan breaks down the rust-peg parser rewrite into discrete, 
     - Implement const_stmt rule returning Statement::Const
     - _Requirements: 1.2, 6.7_
   
-  - [ ] 5.2 Define control flow statements with actions
+  - [x] 5.2 Define control flow statements with actions
     - Implement if_stmt rule returning Statement::If
     - Implement while_stmt rule returning Statement::While
     - Implement for_stmt rule returning Statement::For (with comma-separated initializers and increments)
@@ -131,13 +131,13 @@ This implementation plan breaks down the rust-peg parser rewrite into discrete, 
     - Implement switch_stmt rule returning Statement::Switch
     - _Requirements: 1.2, 6.7, 6.17_
   
-  - [ ] 5.3 Define jump statements with actions
+  - [x] 5.3 Define jump statements with actions
     - Implement return_stmt rule returning Statement::Return
     - Implement break_stmt rule returning Statement::Break
     - Implement continue_stmt rule returning Statement::Continue
     - _Requirements: 1.2, 6.7_
   
-  - [ ] 5.4 Define expression and block statements with actions
+  - [x] 5.4 Define expression and block statements with actions
     - Implement expr_stmt rule returning Statement::Expr
     - Implement block rule returning Block
     - Implement labeled_loop rule returning Statement::LabeledLoop
@@ -147,7 +147,7 @@ This implementation plan breaks down the rust-peg parser rewrite into discrete, 
     - Implement nested_function rule returning Statement::NestedFunction
     - _Requirements: 1.2, 6.10_
   
-  - [ ] 5.6 Define statement() rule with ordered choice
+  - [x] 5.6 Define statement() rule with ordered choice
     - Combine all statement types with ordered choice
     - Return Statement enum variants
     - _Requirements: 1.2, 6.7_
