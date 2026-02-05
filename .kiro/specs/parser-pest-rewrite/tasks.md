@@ -115,7 +115,7 @@ This implementation plan breaks down the rust-peg parser rewrite into discrete, 
     - _Requirements: 1.2, 6.8, 6.15_
 
 - [ ] 5. Define statement grammar with actions
-  - [ ] 5.1 Define variable declaration statements with actions
+  - [x] 5.1 Define variable declaration statements with actions
     - Implement let_stmt rule returning Statement::Let
     - Implement var_stmt rule returning Statement::Var
     - Implement const_stmt rule returning Statement::Const
