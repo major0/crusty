@@ -179,11 +179,11 @@ This implementation plan breaks down the rust-peg parser rewrite into discrete, 
     - Support attributes on enums
     - _Requirements: 1.2, 6.3_
   
-  - [-] 6.5 Define typedef item rule with actions
+  - [x] 6.5 Define typedef item rule with actions
     - Implement typedef rule returning Item::Typedef
     - _Requirements: 1.2, 6.4_
   
-  - [ ] 6.6 Define macro definition rule with actions
+  - [x] 6.6 Define macro definition rule with actions
     - Implement macro_def rule returning Item::MacroDefinition
     - Support macro parameters with different delimiters (parens, brackets, braces)
     - Support macro body as token sequence
