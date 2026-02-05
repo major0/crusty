@@ -6600,6 +6600,119 @@ peg::parser! {
         }
 
         // ====================================================================
+        // STATEMENTS (Task 5)
+        // ====================================================================
+        // Statement parsing handles all executable constructs in Crusty.
+        //
+        // Variable declaration statements:
+        // - let: immutable variable declaration (let x = 42; or let int x = 42;)
+        // - var: mutable variable declaration (var x = 42; or var int x = 42;)
+        // - const: constant declaration (const MAX = 100; or const int MAX = 100;)
+        //
+        // Task 5.1: Define variable declaration statements with actions
+
+        // ====================================================================
+        // VARIABLE DECLARATION STATEMENTS (Task 5.1)
+        // ====================================================================
+
+        /// Let statement: immutable variable declaration
+        /// Syntax: let [Type] name [= expr];
+        /// Returns Statement::Let
+        ///
+        /// Examples:
+        /// - let x = 42;           (type inference)
+        /// - let int x = 42;       (explicit type)
+        /// - let x;                (no initializer, type inference)
+        /// - let int x;            (no initializer, explicit type)
+        ///
+        /// The grammar uses ordered choice to try type+name first, then name only.
+        /// This handles the ambiguity where an identifier could be either a type or a name.
+        pub rule let_stmt() -> Statement
+            // With explicit type: let Type name [= expr];
+            = _ kw_let() __ ty:type_expr() __ name:ident() _ init:(_ "=" _ e:expr() { e })? _ ";" _ {
+                Statement::Let {
+                    name,
+                    ty: Some(ty),
+                    init,
+                    mutable: false,
+                }
+            }
+            // Without type: let name [= expr];
+            / _ kw_let() __ name:ident() _ init:(_ "=" _ e:expr() { e })? _ ";" _ {
+                Statement::Let {
+                    name,
+                    ty: None,
+                    init,
+                    mutable: false,
+                }
+            }
+
+        /// Var statement: mutable variable declaration
+        /// Syntax: var [Type] name [= expr];
+        /// Returns Statement::Var
+        ///
+        /// Examples:
+        /// - var x = 42;           (type inference)
+        /// - var int x = 42;       (explicit type)
+        /// - var x;                (no initializer, type inference)
+        /// - var int x;            (no initializer, explicit type)
+        ///
+        /// The grammar uses ordered choice to try type+name first, then name only.
+        pub rule var_stmt() -> Statement
+            // With explicit type: var Type name [= expr];
+            = _ kw_var() __ ty:type_expr() __ name:ident() _ init:(_ "=" _ e:expr() { e })? _ ";" _ {
+                Statement::Var {
+                    name,
+                    ty: Some(ty),
+                    init,
+                }
+            }
+            // Without type: var name [= expr];
+            / _ kw_var() __ name:ident() _ init:(_ "=" _ e:expr() { e })? _ ";" _ {
+                Statement::Var {
+                    name,
+                    ty: None,
+                    init,
+                }
+            }
+
+        /// Const statement: constant declaration
+        /// Syntax: const [Type] name = expr;
+        /// Returns Statement::Const
+        ///
+        /// Examples:
+        /// - const MAX = 100;      (type inference from value)
+        /// - const int MAX = 100;  (explicit type)
+        ///
+        /// Note: Constants MUST have an initializer (value is required)
+        ///
+        /// The grammar uses ordered choice to try type+name first, then name only.
+        pub rule const_stmt() -> Statement
+            // With explicit type: const Type name = expr;
+            = _ kw_const() __ ty:type_expr() __ name:ident() _ "=" _ value:expr() _ ";" _ {
+                Statement::Const {
+                    name,
+                    ty,
+                    value,
+                }
+            }
+            // Without type: const name = expr;
+            / _ kw_const() __ name:ident() _ "=" _ value:expr() _ ";" _ {
+                // Determine type: try to extract from cast expression, otherwise default to int
+                let ty = if let Expression::Cast { ty, .. } = &value {
+                    ty.clone()
+                } else {
+                    // Default to int for type inference (semantic analyzer will refine)
+                    Type::Primitive(PrimitiveType::Int)
+                };
+                Statement::Const {
+                    name,
+                    ty,
+                    value,
+                }
+            }
+
+        // ====================================================================
         // MINIMAL TEST GRAMMAR
         // ====================================================================
 
@@ -11717,6 +11830,912 @@ mod special_expression_tests {
                     then_expr: Box::new(Expression::Ident(Ident::new("d"))),
                     else_expr: Box::new(Expression::Ident(Ident::new("e"))),
                 }),
+            })
+        );
+    }
+}
+
+// ============================================================================
+// STATEMENT TESTS (Task 5.1)
+// ============================================================================
+
+#[cfg(test)]
+mod statement_tests {
+    use super::*;
+
+    // ========================================================================
+    // LET STATEMENT TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_let_stmt_basic() {
+        // Test basic let statement with initializer
+        let result = crusty_peg_parser::let_stmt("let x = 42;");
+        assert_eq!(
+            result,
+            Ok(Statement::Let {
+                name: Ident::new("x"),
+                ty: None,
+                init: Some(Expression::Literal(Literal::Int(42))),
+                mutable: false,
+            })
+        );
+    }
+
+    #[test]
+    fn test_let_stmt_with_type() {
+        // Test let statement with explicit type
+        let result = crusty_peg_parser::let_stmt("let int x = 42;");
+        assert_eq!(
+            result,
+            Ok(Statement::Let {
+                name: Ident::new("x"),
+                ty: Some(Type::Primitive(PrimitiveType::Int)),
+                init: Some(Expression::Literal(Literal::Int(42))),
+                mutable: false,
+            })
+        );
+    }
+
+    #[test]
+    fn test_let_stmt_no_init() {
+        // Test let statement without initializer
+        let result = crusty_peg_parser::let_stmt("let x;");
+        assert_eq!(
+            result,
+            Ok(Statement::Let {
+                name: Ident::new("x"),
+                ty: None,
+                init: None,
+                mutable: false,
+            })
+        );
+    }
+
+    #[test]
+    fn test_let_stmt_with_type_no_init() {
+        // Test let statement with type but no initializer
+        let result = crusty_peg_parser::let_stmt("let int x;");
+        assert_eq!(
+            result,
+            Ok(Statement::Let {
+                name: Ident::new("x"),
+                ty: Some(Type::Primitive(PrimitiveType::Int)),
+                init: None,
+                mutable: false,
+            })
+        );
+    }
+
+    #[test]
+    fn test_let_stmt_with_expression() {
+        // Test let statement with complex expression
+        let result = crusty_peg_parser::let_stmt("let x = a + b;");
+        assert_eq!(
+            result,
+            Ok(Statement::Let {
+                name: Ident::new("x"),
+                ty: None,
+                init: Some(Expression::Binary {
+                    op: BinaryOp::Add,
+                    left: Box::new(Expression::Ident(Ident::new("a"))),
+                    right: Box::new(Expression::Ident(Ident::new("b"))),
+                }),
+                mutable: false,
+            })
+        );
+    }
+
+    #[test]
+    fn test_let_stmt_with_pointer_type() {
+        // Test let statement with pointer type
+        let result = crusty_peg_parser::let_stmt("let int* ptr = NULL;");
+        assert_eq!(
+            result,
+            Ok(Statement::Let {
+                name: Ident::new("ptr"),
+                ty: Some(Type::Pointer {
+                    ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                    mutable: false,
+                }),
+                init: Some(Expression::Literal(Literal::Null)),
+                mutable: false,
+            })
+        );
+    }
+
+    #[test]
+    fn test_let_stmt_with_whitespace() {
+        // Test let statement with various whitespace
+        let result = crusty_peg_parser::let_stmt("  let   x   =   42  ;  ");
+        assert_eq!(
+            result,
+            Ok(Statement::Let {
+                name: Ident::new("x"),
+                ty: None,
+                init: Some(Expression::Literal(Literal::Int(42))),
+                mutable: false,
+            })
+        );
+    }
+
+    // ========================================================================
+    // VAR STATEMENT TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_var_stmt_basic() {
+        // Test basic var statement with initializer
+        let result = crusty_peg_parser::var_stmt("var x = 42;");
+        assert_eq!(
+            result,
+            Ok(Statement::Var {
+                name: Ident::new("x"),
+                ty: None,
+                init: Some(Expression::Literal(Literal::Int(42))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_var_stmt_with_type() {
+        // Test var statement with explicit type
+        let result = crusty_peg_parser::var_stmt("var int x = 42;");
+        assert_eq!(
+            result,
+            Ok(Statement::Var {
+                name: Ident::new("x"),
+                ty: Some(Type::Primitive(PrimitiveType::Int)),
+                init: Some(Expression::Literal(Literal::Int(42))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_var_stmt_no_init() {
+        // Test var statement without initializer
+        let result = crusty_peg_parser::var_stmt("var x;");
+        assert_eq!(
+            result,
+            Ok(Statement::Var {
+                name: Ident::new("x"),
+                ty: None,
+                init: None,
+            })
+        );
+    }
+
+    #[test]
+    fn test_var_stmt_with_type_no_init() {
+        // Test var statement with type but no initializer
+        let result = crusty_peg_parser::var_stmt("var int x;");
+        assert_eq!(
+            result,
+            Ok(Statement::Var {
+                name: Ident::new("x"),
+                ty: Some(Type::Primitive(PrimitiveType::Int)),
+                init: None,
+            })
+        );
+    }
+
+    #[test]
+    fn test_var_stmt_with_expression() {
+        // Test var statement with complex expression
+        let result = crusty_peg_parser::var_stmt("var x = a * b;");
+        assert_eq!(
+            result,
+            Ok(Statement::Var {
+                name: Ident::new("x"),
+                ty: None,
+                init: Some(Expression::Binary {
+                    op: BinaryOp::Mul,
+                    left: Box::new(Expression::Ident(Ident::new("a"))),
+                    right: Box::new(Expression::Ident(Ident::new("b"))),
+                }),
+            })
+        );
+    }
+
+    #[test]
+    fn test_var_stmt_with_reference_type() {
+        // Test var statement with reference type
+        let result = crusty_peg_parser::var_stmt("var &int ref = x;");
+        assert_eq!(
+            result,
+            Ok(Statement::Var {
+                name: Ident::new("ref"),
+                ty: Some(Type::Reference {
+                    ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                    mutable: false,
+                }),
+                init: Some(Expression::Ident(Ident::new("x"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_var_stmt_with_mutable_reference() {
+        // Test var statement with mutable reference type
+        let result = crusty_peg_parser::var_stmt("var &mut int ref = x;");
+        assert_eq!(
+            result,
+            Ok(Statement::Var {
+                name: Ident::new("ref"),
+                ty: Some(Type::Reference {
+                    ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                    mutable: true,
+                }),
+                init: Some(Expression::Ident(Ident::new("x"))),
+            })
+        );
+    }
+
+    // ========================================================================
+    // CONST STATEMENT TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_const_stmt_basic() {
+        // Test basic const statement
+        let result = crusty_peg_parser::const_stmt("const MAX = 100;");
+        assert_eq!(
+            result,
+            Ok(Statement::Const {
+                name: Ident::new("MAX"),
+                ty: Type::Primitive(PrimitiveType::Int),
+                value: Expression::Literal(Literal::Int(100)),
+            })
+        );
+    }
+
+    #[test]
+    fn test_const_stmt_with_type() {
+        // Test const statement with explicit type
+        let result = crusty_peg_parser::const_stmt("const int MAX = 100;");
+        assert_eq!(
+            result,
+            Ok(Statement::Const {
+                name: Ident::new("MAX"),
+                ty: Type::Primitive(PrimitiveType::Int),
+                value: Expression::Literal(Literal::Int(100)),
+            })
+        );
+    }
+
+    #[test]
+    fn test_const_stmt_with_float() {
+        // Test const statement with float type
+        let result = crusty_peg_parser::const_stmt("const float RATE = 2.5;");
+        assert_eq!(
+            result,
+            Ok(Statement::Const {
+                name: Ident::new("RATE"),
+                ty: Type::Primitive(PrimitiveType::Float),
+                value: Expression::Literal(Literal::Float(2.5)),
+            })
+        );
+    }
+
+    #[test]
+    fn test_const_stmt_with_expression() {
+        // Test const statement with expression
+        let result = crusty_peg_parser::const_stmt("const SIZE = 10 * 20;");
+        assert_eq!(
+            result,
+            Ok(Statement::Const {
+                name: Ident::new("SIZE"),
+                ty: Type::Primitive(PrimitiveType::Int),
+                value: Expression::Binary {
+                    op: BinaryOp::Mul,
+                    left: Box::new(Expression::Literal(Literal::Int(10))),
+                    right: Box::new(Expression::Literal(Literal::Int(20))),
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn test_const_stmt_with_string() {
+        // Test const statement with string value
+        let result = crusty_peg_parser::const_stmt("const NAME = \"hello\";");
+        assert_eq!(
+            result,
+            Ok(Statement::Const {
+                name: Ident::new("NAME"),
+                ty: Type::Primitive(PrimitiveType::Int), // Default type when not specified
+                value: Expression::Literal(Literal::String("hello".to_string())),
+            })
+        );
+    }
+
+    #[test]
+    fn test_const_stmt_with_bool() {
+        // Test const statement with bool type
+        let result = crusty_peg_parser::const_stmt("const bool DEBUG = true;");
+        assert_eq!(
+            result,
+            Ok(Statement::Const {
+                name: Ident::new("DEBUG"),
+                ty: Type::Primitive(PrimitiveType::Bool),
+                value: Expression::Literal(Literal::Bool(true)),
+            })
+        );
+    }
+
+    // ========================================================================
+    // EDGE CASES AND ERROR HANDLING
+    // ========================================================================
+
+    #[test]
+    fn test_let_stmt_missing_semicolon() {
+        // Test that missing semicolon causes error
+        let result = crusty_peg_parser::let_stmt("let x = 42");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_var_stmt_missing_semicolon() {
+        // Test that missing semicolon causes error
+        let result = crusty_peg_parser::var_stmt("var x = 42");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_const_stmt_missing_value() {
+        // Test that const without value causes error
+        let result = crusty_peg_parser::const_stmt("const MAX;");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_const_stmt_missing_semicolon() {
+        // Test that missing semicolon causes error
+        let result = crusty_peg_parser::const_stmt("const MAX = 100");
+        assert!(result.is_err());
+    }
+
+    // ========================================================================
+    // COMPLEX TYPE TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_let_stmt_with_array_type() {
+        // Test let statement with array type
+        let result = crusty_peg_parser::let_stmt("let int[10] arr = x;");
+        assert_eq!(
+            result,
+            Ok(Statement::Let {
+                name: Ident::new("arr"),
+                ty: Some(Type::Array {
+                    ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                    size: Some(10),
+                }),
+                init: Some(Expression::Ident(Ident::new("x"))),
+                mutable: false,
+            })
+        );
+    }
+
+    #[test]
+    fn test_var_stmt_with_generic_type() {
+        // Test var statement with generic type
+        let result = crusty_peg_parser::var_stmt("var Vec<int> v = x;");
+        assert_eq!(
+            result,
+            Ok(Statement::Var {
+                name: Ident::new("v"),
+                ty: Some(Type::Generic {
+                    base: Box::new(Type::Ident(Ident::new("Vec"))),
+                    args: vec![Type::Primitive(PrimitiveType::Int)],
+                }),
+                init: Some(Expression::Ident(Ident::new("x"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_let_stmt_with_tuple_type() {
+        // Test let statement with tuple type
+        let result = crusty_peg_parser::let_stmt("let (int, bool) t = x;");
+        assert_eq!(
+            result,
+            Ok(Statement::Let {
+                name: Ident::new("t"),
+                ty: Some(Type::Tuple {
+                    types: vec![
+                        Type::Primitive(PrimitiveType::Int),
+                        Type::Primitive(PrimitiveType::Bool),
+                    ],
+                }),
+                init: Some(Expression::Ident(Ident::new("x"))),
+                mutable: false,
+            })
+        );
+    }
+
+    // ========================================================================
+    // ADDITIONAL EDGE CASES - MULTIPLE POINTER/REFERENCE LEVELS
+    // ========================================================================
+
+    #[test]
+    fn test_let_stmt_with_double_pointer() {
+        // Test let statement with double pointer type (int**)
+        let result = crusty_peg_parser::let_stmt("let int** pptr = x;");
+        assert_eq!(
+            result,
+            Ok(Statement::Let {
+                name: Ident::new("pptr"),
+                ty: Some(Type::Pointer {
+                    ty: Box::new(Type::Pointer {
+                        ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                        mutable: false,
+                    }),
+                    mutable: false,
+                }),
+                init: Some(Expression::Ident(Ident::new("x"))),
+                mutable: false,
+            })
+        );
+    }
+
+    #[test]
+    fn test_var_stmt_with_triple_pointer() {
+        // Test var statement with triple pointer type (int***)
+        let result = crusty_peg_parser::var_stmt("var int*** ppptr = x;");
+        assert_eq!(
+            result,
+            Ok(Statement::Var {
+                name: Ident::new("ppptr"),
+                ty: Some(Type::Pointer {
+                    ty: Box::new(Type::Pointer {
+                        ty: Box::new(Type::Pointer {
+                            ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                            mutable: false,
+                        }),
+                        mutable: false,
+                    }),
+                    mutable: false,
+                }),
+                init: Some(Expression::Ident(Ident::new("x"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_let_stmt_with_reference_to_pointer() {
+        // Test let statement with reference to pointer (&int*)
+        let result = crusty_peg_parser::let_stmt("let &int* ref_ptr = x;");
+        assert_eq!(
+            result,
+            Ok(Statement::Let {
+                name: Ident::new("ref_ptr"),
+                ty: Some(Type::Reference {
+                    ty: Box::new(Type::Pointer {
+                        ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                        mutable: false,
+                    }),
+                    mutable: false,
+                }),
+                init: Some(Expression::Ident(Ident::new("x"))),
+                mutable: false,
+            })
+        );
+    }
+
+    #[test]
+    fn test_var_stmt_with_mutable_ref_to_mutable_ref() {
+        // Test var statement with mutable reference to mutable reference
+        let result = crusty_peg_parser::var_stmt("var &mut &mut int ref_ref = x;");
+        assert_eq!(
+            result,
+            Ok(Statement::Var {
+                name: Ident::new("ref_ref"),
+                ty: Some(Type::Reference {
+                    ty: Box::new(Type::Reference {
+                        ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                        mutable: true,
+                    }),
+                    mutable: true,
+                }),
+                init: Some(Expression::Ident(Ident::new("x"))),
+            })
+        );
+    }
+
+    // ========================================================================
+    // ADDITIONAL EDGE CASES - UNDERSCORE IDENTIFIERS
+    // ========================================================================
+
+    #[test]
+    fn test_let_stmt_with_underscore_identifier() {
+        // Test let statement with single underscore identifier (discard pattern)
+        let result = crusty_peg_parser::let_stmt("let _ = 42;");
+        assert_eq!(
+            result,
+            Ok(Statement::Let {
+                name: Ident::new("_"),
+                ty: None,
+                init: Some(Expression::Literal(Literal::Int(42))),
+                mutable: false,
+            })
+        );
+    }
+
+    #[test]
+    fn test_var_stmt_with_underscore_prefix() {
+        // Test var statement with underscore-prefixed identifier
+        let result = crusty_peg_parser::var_stmt("var int _unused = 0;");
+        assert_eq!(
+            result,
+            Ok(Statement::Var {
+                name: Ident::new("_unused"),
+                ty: Some(Type::Primitive(PrimitiveType::Int)),
+                init: Some(Expression::Literal(Literal::Int(0))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_let_stmt_with_double_underscore_prefix() {
+        // Test let statement with double underscore prefix
+        let result = crusty_peg_parser::let_stmt("let __internal = 1;");
+        assert_eq!(
+            result,
+            Ok(Statement::Let {
+                name: Ident::new("__internal"),
+                ty: None,
+                init: Some(Expression::Literal(Literal::Int(1))),
+                mutable: false,
+            })
+        );
+    }
+
+    // ========================================================================
+    // ADDITIONAL EDGE CASES - VARIOUS PRIMITIVE TYPES
+    // ========================================================================
+
+    #[test]
+    fn test_let_stmt_with_i32_type() {
+        // Test let statement with i32 type
+        let result = crusty_peg_parser::let_stmt("let i32 x = 42;");
+        assert_eq!(
+            result,
+            Ok(Statement::Let {
+                name: Ident::new("x"),
+                ty: Some(Type::Primitive(PrimitiveType::I32)),
+                init: Some(Expression::Literal(Literal::Int(42))),
+                mutable: false,
+            })
+        );
+    }
+
+    #[test]
+    fn test_var_stmt_with_i64_type() {
+        // Test var statement with i64 type
+        let result = crusty_peg_parser::var_stmt("var i64 big = 9223372036854775807;");
+        assert_eq!(
+            result,
+            Ok(Statement::Var {
+                name: Ident::new("big"),
+                ty: Some(Type::Primitive(PrimitiveType::I64)),
+                init: Some(Expression::Literal(Literal::Int(9223372036854775807))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_let_stmt_with_u32_type() {
+        // Test let statement with u32 type
+        let result = crusty_peg_parser::let_stmt("let u32 unsigned = 42;");
+        assert_eq!(
+            result,
+            Ok(Statement::Let {
+                name: Ident::new("unsigned"),
+                ty: Some(Type::Primitive(PrimitiveType::U32)),
+                init: Some(Expression::Literal(Literal::Int(42))),
+                mutable: false,
+            })
+        );
+    }
+
+    #[test]
+    fn test_var_stmt_with_u64_type() {
+        // Test var statement with u64 type
+        let result = crusty_peg_parser::var_stmt("var u64 big_unsigned = 42;");
+        assert_eq!(
+            result,
+            Ok(Statement::Var {
+                name: Ident::new("big_unsigned"),
+                ty: Some(Type::Primitive(PrimitiveType::U64)),
+                init: Some(Expression::Literal(Literal::Int(42))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_let_stmt_with_f32_type() {
+        // Test let statement with f32 type
+        let result = crusty_peg_parser::let_stmt("let f32 x = 1.5;");
+        assert_eq!(
+            result,
+            Ok(Statement::Let {
+                name: Ident::new("x"),
+                ty: Some(Type::Primitive(PrimitiveType::F32)),
+                init: Some(Expression::Literal(Literal::Float(1.5))),
+                mutable: false,
+            })
+        );
+    }
+
+    #[test]
+    fn test_var_stmt_with_f64_type() {
+        // Test var statement with f64 type
+        let result = crusty_peg_parser::var_stmt("var f64 precise = 1.23456789012345;");
+        assert_eq!(
+            result,
+            Ok(Statement::Var {
+                name: Ident::new("precise"),
+                ty: Some(Type::Primitive(PrimitiveType::F64)),
+                init: Some(Expression::Literal(Literal::Float(1.23456789012345))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_const_stmt_with_char_type() {
+        // Test const statement with char type
+        let result = crusty_peg_parser::const_stmt("const char NEWLINE = '\\n';");
+        assert_eq!(
+            result,
+            Ok(Statement::Const {
+                name: Ident::new("NEWLINE"),
+                ty: Type::Primitive(PrimitiveType::Char),
+                value: Expression::Literal(Literal::Char('\n')),
+            })
+        );
+    }
+
+    // ========================================================================
+    // ADDITIONAL EDGE CASES - NESTED GENERIC TYPES
+    // ========================================================================
+
+    #[test]
+    fn test_let_stmt_with_nested_generic() {
+        // Test let statement with nested generic type (Vec<Vec<int>>)
+        let result = crusty_peg_parser::let_stmt("let Vec<Vec<int>> matrix = x;");
+        assert_eq!(
+            result,
+            Ok(Statement::Let {
+                name: Ident::new("matrix"),
+                ty: Some(Type::Generic {
+                    base: Box::new(Type::Ident(Ident::new("Vec"))),
+                    args: vec![Type::Generic {
+                        base: Box::new(Type::Ident(Ident::new("Vec"))),
+                        args: vec![Type::Primitive(PrimitiveType::Int)],
+                    }],
+                }),
+                init: Some(Expression::Ident(Ident::new("x"))),
+                mutable: false,
+            })
+        );
+    }
+
+    #[test]
+    fn test_var_stmt_with_multiple_generic_args() {
+        // Test var statement with multiple generic arguments (Map<int, bool>)
+        let result = crusty_peg_parser::var_stmt("var Map<int, bool> m = x;");
+        assert_eq!(
+            result,
+            Ok(Statement::Var {
+                name: Ident::new("m"),
+                ty: Some(Type::Generic {
+                    base: Box::new(Type::Ident(Ident::new("Map"))),
+                    args: vec![
+                        Type::Primitive(PrimitiveType::Int),
+                        Type::Primitive(PrimitiveType::Bool),
+                    ],
+                }),
+                init: Some(Expression::Ident(Ident::new("x"))),
+            })
+        );
+    }
+
+    // ========================================================================
+    // ADDITIONAL EDGE CASES - COMPLEX NESTED TYPE EXPRESSIONS
+    // ========================================================================
+
+    #[test]
+    fn test_let_stmt_with_pointer_to_array() {
+        // Test let statement with pointer to array type (int[10]*)
+        let result = crusty_peg_parser::let_stmt("let int[10]* arr_ptr = x;");
+        assert_eq!(
+            result,
+            Ok(Statement::Let {
+                name: Ident::new("arr_ptr"),
+                ty: Some(Type::Pointer {
+                    ty: Box::new(Type::Array {
+                        ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                        size: Some(10),
+                    }),
+                    mutable: false,
+                }),
+                init: Some(Expression::Ident(Ident::new("x"))),
+                mutable: false,
+            })
+        );
+    }
+
+    #[test]
+    fn test_var_stmt_with_array_of_pointers() {
+        // Test var statement with array of pointers (int*[5])
+        let result = crusty_peg_parser::var_stmt("var int*[5] ptr_arr = x;");
+        assert_eq!(
+            result,
+            Ok(Statement::Var {
+                name: Ident::new("ptr_arr"),
+                ty: Some(Type::Array {
+                    ty: Box::new(Type::Pointer {
+                        ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                        mutable: false,
+                    }),
+                    size: Some(5),
+                }),
+                init: Some(Expression::Ident(Ident::new("x"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_let_stmt_with_slice_type() {
+        // Test let statement with slice type (int[])
+        let result = crusty_peg_parser::let_stmt("let int[] slice = x;");
+        assert_eq!(
+            result,
+            Ok(Statement::Let {
+                name: Ident::new("slice"),
+                ty: Some(Type::Slice {
+                    ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                }),
+                init: Some(Expression::Ident(Ident::new("x"))),
+                mutable: false,
+            })
+        );
+    }
+
+    // ========================================================================
+    // ADDITIONAL EDGE CASES - KEYWORD-LIKE IDENTIFIERS
+    // ========================================================================
+
+    #[test]
+    fn test_let_stmt_with_keyword_like_identifier_letter() {
+        // Test that "letter" is not confused with "let" keyword
+        let result = crusty_peg_parser::let_stmt("let letter = 'a';");
+        assert_eq!(
+            result,
+            Ok(Statement::Let {
+                name: Ident::new("letter"),
+                ty: None,
+                init: Some(Expression::Literal(Literal::Char('a'))),
+                mutable: false,
+            })
+        );
+    }
+
+    #[test]
+    fn test_var_stmt_with_keyword_like_identifier_variable() {
+        // Test that "variable" is not confused with "var" keyword
+        let result = crusty_peg_parser::var_stmt("var variable = 1;");
+        assert_eq!(
+            result,
+            Ok(Statement::Var {
+                name: Ident::new("variable"),
+                ty: None,
+                init: Some(Expression::Literal(Literal::Int(1))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_const_stmt_with_keyword_like_identifier_constant() {
+        // Test that "constant" is not confused with "const" keyword
+        let result = crusty_peg_parser::const_stmt("const constant = 42;");
+        assert_eq!(
+            result,
+            Ok(Statement::Const {
+                name: Ident::new("constant"),
+                ty: Type::Primitive(PrimitiveType::Int),
+                value: Expression::Literal(Literal::Int(42)),
+            })
+        );
+    }
+
+    #[test]
+    fn test_let_stmt_with_keyword_like_identifier_integer() {
+        // Test that "integer" is not confused with "int" keyword
+        let result = crusty_peg_parser::let_stmt("let int integer = 42;");
+        assert_eq!(
+            result,
+            Ok(Statement::Let {
+                name: Ident::new("integer"),
+                ty: Some(Type::Primitive(PrimitiveType::Int)),
+                init: Some(Expression::Literal(Literal::Int(42))),
+                mutable: false,
+            })
+        );
+    }
+
+    // ========================================================================
+    // ADDITIONAL EDGE CASES - CUSTOM TYPE IDENTIFIERS
+    // ========================================================================
+
+    #[test]
+    fn test_let_stmt_with_custom_type() {
+        // Test let statement with custom type identifier
+        let result = crusty_peg_parser::let_stmt("let MyStruct obj = x;");
+        assert_eq!(
+            result,
+            Ok(Statement::Let {
+                name: Ident::new("obj"),
+                ty: Some(Type::Ident(Ident::new("MyStruct"))),
+                init: Some(Expression::Ident(Ident::new("x"))),
+                mutable: false,
+            })
+        );
+    }
+
+    #[test]
+    fn test_var_stmt_with_custom_pointer_type() {
+        // Test var statement with pointer to custom type
+        let result = crusty_peg_parser::var_stmt("var MyStruct* ptr = x;");
+        assert_eq!(
+            result,
+            Ok(Statement::Var {
+                name: Ident::new("ptr"),
+                ty: Some(Type::Pointer {
+                    ty: Box::new(Type::Ident(Ident::new("MyStruct"))),
+                    mutable: false,
+                }),
+                init: Some(Expression::Ident(Ident::new("x"))),
+            })
+        );
+    }
+
+    // ========================================================================
+    // ADDITIONAL EDGE CASES - NEGATIVE NUMBERS
+    // ========================================================================
+
+    #[test]
+    fn test_let_stmt_with_negative_number() {
+        // Test let statement with negative number initializer
+        let result = crusty_peg_parser::let_stmt("let x = -42;");
+        assert_eq!(
+            result,
+            Ok(Statement::Let {
+                name: Ident::new("x"),
+                ty: None,
+                init: Some(Expression::Unary {
+                    op: UnaryOp::Neg,
+                    expr: Box::new(Expression::Literal(Literal::Int(42))),
+                }),
+                mutable: false,
+            })
+        );
+    }
+
+    #[test]
+    fn test_const_stmt_with_negative_number() {
+        // Test const statement with negative number
+        let result = crusty_peg_parser::const_stmt("const int MIN = -2147483648;");
+        assert_eq!(
+            result,
+            Ok(Statement::Const {
+                name: Ident::new("MIN"),
+                ty: Type::Primitive(PrimitiveType::Int),
+                value: Expression::Unary {
+                    op: UnaryOp::Neg,
+                    expr: Box::new(Expression::Literal(Literal::Int(2147483648))),
+                },
             })
         );
     }
