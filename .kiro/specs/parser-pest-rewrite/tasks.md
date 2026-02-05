@@ -152,7 +152,7 @@ This implementation plan breaks down the rust-peg parser rewrite into discrete, 
     - Return Statement enum variants
     - _Requirements: 1.2, 6.7_
 
-- [ ] 6. Define item (top-level declaration) grammar with actions
+- [x] 6. Define item (top-level declaration) grammar with actions
   - [x] 6.1 Define attribute rule with actions
     - Implement attribute rule returning Attribute
     - Support attribute arguments (ident, literal, name=value)
@@ -189,13 +189,13 @@ This implementation plan breaks down the rust-peg parser rewrite into discrete, 
     - Support macro body as token sequence
     - _Requirements: 1.2, 6.6_
   
-  - [ ] 6.7 Define item() rule with ordered choice
+  - [x] 6.7 Define item() rule with ordered choice
     - Combine all item types with ordered choice
     - Handle attributes on items
     - Return Item enum variants
     - _Requirements: 1.2_
   
-  - [ ] 6.8 Define file rule with actions
+  - [x] 6.8 Define file rule with actions
     - Implement file rule returning File
     - Parse multiple items
     - Handle empty files

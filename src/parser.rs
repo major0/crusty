@@ -7320,6 +7320,7 @@ peg::parser! {
         /// - Regular parameter: Type name
         /// - Self parameter: self (immutable reference)
         /// - Mutable self parameter: var &self
+        /// - Immutable reference self: &self
         rule function_param() -> Param
             // Mutable self parameter: var &self
             = kw_var() __ "&" _ "self" !ident_char() {
@@ -7328,6 +7329,16 @@ peg::parser! {
                     ty: Type::Reference {
                         ty: Box::new(Type::Ident(Ident::new("Self"))),
                         mutable: true,
+                    },
+                }
+            }
+            // Immutable reference self parameter: &self
+            / "&" _ "self" !ident_char() {
+                Param {
+                    name: Ident::new("self"),
+                    ty: Type::Reference {
+                        ty: Box::new(Type::Ident(Ident::new("Self"))),
+                        mutable: false,
                     },
                 }
             }
@@ -7717,6 +7728,53 @@ peg::parser! {
         /// Returns String
         rule macro_body_content() -> String
             = content:$((!"\n" !"\r" !";" [_])*) { content.trim().to_string() }
+
+        // ====================================================================
+        // TOP-LEVEL ITEM AND FILE RULES
+        // ====================================================================
+
+        /// Item: top-level declaration in a Crusty source file
+        /// Syntax: function | struct | enum | typedef | macro_def
+        /// Returns Item enum variant
+        ///
+        /// The order of alternatives matters for correct parsing:
+        /// 1. macro_def - must come first to handle #define before attributes
+        /// 2. struct_def - struct keyword is unambiguous
+        /// 3. enum_def - enum keyword is unambiguous
+        /// 4. typedef_def - typedef keyword is unambiguous
+        /// 5. function - must come last as it matches type + ident patterns
+        ///
+        /// Examples:
+        /// - void main() { }
+        /// - struct Point { int x; int y; }
+        /// - enum Color { Red, Green, Blue }
+        /// - typedef int MyInt;
+        /// - #define __PI__ 3.14159
+        pub rule item() -> Item
+            = macro_def()
+            / struct_def()
+            / enum_def()
+            / typedef_def()
+            / function()
+
+        /// File: complete Crusty source file
+        /// Syntax: item*
+        /// Returns File AST node
+        ///
+        /// Parses zero or more top-level items (functions, structs, enums, typedefs, macros).
+        /// Handles empty files gracefully.
+        ///
+        /// Examples:
+        /// - Empty file: ""
+        /// - Single function: "void main() { }"
+        /// - Multiple items: "struct Point { int x; } void main() { }"
+        pub rule file() -> File
+            = _ items:item()* _ {
+                File {
+                    items,
+                    doc_comments: Vec::new(),
+                }
+            }
 
         // ====================================================================
         // MINIMAL TEST GRAMMAR
@@ -9455,6 +9513,402 @@ mod macro_def_tests {
             assert_eq!(m.delimiter, MacroDelimiter::Parens);
         } else {
             panic!("Expected Item::MacroDefinition");
+        }
+    }
+}
+
+// ============================================================================
+// ITEM RULE TESTS (Task 6.7)
+// ============================================================================
+
+#[cfg(test)]
+mod item_tests {
+    use super::*;
+
+    #[test]
+    fn test_peg_item_function() {
+        // Test parsing a function through the item() rule
+        let result = crusty_peg_parser::item("void main() { }");
+        assert!(
+            result.is_ok(),
+            "Failed to parse function item: {:?}",
+            result
+        );
+
+        if let Ok(Item::Function(f)) = result {
+            assert_eq!(f.name.name, "main");
+            assert!(f.return_type.is_none());
+        } else {
+            panic!("Expected Item::Function");
+        }
+    }
+
+    #[test]
+    fn test_peg_item_function_with_return_type() {
+        // Test parsing a function with return type
+        let result = crusty_peg_parser::item("int add(int x, int y) { return x + y; }");
+        assert!(
+            result.is_ok(),
+            "Failed to parse function with return type: {:?}",
+            result
+        );
+
+        if let Ok(Item::Function(f)) = result {
+            assert_eq!(f.name.name, "add");
+            assert!(f.return_type.is_some());
+            assert_eq!(f.params.len(), 2);
+        } else {
+            panic!("Expected Item::Function");
+        }
+    }
+
+    #[test]
+    fn test_peg_item_struct() {
+        // Test parsing a struct through the item() rule
+        let result = crusty_peg_parser::item("struct Point { int x; int y; }");
+        assert!(result.is_ok(), "Failed to parse struct item: {:?}", result);
+
+        if let Ok(Item::Struct(s)) = result {
+            assert_eq!(s.name.name, "Point");
+            assert_eq!(s.fields.len(), 2);
+        } else {
+            panic!("Expected Item::Struct");
+        }
+    }
+
+    #[test]
+    fn test_peg_item_enum() {
+        // Test parsing an enum through the item() rule
+        let result = crusty_peg_parser::item("enum Color { Red, Green, Blue }");
+        assert!(result.is_ok(), "Failed to parse enum item: {:?}", result);
+
+        if let Ok(Item::Enum(e)) = result {
+            assert_eq!(e.name.name, "Color");
+            assert_eq!(e.variants.len(), 3);
+        } else {
+            panic!("Expected Item::Enum");
+        }
+    }
+
+    #[test]
+    fn test_peg_item_typedef() {
+        // Test parsing a typedef through the item() rule
+        let result = crusty_peg_parser::item("typedef int MyInt;");
+        assert!(result.is_ok(), "Failed to parse typedef item: {:?}", result);
+
+        if let Ok(Item::Typedef(t)) = result {
+            assert_eq!(t.name.name, "MyInt");
+        } else {
+            panic!("Expected Item::Typedef");
+        }
+    }
+
+    #[test]
+    fn test_peg_item_macro_def() {
+        // Test parsing a macro definition through the item() rule
+        let result = crusty_peg_parser::item("#define __PI__ 3.14159");
+        assert!(
+            result.is_ok(),
+            "Failed to parse macro_def item: {:?}",
+            result
+        );
+
+        if let Ok(Item::MacroDefinition(m)) = result {
+            assert_eq!(m.name.name, "__PI__");
+        } else {
+            panic!("Expected Item::MacroDefinition");
+        }
+    }
+
+    #[test]
+    fn test_peg_item_function_with_attributes() {
+        // Test parsing a function with attributes
+        let result = crusty_peg_parser::item("#[test] void test_something() { }");
+        assert!(
+            result.is_ok(),
+            "Failed to parse function with attributes: {:?}",
+            result
+        );
+
+        if let Ok(Item::Function(f)) = result {
+            assert_eq!(f.name.name, "test_something");
+            assert_eq!(f.attributes.len(), 1);
+            assert_eq!(f.attributes[0].name.name, "test");
+        } else {
+            panic!("Expected Item::Function");
+        }
+    }
+
+    #[test]
+    fn test_peg_item_struct_with_attributes() {
+        // Test parsing a struct with attributes
+        let result = crusty_peg_parser::item("#[derive(Debug)] struct Data { int id; }");
+        assert!(
+            result.is_ok(),
+            "Failed to parse struct with attributes: {:?}",
+            result
+        );
+
+        if let Ok(Item::Struct(s)) = result {
+            assert_eq!(s.name.name, "Data");
+            assert_eq!(s.attributes.len(), 1);
+            assert_eq!(s.attributes[0].name.name, "derive");
+        } else {
+            panic!("Expected Item::Struct");
+        }
+    }
+
+    #[test]
+    fn test_peg_item_static_function() {
+        // Test parsing a static (private) function
+        let result = crusty_peg_parser::item("static void helper() { }");
+        assert!(
+            result.is_ok(),
+            "Failed to parse static function: {:?}",
+            result
+        );
+
+        if let Ok(Item::Function(f)) = result {
+            assert_eq!(f.name.name, "helper");
+            assert_eq!(f.visibility, Visibility::Private);
+        } else {
+            panic!("Expected Item::Function");
+        }
+    }
+
+    #[test]
+    fn test_peg_item_struct_with_methods() {
+        // Test parsing a struct with methods
+        let result = crusty_peg_parser::item(
+            "struct Counter { int value; void increment(var &self) { self.value += 1; } }",
+        );
+        assert!(
+            result.is_ok(),
+            "Failed to parse struct with methods: {:?}",
+            result
+        );
+
+        if let Ok(Item::Struct(s)) = result {
+            assert_eq!(s.name.name, "Counter");
+            assert_eq!(s.fields.len(), 1);
+            assert_eq!(s.methods.len(), 1);
+            assert_eq!(s.methods[0].name.name, "increment");
+        } else {
+            panic!("Expected Item::Struct");
+        }
+    }
+}
+
+// ============================================================================
+// FILE RULE TESTS (Task 6.8)
+// ============================================================================
+
+#[cfg(test)]
+mod file_tests {
+    use super::*;
+
+    #[test]
+    fn test_peg_file_empty() {
+        // Test parsing an empty file
+        let result = crusty_peg_parser::file("");
+        assert!(result.is_ok(), "Failed to parse empty file: {:?}", result);
+
+        if let Ok(file) = result {
+            assert_eq!(file.items.len(), 0);
+        } else {
+            panic!("Expected File");
+        }
+    }
+
+    #[test]
+    fn test_peg_file_whitespace_only() {
+        // Test parsing a file with only whitespace
+        let result = crusty_peg_parser::file("   \n\t\n   ");
+        assert!(
+            result.is_ok(),
+            "Failed to parse whitespace-only file: {:?}",
+            result
+        );
+
+        if let Ok(file) = result {
+            assert_eq!(file.items.len(), 0);
+        } else {
+            panic!("Expected File");
+        }
+    }
+
+    #[test]
+    fn test_peg_file_single_function() {
+        // Test parsing a file with a single function
+        let result = crusty_peg_parser::file("void main() { }");
+        assert!(
+            result.is_ok(),
+            "Failed to parse single function file: {:?}",
+            result
+        );
+
+        if let Ok(file) = result {
+            assert_eq!(file.items.len(), 1);
+            assert!(matches!(file.items[0], Item::Function(_)));
+        } else {
+            panic!("Expected File");
+        }
+    }
+
+    #[test]
+    fn test_peg_file_multiple_functions() {
+        // Test parsing a file with multiple functions
+        let result = crusty_peg_parser::file(
+            "void main() { }
+             int add(int x, int y) { return x + y; }
+             static void helper() { }",
+        );
+        assert!(
+            result.is_ok(),
+            "Failed to parse multiple functions file: {:?}",
+            result
+        );
+
+        if let Ok(file) = result {
+            assert_eq!(file.items.len(), 3);
+            assert!(matches!(file.items[0], Item::Function(_)));
+            assert!(matches!(file.items[1], Item::Function(_)));
+            assert!(matches!(file.items[2], Item::Function(_)));
+        } else {
+            panic!("Expected File");
+        }
+    }
+
+    #[test]
+    fn test_peg_file_mixed_items() {
+        // Test parsing a file with mixed item types
+        let result = crusty_peg_parser::file(
+            "#define __PI__ 3.14159
+             typedef int MyInt;
+             struct Point { int x; int y; }
+             enum Color { Red, Green, Blue }
+             void main() { }",
+        );
+        assert!(
+            result.is_ok(),
+            "Failed to parse mixed items file: {:?}",
+            result
+        );
+
+        if let Ok(file) = result {
+            assert_eq!(file.items.len(), 5);
+            assert!(matches!(file.items[0], Item::MacroDefinition(_)));
+            assert!(matches!(file.items[1], Item::Typedef(_)));
+            assert!(matches!(file.items[2], Item::Struct(_)));
+            assert!(matches!(file.items[3], Item::Enum(_)));
+            assert!(matches!(file.items[4], Item::Function(_)));
+        } else {
+            panic!("Expected File");
+        }
+    }
+
+    #[test]
+    fn test_peg_file_struct_with_methods() {
+        // Test parsing a file with a struct that has methods
+        let result = crusty_peg_parser::file(
+            "struct Counter {
+                int value;
+                void increment(var &self) { self.value += 1; }
+                int get_value(&self) { return self.value; }
+            }
+            void main() { }",
+        );
+        assert!(
+            result.is_ok(),
+            "Failed to parse struct with methods file: {:?}",
+            result
+        );
+
+        if let Ok(file) = result {
+            assert_eq!(file.items.len(), 2);
+            if let Item::Struct(s) = &file.items[0] {
+                assert_eq!(s.name.name, "Counter");
+                assert_eq!(s.fields.len(), 1);
+                assert_eq!(s.methods.len(), 2);
+            } else {
+                panic!("Expected Item::Struct");
+            }
+        } else {
+            panic!("Expected File");
+        }
+    }
+
+    #[test]
+    fn test_peg_file_with_attributes() {
+        // Test parsing a file with items that have attributes
+        let result = crusty_peg_parser::file(
+            "#[derive(Debug)]
+             struct Data { int id; }
+             
+             #[test]
+             void test_something() { }",
+        );
+        assert!(
+            result.is_ok(),
+            "Failed to parse file with attributes: {:?}",
+            result
+        );
+
+        if let Ok(file) = result {
+            assert_eq!(file.items.len(), 2);
+            if let Item::Struct(s) = &file.items[0] {
+                assert_eq!(s.attributes.len(), 1);
+            } else {
+                panic!("Expected Item::Struct");
+            }
+            if let Item::Function(f) = &file.items[1] {
+                assert_eq!(f.attributes.len(), 1);
+            } else {
+                panic!("Expected Item::Function");
+            }
+        } else {
+            panic!("Expected File");
+        }
+    }
+
+    #[test]
+    fn test_peg_file_complex() {
+        // Test parsing a complex file with various constructs
+        let result = crusty_peg_parser::file(
+            "// Constants
+             #define __MAX_SIZE__ 100
+             #define __MIN__(a, b) ((a) < (b) ? (a) : (b))
+             
+             // Type aliases
+             typedef int Size;
+             typedef float* FloatPtr;
+             
+             // Data structures
+             struct Point {
+                 int x;
+                 int y;
+                 
+                 void set(var &self, int x, int y) {
+                     self.x = x;
+                     self.y = y;
+                 }
+             }
+             
+             enum Direction { North, South, East, West }
+             
+             // Functions
+             void main() {
+                 var Point p;
+                 p.set(10, 20);
+             }",
+        );
+        assert!(result.is_ok(), "Failed to parse complex file: {:?}", result);
+
+        if let Ok(file) = result {
+            // 2 macros + 2 typedefs + 1 struct + 1 enum + 1 function = 7 items
+            assert_eq!(file.items.len(), 7);
+        } else {
+            panic!("Expected File");
         }
     }
 }
