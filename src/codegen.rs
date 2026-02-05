@@ -1249,6 +1249,16 @@ impl CodeGenerator {
                 result.push(')');
                 result
             }
+            Expression::Comma { left, right } => {
+                // Comma expression: (left, right)
+                // In Rust, we use a block with both expressions
+                let mut result = String::from("{ ");
+                result.push_str(&self.generate_expression_string(left));
+                result.push_str("; ");
+                result.push_str(&self.generate_expression_string(right));
+                result.push_str(" }");
+                result
+            }
         }
     }
 
@@ -1293,6 +1303,12 @@ impl CodeGenerator {
             BinaryOp::SubAssign => "-=",
             BinaryOp::MulAssign => "*=",
             BinaryOp::DivAssign => "/=",
+            BinaryOp::ModAssign => "%=",
+            BinaryOp::BitAndAssign => "&=",
+            BinaryOp::BitOrAssign => "|=",
+            BinaryOp::BitXorAssign => "^=",
+            BinaryOp::ShlAssign => "<<=",
+            BinaryOp::ShrAssign => ">>=",
         }
     }
 
