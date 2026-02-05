@@ -7119,6 +7119,98 @@ peg::parser! {
             }
 
         // ====================================================================
+        // ITEMS (Task 6)
+        // ====================================================================
+        // Item parsing handles top-level declarations in Crusty.
+        //
+        // Items include:
+        // - Functions: function declarations with parameters and body
+        // - Structs: struct definitions with fields and methods
+        // - Enums: enum definitions with variants
+        // - Typedefs: type aliases
+        // - Macro definitions: #define macros
+        //
+        // Items can have attributes attached to them.
+
+        // ====================================================================
+        // ATTRIBUTES (Task 6.1)
+        // ====================================================================
+        // Attributes provide metadata for items, fields, and other declarations.
+        //
+        // Syntax: #[name] or #[name(args)]
+        //
+        // Attribute arguments can be:
+        // - Identifiers: #[derive(Debug, Clone)]
+        // - Literals: #[version(1)]
+        // - Name-value pairs: #[cfg(target_os = "linux")]
+        //
+        // Requirements validated: 1.2, 6.5
+
+        /// Attribute: #[name] or #[name(args)]
+        /// Returns Attribute
+        ///
+        /// Examples:
+        /// - #[test]
+        /// - #[derive(Debug)]
+        /// - #[cfg(target_os = "linux")]
+        /// - #[repr(C)]
+        pub rule attribute() -> Attribute
+            = _ "#" _ "[" _ name:ident() _ args:attribute_args()? _ "]" _ {
+                Attribute {
+                    name,
+                    args: args.unwrap_or_default(),
+                }
+            }
+
+        /// Attribute arguments: (arg1, arg2, ...)
+        /// Returns Vec<AttributeArg>
+        rule attribute_args() -> Vec<AttributeArg>
+            = "(" _ args:attribute_arg_list()? _ ")" {
+                args.unwrap_or_default()
+            }
+
+        /// Attribute argument list: comma-separated arguments
+        rule attribute_arg_list() -> Vec<AttributeArg>
+            = first:attribute_arg() rest:(_ "," _ a:attribute_arg() { a })* (_ ",")? {
+                let mut args = vec![first];
+                args.extend(rest);
+                args
+            }
+
+        /// Single attribute argument: identifier, literal, or name=value
+        /// Returns AttributeArg
+        ///
+        /// Examples:
+        /// - Debug (identifier)
+        /// - 42 (literal)
+        /// - target_os = "linux" (name-value)
+        rule attribute_arg() -> AttributeArg
+            // Name-value pair: name = value
+            = name:ident() _ "=" _ value:attribute_literal() {
+                AttributeArg::NameValue { name, value }
+            }
+            // Identifier
+            / i:ident() {
+                AttributeArg::Ident(i)
+            }
+            // Literal
+            / l:attribute_literal() {
+                AttributeArg::Literal(l)
+            }
+
+        /// Literal for attribute arguments
+        /// Supports integers, strings, and booleans
+        rule attribute_literal() -> Literal
+            = string_literal()
+            / int_literal()
+            / bool_literal()
+
+        /// Multiple attributes: zero or more attributes
+        /// Returns Vec<Attribute>
+        pub rule attributes() -> Vec<Attribute>
+            = attrs:attribute()* { attrs }
+
+        // ====================================================================
         // MINIMAL TEST GRAMMAR
         // ====================================================================
 
@@ -7882,6 +7974,260 @@ mod peg_tests {
             crusty_peg_parser::char_literal("'\\''"),
             Ok(Literal::Char('\''))
         );
+    }
+}
+
+// ============================================================================
+// ATTRIBUTE TESTS (Task 6.1)
+// ============================================================================
+
+#[cfg(test)]
+mod attribute_tests {
+    use super::*;
+
+    #[test]
+    fn test_peg_attribute_simple() {
+        // Test simple attribute without arguments
+        let result = crusty_peg_parser::attribute("#[test]");
+        assert!(result.is_ok());
+        let attr = result.unwrap();
+        assert_eq!(attr.name.name, "test");
+        assert!(attr.args.is_empty());
+    }
+
+    #[test]
+    fn test_peg_attribute_with_whitespace() {
+        // Test attribute with whitespace
+        let result = crusty_peg_parser::attribute("  #[test]  ");
+        assert!(result.is_ok());
+        let attr = result.unwrap();
+        assert_eq!(attr.name.name, "test");
+
+        // Whitespace inside brackets
+        let result = crusty_peg_parser::attribute("#[ test ]");
+        assert!(result.is_ok());
+        let attr = result.unwrap();
+        assert_eq!(attr.name.name, "test");
+    }
+
+    #[test]
+    fn test_peg_attribute_with_single_ident_arg() {
+        // Test attribute with single identifier argument
+        let result = crusty_peg_parser::attribute("#[derive(Debug)]");
+        assert!(result.is_ok());
+        let attr = result.unwrap();
+        assert_eq!(attr.name.name, "derive");
+        assert_eq!(attr.args.len(), 1);
+        match &attr.args[0] {
+            AttributeArg::Ident(i) => assert_eq!(i.name, "Debug"),
+            _ => panic!("Expected Ident argument"),
+        }
+    }
+
+    #[test]
+    fn test_peg_attribute_with_multiple_ident_args() {
+        // Test attribute with multiple identifier arguments
+        let result = crusty_peg_parser::attribute("#[derive(Debug, Clone, PartialEq)]");
+        assert!(result.is_ok());
+        let attr = result.unwrap();
+        assert_eq!(attr.name.name, "derive");
+        assert_eq!(attr.args.len(), 3);
+
+        match &attr.args[0] {
+            AttributeArg::Ident(i) => assert_eq!(i.name, "Debug"),
+            _ => panic!("Expected Ident argument"),
+        }
+        match &attr.args[1] {
+            AttributeArg::Ident(i) => assert_eq!(i.name, "Clone"),
+            _ => panic!("Expected Ident argument"),
+        }
+        match &attr.args[2] {
+            AttributeArg::Ident(i) => assert_eq!(i.name, "PartialEq"),
+            _ => panic!("Expected Ident argument"),
+        }
+    }
+
+    #[test]
+    fn test_peg_attribute_with_literal_arg() {
+        // Test attribute with integer literal argument
+        let result = crusty_peg_parser::attribute("#[version(1)]");
+        assert!(result.is_ok());
+        let attr = result.unwrap();
+        assert_eq!(attr.name.name, "version");
+        assert_eq!(attr.args.len(), 1);
+        match &attr.args[0] {
+            AttributeArg::Literal(Literal::Int(n)) => assert_eq!(*n, 1),
+            _ => panic!("Expected Int literal argument"),
+        }
+    }
+
+    #[test]
+    fn test_peg_attribute_with_string_literal_arg() {
+        // Test attribute with string literal argument
+        let result = crusty_peg_parser::attribute("#[doc(\"This is documentation\")]");
+        assert!(result.is_ok());
+        let attr = result.unwrap();
+        assert_eq!(attr.name.name, "doc");
+        assert_eq!(attr.args.len(), 1);
+        match &attr.args[0] {
+            AttributeArg::Literal(Literal::String(s)) => assert_eq!(s, "This is documentation"),
+            _ => panic!("Expected String literal argument"),
+        }
+    }
+
+    #[test]
+    fn test_peg_attribute_with_name_value_arg() {
+        // Test attribute with name=value argument
+        let result = crusty_peg_parser::attribute("#[cfg(target_os = \"linux\")]");
+        assert!(result.is_ok());
+        let attr = result.unwrap();
+        assert_eq!(attr.name.name, "cfg");
+        assert_eq!(attr.args.len(), 1);
+        match &attr.args[0] {
+            AttributeArg::NameValue { name, value } => {
+                assert_eq!(name.name, "target_os");
+                match value {
+                    Literal::String(s) => assert_eq!(s, "linux"),
+                    _ => panic!("Expected String literal value"),
+                }
+            }
+            _ => panic!("Expected NameValue argument"),
+        }
+    }
+
+    #[test]
+    fn test_peg_attribute_with_mixed_args() {
+        // Test attribute with mixed argument types
+        let result = crusty_peg_parser::attribute("#[attr(Debug, 42, name = \"value\")]");
+        assert!(result.is_ok());
+        let attr = result.unwrap();
+        assert_eq!(attr.name.name, "attr");
+        assert_eq!(attr.args.len(), 3);
+
+        match &attr.args[0] {
+            AttributeArg::Ident(i) => assert_eq!(i.name, "Debug"),
+            _ => panic!("Expected Ident argument"),
+        }
+        match &attr.args[1] {
+            AttributeArg::Literal(Literal::Int(n)) => assert_eq!(*n, 42),
+            _ => panic!("Expected Int literal argument"),
+        }
+        match &attr.args[2] {
+            AttributeArg::NameValue { name, value } => {
+                assert_eq!(name.name, "name");
+                match value {
+                    Literal::String(s) => assert_eq!(s, "value"),
+                    _ => panic!("Expected String literal value"),
+                }
+            }
+            _ => panic!("Expected NameValue argument"),
+        }
+    }
+
+    #[test]
+    fn test_peg_attribute_empty_args() {
+        // Test attribute with empty parentheses
+        let result = crusty_peg_parser::attribute("#[test()]");
+        assert!(result.is_ok());
+        let attr = result.unwrap();
+        assert_eq!(attr.name.name, "test");
+        assert!(attr.args.is_empty());
+    }
+
+    #[test]
+    fn test_peg_attribute_trailing_comma() {
+        // Test attribute with trailing comma in arguments
+        let result = crusty_peg_parser::attribute("#[derive(Debug,)]");
+        assert!(result.is_ok());
+        let attr = result.unwrap();
+        assert_eq!(attr.name.name, "derive");
+        assert_eq!(attr.args.len(), 1);
+    }
+
+    #[test]
+    fn test_peg_attribute_repr_c() {
+        // Test common repr(C) attribute
+        let result = crusty_peg_parser::attribute("#[repr(C)]");
+        assert!(result.is_ok());
+        let attr = result.unwrap();
+        assert_eq!(attr.name.name, "repr");
+        assert_eq!(attr.args.len(), 1);
+        match &attr.args[0] {
+            AttributeArg::Ident(i) => assert_eq!(i.name, "C"),
+            _ => panic!("Expected Ident argument"),
+        }
+    }
+
+    #[test]
+    fn test_peg_attribute_bool_literal_arg() {
+        // Test attribute with boolean literal argument
+        let result = crusty_peg_parser::attribute("#[enabled(true)]");
+        assert!(result.is_ok());
+        let attr = result.unwrap();
+        assert_eq!(attr.name.name, "enabled");
+        assert_eq!(attr.args.len(), 1);
+        match &attr.args[0] {
+            AttributeArg::Literal(Literal::Bool(b)) => assert!(*b),
+            _ => panic!("Expected Bool literal argument"),
+        }
+    }
+
+    #[test]
+    fn test_peg_attributes_multiple() {
+        // Test parsing multiple attributes
+        let result = crusty_peg_parser::attributes("#[test] #[derive(Debug)]");
+        assert!(result.is_ok());
+        let attrs = result.unwrap();
+        assert_eq!(attrs.len(), 2);
+        assert_eq!(attrs[0].name.name, "test");
+        assert_eq!(attrs[1].name.name, "derive");
+    }
+
+    #[test]
+    fn test_peg_attributes_empty() {
+        // Test parsing no attributes
+        let result = crusty_peg_parser::attributes("");
+        assert!(result.is_ok());
+        let attrs = result.unwrap();
+        assert!(attrs.is_empty());
+    }
+
+    #[test]
+    fn test_peg_attributes_with_newlines() {
+        // Test attributes separated by newlines
+        let result = crusty_peg_parser::attributes("#[test]\n#[derive(Debug)]");
+        assert!(result.is_ok());
+        let attrs = result.unwrap();
+        assert_eq!(attrs.len(), 2);
+    }
+
+    #[test]
+    fn test_peg_attribute_with_comments() {
+        // Test attribute with comments
+        let result = crusty_peg_parser::attribute("/* comment */ #[test] // trailing");
+        assert!(result.is_ok());
+        let attr = result.unwrap();
+        assert_eq!(attr.name.name, "test");
+    }
+
+    #[test]
+    fn test_peg_attribute_name_value_int() {
+        // Test attribute with name=value where value is an integer
+        let result = crusty_peg_parser::attribute("#[align(size = 8)]");
+        assert!(result.is_ok());
+        let attr = result.unwrap();
+        assert_eq!(attr.name.name, "align");
+        assert_eq!(attr.args.len(), 1);
+        match &attr.args[0] {
+            AttributeArg::NameValue { name, value } => {
+                assert_eq!(name.name, "size");
+                match value {
+                    Literal::Int(n) => assert_eq!(*n, 8),
+                    _ => panic!("Expected Int literal value"),
+                }
+            }
+            _ => panic!("Expected NameValue argument"),
+        }
     }
 }
 

@@ -153,7 +153,7 @@ This implementation plan breaks down the rust-peg parser rewrite into discrete, 
     - _Requirements: 1.2, 6.7_
 
 - [ ] 6. Define item (top-level declaration) grammar with actions
-  - [ ] 6.1 Define attribute rule with actions
+  - [x] 6.1 Define attribute rule with actions
     - Implement attribute rule returning Attribute
     - Support attribute arguments (ident, literal, name=value)
     - _Requirements: 1.2, 6.5_
