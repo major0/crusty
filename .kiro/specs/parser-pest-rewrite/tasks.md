@@ -73,7 +73,7 @@ This implementation plan breaks down the rust-peg parser rewrite into discrete, 
     - Implement tuple_lit rule returning Expression::TupleLit
     - _Requirements: 1.2, 6.8_
   
-  - [ ] 4.2 Define cast expression rule (CRITICAL for ambiguity resolution)
+  - [x] 4.2 Define cast expression rule (CRITICAL for ambiguity resolution)
     - Implement cast_expr rule: "(" _ t:type_expr() _ ")" _ "(" _ e:expr() _ ")"
     - Return Expression::Cast with type and expression
     - Place cast_expr BEFORE paren_expr in primary() ordered choice
