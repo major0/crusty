@@ -1578,7 +1578,13 @@ impl SemanticAnalyzer {
                     | BinaryOp::AddAssign
                     | BinaryOp::SubAssign
                     | BinaryOp::MulAssign
-                    | BinaryOp::DivAssign => left_type,
+                    | BinaryOp::DivAssign
+                    | BinaryOp::ModAssign
+                    | BinaryOp::BitAndAssign
+                    | BinaryOp::BitOrAssign
+                    | BinaryOp::BitXorAssign
+                    | BinaryOp::ShlAssign
+                    | BinaryOp::ShrAssign => left_type,
                 }
             }
 
@@ -2031,6 +2037,13 @@ impl SemanticAnalyzer {
                 // Explicit generic call returns the type (simplified)
                 ty.clone()
             }
+
+            Expression::Comma { left, right } => {
+                // Analyze both expressions
+                self.analyze_expression(left);
+                // Comma expression returns the type of the right expression
+                self.analyze_expression(right)
+            }
         }
     }
 
@@ -2217,6 +2230,10 @@ impl SemanticAnalyzer {
                 for arg in args {
                     self.collect_used_variables(arg, used);
                 }
+            }
+            Expression::Comma { left, right } => {
+                self.collect_used_variables(left, used);
+                self.collect_used_variables(right, used);
             }
             Expression::Literal(_) => {
                 // Literals don't use variables
