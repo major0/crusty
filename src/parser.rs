@@ -6972,6 +6972,70 @@ peg::parser! {
                 Block::new(stmts)
             }
 
+        // ====================================================================
+        // NESTED FUNCTION STATEMENT (Task 5.5)
+        // ====================================================================
+        // Nested functions are function declarations inside other functions.
+        // They are parsed as statements within a block.
+        //
+        // Syntax: [return_type] name(params) { body }
+        //
+        // Examples:
+        // - void inner() { return; }
+        // - int add(int x, int y) { return x + y; }
+        // - int get_value() { return 42; }
+        //
+        // Requirements validated: 1.2, 6.10
+
+        /// Nested function statement: function declaration inside another function
+        /// Syntax: [return_type] name(params) { body }
+        /// Returns Statement::NestedFunction
+        ///
+        /// The return type can be:
+        /// - void: no return value
+        /// - Any other type: function returns that type
+        ///
+        /// Parameters follow the same syntax as top-level functions:
+        /// - Type name pairs separated by commas
+        ///
+        /// Note: This rule must be tried before expr_stmt to correctly parse
+        /// function declarations that start with a type identifier.
+        pub rule nested_function() -> Statement
+            // With void return type: void name(params) { body }
+            = _ kw_void() __ name:ident() _ "(" _ params:param_list()? _ ")" _ body:block() _ {
+                Statement::NestedFunction {
+                    name,
+                    params: params.unwrap_or_default(),
+                    return_type: None,
+                    body,
+                }
+            }
+            // With explicit return type: Type name(params) { body }
+            / _ return_type:type_expr() __ name:ident() _ "(" _ params:param_list()? _ ")" _ body:block() _ {
+                Statement::NestedFunction {
+                    name,
+                    params: params.unwrap_or_default(),
+                    return_type: Some(return_type),
+                    body,
+                }
+            }
+
+        /// Helper: parameter list for nested functions
+        /// Syntax: Type name, Type name, ...
+        rule param_list() -> Vec<Param>
+            = first:param() rest:(_ "," _ p:param() { p })* {
+                let mut params = vec![first];
+                params.extend(rest);
+                params
+            }
+
+        /// Helper: single parameter
+        /// Syntax: Type name
+        rule param() -> Param
+            = ty:type_expr() __ name:ident() {
+                Param { name, ty }
+            }
+
         /// Statement: any executable statement
         /// Returns Statement
         ///
@@ -6979,9 +7043,11 @@ peg::parser! {
         /// 1. Control flow statements (if, while, for, switch) - must come before expression
         /// 2. Jump statements (return, break, continue)
         /// 3. Variable declarations (let, var, const)
-        /// 4. Expression statements (including assignments)
+        /// 4. Nested function declarations (must come before expr_stmt)
+        /// 5. Expression statements (including assignments)
         ///
         /// Note: for_in_stmt must come before for_stmt to correctly parse "for (x in ...)"
+        /// Note: nested_function must come before expr_stmt to correctly parse function declarations
         pub rule statement() -> Statement
             = if_stmt()
             / while_stmt()
@@ -6994,6 +7060,7 @@ peg::parser! {
             / let_stmt()
             / var_stmt()
             / const_stmt()
+            / nested_function()  // Must come before expr_stmt
             / expr_stmt()
 
         /// Expression statement: an expression followed by semicolon
