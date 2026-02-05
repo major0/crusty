@@ -7610,6 +7610,115 @@ peg::parser! {
             }
 
         // ====================================================================
+        // MACRO DEFINITION ITEM (Task 6.6)
+        // ====================================================================
+        // Macro definitions create compile-time macros using #define syntax.
+        // These transpile to Rust's macro_rules! declarations.
+        //
+        // Syntax: #define __NAME__[(params)] body
+        //
+        // Components:
+        // - Hash and define keyword: #define
+        // - Name: must have double-underscore prefix and suffix (e.g., __MAX__)
+        // - Parameters: optional, only parentheses style supported for #define
+        //   - Parentheses: __MACRO__(a, b)
+        //   - None: __MACRO__ (constant macro)
+        // - Body: token sequence until end of line or semicolon
+        //
+        // Note: Macro USAGE (not definition) can use any delimiter style:
+        // - __macro__(args) - parentheses
+        // - __macro__[args] - brackets (e.g., __vec__[1, 2, 3])
+        // - __macro__{args} - braces
+        // These usages transpile "as is" to Rust, allowing rustc to resolve them.
+        // This supports Rust macros declared via proc_macro, macro 2.0, etc.
+        //
+        // Examples:
+        // - #define __PI__ 3.14159
+        // - #define __MAX__(a, b) ((a) > (b) ? (a) : (b))
+        //
+        // Requirements validated: 1.2, 6.6
+
+        /// Macro definition item: #define macro
+        /// Syntax: #define __NAME__[(params)] body
+        /// Returns Item::MacroDefinition
+        ///
+        /// Only parentheses delimiter is supported for #define declarations.
+        /// Bracket and brace delimiters are only valid for macro USAGE,
+        /// not definition (those macros may be defined elsewhere in Rust).
+        ///
+        /// Examples:
+        /// - #define __PI__ 3.14159
+        /// - #define __MAX__(a, b) ((a) > (b) ? (a) : (b))
+        /// - #define __EMPTY__
+        pub rule macro_def() -> Item
+            // Macro with parentheses delimiter: #define __NAME__(params) body
+            = _ "#" _ kw_define() __ name:macro_name() _ "(" _ params:macro_params()? _ ")" _ body:macro_body() _ {
+                Item::MacroDefinition(MacroDefinition {
+                    name,
+                    params: params.unwrap_or_default(),
+                    body,
+                    delimiter: MacroDelimiter::Parens,
+                })
+            }
+            // Constant macro (no delimiter): #define __NAME__ body
+            / _ "#" _ kw_define() __ name:macro_name() _ body:macro_body() _ {
+                Item::MacroDefinition(MacroDefinition {
+                    name,
+                    params: vec![],
+                    body,
+                    delimiter: MacroDelimiter::None,
+                })
+            }
+
+        /// Macro name: must have double-underscore prefix and suffix
+        /// Returns Ident
+        ///
+        /// Examples:
+        /// - __MAX__
+        /// - __PI__
+        /// - __MY_MACRO__
+        rule macro_name() -> Ident
+            = "__" middle:$((['a'..='z' | 'A'..='Z' | '_']) (!"__" ident_char())*) "__" {
+                Ident::new(format!("__{middle}__"))
+            }
+
+        /// Macro parameters: comma-separated list of identifiers
+        /// Returns Vec<Ident>
+        rule macro_params() -> Vec<Ident>
+            = first:ident() rest:(_ "," _ i:ident() { i })* {
+                let mut params = vec![first];
+                params.extend(rest);
+                params
+            }
+
+        /// Macro body: token sequence until end of line or semicolon
+        /// Returns Vec<crate::lexer::Token>
+        ///
+        /// The body captures all tokens on the same line as the macro definition.
+        /// A semicolon terminates the body and is consumed.
+        /// A newline terminates the body but is not consumed.
+        ///
+        /// Note: This is a simplified implementation that captures the body as text
+        /// and converts it to a single token. A full implementation would properly
+        /// tokenize the body.
+        rule macro_body() -> Vec<crate::lexer::Token>
+            = body:macro_body_content() ";"? {
+                if body.is_empty() {
+                    vec![]
+                } else {
+                    // Create tokens from the body content
+                    // This is a simplified implementation - the body is captured as raw text
+                    // and converted to tokens based on simple patterns
+                    parse_macro_body_tokens(&body)
+                }
+            }
+
+        /// Macro body content: characters until newline or semicolon
+        /// Returns String
+        rule macro_body_content() -> String
+            = content:$((!"\n" !"\r" !";" [_])*) { content.trim().to_string() }
+
+        // ====================================================================
         // MINIMAL TEST GRAMMAR
         // ====================================================================
 
@@ -7631,6 +7740,222 @@ peg::parser! {
             = _ !keyword() n:$((['a'..='z' | 'A'..='Z' | '_']) ident_char()*) _
             { n.to_string() }
     }
+}
+
+/// Helper function to parse macro body content into tokens
+/// This is a simplified implementation that creates tokens from the body text.
+/// A full implementation would properly tokenize the body using the lexer.
+fn parse_macro_body_tokens(body: &str) -> Vec<crate::lexer::Token> {
+    use crate::error::{Position, Span};
+    use crate::lexer::{Token, TokenKind};
+
+    if body.is_empty() {
+        return vec![];
+    }
+
+    let mut tokens = Vec::new();
+    let mut chars = body.chars().peekable();
+    let mut current_pos = 0;
+
+    while let Some(&ch) = chars.peek() {
+        let start_pos = current_pos;
+
+        // Skip whitespace
+        if ch.is_whitespace() {
+            chars.next();
+            current_pos += 1;
+            continue;
+        }
+
+        // Parse string literal
+        if ch == '"' {
+            let mut text = String::new();
+            text.push(chars.next().unwrap());
+            current_pos += 1;
+
+            while let Some(&c) = chars.peek() {
+                text.push(chars.next().unwrap());
+                current_pos += 1;
+                if c == '"' && !text.ends_with("\\\"") {
+                    break;
+                }
+            }
+
+            tokens.push(Token::new(
+                TokenKind::StringLiteral(text.clone()),
+                Span::new(
+                    Position::new(1, start_pos + 1),
+                    Position::new(1, current_pos + 1),
+                ),
+                text,
+            ));
+            continue;
+        }
+
+        // Parse character literal
+        if ch == '\'' {
+            let mut text = String::new();
+            text.push(chars.next().unwrap());
+            current_pos += 1;
+
+            while let Some(&c) = chars.peek() {
+                text.push(chars.next().unwrap());
+                current_pos += 1;
+                if c == '\'' && !text.ends_with("\\'") {
+                    break;
+                }
+            }
+
+            let char_val = text.chars().nth(1).unwrap_or(' ');
+            tokens.push(Token::new(
+                TokenKind::CharLiteral(char_val),
+                Span::new(
+                    Position::new(1, start_pos + 1),
+                    Position::new(1, current_pos + 1),
+                ),
+                text,
+            ));
+            continue;
+        }
+
+        // Parse number
+        if ch.is_ascii_digit() {
+            let mut text = String::new();
+            while let Some(&c) = chars.peek() {
+                if c.is_ascii_digit() || c == '.' {
+                    text.push(chars.next().unwrap());
+                    current_pos += 1;
+                } else {
+                    break;
+                }
+            }
+
+            let kind = if text.contains('.') {
+                TokenKind::FloatLiteral(text.clone())
+            } else {
+                TokenKind::IntLiteral(text.clone())
+            };
+
+            tokens.push(Token::new(
+                kind,
+                Span::new(
+                    Position::new(1, start_pos + 1),
+                    Position::new(1, current_pos + 1),
+                ),
+                text,
+            ));
+            continue;
+        }
+
+        // Parse identifier or keyword
+        if ch.is_alphabetic() || ch == '_' {
+            let mut text = String::new();
+            while let Some(&c) = chars.peek() {
+                if c.is_alphanumeric() || c == '_' {
+                    text.push(chars.next().unwrap());
+                    current_pos += 1;
+                } else {
+                    break;
+                }
+            }
+
+            let kind = TokenKind::Ident(text.clone());
+            tokens.push(Token::new(
+                kind,
+                Span::new(
+                    Position::new(1, start_pos + 1),
+                    Position::new(1, current_pos + 1),
+                ),
+                text,
+            ));
+            continue;
+        }
+
+        // Parse operators and punctuation
+        let mut text = String::new();
+        text.push(chars.next().unwrap());
+        current_pos += 1;
+
+        // Check for multi-character operators
+        if let Some(&next_ch) = chars.peek() {
+            let two_char = format!("{}{}", ch, next_ch);
+            if matches!(
+                two_char.as_str(),
+                "==" | "!="
+                    | "<="
+                    | ">="
+                    | "&&"
+                    | "||"
+                    | "++"
+                    | "--"
+                    | "+="
+                    | "-="
+                    | "*="
+                    | "/="
+                    | "<<"
+                    | ">>"
+                    | "->"
+                    | "::"
+            ) {
+                text.push(chars.next().unwrap());
+                current_pos += 1;
+            }
+        }
+
+        let kind = match text.as_str() {
+            "(" => TokenKind::LParen,
+            ")" => TokenKind::RParen,
+            "[" => TokenKind::LBracket,
+            "]" => TokenKind::RBracket,
+            "{" => TokenKind::LBrace,
+            "}" => TokenKind::RBrace,
+            "+" => TokenKind::Plus,
+            "-" => TokenKind::Minus,
+            "*" => TokenKind::Star,
+            "/" => TokenKind::Slash,
+            "%" => TokenKind::Percent,
+            "=" => TokenKind::Assign,
+            "!" => TokenKind::Bang,
+            "<" => TokenKind::Lt,
+            ">" => TokenKind::Gt,
+            "&" => TokenKind::BitAnd,
+            "|" => TokenKind::BitOr,
+            "^" => TokenKind::BitXor,
+            "~" => TokenKind::BitNot,
+            "?" => TokenKind::Question,
+            ":" => TokenKind::Colon,
+            "," => TokenKind::Comma,
+            "." => TokenKind::Dot,
+            "==" => TokenKind::Eq,
+            "!=" => TokenKind::Ne,
+            "<=" => TokenKind::Le,
+            ">=" => TokenKind::Ge,
+            "&&" => TokenKind::And,
+            "||" => TokenKind::Or,
+            "++" => TokenKind::Inc,
+            "--" => TokenKind::Dec,
+            "+=" => TokenKind::PlusEq,
+            "-=" => TokenKind::MinusEq,
+            "*=" => TokenKind::StarEq,
+            "/=" => TokenKind::SlashEq,
+            "<<" => TokenKind::Shl,
+            ">>" => TokenKind::Shr,
+            "->" => TokenKind::Arrow,
+            "::" => TokenKind::DoubleColon,
+            _ => TokenKind::Ident(text.clone()), // Fallback for unknown operators
+        };
+
+        tokens.push(Token::new(
+            kind,
+            Span::new(
+                Position::new(1, start_pos + 1),
+                Position::new(1, current_pos + 1),
+            ),
+            text,
+        ));
+    }
+
+    tokens
 }
 
 #[cfg(test)]
@@ -8907,6 +9232,229 @@ mod typedef_tests {
             assert!(matches!(t.target, Type::Primitive(PrimitiveType::Bool)));
         } else {
             panic!("Expected Item::Typedef");
+        }
+    }
+}
+
+// ============================================================================
+// MACRO DEFINITION TESTS (Task 6.6)
+// ============================================================================
+
+#[cfg(test)]
+mod macro_def_tests {
+    use super::*;
+
+    #[test]
+    fn test_peg_macro_def_simple_constant() {
+        // Test simple constant macro: #define __PI__ 3.14159
+        let result = crusty_peg_parser::macro_def("#define __PI__ 3.14159");
+        assert!(
+            result.is_ok(),
+            "Failed to parse simple constant macro: {:?}",
+            result
+        );
+
+        if let Ok(Item::MacroDefinition(m)) = result {
+            assert_eq!(m.name.name, "__PI__");
+            assert_eq!(m.params.len(), 0);
+            assert_eq!(m.delimiter, MacroDelimiter::None);
+            assert!(!m.body.is_empty());
+        } else {
+            panic!("Expected Item::MacroDefinition");
+        }
+    }
+
+    #[test]
+    fn test_peg_macro_def_with_parens() {
+        // Test macro with parentheses: #define __MAX__(a, b) ((a) > (b) ? (a) : (b))
+        let result = crusty_peg_parser::macro_def("#define __MAX__(a, b) ((a) > (b) ? (a) : (b))");
+        assert!(
+            result.is_ok(),
+            "Failed to parse macro with parens: {:?}",
+            result
+        );
+
+        if let Ok(Item::MacroDefinition(m)) = result {
+            assert_eq!(m.name.name, "__MAX__");
+            assert_eq!(m.params.len(), 2);
+            assert_eq!(m.params[0].name, "a");
+            assert_eq!(m.params[1].name, "b");
+            assert_eq!(m.delimiter, MacroDelimiter::Parens);
+            assert!(!m.body.is_empty());
+        } else {
+            panic!("Expected Item::MacroDefinition");
+        }
+    }
+
+    #[test]
+    fn test_peg_macro_def_brackets_not_supported() {
+        // Bracket delimiter is NOT supported for #define (only for macro usage)
+        // This should fail to parse as a macro definition
+        let result = crusty_peg_parser::macro_def("#define __VEC__[items] items");
+        // The parser will try to parse this as a constant macro with body "[items] items"
+        // which is valid syntax, but the delimiter will be None, not Brackets
+        if let Ok(Item::MacroDefinition(m)) = result {
+            // It parses as a constant macro with the brackets in the body
+            assert_eq!(m.name.name, "__VEC__");
+            assert_eq!(m.params.len(), 0);
+            assert_eq!(m.delimiter, MacroDelimiter::None);
+        } else {
+            // Or it fails entirely, which is also acceptable
+            assert!(result.is_err());
+        }
+    }
+
+    #[test]
+    fn test_peg_macro_def_braces_not_supported() {
+        // Brace delimiter is NOT supported for #define (only for macro usage)
+        // This should fail to parse as a macro definition
+        let result = crusty_peg_parser::macro_def("#define __BLOCK__{code} code");
+        // The parser will try to parse this as a constant macro with body "{code} code"
+        // which is valid syntax, but the delimiter will be None, not Braces
+        if let Ok(Item::MacroDefinition(m)) = result {
+            // It parses as a constant macro with the braces in the body
+            assert_eq!(m.name.name, "__BLOCK__");
+            assert_eq!(m.params.len(), 0);
+            assert_eq!(m.delimiter, MacroDelimiter::None);
+        } else {
+            // Or it fails entirely, which is also acceptable
+            assert!(result.is_err());
+        }
+    }
+
+    #[test]
+    fn test_peg_macro_def_empty_body() {
+        // Test macro with empty body: #define __EMPTY__
+        let result = crusty_peg_parser::macro_def("#define __EMPTY__");
+        assert!(
+            result.is_ok(),
+            "Failed to parse macro with empty body: {:?}",
+            result
+        );
+
+        if let Ok(Item::MacroDefinition(m)) = result {
+            assert_eq!(m.name.name, "__EMPTY__");
+            assert_eq!(m.params.len(), 0);
+            assert_eq!(m.delimiter, MacroDelimiter::None);
+            assert!(m.body.is_empty());
+        } else {
+            panic!("Expected Item::MacroDefinition");
+        }
+    }
+
+    #[test]
+    fn test_peg_macro_def_with_semicolon() {
+        // Test macro with semicolon terminator: #define __PI__ 3.14159;
+        let result = crusty_peg_parser::macro_def("#define __PI__ 3.14159;");
+        assert!(
+            result.is_ok(),
+            "Failed to parse macro with semicolon: {:?}",
+            result
+        );
+
+        if let Ok(Item::MacroDefinition(m)) = result {
+            assert_eq!(m.name.name, "__PI__");
+            assert_eq!(m.params.len(), 0);
+        } else {
+            panic!("Expected Item::MacroDefinition");
+        }
+    }
+
+    #[test]
+    fn test_peg_macro_def_multiple_params() {
+        // Test macro with multiple parameters: #define __CLAMP__(x, min, max) ...
+        let result = crusty_peg_parser::macro_def(
+            "#define __CLAMP__(x, min, max) ((x) < (min) ? (min) : (x) > (max) ? (max) : (x))",
+        );
+        assert!(
+            result.is_ok(),
+            "Failed to parse macro with multiple params: {:?}",
+            result
+        );
+
+        if let Ok(Item::MacroDefinition(m)) = result {
+            assert_eq!(m.name.name, "__CLAMP__");
+            assert_eq!(m.params.len(), 3);
+            assert_eq!(m.params[0].name, "x");
+            assert_eq!(m.params[1].name, "min");
+            assert_eq!(m.params[2].name, "max");
+            assert_eq!(m.delimiter, MacroDelimiter::Parens);
+        } else {
+            panic!("Expected Item::MacroDefinition");
+        }
+    }
+
+    #[test]
+    fn test_peg_macro_def_integer_body() {
+        // Test macro with integer body: #define __MAX__ 100
+        let result = crusty_peg_parser::macro_def("#define __MAX__ 100");
+        assert!(
+            result.is_ok(),
+            "Failed to parse macro with integer body: {:?}",
+            result
+        );
+
+        if let Ok(Item::MacroDefinition(m)) = result {
+            assert_eq!(m.name.name, "__MAX__");
+            assert!(!m.body.is_empty());
+        } else {
+            panic!("Expected Item::MacroDefinition");
+        }
+    }
+
+    #[test]
+    fn test_peg_macro_def_with_whitespace() {
+        // Test macro with various whitespace
+        let result = crusty_peg_parser::macro_def("  #  define  __TEST__  ( a , b )  a + b  ");
+        assert!(
+            result.is_ok(),
+            "Failed to parse macro with whitespace: {:?}",
+            result
+        );
+
+        if let Ok(Item::MacroDefinition(m)) = result {
+            assert_eq!(m.name.name, "__TEST__");
+            assert_eq!(m.params.len(), 2);
+        } else {
+            panic!("Expected Item::MacroDefinition");
+        }
+    }
+
+    #[test]
+    fn test_peg_macro_def_arithmetic_body() {
+        // Test macro with arithmetic expression body
+        let result = crusty_peg_parser::macro_def("#define __SQUARE__(x) ((x) * (x))");
+        assert!(
+            result.is_ok(),
+            "Failed to parse macro with arithmetic body: {:?}",
+            result
+        );
+
+        if let Ok(Item::MacroDefinition(m)) = result {
+            assert_eq!(m.name.name, "__SQUARE__");
+            assert_eq!(m.params.len(), 1);
+            assert_eq!(m.params[0].name, "x");
+        } else {
+            panic!("Expected Item::MacroDefinition");
+        }
+    }
+
+    #[test]
+    fn test_peg_macro_def_no_params_with_parens() {
+        // Test macro with empty parameter list: #define __FUNC__() body
+        let result = crusty_peg_parser::macro_def("#define __FUNC__() 42");
+        assert!(
+            result.is_ok(),
+            "Failed to parse macro with empty params: {:?}",
+            result
+        );
+
+        if let Ok(Item::MacroDefinition(m)) = result {
+            assert_eq!(m.name.name, "__FUNC__");
+            assert_eq!(m.params.len(), 0);
+            assert_eq!(m.delimiter, MacroDelimiter::Parens);
+        } else {
+            panic!("Expected Item::MacroDefinition");
         }
     }
 }
