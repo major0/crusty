@@ -5254,6 +5254,9 @@ peg::parser! {
         /// Keyword: NULL
         rule kw_null() = "NULL" !ident_char()
 
+        /// Keyword: sizeof
+        rule kw_sizeof() = "sizeof" !ident_char()
+
         /// Helper: matches any keyword (used to prevent keywords from being parsed as identifiers)
         rule keyword() = kw_let() / kw_var() / kw_const() / kw_static() / kw_mut() / kw_define()
             / kw_if() / kw_else() / kw_while() / kw_for() / kw_in()
@@ -5264,7 +5267,7 @@ peg::parser! {
             / kw_int() / kw_i32() / kw_i64() / kw_u32() / kw_u64()
             / kw_float() / kw_f32() / kw_f64()
             / kw_bool() / kw_char() / kw_void()
-            / kw_true() / kw_false() / kw_null()
+            / kw_true() / kw_false() / kw_null() / kw_sizeof()
 
         // ====================================================================
         // LITERALS
@@ -5844,10 +5847,132 @@ peg::parser! {
                 })
             }
 
+        // ====================================================================
+        // SPECIAL EXPRESSION RULES (Task 4.6)
+        // ====================================================================
+        // These rules handle special expression forms:
+        // - sizeof(Type): Returns the size of a type in bytes
+        // - range expressions: start..end or start..=end
+        // - macro calls: name!(args) or name![args] or name!{args}
+        //
+        // Requirements validated: 1.2, 6.8, 6.15
+
+        /// Sizeof expression: sizeof(Type)
+        /// Returns Expression::Sizeof
+        ///
+        /// The sizeof operator returns the size of a type in bytes.
+        /// Syntax: sizeof(Type)
+        /// Examples:
+        /// - sizeof(int) -> size of int
+        /// - sizeof(MyStruct) -> size of MyStruct
+        /// - sizeof(int*) -> size of pointer to int
+        pub rule sizeof_expr() -> Expression
+            = _ kw_sizeof() _ "(" _ ty:type_expr() _ ")" _ {
+                Expression::Sizeof { ty }
+            }
+
+        /// Range expression: start..end or start..=end
+        /// Returns Expression::Range
+        ///
+        /// Range expressions create iterators over a sequence of values.
+        /// Syntax:
+        /// - start..end (exclusive end)
+        /// - start..=end (inclusive end)
+        /// - ..end (from beginning to end)
+        /// - start.. (from start to end)
+        /// - .. (full range)
+        ///
+        /// Note: Range expressions are typically used in for-in loops and slice indexing.
+        /// When used in slice indexing, they are parsed as part of the index expression.
+        pub rule range_expr() -> Expression
+            = _ start:range_operand()? _ ".." inclusive:"="? _ end:range_operand()? _ {
+                Expression::Range {
+                    start: start.map(Box::new),
+                    end: end.map(Box::new),
+                    inclusive: inclusive.is_some(),
+                }
+            }
+
+        /// Helper: operand for range expressions (excludes range itself to avoid ambiguity)
+        /// This uses assignment_expr to avoid parsing comma as part of the range
+        rule range_operand() -> Expression
+            = e:range_primary() { e }
+
+        /// Helper: primary expression for range operands (no range expressions)
+        /// This prevents infinite recursion in range parsing
+        rule range_primary() -> Expression
+            = type_scoped_call()
+            / postfix_expr()
+
+        /// Macro call expression: name!(args) or name![args] or name!{args}
+        /// Returns Expression::MacroCall
+        ///
+        /// Macro calls invoke compile-time macros with various delimiter styles.
+        /// Syntax:
+        /// - name!(arg1, arg2, ...) - parentheses style
+        /// - name![arg1, arg2, ...] - bracket style
+        /// - name!{arg1, arg2, ...} - brace style
+        ///
+        /// The arguments are captured as raw tokens for macro expansion.
+        /// Examples:
+        /// - println!("Hello, world!")
+        /// - vec![1, 2, 3]
+        /// - format!("{}", value)
+        pub rule macro_call() -> Expression
+            = _ name:ident() _ "!" _ args:macro_args() _ {
+                Expression::MacroCall { name, args }
+            }
+
+        /// Helper: macro arguments with different delimiters
+        /// Returns Vec<Token> containing the raw tokens
+        rule macro_args() -> Vec<crate::ast::Token>
+            = "(" tokens:macro_token_stream() ")" { tokens }
+            / "[" tokens:macro_token_stream() "]" { tokens }
+            / "{" tokens:macro_token_stream() "}" { tokens }
+
+        /// Helper: stream of tokens inside macro arguments
+        /// Captures everything between delimiters as raw tokens
+        /// Note: This is a simplified implementation that captures the text as a single token
+        /// It handles nested delimiters by tracking depth
+        rule macro_token_stream() -> Vec<crate::ast::Token>
+            = content:macro_content() {
+                if content.is_empty() {
+                    vec![]
+                } else {
+                    // Create a simple token representing the macro content
+                    // In a full implementation, this would be properly tokenized
+                    vec![crate::ast::Token {
+                        kind: crate::ast::TokenKind::Other,
+                        text: content,
+                    }]
+                }
+            }
+
+        /// Helper: macro content that handles nested delimiters and strings
+        rule macro_content() -> String
+            = parts:macro_content_part()* { parts.join("") }
+
+        /// Helper: a single part of macro content
+        rule macro_content_part() -> String
+            // String literal (preserve as-is)
+            = s:$("\"" (!"\"" [_] / "\\\"")* "\"") { s.to_string() }
+            // Character literal (preserve as-is)
+            / s:$("'" (!"'" [_] / "\\'")* "'") { s.to_string() }
+            // Nested parentheses
+            / "(" inner:macro_content() ")" { format!("({})", inner) }
+            // Nested brackets
+            / "[" inner:macro_content() "]" { format!("[{}]", inner) }
+            // Nested braces
+            / "{" inner:macro_content() "}" { format!("{{{}}}", inner) }
+            // Any other character (not a delimiter)
+            / c:$([^ '(' | ')' | '[' | ']' | '{' | '}' | '"' | '\'']) { c.to_string() }
+
         /// Atom: the most basic expression forms (no postfix operations)
         /// These are the building blocks that postfix operations attach to
         rule atom() -> Expression
-            = cast_expr()
+            = sizeof_expr()
+            / macro_call()
+            / cast_expr()
             / tuple_lit()
             / paren_expr()
             / struct_init()
@@ -11166,6 +11291,431 @@ mod call_access_expression_tests {
                     op: BinaryOp::Assign,
                     left: Box::new(Expression::Ident(Ident::new("b"))),
                     right: Box::new(Expression::Ident(Ident::new("c"))),
+                }),
+            })
+        );
+    }
+}
+
+// ============================================================================
+// SPECIAL EXPRESSION TESTS (Task 4.6)
+// ============================================================================
+
+#[cfg(test)]
+mod special_expression_tests {
+    use super::*;
+
+    // ========================================================================
+    // SIZEOF EXPRESSION TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_sizeof_primitive_types() {
+        // Test sizeof with primitive types
+        let result = crusty_peg_parser::sizeof_expr("sizeof(int)");
+        assert_eq!(
+            result,
+            Ok(Expression::Sizeof {
+                ty: Type::Primitive(PrimitiveType::Int)
+            })
+        );
+
+        let result = crusty_peg_parser::sizeof_expr("sizeof(i32)");
+        assert_eq!(
+            result,
+            Ok(Expression::Sizeof {
+                ty: Type::Primitive(PrimitiveType::I32)
+            })
+        );
+
+        let result = crusty_peg_parser::sizeof_expr("sizeof(f64)");
+        assert_eq!(
+            result,
+            Ok(Expression::Sizeof {
+                ty: Type::Primitive(PrimitiveType::F64)
+            })
+        );
+
+        let result = crusty_peg_parser::sizeof_expr("sizeof(bool)");
+        assert_eq!(
+            result,
+            Ok(Expression::Sizeof {
+                ty: Type::Primitive(PrimitiveType::Bool)
+            })
+        );
+
+        let result = crusty_peg_parser::sizeof_expr("sizeof(char)");
+        assert_eq!(
+            result,
+            Ok(Expression::Sizeof {
+                ty: Type::Primitive(PrimitiveType::Char)
+            })
+        );
+    }
+
+    #[test]
+    fn test_sizeof_pointer_types() {
+        // Test sizeof with pointer types
+        let result = crusty_peg_parser::sizeof_expr("sizeof(int*)");
+        assert_eq!(
+            result,
+            Ok(Expression::Sizeof {
+                ty: Type::Pointer {
+                    ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                    mutable: false
+                }
+            })
+        );
+
+        let result = crusty_peg_parser::sizeof_expr("sizeof(char**)");
+        assert_eq!(
+            result,
+            Ok(Expression::Sizeof {
+                ty: Type::Pointer {
+                    ty: Box::new(Type::Pointer {
+                        ty: Box::new(Type::Primitive(PrimitiveType::Char)),
+                        mutable: false
+                    }),
+                    mutable: false
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn test_sizeof_reference_types() {
+        // Test sizeof with reference types
+        let result = crusty_peg_parser::sizeof_expr("sizeof(&int)");
+        assert_eq!(
+            result,
+            Ok(Expression::Sizeof {
+                ty: Type::Reference {
+                    ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                    mutable: false
+                }
+            })
+        );
+
+        let result = crusty_peg_parser::sizeof_expr("sizeof(&mut int)");
+        assert_eq!(
+            result,
+            Ok(Expression::Sizeof {
+                ty: Type::Reference {
+                    ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                    mutable: true
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn test_sizeof_user_defined_types() {
+        // Test sizeof with user-defined types
+        let result = crusty_peg_parser::sizeof_expr("sizeof(MyStruct)");
+        assert_eq!(
+            result,
+            Ok(Expression::Sizeof {
+                ty: Type::Ident(Ident::new("MyStruct"))
+            })
+        );
+
+        let result = crusty_peg_parser::sizeof_expr("sizeof(Point)");
+        assert_eq!(
+            result,
+            Ok(Expression::Sizeof {
+                ty: Type::Ident(Ident::new("Point"))
+            })
+        );
+    }
+
+    #[test]
+    fn test_sizeof_with_whitespace() {
+        // Test sizeof with various whitespace
+        let result = crusty_peg_parser::sizeof_expr("sizeof( int )");
+        assert_eq!(
+            result,
+            Ok(Expression::Sizeof {
+                ty: Type::Primitive(PrimitiveType::Int)
+            })
+        );
+
+        let result = crusty_peg_parser::sizeof_expr("  sizeof  (  int  )  ");
+        assert_eq!(
+            result,
+            Ok(Expression::Sizeof {
+                ty: Type::Primitive(PrimitiveType::Int)
+            })
+        );
+    }
+
+    #[test]
+    fn test_sizeof_in_expression() {
+        // Test sizeof as part of a larger expression
+        let result = crusty_peg_parser::expr("sizeof(int)");
+        assert_eq!(
+            result,
+            Ok(Expression::Sizeof {
+                ty: Type::Primitive(PrimitiveType::Int)
+            })
+        );
+    }
+
+    // ========================================================================
+    // RANGE EXPRESSION TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_range_full() {
+        // Test full range: start..end
+        let result = crusty_peg_parser::range_expr("0..10");
+        assert_eq!(
+            result,
+            Ok(Expression::Range {
+                start: Some(Box::new(Expression::Literal(Literal::Int(0)))),
+                end: Some(Box::new(Expression::Literal(Literal::Int(10)))),
+                inclusive: false
+            })
+        );
+    }
+
+    #[test]
+    fn test_range_inclusive() {
+        // Test inclusive range: start..=end
+        let result = crusty_peg_parser::range_expr("0..=10");
+        assert_eq!(
+            result,
+            Ok(Expression::Range {
+                start: Some(Box::new(Expression::Literal(Literal::Int(0)))),
+                end: Some(Box::new(Expression::Literal(Literal::Int(10)))),
+                inclusive: true
+            })
+        );
+    }
+
+    #[test]
+    fn test_range_from_start() {
+        // Test range from start: start..
+        let result = crusty_peg_parser::range_expr("5..");
+        assert_eq!(
+            result,
+            Ok(Expression::Range {
+                start: Some(Box::new(Expression::Literal(Literal::Int(5)))),
+                end: None,
+                inclusive: false
+            })
+        );
+    }
+
+    #[test]
+    fn test_range_to_end() {
+        // Test range to end: ..end
+        let result = crusty_peg_parser::range_expr("..10");
+        assert_eq!(
+            result,
+            Ok(Expression::Range {
+                start: None,
+                end: Some(Box::new(Expression::Literal(Literal::Int(10)))),
+                inclusive: false
+            })
+        );
+    }
+
+    #[test]
+    fn test_range_to_end_inclusive() {
+        // Test inclusive range to end: ..=end
+        let result = crusty_peg_parser::range_expr("..=10");
+        assert_eq!(
+            result,
+            Ok(Expression::Range {
+                start: None,
+                end: Some(Box::new(Expression::Literal(Literal::Int(10)))),
+                inclusive: true
+            })
+        );
+    }
+
+    #[test]
+    fn test_range_full_unbounded() {
+        // Test full unbounded range: ..
+        let result = crusty_peg_parser::range_expr("..");
+        assert_eq!(
+            result,
+            Ok(Expression::Range {
+                start: None,
+                end: None,
+                inclusive: false
+            })
+        );
+    }
+
+    #[test]
+    fn test_range_with_identifiers() {
+        // Test range with identifier operands
+        let result = crusty_peg_parser::range_expr("start..end");
+        assert_eq!(
+            result,
+            Ok(Expression::Range {
+                start: Some(Box::new(Expression::Ident(Ident::new("start")))),
+                end: Some(Box::new(Expression::Ident(Ident::new("end")))),
+                inclusive: false
+            })
+        );
+    }
+
+    #[test]
+    fn test_range_with_whitespace() {
+        // Test range with whitespace
+        let result = crusty_peg_parser::range_expr("0 .. 10");
+        assert_eq!(
+            result,
+            Ok(Expression::Range {
+                start: Some(Box::new(Expression::Literal(Literal::Int(0)))),
+                end: Some(Box::new(Expression::Literal(Literal::Int(10)))),
+                inclusive: false
+            })
+        );
+
+        let result = crusty_peg_parser::range_expr("0 ..= 10");
+        assert_eq!(
+            result,
+            Ok(Expression::Range {
+                start: Some(Box::new(Expression::Literal(Literal::Int(0)))),
+                end: Some(Box::new(Expression::Literal(Literal::Int(10)))),
+                inclusive: true
+            })
+        );
+    }
+
+    // ========================================================================
+    // MACRO CALL EXPRESSION TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_macro_call_parens() {
+        // Test macro call with parentheses
+        let result = crusty_peg_parser::macro_call("println!(\"hello\")");
+        assert!(result.is_ok());
+        if let Ok(Expression::MacroCall { name, args }) = result {
+            assert_eq!(name, Ident::new("println"));
+            assert_eq!(args.len(), 1);
+        } else {
+            panic!("Expected MacroCall expression");
+        }
+    }
+
+    #[test]
+    fn test_macro_call_brackets() {
+        // Test macro call with brackets
+        let result = crusty_peg_parser::macro_call("vec![1, 2, 3]");
+        assert!(result.is_ok());
+        if let Ok(Expression::MacroCall { name, args }) = result {
+            assert_eq!(name, Ident::new("vec"));
+            assert_eq!(args.len(), 1);
+        } else {
+            panic!("Expected MacroCall expression");
+        }
+    }
+
+    #[test]
+    fn test_macro_call_braces() {
+        // Test macro call with braces
+        let result = crusty_peg_parser::macro_call("format!{\"value: {}\", x}");
+        assert!(result.is_ok());
+        if let Ok(Expression::MacroCall { name, args }) = result {
+            assert_eq!(name, Ident::new("format"));
+            assert_eq!(args.len(), 1);
+        } else {
+            panic!("Expected MacroCall expression");
+        }
+    }
+
+    #[test]
+    fn test_macro_call_empty_args() {
+        // Test macro call with empty arguments
+        let result = crusty_peg_parser::macro_call("empty!()");
+        assert!(result.is_ok());
+        if let Ok(Expression::MacroCall { name, args }) = result {
+            assert_eq!(name, Ident::new("empty"));
+            assert!(args.is_empty());
+        } else {
+            panic!("Expected MacroCall expression");
+        }
+    }
+
+    #[test]
+    fn test_macro_call_with_whitespace() {
+        // Test macro call with whitespace
+        let result = crusty_peg_parser::macro_call("  println!  (  \"hello\"  )  ");
+        assert!(result.is_ok());
+        if let Ok(Expression::MacroCall { name, .. }) = result {
+            assert_eq!(name, Ident::new("println"));
+        } else {
+            panic!("Expected MacroCall expression");
+        }
+    }
+
+    #[test]
+    fn test_macro_call_in_expression() {
+        // Test macro call as part of a larger expression
+        let result = crusty_peg_parser::expr("println!(\"hello\")");
+        assert!(result.is_ok());
+        if let Ok(Expression::MacroCall { name, .. }) = result {
+            assert_eq!(name, Ident::new("println"));
+        } else {
+            panic!("Expected MacroCall expression");
+        }
+    }
+
+    // ========================================================================
+    // TERNARY EXPRESSION TESTS (already in precedence, but verify here)
+    // ========================================================================
+
+    #[test]
+    fn test_ternary_basic() {
+        // Test basic ternary expression
+        let result = crusty_peg_parser::expr("a ? b : c");
+        assert_eq!(
+            result,
+            Ok(Expression::Ternary {
+                condition: Box::new(Expression::Ident(Ident::new("a"))),
+                then_expr: Box::new(Expression::Ident(Ident::new("b"))),
+                else_expr: Box::new(Expression::Ident(Ident::new("c"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_ternary_with_comparison() {
+        // Test ternary with comparison condition
+        let result = crusty_peg_parser::expr("x > 0 ? x : 0");
+        assert_eq!(
+            result,
+            Ok(Expression::Ternary {
+                condition: Box::new(Expression::Binary {
+                    op: BinaryOp::Gt,
+                    left: Box::new(Expression::Ident(Ident::new("x"))),
+                    right: Box::new(Expression::Literal(Literal::Int(0))),
+                }),
+                then_expr: Box::new(Expression::Ident(Ident::new("x"))),
+                else_expr: Box::new(Expression::Literal(Literal::Int(0))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_ternary_nested() {
+        // Test nested ternary (right-associative)
+        // a ? b : c ? d : e should parse as a ? b : (c ? d : e)
+        let result = crusty_peg_parser::expr("a ? b : c ? d : e");
+        assert_eq!(
+            result,
+            Ok(Expression::Ternary {
+                condition: Box::new(Expression::Ident(Ident::new("a"))),
+                then_expr: Box::new(Expression::Ident(Ident::new("b"))),
+                else_expr: Box::new(Expression::Ternary {
+                    condition: Box::new(Expression::Ident(Ident::new("c"))),
+                    then_expr: Box::new(Expression::Ident(Ident::new("d"))),
+                    else_expr: Box::new(Expression::Ident(Ident::new("e"))),
                 }),
             })
         );
