@@ -179,7 +179,7 @@ This implementation plan breaks down the rust-peg parser rewrite into discrete, 
     - Support attributes on enums
     - _Requirements: 1.2, 6.3_
   
-  - [ ] 6.5 Define typedef item rule with actions
+  - [-] 6.5 Define typedef item rule with actions
     - Implement typedef rule returning Item::Typedef
     - _Requirements: 1.2, 6.4_
   
