@@ -5067,6 +5067,25 @@ fn test_macro_with_only_suffix_rejected() {
 // PEG-based parser for Crusty language
 // This is a new implementation using rust-peg that will eventually replace
 // the hand-written recursive descent parser above.
+
+/// Helper enum for postfix operations in expression parsing
+/// Used internally by the PEG parser to build chains of postfix operations
+/// like `obj.field.method(arg)[0]`
+#[derive(Debug, Clone)]
+enum PostfixOp {
+    /// Function call: (args)
+    Call { args: Vec<Expression> },
+    /// Field access: .field
+    FieldAccess { field: Ident },
+    /// Index expression: [index]
+    Index { index: Expression },
+    /// Method call: .method(args)
+    MethodCall {
+        method: Ident,
+        args: Vec<Expression>,
+    },
+}
+
 peg::parser! {
     pub grammar crusty_peg_parser() for str {
         // ====================================================================
@@ -5724,20 +5743,110 @@ peg::parser! {
                 }
             }
 
-        /// Primary expression: the atomic building blocks of expressions
-        /// Order matters for PEG ordered choice:
-        /// 1. Cast expression (MUST be first - (Type)(expr) pattern)
-        /// 2. Tuple literal (must check for comma after first element)
-        /// 3. Parenthesized expression (single element without comma)
-        /// 4. Struct initialization (Type { ... })
-        /// 5. Array literal ([...])
-        /// 6. Literal expression (numbers, strings, etc.)
-        /// 7. Identifier expression (variable names)
+        // ====================================================================
+        // CALL AND ACCESS EXPRESSIONS (Task 4.3)
+        // ====================================================================
+        // These rules handle postfix operations on expressions:
+        // - Function calls: func(args)
+        // - Method calls: expr.method(args)
+        // - Field access: expr.field
+        // - Index expressions: expr[index]
+        // - Type-scoped calls: Type::method(args)
+        //
+        // These are postfix operations that chain together, e.g.:
+        // - obj.field.method(arg)[0]
+        // - arr[0].field
+        // - Type::new().method()
+        //
+        // The implementation uses a two-phase approach:
+        // 1. Parse the base expression (atom)
+        // 2. Iteratively apply postfix operations
+
+        /// Type-scoped call: Type::method(args)
+        /// Returns Expression::TypeScopedCall
         ///
-        /// CRITICAL: cast_expr MUST come before tuple_lit and paren_expr
-        /// because (Type)(expr) would otherwise be parsed as two separate
-        /// parenthesized expressions.
-        pub rule primary() -> Expression
+        /// This handles static method calls on types, like Vec::new() or String::from("hello")
+        /// The type can be a simple identifier or a generic type like Vec<int>::new()
+        pub rule type_scoped_call() -> Expression
+            = _ ty:type_for_scoped_call() _ "::" _ method:ident() _ "(" _ args:call_args()? _ ")" _ {
+                Expression::TypeScopedCall {
+                    ty,
+                    method,
+                    args: args.unwrap_or_default(),
+                }
+            }
+
+        /// Helper: Type for scoped calls (identifier or generic)
+        rule type_for_scoped_call() -> Type
+            = base:ident() _ "<" _ args:type_list() _ ">" {
+                Type::Generic {
+                    base: Box::new(Type::Ident(base)),
+                    args,
+                }
+            }
+            / i:ident() { Type::Ident(i) }
+
+        /// Call arguments: comma-separated list of expressions
+        rule call_args() -> Vec<Expression>
+            = first:expr() rest:(_ "," _ e:expr() { e })* (_ ",")? {
+                let mut args = vec![first];
+                args.extend(rest);
+                args
+            }
+
+        /// Postfix operation: represents a single postfix operation
+        /// Used internally to build chains of operations
+        rule postfix_op() -> PostfixOp
+            // Method call: .method(args)
+            = _ "." _ method:ident() _ "(" _ args:call_args()? _ ")" {
+                PostfixOp::MethodCall {
+                    method,
+                    args: args.unwrap_or_default(),
+                }
+            }
+            // Field access: .field
+            / _ "." _ field:ident() {
+                PostfixOp::FieldAccess { field }
+            }
+            // Index: [index]
+            / _ "[" _ index:expr() _ "]" {
+                PostfixOp::Index { index }
+            }
+            // Function call: (args)
+            / _ "(" _ args:call_args()? _ ")" {
+                PostfixOp::Call { args: args.unwrap_or_default() }
+            }
+
+        /// Postfix expression: base expression followed by zero or more postfix operations
+        /// This handles chains like: obj.field.method(arg)[0]
+        pub rule postfix_expr() -> Expression
+            = base:atom() ops:postfix_op()* {
+                ops.into_iter().fold(base, |expr, op| {
+                    match op {
+                        PostfixOp::Call { args } => Expression::Call {
+                            func: Box::new(expr),
+                            args,
+                        },
+                        PostfixOp::FieldAccess { field } => Expression::FieldAccess {
+                            expr: Box::new(expr),
+                            field,
+                        },
+                        PostfixOp::Index { index } => Expression::Index {
+                            expr: Box::new(expr),
+                            index: Box::new(index),
+                        },
+                        PostfixOp::MethodCall { method, args } => Expression::MethodCall {
+                            receiver: Box::new(expr),
+                            method,
+                            args,
+                        },
+                    }
+                })
+            }
+
+        /// Atom: the most basic expression forms (no postfix operations)
+        /// These are the building blocks that postfix operations attach to
+        rule atom() -> Expression
             = cast_expr()
             / tuple_lit()
             / paren_expr()
@@ -5745,6 +5854,18 @@ peg::parser! {
             / array_lit()
             / literal_expr()
             / ident_expr()
+
+        /// Primary expression: the atomic building blocks of expressions
+        /// Order matters for PEG ordered choice:
+        /// 1. Type-scoped call (Type::method() - must come before postfix to avoid ambiguity)
+        /// 2. Postfix expression (handles calls, field access, indexing, method calls)
+        ///
+        /// CRITICAL: type_scoped_call MUST come before postfix_expr because
+        /// otherwise "Type::method()" would try to parse "Type" as an identifier
+        /// and then fail on "::"
+        pub rule primary() -> Expression
+            = type_scoped_call()
+            / postfix_expr()
 
         /// Placeholder expr rule for use in other rules
         /// This will be replaced with the full precedence! macro in task 4.5
@@ -9125,6 +9246,672 @@ mod primary_expression_tests {
                     ty: Type::Primitive(PrimitiveType::Float),
                 }),
                 ty: Type::Primitive(PrimitiveType::Int),
+            })
+        );
+    }
+}
+
+// ============================================================================
+// CALL AND ACCESS EXPRESSION TESTS (Task 4.3)
+// ============================================================================
+
+#[cfg(test)]
+mod call_access_expression_tests {
+    use super::*;
+
+    // ========================================================================
+    // FUNCTION CALL TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_call_expr_no_args() {
+        // Test function call with no arguments: func()
+        let result = crusty_peg_parser::postfix_expr("func()");
+        assert_eq!(
+            result,
+            Ok(Expression::Call {
+                func: Box::new(Expression::Ident(Ident::new("func"))),
+                args: vec![],
+            })
+        );
+    }
+
+    #[test]
+    fn test_call_expr_single_arg() {
+        // Test function call with single argument: func(x)
+        let result = crusty_peg_parser::postfix_expr("func(x)");
+        assert_eq!(
+            result,
+            Ok(Expression::Call {
+                func: Box::new(Expression::Ident(Ident::new("func"))),
+                args: vec![Expression::Ident(Ident::new("x"))],
+            })
+        );
+    }
+
+    #[test]
+    fn test_call_expr_multiple_args() {
+        // Test function call with multiple arguments: func(a, b, c)
+        let result = crusty_peg_parser::postfix_expr("func(a, b, c)");
+        assert_eq!(
+            result,
+            Ok(Expression::Call {
+                func: Box::new(Expression::Ident(Ident::new("func"))),
+                args: vec![
+                    Expression::Ident(Ident::new("a")),
+                    Expression::Ident(Ident::new("b")),
+                    Expression::Ident(Ident::new("c")),
+                ],
+            })
+        );
+    }
+
+    #[test]
+    fn test_call_expr_with_literals() {
+        // Test function call with literal arguments: func(1, "hello", true)
+        let result = crusty_peg_parser::postfix_expr("func(1, \"hello\", true)");
+        assert_eq!(
+            result,
+            Ok(Expression::Call {
+                func: Box::new(Expression::Ident(Ident::new("func"))),
+                args: vec![
+                    Expression::Literal(Literal::Int(1)),
+                    Expression::Literal(Literal::String("hello".to_string())),
+                    Expression::Literal(Literal::Bool(true)),
+                ],
+            })
+        );
+    }
+
+    #[test]
+    fn test_call_expr_trailing_comma() {
+        // Test function call with trailing comma: func(a, b,)
+        let result = crusty_peg_parser::postfix_expr("func(a, b,)");
+        assert_eq!(
+            result,
+            Ok(Expression::Call {
+                func: Box::new(Expression::Ident(Ident::new("func"))),
+                args: vec![
+                    Expression::Ident(Ident::new("a")),
+                    Expression::Ident(Ident::new("b")),
+                ],
+            })
+        );
+    }
+
+    #[test]
+    fn test_call_expr_with_whitespace() {
+        // Test function call with whitespace: func( a , b )
+        let result = crusty_peg_parser::postfix_expr("func( a , b )");
+        assert_eq!(
+            result,
+            Ok(Expression::Call {
+                func: Box::new(Expression::Ident(Ident::new("func"))),
+                args: vec![
+                    Expression::Ident(Ident::new("a")),
+                    Expression::Ident(Ident::new("b")),
+                ],
+            })
+        );
+    }
+
+    #[test]
+    fn test_call_expr_chained() {
+        // Test chained function calls: func()()
+        let result = crusty_peg_parser::postfix_expr("func()()");
+        assert_eq!(
+            result,
+            Ok(Expression::Call {
+                func: Box::new(Expression::Call {
+                    func: Box::new(Expression::Ident(Ident::new("func"))),
+                    args: vec![],
+                }),
+                args: vec![],
+            })
+        );
+    }
+
+    // ========================================================================
+    // FIELD ACCESS TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_field_access_simple() {
+        // Test simple field access: obj.field
+        let result = crusty_peg_parser::postfix_expr("obj.field");
+        assert_eq!(
+            result,
+            Ok(Expression::FieldAccess {
+                expr: Box::new(Expression::Ident(Ident::new("obj"))),
+                field: Ident::new("field"),
+            })
+        );
+    }
+
+    #[test]
+    fn test_field_access_chained() {
+        // Test chained field access: obj.a.b.c
+        let result = crusty_peg_parser::postfix_expr("obj.a.b.c");
+        assert_eq!(
+            result,
+            Ok(Expression::FieldAccess {
+                expr: Box::new(Expression::FieldAccess {
+                    expr: Box::new(Expression::FieldAccess {
+                        expr: Box::new(Expression::Ident(Ident::new("obj"))),
+                        field: Ident::new("a"),
+                    }),
+                    field: Ident::new("b"),
+                }),
+                field: Ident::new("c"),
+            })
+        );
+    }
+
+    #[test]
+    fn test_field_access_with_whitespace() {
+        // Test field access with whitespace: obj . field
+        let result = crusty_peg_parser::postfix_expr("obj . field");
+        assert_eq!(
+            result,
+            Ok(Expression::FieldAccess {
+                expr: Box::new(Expression::Ident(Ident::new("obj"))),
+                field: Ident::new("field"),
+            })
+        );
+    }
+
+    // ========================================================================
+    // INDEX EXPRESSION TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_index_expr_simple() {
+        // Test simple index expression: arr[0]
+        let result = crusty_peg_parser::postfix_expr("arr[0]");
+        assert_eq!(
+            result,
+            Ok(Expression::Index {
+                expr: Box::new(Expression::Ident(Ident::new("arr"))),
+                index: Box::new(Expression::Literal(Literal::Int(0))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_index_expr_with_ident() {
+        // Test index expression with identifier: arr[i]
+        let result = crusty_peg_parser::postfix_expr("arr[i]");
+        assert_eq!(
+            result,
+            Ok(Expression::Index {
+                expr: Box::new(Expression::Ident(Ident::new("arr"))),
+                index: Box::new(Expression::Ident(Ident::new("i"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_index_expr_chained() {
+        // Test chained index expressions: arr[0][1]
+        let result = crusty_peg_parser::postfix_expr("arr[0][1]");
+        assert_eq!(
+            result,
+            Ok(Expression::Index {
+                expr: Box::new(Expression::Index {
+                    expr: Box::new(Expression::Ident(Ident::new("arr"))),
+                    index: Box::new(Expression::Literal(Literal::Int(0))),
+                }),
+                index: Box::new(Expression::Literal(Literal::Int(1))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_index_expr_with_whitespace() {
+        // Test index expression with whitespace: arr[ 0 ]
+        let result = crusty_peg_parser::postfix_expr("arr[ 0 ]");
+        assert_eq!(
+            result,
+            Ok(Expression::Index {
+                expr: Box::new(Expression::Ident(Ident::new("arr"))),
+                index: Box::new(Expression::Literal(Literal::Int(0))),
+            })
+        );
+    }
+
+    // ========================================================================
+    // METHOD CALL TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_method_call_no_args() {
+        // Test method call with no arguments: obj.method()
+        let result = crusty_peg_parser::postfix_expr("obj.method()");
+        assert_eq!(
+            result,
+            Ok(Expression::MethodCall {
+                receiver: Box::new(Expression::Ident(Ident::new("obj"))),
+                method: Ident::new("method"),
+                args: vec![],
+            })
+        );
+    }
+
+    #[test]
+    fn test_method_call_single_arg() {
+        // Test method call with single argument: obj.method(x)
+        let result = crusty_peg_parser::postfix_expr("obj.method(x)");
+        assert_eq!(
+            result,
+            Ok(Expression::MethodCall {
+                receiver: Box::new(Expression::Ident(Ident::new("obj"))),
+                method: Ident::new("method"),
+                args: vec![Expression::Ident(Ident::new("x"))],
+            })
+        );
+    }
+
+    #[test]
+    fn test_method_call_multiple_args() {
+        // Test method call with multiple arguments: obj.method(a, b, c)
+        let result = crusty_peg_parser::postfix_expr("obj.method(a, b, c)");
+        assert_eq!(
+            result,
+            Ok(Expression::MethodCall {
+                receiver: Box::new(Expression::Ident(Ident::new("obj"))),
+                method: Ident::new("method"),
+                args: vec![
+                    Expression::Ident(Ident::new("a")),
+                    Expression::Ident(Ident::new("b")),
+                    Expression::Ident(Ident::new("c")),
+                ],
+            })
+        );
+    }
+
+    #[test]
+    fn test_method_call_chained() {
+        // Test chained method calls: obj.method1().method2()
+        let result = crusty_peg_parser::postfix_expr("obj.method1().method2()");
+        assert_eq!(
+            result,
+            Ok(Expression::MethodCall {
+                receiver: Box::new(Expression::MethodCall {
+                    receiver: Box::new(Expression::Ident(Ident::new("obj"))),
+                    method: Ident::new("method1"),
+                    args: vec![],
+                }),
+                method: Ident::new("method2"),
+                args: vec![],
+            })
+        );
+    }
+
+    #[test]
+    fn test_method_call_with_whitespace() {
+        // Test method call with whitespace: obj . method ( x )
+        let result = crusty_peg_parser::postfix_expr("obj . method ( x )");
+        assert_eq!(
+            result,
+            Ok(Expression::MethodCall {
+                receiver: Box::new(Expression::Ident(Ident::new("obj"))),
+                method: Ident::new("method"),
+                args: vec![Expression::Ident(Ident::new("x"))],
+            })
+        );
+    }
+
+    // ========================================================================
+    // TYPE-SCOPED CALL TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_type_scoped_call_no_args() {
+        // Test type-scoped call with no arguments: Type::method()
+        let result = crusty_peg_parser::type_scoped_call("Type::method()");
+        assert_eq!(
+            result,
+            Ok(Expression::TypeScopedCall {
+                ty: Type::Ident(Ident::new("Type")),
+                method: Ident::new("method"),
+                args: vec![],
+            })
+        );
+    }
+
+    #[test]
+    fn test_type_scoped_call_single_arg() {
+        // Test type-scoped call with single argument: Type::method(x)
+        let result = crusty_peg_parser::type_scoped_call("Type::method(x)");
+        assert_eq!(
+            result,
+            Ok(Expression::TypeScopedCall {
+                ty: Type::Ident(Ident::new("Type")),
+                method: Ident::new("method"),
+                args: vec![Expression::Ident(Ident::new("x"))],
+            })
+        );
+    }
+
+    #[test]
+    fn test_type_scoped_call_multiple_args() {
+        // Test type-scoped call with multiple arguments: Type::method(a, b, c)
+        let result = crusty_peg_parser::type_scoped_call("Type::method(a, b, c)");
+        assert_eq!(
+            result,
+            Ok(Expression::TypeScopedCall {
+                ty: Type::Ident(Ident::new("Type")),
+                method: Ident::new("method"),
+                args: vec![
+                    Expression::Ident(Ident::new("a")),
+                    Expression::Ident(Ident::new("b")),
+                    Expression::Ident(Ident::new("c")),
+                ],
+            })
+        );
+    }
+
+    #[test]
+    fn test_type_scoped_call_generic_type() {
+        // Test type-scoped call with generic type: Vec<int>::new()
+        let result = crusty_peg_parser::type_scoped_call("Vec<int>::new()");
+        assert_eq!(
+            result,
+            Ok(Expression::TypeScopedCall {
+                ty: Type::Generic {
+                    base: Box::new(Type::Ident(Ident::new("Vec"))),
+                    args: vec![Type::Primitive(PrimitiveType::Int)],
+                },
+                method: Ident::new("new"),
+                args: vec![],
+            })
+        );
+    }
+
+    #[test]
+    fn test_type_scoped_call_generic_multiple_args() {
+        // Test type-scoped call with generic type with multiple type args: Map<int, bool>::new()
+        let result = crusty_peg_parser::type_scoped_call("Map<int, bool>::new()");
+        assert_eq!(
+            result,
+            Ok(Expression::TypeScopedCall {
+                ty: Type::Generic {
+                    base: Box::new(Type::Ident(Ident::new("Map"))),
+                    args: vec![
+                        Type::Primitive(PrimitiveType::Int),
+                        Type::Primitive(PrimitiveType::Bool),
+                    ],
+                },
+                method: Ident::new("new"),
+                args: vec![],
+            })
+        );
+    }
+
+    #[test]
+    fn test_type_scoped_call_with_whitespace() {
+        // Test type-scoped call with whitespace: Type :: method ( x )
+        let result = crusty_peg_parser::type_scoped_call("Type :: method ( x )");
+        assert_eq!(
+            result,
+            Ok(Expression::TypeScopedCall {
+                ty: Type::Ident(Ident::new("Type")),
+                method: Ident::new("method"),
+                args: vec![Expression::Ident(Ident::new("x"))],
+            })
+        );
+    }
+
+    #[test]
+    fn test_type_scoped_call_in_primary() {
+        // Test that type_scoped_call is correctly tried in primary()
+        let result = crusty_peg_parser::primary("Vec::new()");
+        assert_eq!(
+            result,
+            Ok(Expression::TypeScopedCall {
+                ty: Type::Ident(Ident::new("Vec")),
+                method: Ident::new("new"),
+                args: vec![],
+            })
+        );
+    }
+
+    // ========================================================================
+    // MIXED POSTFIX OPERATION TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_mixed_field_and_call() {
+        // Test field access followed by call: obj.field()
+        // This should be a method call, not field access + call
+        let result = crusty_peg_parser::postfix_expr("obj.field()");
+        assert_eq!(
+            result,
+            Ok(Expression::MethodCall {
+                receiver: Box::new(Expression::Ident(Ident::new("obj"))),
+                method: Ident::new("field"),
+                args: vec![],
+            })
+        );
+    }
+
+    #[test]
+    fn test_mixed_field_and_index() {
+        // Test field access followed by index: obj.field[0]
+        let result = crusty_peg_parser::postfix_expr("obj.field[0]");
+        assert_eq!(
+            result,
+            Ok(Expression::Index {
+                expr: Box::new(Expression::FieldAccess {
+                    expr: Box::new(Expression::Ident(Ident::new("obj"))),
+                    field: Ident::new("field"),
+                }),
+                index: Box::new(Expression::Literal(Literal::Int(0))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_mixed_index_and_field() {
+        // Test index followed by field access: arr[0].field
+        let result = crusty_peg_parser::postfix_expr("arr[0].field");
+        assert_eq!(
+            result,
+            Ok(Expression::FieldAccess {
+                expr: Box::new(Expression::Index {
+                    expr: Box::new(Expression::Ident(Ident::new("arr"))),
+                    index: Box::new(Expression::Literal(Literal::Int(0))),
+                }),
+                field: Ident::new("field"),
+            })
+        );
+    }
+
+    #[test]
+    fn test_mixed_index_and_method() {
+        // Test index followed by method call: arr[0].method()
+        let result = crusty_peg_parser::postfix_expr("arr[0].method()");
+        assert_eq!(
+            result,
+            Ok(Expression::MethodCall {
+                receiver: Box::new(Expression::Index {
+                    expr: Box::new(Expression::Ident(Ident::new("arr"))),
+                    index: Box::new(Expression::Literal(Literal::Int(0))),
+                }),
+                method: Ident::new("method"),
+                args: vec![],
+            })
+        );
+    }
+
+    #[test]
+    fn test_mixed_call_and_field() {
+        // Test call followed by field access: func().field
+        let result = crusty_peg_parser::postfix_expr("func().field");
+        assert_eq!(
+            result,
+            Ok(Expression::FieldAccess {
+                expr: Box::new(Expression::Call {
+                    func: Box::new(Expression::Ident(Ident::new("func"))),
+                    args: vec![],
+                }),
+                field: Ident::new("field"),
+            })
+        );
+    }
+
+    #[test]
+    fn test_mixed_call_and_index() {
+        // Test call followed by index: func()[0]
+        let result = crusty_peg_parser::postfix_expr("func()[0]");
+        assert_eq!(
+            result,
+            Ok(Expression::Index {
+                expr: Box::new(Expression::Call {
+                    func: Box::new(Expression::Ident(Ident::new("func"))),
+                    args: vec![],
+                }),
+                index: Box::new(Expression::Literal(Literal::Int(0))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_complex_chain() {
+        // Test complex chain: obj.method(x)[0].field.other()
+        let result = crusty_peg_parser::postfix_expr("obj.method(x)[0].field.other()");
+        assert_eq!(
+            result,
+            Ok(Expression::MethodCall {
+                receiver: Box::new(Expression::FieldAccess {
+                    expr: Box::new(Expression::Index {
+                        expr: Box::new(Expression::MethodCall {
+                            receiver: Box::new(Expression::Ident(Ident::new("obj"))),
+                            method: Ident::new("method"),
+                            args: vec![Expression::Ident(Ident::new("x"))],
+                        }),
+                        index: Box::new(Expression::Literal(Literal::Int(0))),
+                    }),
+                    field: Ident::new("field"),
+                }),
+                method: Ident::new("other"),
+                args: vec![],
+            })
+        );
+    }
+
+    // ========================================================================
+    // PRIMARY EXPRESSION INTEGRATION TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_primary_call() {
+        // Test that function calls work through primary()
+        let result = crusty_peg_parser::primary("func(x)");
+        assert_eq!(
+            result,
+            Ok(Expression::Call {
+                func: Box::new(Expression::Ident(Ident::new("func"))),
+                args: vec![Expression::Ident(Ident::new("x"))],
+            })
+        );
+    }
+
+    #[test]
+    fn test_primary_field_access() {
+        // Test that field access works through primary()
+        let result = crusty_peg_parser::primary("obj.field");
+        assert_eq!(
+            result,
+            Ok(Expression::FieldAccess {
+                expr: Box::new(Expression::Ident(Ident::new("obj"))),
+                field: Ident::new("field"),
+            })
+        );
+    }
+
+    #[test]
+    fn test_primary_index() {
+        // Test that index expressions work through primary()
+        let result = crusty_peg_parser::primary("arr[0]");
+        assert_eq!(
+            result,
+            Ok(Expression::Index {
+                expr: Box::new(Expression::Ident(Ident::new("arr"))),
+                index: Box::new(Expression::Literal(Literal::Int(0))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_primary_method_call() {
+        // Test that method calls work through primary()
+        let result = crusty_peg_parser::primary("obj.method()");
+        assert_eq!(
+            result,
+            Ok(Expression::MethodCall {
+                receiver: Box::new(Expression::Ident(Ident::new("obj"))),
+                method: Ident::new("method"),
+                args: vec![],
+            })
+        );
+    }
+
+    #[test]
+    fn test_primary_type_scoped_call() {
+        // Test that type-scoped calls work through primary()
+        let result = crusty_peg_parser::primary("Type::method()");
+        assert_eq!(
+            result,
+            Ok(Expression::TypeScopedCall {
+                ty: Type::Ident(Ident::new("Type")),
+                method: Ident::new("method"),
+                args: vec![],
+            })
+        );
+    }
+
+    // ========================================================================
+    // EXPR RULE INTEGRATION TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_expr_call() {
+        // Test that function calls work through expr()
+        let result = crusty_peg_parser::expr("func(x)");
+        assert_eq!(
+            result,
+            Ok(Expression::Call {
+                func: Box::new(Expression::Ident(Ident::new("func"))),
+                args: vec![Expression::Ident(Ident::new("x"))],
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_method_call() {
+        // Test that method calls work through expr()
+        let result = crusty_peg_parser::expr("obj.method()");
+        assert_eq!(
+            result,
+            Ok(Expression::MethodCall {
+                receiver: Box::new(Expression::Ident(Ident::new("obj"))),
+                method: Ident::new("method"),
+                args: vec![],
+            })
+        );
+    }
+
+    #[test]
+    fn test_expr_type_scoped_call() {
+        // Test that type-scoped calls work through expr()
+        let result = crusty_peg_parser::expr("Vec::new()");
+        assert_eq!(
+            result,
+            Ok(Expression::TypeScopedCall {
+                ty: Type::Ident(Ident::new("Vec")),
+                method: Ident::new("new"),
+                args: vec![],
             })
         );
     }
