@@ -107,7 +107,7 @@ This implementation plan breaks down the rust-peg parser rewrite into discrete, 
     - Each operator returns appropriate Expression::Binary, Expression::Unary, or Expression::Comma
     - _Requirements: 1.6, 6.8, 6.16_
   
-  - [ ] 4.6 Define special expression rules with actions
+  - [x] 4.6 Define special expression rules with actions
     - Implement ternary_expr rule returning Expression::Ternary
     - Implement sizeof_expr rule returning Expression::Sizeof
     - Implement range_expr rule returning Expression::Range
