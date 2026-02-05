@@ -5690,16 +5690,56 @@ peg::parser! {
                 Expression::TupleLit { elements }
             }
 
+        // ====================================================================
+        // CAST EXPRESSION (Task 4.2)
+        // ====================================================================
+        // Cast expressions have the form: (Type)(expr)
+        // This is CRITICAL for ambiguity resolution in C-style syntax.
+        //
+        // The pattern is: parenthesized type followed by parenthesized expression
+        // Examples:
+        // - (int)(x)       -> Cast x to int
+        // - (Type*)(expr)  -> Cast expr to pointer type
+        // - (int)(5+3)     -> Cast expression result to int
+        // - (T1)(T2)(expr) -> Nested casts (T1 cast of T2 cast of expr)
+        //
+        // This rule MUST be tried BEFORE paren_expr in the primary() ordered choice
+        // to correctly distinguish casts from parenthesized expressions.
+        //
+        // The key insight: a cast has TWO consecutive parenthesized groups,
+        // where the first contains a type and the second contains an expression.
+
+        /// Cast expression: (Type)(expr)
+        /// Returns Expression::Cast
+        ///
+        /// This rule handles C-style type casts where a type in parentheses
+        /// is followed by an expression in parentheses.
+        ///
+        /// Requirements validated: 2.1, 2.2, 2.4, 2.5, 2.6
+        pub rule cast_expr() -> Expression
+            = _ "(" _ t:type_expr() _ ")" _ "(" _ e:expr() _ ")" _ {
+                Expression::Cast {
+                    expr: Box::new(e),
+                    ty: t,
+                }
+            }
+
         /// Primary expression: the atomic building blocks of expressions
         /// Order matters for PEG ordered choice:
-        /// 1. Tuple literal (must check for comma after first element)
-        /// 2. Parenthesized expression (single element without comma)
-        /// 3. Struct initialization (Type { ... })
-        /// 4. Array literal ([...])
-        /// 5. Literal expression (numbers, strings, etc.)
-        /// 6. Identifier expression (variable names)
+        /// 1. Cast expression (MUST be first - (Type)(expr) pattern)
+        /// 2. Tuple literal (must check for comma after first element)
+        /// 3. Parenthesized expression (single element without comma)
+        /// 4. Struct initialization (Type { ... })
+        /// 5. Array literal ([...])
+        /// 6. Literal expression (numbers, strings, etc.)
+        /// 7. Identifier expression (variable names)
+        ///
+        /// CRITICAL: cast_expr MUST come before tuple_lit and paren_expr
+        /// because (Type)(expr) would otherwise be parsed as two separate
+        /// parenthesized expressions.
         pub rule primary() -> Expression
-            = tuple_lit()
+            = cast_expr()
+            / tuple_lit()
             / paren_expr()
             / struct_init()
             / array_lit()
@@ -8765,5 +8805,327 @@ mod primary_expression_tests {
     fn test_expr_ident() {
         let result = crusty_peg_parser::expr("foo");
         assert_eq!(result, Ok(Expression::Ident(Ident::new("foo"))));
+    }
+
+    // ========================================================================
+    // CAST EXPRESSION TESTS (Task 4.2)
+    // ========================================================================
+    // Tests for the cast_expr rule which handles C-style type casts: (Type)(expr)
+    // These tests validate Requirements 2.1, 2.2, 2.4, 2.5, 2.6
+
+    #[test]
+    fn test_cast_expr_basic_int() {
+        // Test basic cast: (int)(x)
+        // Validates: Requirement 2.1 - (Type)(expr) is correctly identified as cast
+        let result = crusty_peg_parser::cast_expr("(int)(x)");
+        assert_eq!(
+            result,
+            Ok(Expression::Cast {
+                expr: Box::new(Expression::Ident(Ident::new("x"))),
+                ty: Type::Primitive(PrimitiveType::Int),
+            })
+        );
+    }
+
+    #[test]
+    fn test_cast_expr_basic_float() {
+        // Test cast to float: (float)(y)
+        let result = crusty_peg_parser::cast_expr("(float)(y)");
+        assert_eq!(
+            result,
+            Ok(Expression::Cast {
+                expr: Box::new(Expression::Ident(Ident::new("y"))),
+                ty: Type::Primitive(PrimitiveType::Float),
+            })
+        );
+    }
+
+    #[test]
+    fn test_cast_expr_with_literal() {
+        // Test cast with literal expression: (int)(42)
+        let result = crusty_peg_parser::cast_expr("(int)(42)");
+        assert_eq!(
+            result,
+            Ok(Expression::Cast {
+                expr: Box::new(Expression::Literal(Literal::Int(42))),
+                ty: Type::Primitive(PrimitiveType::Int),
+            })
+        );
+    }
+
+    #[test]
+    fn test_cast_expr_pointer_type() {
+        // Test cast with pointer type: (int*)(expr)
+        // Validates: Requirement 2.6 - casts with complex type expressions
+        let result = crusty_peg_parser::cast_expr("(int*)(ptr)");
+        assert_eq!(
+            result,
+            Ok(Expression::Cast {
+                expr: Box::new(Expression::Ident(Ident::new("ptr"))),
+                ty: Type::Pointer {
+                    ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                    mutable: false,
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn test_cast_expr_double_pointer() {
+        // Test cast with double pointer: (int**)(expr)
+        let result = crusty_peg_parser::cast_expr("(int**)(ptr)");
+        assert_eq!(
+            result,
+            Ok(Expression::Cast {
+                expr: Box::new(Expression::Ident(Ident::new("ptr"))),
+                ty: Type::Pointer {
+                    ty: Box::new(Type::Pointer {
+                        ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                        mutable: false,
+                    }),
+                    mutable: false,
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn test_cast_expr_reference_type() {
+        // Test cast with reference type: (&int)(expr)
+        // Validates: Requirement 2.6 - casts with reference types
+        let result = crusty_peg_parser::cast_expr("(&int)(val)");
+        assert_eq!(
+            result,
+            Ok(Expression::Cast {
+                expr: Box::new(Expression::Ident(Ident::new("val"))),
+                ty: Type::Reference {
+                    ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                    mutable: false,
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn test_cast_expr_mutable_reference() {
+        // Test cast with mutable reference: (&mut int)(expr)
+        let result = crusty_peg_parser::cast_expr("(&mut int)(val)");
+        assert_eq!(
+            result,
+            Ok(Expression::Cast {
+                expr: Box::new(Expression::Ident(Ident::new("val"))),
+                ty: Type::Reference {
+                    ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                    mutable: true,
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn test_cast_expr_user_defined_type() {
+        // Test cast with user-defined type: (MyType)(expr)
+        let result = crusty_peg_parser::cast_expr("(MyType)(val)");
+        assert_eq!(
+            result,
+            Ok(Expression::Cast {
+                expr: Box::new(Expression::Ident(Ident::new("val"))),
+                ty: Type::Ident(Ident::new("MyType")),
+            })
+        );
+    }
+
+    #[test]
+    fn test_cast_expr_with_whitespace() {
+        // Test cast with various whitespace
+        let result = crusty_peg_parser::cast_expr("( int )( x )");
+        assert_eq!(
+            result,
+            Ok(Expression::Cast {
+                expr: Box::new(Expression::Ident(Ident::new("x"))),
+                ty: Type::Primitive(PrimitiveType::Int),
+            })
+        );
+    }
+
+    #[test]
+    fn test_cast_expr_with_newlines() {
+        // Test cast with newlines
+        let result = crusty_peg_parser::cast_expr("(int)\n(x)");
+        assert_eq!(
+            result,
+            Ok(Expression::Cast {
+                expr: Box::new(Expression::Ident(Ident::new("x"))),
+                ty: Type::Primitive(PrimitiveType::Int),
+            })
+        );
+    }
+
+    #[test]
+    fn test_cast_expr_with_comments() {
+        // Test cast with comments
+        let result = crusty_peg_parser::cast_expr("(int /* type */) /* cast */ (x)");
+        assert_eq!(
+            result,
+            Ok(Expression::Cast {
+                expr: Box::new(Expression::Ident(Ident::new("x"))),
+                ty: Type::Primitive(PrimitiveType::Int),
+            })
+        );
+    }
+
+    #[test]
+    fn test_cast_expr_all_primitive_types() {
+        // Test cast with all primitive types
+        let types = vec![
+            ("int", Type::Primitive(PrimitiveType::Int)),
+            ("i32", Type::Primitive(PrimitiveType::I32)),
+            ("i64", Type::Primitive(PrimitiveType::I64)),
+            ("u32", Type::Primitive(PrimitiveType::U32)),
+            ("u64", Type::Primitive(PrimitiveType::U64)),
+            ("float", Type::Primitive(PrimitiveType::Float)),
+            ("f32", Type::Primitive(PrimitiveType::F32)),
+            ("f64", Type::Primitive(PrimitiveType::F64)),
+            ("bool", Type::Primitive(PrimitiveType::Bool)),
+            ("char", Type::Primitive(PrimitiveType::Char)),
+        ];
+
+        for (type_str, expected_type) in types {
+            let input = format!("({})(x)", type_str);
+            let result = crusty_peg_parser::cast_expr(&input);
+            assert_eq!(
+                result,
+                Ok(Expression::Cast {
+                    expr: Box::new(Expression::Ident(Ident::new("x"))),
+                    ty: expected_type,
+                }),
+                "Failed for type: {}",
+                type_str
+            );
+        }
+    }
+
+    #[test]
+    fn test_cast_expr_in_primary() {
+        // Test that cast_expr is correctly tried in primary()
+        // This validates that cast_expr comes before paren_expr in ordered choice
+        let result = crusty_peg_parser::primary("(int)(x)");
+        assert_eq!(
+            result,
+            Ok(Expression::Cast {
+                expr: Box::new(Expression::Ident(Ident::new("x"))),
+                ty: Type::Primitive(PrimitiveType::Int),
+            })
+        );
+    }
+
+    #[test]
+    fn test_paren_expr_not_cast() {
+        // Test that (expr) without a following (expr) is NOT a cast
+        // Validates: Requirement 2.2 - (expr) is correctly identified as parenthesized expression
+        let result = crusty_peg_parser::primary("(42)");
+        assert_eq!(result, Ok(Expression::Literal(Literal::Int(42))));
+    }
+
+    #[test]
+    fn test_paren_expr_with_ident() {
+        // Test that (ident) without a following (expr) is NOT a cast
+        let result = crusty_peg_parser::primary("(x)");
+        assert_eq!(result, Ok(Expression::Ident(Ident::new("x"))));
+    }
+
+    #[test]
+    fn test_cast_vs_paren_disambiguation() {
+        // Test disambiguation between cast and parenthesized expression
+        // (int)(x) should be a cast
+        let cast_result = crusty_peg_parser::primary("(int)(x)");
+        assert!(matches!(cast_result, Ok(Expression::Cast { .. })));
+
+        // (x) should be a parenthesized expression (just returns x)
+        let paren_result = crusty_peg_parser::primary("(x)");
+        assert!(matches!(paren_result, Ok(Expression::Ident(_))));
+    }
+
+    #[test]
+    fn test_cast_expr_array_type() {
+        // Test cast with array type: (int[10])(expr)
+        let result = crusty_peg_parser::cast_expr("(int[10])(arr)");
+        assert_eq!(
+            result,
+            Ok(Expression::Cast {
+                expr: Box::new(Expression::Ident(Ident::new("arr"))),
+                ty: Type::Array {
+                    ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                    size: Some(10),
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn test_cast_expr_slice_type() {
+        // Test cast with slice type: (int[])(expr)
+        let result = crusty_peg_parser::cast_expr("(int[])(slice)");
+        assert_eq!(
+            result,
+            Ok(Expression::Cast {
+                expr: Box::new(Expression::Ident(Ident::new("slice"))),
+                ty: Type::Slice {
+                    ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn test_cast_expr_generic_type() {
+        // Test cast with generic type: (Vec<int>)(expr)
+        let result = crusty_peg_parser::cast_expr("(Vec<int>)(vec)");
+        assert_eq!(
+            result,
+            Ok(Expression::Cast {
+                expr: Box::new(Expression::Ident(Ident::new("vec"))),
+                ty: Type::Generic {
+                    base: Box::new(Type::Ident(Ident::new("Vec"))),
+                    args: vec![Type::Primitive(PrimitiveType::Int)],
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn test_cast_expr_tuple_type() {
+        // Test cast with tuple type: ((int, bool))(expr)
+        let result = crusty_peg_parser::cast_expr("((int, bool))(tup)");
+        assert_eq!(
+            result,
+            Ok(Expression::Cast {
+                expr: Box::new(Expression::Ident(Ident::new("tup"))),
+                ty: Type::Tuple {
+                    types: vec![
+                        Type::Primitive(PrimitiveType::Int),
+                        Type::Primitive(PrimitiveType::Bool),
+                    ],
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn test_cast_expr_nested_cast() {
+        // Test nested casts: (T1)((T2)(expr))
+        // Validates: Requirement 2.5 - nested casts
+        // Note: The inner cast is parsed as the expression being cast
+        let result = crusty_peg_parser::cast_expr("(int)((float)(x))");
+        assert_eq!(
+            result,
+            Ok(Expression::Cast {
+                expr: Box::new(Expression::Cast {
+                    expr: Box::new(Expression::Ident(Ident::new("x"))),
+                    ty: Type::Primitive(PrimitiveType::Float),
+                }),
+                ty: Type::Primitive(PrimitiveType::Int),
+            })
+        );
     }
 }
