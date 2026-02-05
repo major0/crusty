@@ -143,7 +143,7 @@ This implementation plan breaks down the rust-peg parser rewrite into discrete, 
     - Implement labeled_loop rule returning Statement::LabeledLoop
     - _Requirements: 1.2, 6.7, 6.11_
   
-  - [-] 5.5 Define nested function statement with actions
+  - [x] 5.5 Define nested function statement with actions
     - Implement nested_function rule returning Statement::NestedFunction
     - _Requirements: 1.2, 6.10_
   
