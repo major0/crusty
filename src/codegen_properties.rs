@@ -12,7 +12,7 @@ mod tests {
     // Helper to create simple valid AST nodes for testing
     fn arb_ident() -> impl Strategy<Value = Ident> {
         "[a-z][a-z0-9_]{0,10}"
-            .prop_filter("Must not be a Rust keyword", |s| {
+            .prop_filter("Must not be a Rust or Crusty keyword", |s| {
                 !matches!(
                     s.as_str(),
                     "let"
@@ -67,6 +67,26 @@ mod tests {
                         | "unsized"
                         | "virtual"
                         | "try"
+                        // Crusty type keywords
+                        | "int"
+                        | "i32"
+                        | "i64"
+                        | "u32"
+                        | "u64"
+                        | "float"
+                        | "f32"
+                        | "f64"
+                        | "bool"
+                        | "char"
+                        | "void"
+                        // Other Crusty keywords
+                        | "typedef"
+                        | "switch"
+                        | "case"
+                        | "default"
+                        | "auto"
+                        | "namespace"
+                        | "define"
                 )
             })
             .prop_map(Ident::new)
