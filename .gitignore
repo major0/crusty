@@ -1,6 +1,5 @@
 # Rust build artifacts
 /target
-Cargo.lock
 
 # Generated Rust files from Crusty sources
 *.rs.bk
