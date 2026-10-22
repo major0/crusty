@@ -2,26 +2,34 @@
 
 ## Introduction
 
-The Crusty compiler (`crustyc`) is a bidirectional transpiler that translates between Crusty (a C-like language) and Rust source code. It follows a traditional multi-phase compiler architecture with a shared AST that supports both source and target languages.
+The Crusty compiler (`crustyc`) is a transpiler that translates Crusty (a C-like
+language) into Rust source code. It follows a traditional multi-phase compiler
+architecture built around a single AST. The AST is designed so a future reverse
+(Rust → Crusty) direction could share it, but only the Crusty → Rust direction
+is implemented.
 
 ## Rationale
 
-A shared AST enables bidirectional transpilation: the same internal representation can be produced from either Crusty or Rust source, and emitted as either language. This design supports round-trip validation and interoperability between the two languages.
+A single AST keeps the pipeline simple and makes the generated Rust predictable
+from the Crusty source. The same representation is intended to later support a
+reverse direction for round-trip validation and interoperability, which is
+planned but not yet built.
 
 ## Pipeline
 
-The compiler processes source code through five phases:
+The compiler processes source code through four phases:
 
-1. **Lexical Analysis** — Tokenize source code into a stream of tokens
-2. **Parsing** — Build an Abstract Syntax Tree (AST) from the token stream
-3. **Semantic Analysis** — Validate types, scopes, and language rules
-4. **Code Generation** — Emit target language source code from the AST
-5. **Compilation** — Optionally invoke `rustc` to produce binaries
+1. **Parsing** — Build an Abstract Syntax Tree (AST) directly from Crusty source
+   text using a PEG grammar (the `rust-peg` crate); there is no separate lexing
+   phase
+2. **Semantic Analysis** — Validate types, scopes, and language rules
+3. **Code Generation** — Emit Rust source code from the AST
+4. **Compilation** — Optionally invoke `rustc` to produce binaries
 
 ```
-Source (.crst) → Lexer → Parser → Semantic Analyzer → Code Generator → Target (.rs)
-                                                                         ↓
-                                                                       rustc → Binary
+Source (.crst) → Parser → Semantic Analyzer → Code Generator → Target (.rs)
+                                                                 ↓
+                                                               rustc → Binary
 ```
 
 ## Design Principles
@@ -32,11 +40,12 @@ Source (.crst) → Lexer → Parser → Semantic Analyzer → Code Generator →
 - **Familiar Syntax**: C-like syntax maps cleanly to Rust semantics
 - **Escape Hatch**: The `rust!` macro allows embedding raw Rust code when needed
 
-## Bidirectional Transpilation
+## Bidirectional Transpilation (Planned)
 
-The compiler supports two directions:
+Only the **Crusty → Rust** direction is implemented: parse Crusty source, emit
+Rust code, optionally compile with `rustc`.
 
-- **Crusty → Rust**: Parse Crusty source, emit Rust code, optionally compile with `rustc`
-- **Rust → Crusty**: Parse Rust source (via `syn` crate), emit Crusty code
-
-Both directions share the same AST, semantic analyzer, and code generation infrastructure.
+A **Rust → Crusty** direction (parsing Rust via the `syn` crate and emitting
+Crusty from the shared AST) is a planned, aspirational capability — it is not
+built, and there is no `--from-lang=rust` handling in the compiler. See
+[../design/bidirectional-transpilation.md](../design/bidirectional-transpilation.md).

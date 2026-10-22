@@ -16,7 +16,7 @@ Crusty uses C-style function declarations with return types before function name
 ### Syntax-Only Transpilation
 Crusty is a syntax layer over Rust, not a semantic transformation. The transpiler translates syntax constructs one-to-one without changing program semantics. What you write in Crusty maps directly to what you get in Rust.
 
-Method names, function names, and identifiers pass through unchanged between Crusty and Rust. This preserves bidirectional transpilation (Crusty ↔ Rust), avoids conflicts with user-defined functions, and provides transparent mapping between languages.
+Method names, function names, and identifiers pass through unchanged from Crusty to Rust. This keeps transpilation transparent, avoids conflicts with user-defined functions, and would make a future bidirectional (Crusty ↔ Rust) mapping possible.
 
 Allowed syntax transformations:
 - Type syntax: `int` → `i32`, `float` → `f64`, `void` → `()`

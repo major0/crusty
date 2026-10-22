@@ -3,7 +3,7 @@
 [![CI](https://github.com/major0/crusty/workflows/CI/badge.svg)](https://github.com/major0/crusty/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Crusty is a C-like programming language that transpiles to Rust, providing familiar C syntax while guaranteeing Rust's safety and performance. The Crusty transpiler enables bidirectional translation between Crusty and Rust source code, allowing seamless integration with the Rust ecosystem.
+Crusty is a C-like programming language that transpiles to Rust, providing familiar C syntax while guaranteeing Rust's safety and performance. Crusty code compiles into crates that native Rust projects can depend on, for seamless integration with the Rust ecosystem.
 
 ## Philosophy
 
@@ -52,10 +52,9 @@ Crusty supports basic conditional compilation that maps to Rust's `cfg` attribut
 
 ### Design Principles
 
-Crusty transforms only syntax, not semantics. Method names, function names, and identifiers pass through unchanged between Crusty and Rust. This ensures:
+Crusty transforms only syntax, not semantics. Method names, function names, and identifiers pass through unchanged from Crusty to Rust. This ensures:
 
 - **Transparent transpilation**: You know exactly what Rust code will be generated
-- **Bidirectional conversion**: True Crusty ↔ Rust round-trip transpilation
 - **No conflicts**: Won't hijack your user-defined functions
 - **Simplicity**: Less magic, fewer surprises
 
@@ -66,7 +65,7 @@ Several C-like semantic constructs are supported. These are semantic transformat
 - **NULL**: `NULL` → `Option::None` (maps C keyword to Rust's Option type)
 - **C-style for loops**: `for(int i = 0; i < 100; ++i)` → Rust loop with variable scoping
 - **switch/case**: C-style switch statements → Rust match expressions with different semantics
-- **#define**: C-style preprocessor macros → Rust declarative macros (different macro systems)
+- **#define / #macro**: `#define` names a constant (→ a Rust `const`); `#macro` defines a parameterised macro (→ `macro_rules!`)
 
 ### Pure Syntax Transformations
 
@@ -111,7 +110,7 @@ switch (x) {                     // → Rust match expression
 }
 ```
 
-**See**: [SYNTAX_PHILOSOPHY.md](.kiro/specs/crusty-compiler-phase1/SYNTAX_PHILOSOPHY.md) for detailed rationale.
+**See**: [docs/design/philosophy.md](docs/design/philosophy.md) for detailed rationale.
 
 ## Features
 
@@ -126,7 +125,6 @@ switch (x) {                     // → Rust match expression
 ### Rust Ecosystem Integration
 - **Use Rust crates**: Import and use any existing Rust crate or module
 - **Publish crates**: Compile Crusty code into crates that native Rust projects can depend on
-- **Bidirectional transpilation**: Convert between Crusty and Rust syntax as needed
 - **Build system integration**: Works seamlessly with Cargo through build.rs scripts
 
 ### Safety Guarantees
@@ -220,9 +218,6 @@ crustyc input.crst -o output.rs
 
 # Compile to binary
 crustyc input.crst --emit=binary -o program
-
-# Reverse transpile (Rust → Crusty)
-crustyc input.rs --from-lang=rust -o output.crst
 ```
 
 ### Build Integration
@@ -333,7 +328,7 @@ Workflows triggered by GitHub events:
 
 ### Shell Scripts
 
-All workflow scripts are extracted to `.github/scripts/` for maintainability and testability. Scripts follow strict POSIX compliance standards documented in [.kiro/steering/shell-scripts.md](.kiro/steering/shell-scripts.md).
+All workflow scripts are extracted to `.github/scripts/` for maintainability and testability. Scripts follow strict POSIX compliance standards documented in [.github/scripts/README.md](.github/scripts/README.md).
 
 **Available scripts:**
 - `validate-issue-reference.sh` - Validates PR commit issue references
@@ -354,7 +349,7 @@ See [.github/scripts/README.md](.github/scripts/README.md) for detailed script d
 
 ### Core Concepts
 - **[Philosophy](#philosophy)** - Understand syntax-only transpilation
-- **[SYNTAX_PHILOSOPHY.md](.kiro/specs/crusty-compiler-phase1/SYNTAX_PHILOSOPHY.md)** - Detailed rationale and design principles
+- **[docs/design/philosophy.md](docs/design/philosophy.md)** - Detailed rationale and design principles
 
 ### Integration
 - **[Build System Integration](QUICK_START.md#build-integration)** - Using Crusty with Cargo
@@ -364,12 +359,11 @@ See [.github/scripts/README.md](.github/scripts/README.md) for detailed script d
 - **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to the project
 - **[Development Workflow](#development)** - Running tests, formatting, linting
 
-### Specification Documents
-- **[Requirements](.kiro/specs/crusty-compiler-phase1/requirements.md)** - Detailed requirements and acceptance criteria
-- **[Design](.kiro/specs/crusty-compiler-phase1/design.md)** - Architecture and component design
-- **[Implementation Tasks](.kiro/specs/crusty-compiler-phase1/tasks.md)** - Development task breakdown and progress
-- **[Error Handling](.kiro/specs/crusty-compiler-phase1/ERROR_HANDLING.md)** - Error architecture documentation
-- **[Error Catalog](.kiro/specs/crusty-compiler-phase1/ERROR_CATALOG.md)** - Complete error message reference
+### Design &amp; Architecture
+- **[Architecture Overview](docs/architecture/overview.md)** - Compiler pipeline and component design
+- **[Design Notes](docs/design/README.md)** - Language design decisions
+- **[Syntax Reference](docs/syntax/README.md)** - Per-feature syntax documentation
+- **[Architecture Decision Records](docs/adr/)** - Numbered, durable design decisions
 
 ## Contributing
 
@@ -416,15 +410,13 @@ This project is licensed under the MIT License - see the [LICENSE.txt](LICENSE.t
 
 Current progress:
 - ✅ Infrastructure (CI/CD, pre-commit hooks, licensing)
-- ✅ Core transpiler (lexer, parser, AST, semantic analysis)
+- ✅ Core transpiler (PEG parser, AST, semantic analysis)
 - ✅ Code generation (Crusty → Rust)
 - ✅ Advanced parsing (structs, methods, generics, macros)
 - ✅ Example directory with working samples ([see example/](example/))
 - ✅ Build system integration (build.rs support)
-- 🚧 Bidirectional transpilation (Rust → Crusty)
+- 🚧 Bidirectional transpilation (Rust → Crusty) — planned, not yet implemented
 - 🚧 Documentation generator (crustydoc)
-
-See [tasks.md](/.kiro/specs/crusty-compiler-phase1/tasks.md) for detailed implementation progress.
 
 ## Roadmap
 

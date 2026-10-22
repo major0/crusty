@@ -79,13 +79,13 @@ Hello, Crusty!
 crustyc [OPTIONS] <INPUT>
 
 OPTIONS:
-    -o, --output <FILE>         Output file path
-    --emit <MODE>               Output mode: rust, binary, ast
-    --from-lang <LANG>          Source language: crusty, rust
+    -o, --out <FILE>            Output file path
+        --out-dir <DIR>         Output directory (for multi-file compilation)
+        --emit <MODE>           Output mode: auto, rust, binary, ast
     -v, --verbose               Detailed output
-    --no-compile                Generate Rust without invoking rustc
+        --no-compile            Generate Rust without invoking rustc
     -h, --help                  Print help information
-    --version                   Print version information
+        --version               Print version information
 ```
 
 ### Common Commands
@@ -98,11 +98,6 @@ crustyc input.crst -o output.rs
 **Transpile and compile to binary:**
 ```bash
 crustyc input.crst --emit=binary -o program
-```
-
-**Transpile Rust to Crusty:**
-```bash
-crustyc input.rs --from-lang=rust -o output.crst
 ```
 
 **View AST (for debugging):**
@@ -217,7 +212,7 @@ The example is automatically built and tested in the CI/CD pipeline to ensure th
 
 - **[SYNTAX_REFERENCE.md](SYNTAX_REFERENCE.md)** - Complete syntax guide with examples
 - **[Philosophy](README.md#philosophy)** - Understand Crusty's design principles
-- **[SYNTAX_PHILOSOPHY.md](.kiro/specs/crusty-compiler-phase1/SYNTAX_PHILOSOPHY.md)** - Detailed rationale
+- **[docs/design/philosophy.md](docs/design/philosophy.md)** - Detailed rationale
 
 ### Explore Features
 
@@ -296,9 +291,8 @@ If the generated Rust code doesn't compile:
 - **[README.md](README.md)** - Project overview and philosophy
 - **[SYNTAX_REFERENCE.md](SYNTAX_REFERENCE.md)** - Complete syntax guide
 - **[Build Integration Guide](docs/build-rs-integration.md)** - Comprehensive build.rs guide
-- **[Requirements](.kiro/specs/crusty-compiler-phase1/requirements.md)** - Detailed requirements
-- **[Design](.kiro/specs/crusty-compiler-phase1/design.md)** - Architecture and design
-- **[Tasks](.kiro/specs/crusty-compiler-phase1/tasks.md)** - Implementation progress
+- **[Architecture Overview](docs/architecture/overview.md)** - Compiler pipeline and components
+- **[Design Notes](docs/design/README.md)** - Language design decisions
 
 ---
 

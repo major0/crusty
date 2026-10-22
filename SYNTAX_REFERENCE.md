@@ -981,7 +981,7 @@ pub fn main() {
 
 - **[README.md](README.md)** - Project overview and philosophy
 - **[QUICK_START.md](QUICK_START.md)** - Installation and getting started
-- **[SYNTAX_PHILOSOPHY.md](.kiro/specs/crusty-compiler-phase1/SYNTAX_PHILOSOPHY.md)** - Detailed design rationale
+- **[docs/design/philosophy.md](docs/design/philosophy.md)** - Detailed design rationale
 - **[Example Programs](example/)** - Working code examples
 - **[Build Integration Guide](docs/build-rs-integration.md)** - Cargo integration
 
