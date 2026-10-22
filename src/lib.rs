@@ -20,6 +20,8 @@ mod codegen_crusty_advanced_tests;
 mod codegen_crusty_tests;
 #[cfg(test)]
 mod codegen_properties;
+#[cfg(test)]
+mod codegen_unit_tests;
 pub mod error;
 #[cfg(test)]
 mod error_coverage_tests;
@@ -59,6 +61,8 @@ mod semantic_return_tests;
 mod semantic_statement_tests;
 #[cfg(test)]
 mod semantic_type_tests;
+#[cfg(test)]
+mod semantic_unit_tests;
 #[cfg(test)]
 mod typedef_integration_tests;
 pub mod utils;
