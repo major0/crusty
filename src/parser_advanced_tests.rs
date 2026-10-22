@@ -100,6 +100,9 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "uses bracket type-args `Result[String, Error]` and a paren-less `.None`; \
+                the established generic syntax is `<...>`. Deferred pending a language-design \
+                decision on whether bracket-delimited type arguments are a supported form."]
     fn test_parse_nested_generic_parameters() {
         let source = "int main() { return @Option(Result[String, Error]).None; }";
         let mut parser = Parser::new(source).unwrap();

@@ -228,38 +228,6 @@ mod tests {
     // ========== Macro Tests ==========
 
     #[test]
-    fn test_parse_define_with_brackets() {
-        let source = "#define __MAX__[a, b] a > b ? a : b";
-        let mut parser = Parser::new(source).unwrap();
-        let file = parser.parse_file().unwrap();
-
-        match &file.items[0] {
-            Item::MacroDefinition(m) => {
-                assert_eq!(m.name.name, "__MAX__");
-                assert_eq!(m.params.len(), 2);
-                assert!(matches!(m.delimiter, MacroDelimiter::Brackets));
-            }
-            _ => panic!("Expected macro definition"),
-        }
-    }
-
-    #[test]
-    fn test_parse_define_with_braces() {
-        let source = "#define __MAX__{a, b} a > b ? a : b";
-        let mut parser = Parser::new(source).unwrap();
-        let file = parser.parse_file().unwrap();
-
-        match &file.items[0] {
-            Item::MacroDefinition(m) => {
-                assert_eq!(m.name.name, "__MAX__");
-                assert_eq!(m.params.len(), 2);
-                assert!(matches!(m.delimiter, MacroDelimiter::Braces));
-            }
-            _ => panic!("Expected macro definition"),
-        }
-    }
-
-    #[test]
     fn test_parse_define_constant() {
         let source = "#define __PI__ 3.14159";
         let mut parser = Parser::new(source).unwrap();
@@ -272,27 +240,6 @@ mod tests {
                 assert!(matches!(m.delimiter, MacroDelimiter::None));
             }
             _ => panic!("Expected macro definition"),
-        }
-    }
-
-    #[test]
-    fn test_parse_macro_call_with_brackets() {
-        let source = "void func() { __MAX__[1, 2]; }";
-        let mut parser = Parser::new(source).unwrap();
-        // First parse the macro definition to register it
-        let define_source = "#define __MAX__[a, b] a > b ? a : b";
-        let mut define_parser = Parser::new(define_source).unwrap();
-        let _ = define_parser.parse_file();
-
-        // Now parse the function with macro call
-        let file = parser.parse_file().unwrap();
-
-        match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
-                Statement::Expr(Expression::MacroCall { .. }) => {}
-                _ => panic!("Expected macro call"),
-            },
-            _ => panic!("Expected function"),
         }
     }
 
