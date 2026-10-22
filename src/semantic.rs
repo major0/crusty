@@ -519,6 +519,13 @@ impl SemanticAnalyzer {
             Item::Const(const_def) => self.analyze_const(const_def),
             Item::Static(static_def) => self.analyze_static(static_def),
             Item::MacroDefinition(macro_def) => self.analyze_macro_definition(macro_def),
+            Item::ConditionalCompilation(cc) => {
+                // Analyze the conditionally-compiled items; the cfg predicate
+                // itself is passed through to rustc (ADR-0001).
+                for inner in &cc.items {
+                    self.analyze_item(inner);
+                }
+            }
             Item::Namespace(_) | Item::Import(_) | Item::Export(_) | Item::Extern(_) => {
                 // These items don't require semantic analysis in this phase
             }
@@ -849,49 +856,10 @@ impl SemanticAnalyzer {
             ));
         }
 
-        // Validate that macro parameters are used consistently in the body
-        // Build a set of parameter names for quick lookup
-        let param_names: std::collections::HashSet<String> =
-            macro_def.params.iter().map(|p| p.name.clone()).collect();
-
-        // Check if parameters are referenced in the body
-        for param in &macro_def.params {
-            let mut param_used = false;
-            for token in &macro_def.body {
-                if let crate::lexer::TokenKind::Ident(ref name) = token.kind {
-                    if name == &param.name {
-                        param_used = true;
-                        break;
-                    }
-                }
-            }
-
-            if !param_used {
-                // Warning: parameter not used (not an error, just informational)
-                // We could add a warning system, but for now we'll skip this
-            }
-        }
-
-        // Validate that identifiers in the body are either:
-        // 1. Macro parameters
-        // 2. Other macros (with double-underscore naming)
-        // 3. Known identifiers (we'll be lenient here since macro bodies are token sequences)
-        for token in &macro_def.body {
-            if let crate::lexer::TokenKind::Ident(ref name) = token.kind {
-                // Check if it's a parameter
-                if param_names.contains(name) {
-                    continue;
-                }
-
-                // Check if it's a macro invocation (double-underscore)
-                if name.starts_with("__") && name.ends_with("__") {
-                    continue;
-                }
-
-                // Otherwise, it's a regular identifier - we'll allow it
-                // (could be a type name, function name, etc.)
-            }
-        }
+        // Macro bodies are opaque raw source spans (ADR-0001): Crusty does not
+        // tokenise or inspect them. Any error inside the body surfaces from
+        // rustc on the generated `macro_rules!`. Only the macro NAME is
+        // validated here.
     }
 
     /// Analyze a block of statements
@@ -3414,8 +3382,7 @@ mod tests {
         let macro_def = crate::ast::MacroDefinition {
             name: Ident::new("__MAX__".to_string()),
             params: vec![],
-            body: vec![],
-            delimiter: crate::ast::MacroDelimiter::None,
+            body: String::new(),
         };
 
         analyzer.analyze_macro_definition(&macro_def);
@@ -3428,8 +3395,7 @@ mod tests {
         let macro_def = crate::ast::MacroDefinition {
             name: Ident::new("MAX__".to_string()),
             params: vec![],
-            body: vec![],
-            delimiter: crate::ast::MacroDelimiter::None,
+            body: String::new(),
         };
 
         analyzer.analyze_macro_definition(&macro_def);
@@ -3447,8 +3413,7 @@ mod tests {
         let macro_def = crate::ast::MacroDefinition {
             name: Ident::new("__MAX".to_string()),
             params: vec![],
-            body: vec![],
-            delimiter: crate::ast::MacroDelimiter::None,
+            body: String::new(),
         };
 
         analyzer.analyze_macro_definition(&macro_def);
@@ -3465,33 +3430,7 @@ mod tests {
         let macro_def = crate::ast::MacroDefinition {
             name: Ident::new("__ADD__".to_string()),
             params: vec![Ident::new("a".to_string()), Ident::new("b".to_string())],
-            body: vec![
-                crate::lexer::Token::new(
-                    crate::lexer::TokenKind::Ident("a".to_string()),
-                    crate::error::Span::new(
-                        crate::error::Position::new(1, 1),
-                        crate::error::Position::new(1, 2),
-                    ),
-                    "a".to_string(),
-                ),
-                crate::lexer::Token::new(
-                    crate::lexer::TokenKind::Plus,
-                    crate::error::Span::new(
-                        crate::error::Position::new(1, 3),
-                        crate::error::Position::new(1, 4),
-                    ),
-                    "+".to_string(),
-                ),
-                crate::lexer::Token::new(
-                    crate::lexer::TokenKind::Ident("b".to_string()),
-                    crate::error::Span::new(
-                        crate::error::Position::new(1, 5),
-                        crate::error::Position::new(1, 6),
-                    ),
-                    "b".to_string(),
-                ),
-            ],
-            delimiter: crate::ast::MacroDelimiter::Parens,
+            body: "a + b".to_string(),
         };
 
         analyzer.analyze_macro_definition(&macro_def);

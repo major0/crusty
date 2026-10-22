@@ -51,6 +51,12 @@ pub struct LexError {
 }
 
 impl LexError {
+    // The hand-written lexer that produced LexErrors was removed when the parser
+    // moved to the PEG grammar (ADR-0001). The `CompilerError::Lex` variant and
+    // its `From<LexError>` conversion are retained as part of the public error
+    // surface, so this constructor stays even though no component currently
+    // calls it in a non-test path.
+    #[allow(dead_code)]
     pub fn new(span: Span, message: impl Into<String>) -> Self {
         Self {
             span,

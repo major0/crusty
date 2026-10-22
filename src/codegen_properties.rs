@@ -423,31 +423,13 @@ mod tests {
     }
 
     fn arb_simple_macro_definition() -> impl Strategy<Value = MacroDefinition> {
-        use crate::error::{Position, Span};
-        use crate::lexer::{Token, TokenKind};
-
         (arb_macro_name(), prop::collection::vec(arb_ident(), 0..3)).prop_map(|(name, params)| {
-            // Create a simple macro body with some tokens
-            let body = vec![Token {
-                kind: TokenKind::IntLiteral("100".to_string()),
-                span: Span {
-                    start: Position { line: 1, column: 1 },
-                    end: Position { line: 1, column: 4 },
-                },
-                text: "100".to_string(),
-            }];
-
-            let delimiter = if params.is_empty() {
-                MacroDelimiter::None
-            } else {
-                MacroDelimiter::Parens
-            };
-
+            // The body is a raw source span (ADR-0001); a constant literal is a
+            // valid span regardless of the parameter list.
             MacroDefinition {
                 name: Ident::new(name),
                 params,
-                body,
-                delimiter,
+                body: "100".to_string(),
             }
         })
     }

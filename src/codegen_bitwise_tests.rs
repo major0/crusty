@@ -284,6 +284,7 @@ mod tests {
                 kind: TokenKind::Literal,
                 text: "\"hello\"".to_string(),
             }],
+            delimiter: MacroDelimiter::Parens,
         };
         let result = gen.generate_expression_string(&expr);
         assert_eq!(result, "println!(\"hello\")");

@@ -25,6 +25,18 @@ pub enum Item {
     Const(Const),
     Static(Static),
     MacroDefinition(MacroDefinition),
+    ConditionalCompilation(ConditionalCompilation),
+}
+
+/// Conditional-compilation block (`#ifdef FOO` / `#ifndef FOO` … `#endif`).
+///
+/// Lowers to `#[cfg(FOO)]` (or `#[cfg(not(FOO))]` when negated) applied to each
+/// contained item (see ADR-0001).
+#[derive(Debug, Clone, PartialEq)]
+pub struct ConditionalCompilation {
+    pub cfg: Ident,
+    pub negated: bool,
+    pub items: Vec<Item>,
 }
 
 /// Function declaration
@@ -134,22 +146,25 @@ pub struct Static {
     pub doc_comments: Vec<String>,
 }
 
-/// Macro definition (#define)
+/// Parameterised macro definition (`#macro __NAME__(a, b) body`).
+///
+/// The body is captured as a raw source span and passed through to the
+/// generated `macro_rules!` unchanged — Crusty does not tokenise or inspect it
+/// (see ADR-0001).
 #[derive(Debug, Clone, PartialEq)]
 pub struct MacroDefinition {
     pub name: Ident,
     pub params: Vec<Ident>,
-    pub body: Vec<crate::lexer::Token>,
-    pub delimiter: MacroDelimiter,
+    pub body: String,
 }
 
-/// Macro invocation delimiter style
+/// Macro invocation delimiter style. Preserved from the call site so a Crusty
+/// `__vec__[1, 2]` lowers to `vec![1, 2]` rather than `vec!(1, 2)`.
 #[derive(Debug, Clone, PartialEq)]
 pub enum MacroDelimiter {
-    None,     // __MACRO__ (no parameters, no delimiters)
-    Parens,   // __MACRO__(args)
-    Brackets, // __MACRO__[args]
-    Braces,   // __MACRO__{args}
+    Parens,   // name!(args)
+    Brackets, // name![args]
+    Braces,   // name!{args}
 }
 
 /// Statement types
@@ -269,6 +284,7 @@ pub enum Expression {
     MacroCall {
         name: Ident,
         args: Vec<Token>,
+        delimiter: MacroDelimiter,
     },
     RustBlock {
         tokens: Vec<Token>,

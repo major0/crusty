@@ -497,22 +497,24 @@ mod tests {
 
     #[test]
     fn test_parse_define_with_no_params() {
+        // #define now lowers to a Rust const (ADR-0001).
         let source = "#define __VERSION__ 1";
         let mut parser = Parser::new(source).unwrap();
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::MacroDefinition(m) => {
-                assert_eq!(m.params.len(), 0);
-                assert!(matches!(m.delimiter, MacroDelimiter::None));
+            Item::Const(c) => {
+                assert_eq!(c.name.name, "VERSION");
+                assert!(matches!(c.value, Expression::Literal(Literal::Int(1))));
             }
-            _ => panic!("Expected macro definition"),
+            other => panic!("Expected const, got {:?}", other),
         }
     }
 
     #[test]
-    fn test_parse_define_with_single_param() {
-        let source = "#define __SQUARE__(x) x * x";
+    fn test_parse_macro_with_single_param() {
+        // Parameterised macros use #macro (ADR-0001).
+        let source = "#macro __SQUARE__(x) x * x";
         let mut parser = Parser::new(source).unwrap();
         let file = parser.parse_file().unwrap();
 
@@ -520,8 +522,9 @@ mod tests {
             Item::MacroDefinition(m) => {
                 assert_eq!(m.params.len(), 1);
                 assert_eq!(m.params[0].name, "x");
+                assert_eq!(m.body, "x * x");
             }
-            _ => panic!("Expected macro definition"),
+            other => panic!("Expected macro definition, got {:?}", other),
         }
     }
 

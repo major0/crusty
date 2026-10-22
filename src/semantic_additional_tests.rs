@@ -189,6 +189,7 @@ mod tests {
             body: Block::new(vec![Statement::Expr(Expression::MacroCall {
                 name: Ident::new("println"),
                 args: vec![],
+                delimiter: MacroDelimiter::Parens,
             })]),
             doc_comments: vec![],
             attributes: vec![],

@@ -107,8 +107,7 @@ mod tests {
         let macro_def = Item::MacroDefinition(MacroDefinition {
             name: Ident::new("__MY_MACRO__"),
             params: vec![Ident::new("x")],
-            body: vec![],
-            delimiter: MacroDelimiter::Parens,
+            body: "x".to_string(),
         });
 
         let file = create_file_with_items(vec![macro_def]);
@@ -123,8 +122,7 @@ mod tests {
         let macro_def = Item::MacroDefinition(MacroDefinition {
             name: Ident::new("MY_MACRO"),
             params: vec![],
-            body: vec![],
-            delimiter: MacroDelimiter::None,
+            body: String::new(),
         });
 
         let file = create_file_with_items(vec![macro_def]);

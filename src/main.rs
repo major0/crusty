@@ -5,7 +5,6 @@ mod ast;
 mod cli;
 mod codegen;
 mod error;
-mod lexer;
 mod parser;
 mod pretty;
 mod rustc;

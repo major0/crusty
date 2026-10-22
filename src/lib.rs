@@ -23,9 +23,6 @@ mod codegen_properties;
 pub mod error;
 #[cfg(test)]
 mod error_coverage_tests;
-pub mod lexer;
-#[cfg(test)]
-mod lexer_coverage_tests;
 #[cfg(test)]
 mod nested_function_tests;
 pub mod parser;

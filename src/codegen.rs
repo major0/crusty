@@ -113,6 +113,7 @@ impl CodeGenerator {
             Item::Const(const_item) => self.generate_const(const_item),
             Item::Static(static_item) => self.generate_static(static_item),
             Item::MacroDefinition(macro_def) => self.generate_macro_definition(macro_def),
+            Item::ConditionalCompilation(cc) => self.generate_conditional_compilation(cc),
         }
     }
 
@@ -465,9 +466,14 @@ impl CodeGenerator {
         self.write_line("// TODO: generate_extern");
     }
 
-    fn generate_const(&mut self, _const_item: &Const) {
-        // Placeholder
-        self.write_line("// TODO: generate_const");
+    fn generate_const(&mut self, const_item: &Const) {
+        // A `#define __NAME__ value` lowers to a Rust `const` (ADR-0001).
+        let ty = self.generate_type_string(&const_item.ty);
+        let value = self.generate_expression_string(&const_item.value);
+        self.write_line(&format!(
+            "const {}: {} = {};",
+            const_item.name.name, ty, value
+        ));
     }
 
     fn generate_static(&mut self, _static_item: &Static) {
@@ -476,8 +482,10 @@ impl CodeGenerator {
     }
 
     fn generate_macro_definition(&mut self, macro_def: &MacroDefinition) {
-        // Translate #define to Rust macro_rules!
-        // Remove double-underscore prefix and suffix from macro name
+        // Translate `#macro __NAME__(a, b) body` to a Rust `macro_rules!`.
+        // The body is a raw source span (ADR-0001): Crusty does not tokenise it,
+        // so parameter substitution is a plain textual `name` -> `$name` pass and
+        // the rest is emitted verbatim for rustc to parse.
         let rust_name = macro_def
             .name
             .name
@@ -485,8 +493,7 @@ impl CodeGenerator {
             .trim_end_matches("__")
             .to_lowercase();
 
-        // Check if the converted name is a Rust keyword
-        // If so, add a suffix to avoid conflicts
+        // Avoid colliding with a Rust keyword.
         let rust_name = if is_rust_keyword(&rust_name) {
             format!("{}_macro", rust_name)
         } else {
@@ -496,59 +503,21 @@ impl CodeGenerator {
         self.write_line(&format!("macro_rules! {} {{", rust_name));
         self.indent();
 
-        // Generate macro pattern and body
+        // Parameter pattern: ($a:expr, $b:expr)
         self.write_indent();
         self.write("(");
-
-        // Generate parameter pattern
-        if !macro_def.params.is_empty() {
-            for (i, param) in macro_def.params.iter().enumerate() {
-                if i > 0 {
-                    self.write(", ");
-                }
-                self.write(&format!("${}:expr", param.name));
+        for (i, param) in macro_def.params.iter().enumerate() {
+            if i > 0 {
+                self.write(", ");
             }
+            self.write(&format!("${}:expr", param.name));
         }
-
         self.write(") => {{\n");
         self.indent();
 
-        // Generate macro body
+        // Body: substitute each parameter reference with its `$name` form.
         self.write_indent();
-        for token in &macro_def.body {
-            // Check if token is a parameter reference
-            let is_param = macro_def.params.iter().any(|p| {
-                if let crate::lexer::TokenKind::Ident(ref name) = token.kind {
-                    name == &p.name
-                } else {
-                    false
-                }
-            });
-
-            if is_param {
-                // Replace parameter with $param
-                if let crate::lexer::TokenKind::Ident(ref name) = token.kind {
-                    self.write(&format!("${}", name));
-                }
-            } else {
-                // Check if it's a macro invocation with double-underscores
-                if let crate::lexer::TokenKind::Ident(ref name) = token.kind {
-                    if name.starts_with("__") && name.ends_with("__") {
-                        // Convert __macro_name__ to macro_name!
-                        let rust_macro = name
-                            .trim_start_matches("__")
-                            .trim_end_matches("__")
-                            .to_lowercase();
-                        self.write(&format!("{}!", rust_macro));
-                    } else {
-                        self.write(&token.text);
-                    }
-                } else {
-                    self.write(&token.text);
-                }
-            }
-            self.write(" ");
-        }
+        self.write(&substitute_macro_params(&macro_def.body, &macro_def.params));
         self.write("\n");
 
         self.dedent();
@@ -557,6 +526,20 @@ impl CodeGenerator {
 
         self.dedent();
         self.write_line("}");
+    }
+
+    fn generate_conditional_compilation(&mut self, cc: &ConditionalCompilation) {
+        // `#ifdef FOO` / `#ifndef FOO` lowers to `#[cfg(FOO)]` /
+        // `#[cfg(not(FOO))]` on each contained item (ADR-0001).
+        let predicate = if cc.negated {
+            format!("not({})", cc.cfg.name)
+        } else {
+            cc.cfg.name.clone()
+        };
+        for item in &cc.items {
+            self.write_line(&format!("#[cfg({})]", predicate));
+            self.generate_item(item);
+        }
     }
 
     /// Generate a block of statements
@@ -1164,18 +1147,21 @@ impl CodeGenerator {
                 }
                 result
             }
-            Expression::MacroCall { name, args } => {
-                let mut result = name.name.clone();
-                result.push('!');
-                result.push('(');
-                for (i, token) in args.iter().enumerate() {
-                    if i > 0 {
-                        result.push_str(", ");
-                    }
-                    result.push_str(&token.text);
-                }
-                result.push(')');
-                result
+            Expression::MacroCall {
+                name,
+                args,
+                delimiter,
+            } => {
+                // Preserve the invocation delimiter (ADR-0001): `__vec__[1, 2]`
+                // lowers to `vec![1, 2]`, not `vec!(1, 2)`. The argument span is
+                // passed through verbatim.
+                let (open, close) = match delimiter {
+                    crate::ast::MacroDelimiter::Parens => ('(', ')'),
+                    crate::ast::MacroDelimiter::Brackets => ('[', ']'),
+                    crate::ast::MacroDelimiter::Braces => ('{', '}'),
+                };
+                let body = args.first().map(|t| t.text.as_str()).unwrap_or("");
+                format!("{}!{}{}{}", name.name, open, body, close)
             }
             Expression::RustBlock { tokens } => {
                 let mut result = String::from("{ ");
@@ -1462,6 +1448,39 @@ impl CodeGenerator {
             },
         }
     }
+}
+
+/// Rewrite a `#macro` body so each parameter reference becomes its `$name`
+/// form for `macro_rules!`. The body is raw source text (ADR-0001), so this is
+/// a word-boundary textual substitution — no tokenisation. A character is part
+/// of an identifier when it is alphanumeric or `_`; a `name` occurrence
+/// flanked by non-identifier characters (or string ends) is a reference.
+fn substitute_macro_params(body: &str, params: &[Ident]) -> String {
+    if params.is_empty() {
+        return body.to_string();
+    }
+    let is_ident_char = |c: char| c.is_alphanumeric() || c == '_';
+    let chars: Vec<char> = body.chars().collect();
+    let mut out = String::with_capacity(body.len());
+    let mut i = 0;
+    while i < chars.len() {
+        if is_ident_char(chars[i]) {
+            // Consume a whole identifier run.
+            let start = i;
+            while i < chars.len() && is_ident_char(chars[i]) {
+                i += 1;
+            }
+            let word: String = chars[start..i].iter().collect();
+            if params.iter().any(|p| p.name == word) {
+                out.push('$');
+            }
+            out.push_str(&word);
+        } else {
+            out.push(chars[i]);
+            i += 1;
+        }
+    }
+    out
 }
 
 /// Check if a string is a Rust keyword
@@ -2256,15 +2275,7 @@ mod tests {
         let macro_def = MacroDefinition {
             name: Ident::new("__MAX__".to_string()),
             params: vec![],
-            body: vec![crate::lexer::Token::new(
-                crate::lexer::TokenKind::IntLiteral("100".to_string()),
-                crate::error::Span::new(
-                    crate::error::Position::new(1, 1),
-                    crate::error::Position::new(1, 4),
-                ),
-                "100".to_string(),
-            )],
-            delimiter: MacroDelimiter::None,
+            body: "100".to_string(),
         };
 
         let file = File {
@@ -2283,49 +2294,7 @@ mod tests {
         let macro_def = MacroDefinition {
             name: Ident::new("__ADD__".to_string()),
             params: vec![Ident::new("a".to_string()), Ident::new("b".to_string())],
-            body: vec![
-                crate::lexer::Token::new(
-                    crate::lexer::TokenKind::LParen,
-                    crate::error::Span::new(
-                        crate::error::Position::new(1, 1),
-                        crate::error::Position::new(1, 2),
-                    ),
-                    "(".to_string(),
-                ),
-                crate::lexer::Token::new(
-                    crate::lexer::TokenKind::Ident("a".to_string()),
-                    crate::error::Span::new(
-                        crate::error::Position::new(1, 2),
-                        crate::error::Position::new(1, 3),
-                    ),
-                    "a".to_string(),
-                ),
-                crate::lexer::Token::new(
-                    crate::lexer::TokenKind::Plus,
-                    crate::error::Span::new(
-                        crate::error::Position::new(1, 4),
-                        crate::error::Position::new(1, 5),
-                    ),
-                    "+".to_string(),
-                ),
-                crate::lexer::Token::new(
-                    crate::lexer::TokenKind::Ident("b".to_string()),
-                    crate::error::Span::new(
-                        crate::error::Position::new(1, 6),
-                        crate::error::Position::new(1, 7),
-                    ),
-                    "b".to_string(),
-                ),
-                crate::lexer::Token::new(
-                    crate::lexer::TokenKind::RParen,
-                    crate::error::Span::new(
-                        crate::error::Position::new(1, 7),
-                        crate::error::Position::new(1, 8),
-                    ),
-                    ")".to_string(),
-                ),
-            ],
-            delimiter: MacroDelimiter::Parens,
+            body: "(a + b)".to_string(),
         };
 
         let file = File {
@@ -2337,51 +2306,20 @@ mod tests {
         assert!(output.contains("macro_rules! add"));
         assert!(output.contains("$a:expr"));
         assert!(output.contains("$b:expr"));
+        // Parameter references in the body are substituted with their $ form.
         assert!(output.contains("$a"));
         assert!(output.contains("$b"));
     }
 
     #[test]
-    fn test_generate_macro_with_nested_macro_call() {
+    fn test_generate_macro_params_substituted_not_bare() {
+        // A parameter reference becomes $name; a non-parameter identifier is
+        // left untouched (word-boundary substitution, ADR-0001).
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let macro_def = MacroDefinition {
-            name: Ident::new("__DEBUG__".to_string()),
-            params: vec![Ident::new("msg".to_string())],
-            body: vec![
-                crate::lexer::Token::new(
-                    crate::lexer::TokenKind::Ident("__println__".to_string()),
-                    crate::error::Span::new(
-                        crate::error::Position::new(1, 1),
-                        crate::error::Position::new(1, 11),
-                    ),
-                    "__println__".to_string(),
-                ),
-                crate::lexer::Token::new(
-                    crate::lexer::TokenKind::LParen,
-                    crate::error::Span::new(
-                        crate::error::Position::new(1, 11),
-                        crate::error::Position::new(1, 12),
-                    ),
-                    "(".to_string(),
-                ),
-                crate::lexer::Token::new(
-                    crate::lexer::TokenKind::Ident("msg".to_string()),
-                    crate::error::Span::new(
-                        crate::error::Position::new(1, 12),
-                        crate::error::Position::new(1, 15),
-                    ),
-                    "msg".to_string(),
-                ),
-                crate::lexer::Token::new(
-                    crate::lexer::TokenKind::RParen,
-                    crate::error::Span::new(
-                        crate::error::Position::new(1, 15),
-                        crate::error::Position::new(1, 16),
-                    ),
-                    ")".to_string(),
-                ),
-            ],
-            delimiter: MacroDelimiter::Parens,
+            name: Ident::new("__SCALE__".to_string()),
+            params: vec![Ident::new("x".to_string())],
+            body: "x * factor".to_string(),
         };
 
         let file = File {
@@ -2390,9 +2328,7 @@ mod tests {
         };
 
         let output = gen.generate(&file);
-        assert!(output.contains("macro_rules! debug"));
-        assert!(output.contains("println!")); // __println__ should become println!
-        assert!(output.contains("$msg"));
+        assert!(output.contains("$x * factor"), "got: {}", output);
     }
 
     #[test]
@@ -2401,65 +2337,7 @@ mod tests {
         let macro_def = MacroDefinition {
             name: Ident::new("__MAX__".to_string()),
             params: vec![Ident::new("a".to_string()), Ident::new("b".to_string())],
-            body: vec![
-                crate::lexer::Token::new(
-                    crate::lexer::TokenKind::Ident("a".to_string()),
-                    crate::error::Span::new(
-                        crate::error::Position::new(1, 1),
-                        crate::error::Position::new(1, 2),
-                    ),
-                    "a".to_string(),
-                ),
-                crate::lexer::Token::new(
-                    crate::lexer::TokenKind::Gt,
-                    crate::error::Span::new(
-                        crate::error::Position::new(1, 3),
-                        crate::error::Position::new(1, 4),
-                    ),
-                    ">".to_string(),
-                ),
-                crate::lexer::Token::new(
-                    crate::lexer::TokenKind::Ident("b".to_string()),
-                    crate::error::Span::new(
-                        crate::error::Position::new(1, 5),
-                        crate::error::Position::new(1, 6),
-                    ),
-                    "b".to_string(),
-                ),
-                crate::lexer::Token::new(
-                    crate::lexer::TokenKind::Question,
-                    crate::error::Span::new(
-                        crate::error::Position::new(1, 7),
-                        crate::error::Position::new(1, 8),
-                    ),
-                    "?".to_string(),
-                ),
-                crate::lexer::Token::new(
-                    crate::lexer::TokenKind::Ident("a".to_string()),
-                    crate::error::Span::new(
-                        crate::error::Position::new(1, 9),
-                        crate::error::Position::new(1, 10),
-                    ),
-                    "a".to_string(),
-                ),
-                crate::lexer::Token::new(
-                    crate::lexer::TokenKind::Colon,
-                    crate::error::Span::new(
-                        crate::error::Position::new(1, 11),
-                        crate::error::Position::new(1, 12),
-                    ),
-                    ":".to_string(),
-                ),
-                crate::lexer::Token::new(
-                    crate::lexer::TokenKind::Ident("b".to_string()),
-                    crate::error::Span::new(
-                        crate::error::Position::new(1, 13),
-                        crate::error::Position::new(1, 14),
-                    ),
-                    "b".to_string(),
-                ),
-            ],
-            delimiter: MacroDelimiter::Parens,
+            body: "a > b ? a : b".to_string(),
         };
 
         let file = File {
@@ -2471,8 +2349,8 @@ mod tests {
         assert!(output.contains("macro_rules! max"));
         assert!(output.contains("$a:expr"));
         assert!(output.contains("$b:expr"));
-        // Ternary should be translated to if-else
-        assert!(output.contains("if") || output.contains("?"));
+        // Body is passed through verbatim (with params substituted).
+        assert!(output.contains("$a > $b ? $a : $b"), "got: {}", output);
     }
 
     #[test]
@@ -2481,15 +2359,7 @@ mod tests {
         let macro_def = MacroDefinition {
             name: Ident::new("__MY_MACRO__".to_string()),
             params: vec![],
-            body: vec![crate::lexer::Token::new(
-                crate::lexer::TokenKind::IntLiteral("42".to_string()),
-                crate::error::Span::new(
-                    crate::error::Position::new(1, 1),
-                    crate::error::Position::new(1, 3),
-                ),
-                "42".to_string(),
-            )],
-            delimiter: MacroDelimiter::None,
+            body: "42".to_string(),
         };
 
         let file = File {
@@ -2509,8 +2379,7 @@ mod tests {
         let macro_def = MacroDefinition {
             name: Ident::new("__EMPTY__".to_string()),
             params: vec![],
-            body: vec![],
-            delimiter: MacroDelimiter::None,
+            body: String::new(),
         };
 
         let file = File {
@@ -2523,6 +2392,83 @@ mod tests {
         // Should have empty body
         assert!(output.contains("{{"));
         assert!(output.contains("}}"));
+    }
+
+    #[test]
+    fn test_generate_define_constant_is_const() {
+        // #define __PI__ 3.14159 lowers to a Rust const (ADR-0001).
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let const_item = Const {
+            visibility: Visibility::Private,
+            name: Ident::new("RATE".to_string()),
+            ty: Type::Primitive(PrimitiveType::F64),
+            value: Expression::Literal(Literal::Float(2.5)),
+            doc_comments: vec![],
+        };
+
+        let file = File {
+            items: vec![Item::Const(const_item)],
+            doc_comments: vec![],
+        };
+
+        let output = gen.generate(&file);
+        assert!(output.contains("const RATE: f64 = 2.5;"), "got: {}", output);
+        assert!(!output.contains("macro_rules!"));
+    }
+
+    #[test]
+    fn test_generate_conditional_compilation() {
+        // #ifdef FEATURE … #endif emits #[cfg(FEATURE)] on each item.
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let func = Function {
+            visibility: Visibility::Private,
+            name: Ident::new("f".to_string()),
+            params: vec![],
+            return_type: None,
+            body: Block::new(vec![]),
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let cc = ConditionalCompilation {
+            cfg: Ident::new("FEATURE".to_string()),
+            negated: false,
+            items: vec![Item::Function(func)],
+        };
+
+        let file = File {
+            items: vec![Item::ConditionalCompilation(cc)],
+            doc_comments: vec![],
+        };
+
+        let output = gen.generate(&file);
+        assert!(output.contains("#[cfg(FEATURE)]"), "got: {}", output);
+    }
+
+    #[test]
+    fn test_generate_conditional_compilation_negated() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let func = Function {
+            visibility: Visibility::Private,
+            name: Ident::new("f".to_string()),
+            params: vec![],
+            return_type: None,
+            body: Block::new(vec![]),
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let cc = ConditionalCompilation {
+            cfg: Ident::new("FEATURE".to_string()),
+            negated: true,
+            items: vec![Item::Function(func)],
+        };
+
+        let file = File {
+            items: vec![Item::ConditionalCompilation(cc)],
+            doc_comments: vec![],
+        };
+
+        let output = gen.generate(&file);
+        assert!(output.contains("#[cfg(not(FEATURE))]"), "got: {}", output);
     }
 
     #[test]

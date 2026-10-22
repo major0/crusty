@@ -203,6 +203,7 @@ mod tests {
         let macro_call = Expression::MacroCall {
             name: Ident::new("__my_macro__"),
             args: vec![], // Empty args for test
+            delimiter: MacroDelimiter::Parens,
         };
 
         let result_type = analyzer.analyze_expression_test(&macro_call);
