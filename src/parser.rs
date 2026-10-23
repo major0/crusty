@@ -1190,7 +1190,8 @@ peg::parser! {
         /// `{ }` as the loop body instead of `coll {}` as an empty struct
         /// literal. A struct literal in that position must be parenthesised.
         rule atom_inner(allow_struct: bool) -> Expression
-            = loop_expr()
+            = rust_block_expr()
+            / loop_expr()
             / sizeof_expr()
             / macro_call()
             / cast_expr()
@@ -3200,6 +3201,29 @@ peg::parser! {
             = "{" rust_raw_atom()* "}"
             / (!"{" !"}" [_])
 
+        /// Top-level `__rust__{ … }` escape hatch in ITEM position (PS-10).
+        /// The designated fallback for anything not yet expressible in Crusty:
+        /// the brace-balanced body is captured verbatim and emitted as raw Rust
+        /// items. Reuses the same capture as the extern-block form, so nesting
+        /// rules match (contents are not re-parsed).
+        pub rule item_rust_block() -> Item
+            = _ "__rust__" _ "{" code:rust_raw_body() "}" _ {
+                Item::RawRust { code: code.trim().to_string() }
+            }
+
+        /// `__rust__{ … }` escape hatch in EXPRESSION position (PS-10). The
+        /// verbatim body is kept as a single token so codegen emits it inside a
+        /// Rust block expression `{ <raw> }` untouched — rustc is the arbiter.
+        pub rule rust_block_expr() -> Expression
+            = _ "__rust__" _ "{" code:rust_raw_body() "}" {
+                Expression::RustBlock {
+                    tokens: vec![Token {
+                        kind: TokenKind::Ident,
+                        text: code.trim().to_string(),
+                    }],
+                }
+            }
+
         /// Parameter list for an extern declaration: zero or more named
         /// parameters, with an optional trailing `...` varargs marker.
         /// Returns (params, is_variadic). Accepts `()`, `(T a, T b)`,
@@ -3300,6 +3324,7 @@ peg::parser! {
             / export_def()
             / rejected_directive()
             / namespace_def()
+            / item_rust_block()
             / extern_block()
             / struct_def()
             / enum_def()
@@ -5200,10 +5225,49 @@ mod item_tests {
     }
 
     #[test]
-    fn test_peg_item_rust_escape_hatch_rejected_at_top_level() {
-        // __rust__ is an extern-only item: it must not parse at module level.
-        let result = crusty_peg_parser::item("__rust__{ fn foo(); }");
-        assert!(result.is_err(), "top-level __rust__ must be rejected");
+    fn test_peg_item_rust_escape_hatch_at_top_level() {
+        // PS-10: __rust__ is reachable in item position, not only inside
+        // extern. The brace-balanced body is captured verbatim as Item::RawRust.
+        let result = crusty_peg_parser::item("__rust__{ fn foo() {} }");
+        assert!(result.is_ok(), "top-level __rust__ must parse: {:?}", result);
+        if let Ok(Item::RawRust { code }) = result {
+            assert_eq!(code, "fn foo() {}");
+        } else {
+            panic!("expected Item::RawRust, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_peg_item_rust_block_nested_braces() {
+        // The verbatim capture is brace-balanced: inner `{ }` do not end it.
+        let result = crusty_peg_parser::item("__rust__{ impl Foo { fn a() {} } }");
+        assert!(result.is_ok(), "nested-brace __rust__ must parse: {:?}", result);
+        if let Ok(Item::RawRust { code }) = result {
+            assert_eq!(code, "impl Foo { fn a() {} }");
+        } else {
+            panic!("expected Item::RawRust, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_peg_expr_rust_block() {
+        // PS-10: __rust__ in expression position becomes a RustBlock whose
+        // single verbatim token holds the raw body (codegen wraps it in { }).
+        let result = crusty_peg_parser::expr("__rust__{ vec![1, 2, 3] }");
+        assert!(result.is_ok(), "expr __rust__ must parse: {:?}", result);
+        if let Ok(Expression::RustBlock { tokens }) = result {
+            assert_eq!(tokens.len(), 1);
+            assert_eq!(tokens[0].text, "vec![1, 2, 3]");
+        } else {
+            panic!("expected Expression::RustBlock, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_peg_expr_rust_block_in_let() {
+        // The escape hatch is usable as a `let` initializer.
+        let result = crusty_peg_parser::statement("let x = __rust__{ compute() };");
+        assert!(result.is_ok(), "let with __rust__ init must parse: {:?}", result);
     }
 
     #[test]
