@@ -1,0 +1,19 @@
+# Example application: a Crusty program that links the real `indexmap` cargo crate.
+# This is an integration test — built and run locally and in GitHub PR CI, NOT
+# in pre-commit. See docs/adr/0005-example-apps-integration-tests.md.
+[package]
+name = "crusty-app-counts"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Crusty example app linking the indexmap crate (integration test)"
+
+[[bin]]
+name = "crusty-app-counts"
+path = "src/main.rs"
+
+[dependencies]
+indexmap = "2"
+
+[build-dependencies]
+crustyc = { path = "../../.." }

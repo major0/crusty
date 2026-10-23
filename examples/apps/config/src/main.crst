@@ -1,0 +1,26 @@
+// A tiny Crusty program that links the real `toml` + `serde` cargo crates.
+// Demonstrates Crusty <-> Rust cross-compatibility: it declares a struct with
+// serde's #[derive(Deserialize)], parses a small TOML string into it via the
+// toml crate, and prints a field — exercising derive macros on a Crusty struct,
+// serde generics/bounds, nested struct types, and error handling.
+
+#import serde.Deserialize
+
+#[derive(Deserialize)]
+struct Server {
+    String host;
+    uint16 port;
+}
+
+#[derive(Deserialize)]
+struct Config {
+    String name;
+    Server server;
+}
+
+void main() {
+    let src = "name = \"demo\"\n[server]\nhost = \"localhost\"\nport = 8080\n";
+    let parsed = @toml.from_str(src);
+    Config cfg = parsed.unwrap();
+    println!("{} -> {}:{}", cfg.name, cfg.server.host, cfg.server.port);
+}

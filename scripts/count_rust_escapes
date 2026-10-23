@@ -18,11 +18,14 @@ fi
 total=0
 any=0
 
-# One line per app that has .crst sources, with its __rust__ count.
+# One line per app that has .crst sources, with its __rust__ count. Comment
+# lines (leading `//`) are excluded so a gap-documentation mention of the escape
+# hatch is not miscounted as an actual usage.
 for app in "${root}"/*/; do
     [ -d "${app}src" ] || continue
     any=1
-    count=$(grep -rohE '__rust__[[:space:]]*\{' "${app}src" 2>/dev/null | wc -l | tr -d ' ')
+    count=$(grep -rhE '__rust__[[:space:]]*\{' "${app}src" 2>/dev/null \
+        | grep -cvE '^[[:space:]]*//' || true)
     name=$(basename "${app}")
     printf '%-24s %s\n' "${name}" "${count}"
     total=$((total + count))

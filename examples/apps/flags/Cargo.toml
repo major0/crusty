@@ -1,0 +1,19 @@
+# Example application: a Crusty program that links the real `bitflags` cargo crate.
+# This is an integration test — built and run locally and in GitHub PR CI, NOT
+# in pre-commit. See docs/adr/0005-example-apps-integration-tests.md.
+[package]
+name = "crusty-app-flags"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Crusty example app linking the bitflags crate (integration test)"
+
+[[bin]]
+name = "crusty-app-flags"
+path = "src/main.rs"
+
+[dependencies]
+bitflags = "2"
+
+[build-dependencies]
+crustyc = { path = "../../.." }

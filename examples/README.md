@@ -11,6 +11,16 @@ See `docs/adr/0005-example-apps-integration-tests.md` for the design.
 | App | Links | Demonstrates |
 |-----|-------|--------------|
 | `dice/` | [`rand`](https://crates.io/crates/rand) | `#import`, `@Type.method()`, method calls, C-style typed bindings |
+| `config/` | [`toml`](https://crates.io/crates/toml) + [`serde`](https://crates.io/crates/serde) | `#[derive(Deserialize)]`, nested structs, serde generic inference |
+| `cli/` | [`clap`](https://crates.io/crates/clap) | builder method chains, `&String` ref types, array-literal args |
+| `counts/` | [`indexmap`](https://crates.io/crates/indexmap) | generic type use, for-in iteration, inference over a generic ctor |
+| `flags/` | [`bitflags`](https://crates.io/crates/bitflags) | bitwise ops, `static` consts (crate macro is a known gap — see below) |
+| `lazy/` | [`lazy_static`](https://crates.io/crates/lazy_static) | `static` read + print (crate macro is a known gap — see below) |
+
+Some apps deliberately model a crate's behaviour with parseable Crusty because
+the crate's only consumer API is a macro Crusty cannot yet express (see the
+grammar gaps the wave surfaced, tracked in `docs/`). Those apps still declare
+and link the crate; their `__rust__` count stays 0.
 
 ## Running locally
 

@@ -1,0 +1,73 @@
+// A Crusty program that links the real `clap` cargo crate and builds a CLI
+// Command via clap's BUILDER API (not the derive API). It maximally exercises
+// long postfix method chains, @Type.method() path calls (Command::new / Arg::new),
+// string and char literals, and the fluent builder idiom, then parses a fixed
+// argument list and prints a deterministic greeting.
+//
+// Grammar gaps discovered while writing this (reported in the brief's format):
+//   * A postfix operator cannot be applied DIRECTLY to a @Type.method() result:
+//     `@Command.new("g").about("x")` is a parse error at the first `.`. Worked
+//     around by binding each seed call to a variable, then chaining the postfix
+//     method calls on the binding (postfix-on-variable parses fine).
+//   * Crusty type keywords cannot be used as method names: clap's `.short('n')`
+//     and `.long("name")` builder methods parse-error (the lexer treats `short`
+//     and `long` as type keywords). Worked around with POSITIONAL arguments,
+//     which need neither `.short` nor `.long`.
+//   * No turbofish `::<>`, so clap's generic `matches.get_one::<String>("name")`
+//     cannot be spelled; an un-annotated `let n = matches.get_one("name")` fails
+//     type inference, and a `String`/`: String` annotation on a `.clone()`d value
+//     is still ambiguous. Worked around with a C-style reference-typed
+//     declaration (`&String name = matches.get_one(...).unwrap()`), which emits
+//     `let name: &String = ...` and anchors T = String (get_one -> Option<&T>)
+//     cleanly, with no turbofish and no clone.
+
+#import clap.Command
+#import clap.Arg
+
+// Build the CLI definition. Each builder seed (@Command.new / @Arg.new) is bound
+// first, then a long fluent postfix chain is applied to the binding.
+Command build_cli() {
+    // Positional "name" argument with a default, so an empty argv still parses.
+    let name_seed = @Arg.new("name");
+    let name_arg = name_seed
+        .help("Who to greet")
+        .value_name("NAME")
+        .required(false)
+        .default_value("world");
+
+    // Positional "punct" argument with a default.
+    let punct_seed = @Arg.new("punct");
+    let punct_arg = punct_seed
+        .help("Trailing punctuation")
+        .value_name("PUNCT")
+        .required(false)
+        .default_value("!");
+
+    let cmd_seed = @Command.new("greet");
+    let cmd = cmd_seed
+        .about("A tiny greeter built with clap's builder API")
+        .version("0.1.0")
+        .author("Crusty example apps")
+        .arg(name_arg)
+        .arg(punct_arg);
+    return cmd;
+}
+
+// Print the greeting. The concrete `&String` parameter types mirror the
+// reference locals and keep clap's generic values borrow-only (no clone needed).
+void greet(&String name, &String punct) {
+    println!("Hello, {}{}", name, punct);
+}
+
+void main() {
+    let cli = build_cli();
+    // Parse a fixed argument list (program name + two positionals) so output is
+    // deterministic for the integration test.
+    let matches = cli.get_matches_from(["greet", "Crusty", "!"]);
+    // C-style reference-typed declarations (`&String x = ...`) emit
+    // `let x: &String = ...`. clap's get_one returns Option<&T>, so &String
+    // anchors T = String with no turbofish and no clone-inference ambiguity.
+    &String name = matches.get_one("name").unwrap();
+    &String punct = matches.get_one("punct").unwrap();
+    greet(name, punct);
+}

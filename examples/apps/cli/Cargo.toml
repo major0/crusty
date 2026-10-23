@@ -1,0 +1,20 @@
+# Example application: a Crusty program that links the real `clap` cargo crate
+# and builds a CLI via clap's BUILDER API (fluent method chains + @Type.method()).
+# This is an integration test — built and run locally and in GitHub PR CI, NOT
+# in pre-commit. See docs/adr/0005-example-apps-integration-tests.md.
+[package]
+name = "crusty-app-cli"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Crusty example app linking the clap crate via its builder API (integration test)"
+
+[[bin]]
+name = "crusty-app-cli"
+path = "src/main.rs"
+
+[dependencies]
+clap = "4"
+
+[build-dependencies]
+crustyc = { path = "../../.." }

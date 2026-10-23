@@ -1,0 +1,19 @@
+# Example application: a Crusty program that links the real `lazy_static` cargo crate.
+# This is an integration test — built and run locally and in GitHub PR CI, NOT
+# in pre-commit. See docs/adr/0005-example-apps-integration-tests.md.
+[package]
+name = "crusty-app-lazy"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Crusty example app linking the lazy_static crate (integration test)"
+
+[[bin]]
+name = "crusty-app-lazy"
+path = "src/main.rs"
+
+[dependencies]
+lazy_static = "1"
+
+[build-dependencies]
+crustyc = { path = "../../.." }

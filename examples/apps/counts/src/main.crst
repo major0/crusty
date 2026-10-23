@@ -1,0 +1,20 @@
+// A tiny Crusty program that links the real `indexmap` cargo crate.
+// Builds an insertion-ordered IndexMap<String, i64> of word counts, iterates it
+// in order, and prints each entry. Exercises generic type USE, method chains,
+// and for-in iteration against a real crate's API.
+
+#import indexmap.IndexMap
+
+void main() {
+    var counts = @IndexMap.new();
+
+    counts.insert("apples".to_string(), 3);
+    counts.insert("pears".to_string(), 1);
+    counts.insert("plums".to_string(), 4);
+
+    for (entry in counts.iter()) {
+        println!("{} = {}", entry.0, entry.1);
+    }
+
+    println!("total kinds = {}", counts.len());
+}

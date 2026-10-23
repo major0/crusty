@@ -1,0 +1,43 @@
+// A Crusty program that models a bitflags-style flags type and combines flags
+// with bitwise OR, then tests membership with bitwise AND — the exact behaviour
+// the `bitflags` crate generates.
+//
+// GRAMMAR GAP (recorded, not routed around): the natural way to write this is
+// the `bitflags!` crate macro —
+//
+//     bitflags! { pub struct Flags: u32 { const A = 1; const B = 2; } }
+//
+// but a macro invocation with a brace-block *body* does NOT parse in Crusty
+// (the parser rejects the `!` at item position). The only raw-Rust escape hatch
+// is an extern-block-only item, so wrapping the macro in it emits
+// `extern "C" { bitflags! { ... } }`, which rustc rejects with
+// "extern block cannot have a body". bitflags exposes no non-macro consumer API
+// (every public fn is generic over a macro-generated `Flags` type), so the
+// crate cannot be called from Crusty at all today. We therefore model the flags
+// by hand with parseable constructs and exercise the same operators.
+
+// Flag bits. `const` is not a top-level item in Crusty; `static` is, and lowers
+// to a Rust `static`. (0b-binary literals also fail to lex, so these are given
+// in decimal: 1, 2, 4.)
+static uint32 FLAG_A = 1;
+static uint32 FLAG_B = 2;
+static uint32 FLAG_C = 4;
+
+// `#[allow(unused_parens)]` suppresses a crustyc codegen artifact: it wraps every
+// `let` assignment's value in parens (`let x = (a | b);`), which rustc flags as
+// unnecessary. The attribute passes through verbatim; we must not edit crustyc.
+#[allow(unused_parens)]
+void main() {
+    // Combine flags with bitwise OR.
+    let combined = FLAG_A | FLAG_B;
+
+    // Test membership with bitwise AND.
+    let has_a = (combined & FLAG_A) != 0;
+    let has_b = (combined & FLAG_B) != 0;
+    let has_c = (combined & FLAG_C) != 0;
+
+    println!(
+        "combined={} has_a={} has_b={} has_c={}",
+        combined, has_a, has_b, has_c
+    );
+}

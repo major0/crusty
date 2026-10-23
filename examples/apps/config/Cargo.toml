@@ -1,0 +1,20 @@
+# Example application: a Crusty program that links the real `toml` + `serde`
+# cargo crates. This is an integration test — built and run locally and in
+# GitHub PR CI, NOT in pre-commit. See docs/adr/0005-example-apps-integration-tests.md.
+[package]
+name = "crusty-app-config"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Crusty example app linking the toml + serde crates (integration test)"
+
+[[bin]]
+name = "crusty-app-config"
+path = "src/main.rs"
+
+[dependencies]
+toml = "0.8"
+serde = { version = "1", features = ["derive"] }
+
+[build-dependencies]
+crustyc = { path = "../../.." }
