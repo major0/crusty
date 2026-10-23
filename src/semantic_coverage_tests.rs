@@ -787,4 +787,121 @@ mod tests {
 
         assert!(result.is_ok());
     }
+
+    // ------------------------------------------------------------------
+    // SEM-05: StructInit field-name / field-type / completeness checking
+    // ------------------------------------------------------------------
+
+    // Build a `struct Point { int x; int y; }` plus a `void main()` whose body
+    // is `let p = Point { <fields> };`, so the struct is registered and the
+    // initializer is analysed.
+    fn point_program(init_fields: Vec<(Ident, Expression)>) -> File {
+        let point = Item::Struct(Struct {
+            visibility: Visibility::Public,
+            name: Ident::new("Point"),
+            fields: vec![
+                Field {
+                    visibility: Visibility::Public,
+                    name: Ident::new("x"),
+                    ty: Type::Primitive(PrimitiveType::Int),
+                    doc_comments: vec![],
+                    attributes: vec![],
+                },
+                Field {
+                    visibility: Visibility::Public,
+                    name: Ident::new("y"),
+                    ty: Type::Primitive(PrimitiveType::Int),
+                    doc_comments: vec![],
+                    attributes: vec![],
+                },
+            ],
+            methods: vec![],
+            doc_comments: vec![],
+            attributes: vec![],
+        });
+
+        let main = Item::Function(Function {
+            visibility: Visibility::Public,
+            name: Ident::new("main"),
+            params: vec![],
+            return_type: None,
+            body: Some(Block::new(vec![Statement::Let {
+                name: Ident::new("p"),
+                ty: None,
+                init: Some(Expression::StructInit {
+                    ty: Type::Ident(Ident::new("Point")),
+                    fields: init_fields,
+                }),
+                mutable: false,
+            }])),
+            is_variadic: false,
+            doc_comments: vec![],
+            attributes: vec![],
+        });
+
+        create_file_with_items(vec![point, main])
+    }
+
+    #[test]
+    fn test_struct_init_all_fields_valid() {
+        let mut analyzer = SemanticAnalyzer::new();
+        let file = point_program(vec![
+            (Ident::new("x"), Expression::Literal(Literal::Int(1))),
+            (Ident::new("y"), Expression::Literal(Literal::Int(2))),
+        ]);
+        let result = analyzer.analyze(&file);
+        assert!(result.is_ok(), "fully-initialised struct must pass: {:?}", result);
+    }
+
+    #[test]
+    fn test_struct_init_unknown_field() {
+        let mut analyzer = SemanticAnalyzer::new();
+        let file = point_program(vec![
+            (Ident::new("x"), Expression::Literal(Literal::Int(1))),
+            (Ident::new("y"), Expression::Literal(Literal::Int(2))),
+            (Ident::new("z"), Expression::Literal(Literal::Int(3))),
+        ]);
+        let result = analyzer.analyze(&file);
+        assert!(result.is_err(), "unknown field must be rejected");
+        assert!(result
+            .unwrap_err()
+            .iter()
+            .any(|e| e.kind == SemanticErrorKind::InvalidOperation
+                && e.message.contains("unknown field 'z'")));
+    }
+
+    #[test]
+    fn test_struct_init_missing_field() {
+        let mut analyzer = SemanticAnalyzer::new();
+        let file = point_program(vec![(
+            Ident::new("x"),
+            Expression::Literal(Literal::Int(1)),
+        )]);
+        let result = analyzer.analyze(&file);
+        assert!(result.is_err(), "missing field must be rejected");
+        assert!(result
+            .unwrap_err()
+            .iter()
+            .any(|e| e.kind == SemanticErrorKind::InvalidOperation
+                && e.message.contains("missing field 'y'")));
+    }
+
+    #[test]
+    fn test_struct_init_field_type_mismatch() {
+        let mut analyzer = SemanticAnalyzer::new();
+        let file = point_program(vec![
+            (Ident::new("x"), Expression::Literal(Literal::Int(1))),
+            (
+                Ident::new("y"),
+                Expression::Literal(Literal::String("nope".to_string())),
+            ),
+        ]);
+        let result = analyzer.analyze(&file);
+        assert!(result.is_err(), "field type mismatch must be rejected");
+        assert!(result
+            .unwrap_err()
+            .iter()
+            .any(|e| e.kind == SemanticErrorKind::TypeMismatch
+                && e.message.contains("struct field 'y'")));
+    }
 }

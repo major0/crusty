@@ -2001,14 +2001,80 @@ impl SemanticAnalyzer {
             }
 
             Expression::StructInit { ty, fields } => {
-                // Analyze field initializers
-                for (_, field_expr) in fields {
-                    self.analyze_expression(field_expr);
+                // Analyze every initializer so errors inside them are reported,
+                // keeping each value's inferred type for field-type checking.
+                let init_types: Vec<(String, Type)> = fields
+                    .iter()
+                    .map(|(name, expr)| (name.name.clone(), self.analyze_expression(expr)))
+                    .collect();
+
+                // SEM-05: when `ty` names a known struct, check the initializer
+                // against its declared fields: unknown field names, field-type
+                // mismatches, and missing (uninitialised) fields. When the type
+                // is unknown (generic, imported, not yet registered) we pass
+                // through — Crusty is a syntax layer and rustc is the arbiter.
+                let resolved = self.type_env.resolve_type(ty);
+                if let Type::Ident(type_ident) = &resolved {
+                    if let Some(TypeKind::Struct { fields: decl_fields }) =
+                        self.type_env.get_type(&type_ident.name).map(|t| t.kind.clone())
+                    {
+                        // Each provided field must exist, and its value type
+                        // must be compatible with the declared field type.
+                        for (fname, ftype) in &init_types {
+                            match decl_fields.iter().find(|(dname, _)| dname == fname) {
+                                Some((_, decl_ty)) => {
+                                    // Skip Auto (unknown) values — rustc checks those.
+                                    if !matches!(ftype, Type::Auto)
+                                        && !self.type_env.is_compatible(decl_ty, ftype)
+                                    {
+                                        self.errors.push(SemanticError::new(
+                                            Span::new(
+                                                crate::error::Position::new(0, 0),
+                                                crate::error::Position::new(0, 0),
+                                            ),
+                                            SemanticErrorKind::TypeMismatch,
+                                            format!(
+                                                "struct field '{}' expects {:?}, found {:?}",
+                                                fname, decl_ty, ftype
+                                            ),
+                                        ));
+                                    }
+                                }
+                                None => {
+                                    self.errors.push(SemanticError::new(
+                                        Span::new(
+                                            crate::error::Position::new(0, 0),
+                                            crate::error::Position::new(0, 0),
+                                        ),
+                                        SemanticErrorKind::InvalidOperation,
+                                        format!(
+                                            "unknown field '{}' in initializer for struct '{}'",
+                                            fname, type_ident.name
+                                        ),
+                                    ));
+                                }
+                            }
+                        }
+
+                        // Every declared field must be initialised.
+                        for (dname, _) in &decl_fields {
+                            if !init_types.iter().any(|(fname, _)| fname == dname) {
+                                self.errors.push(SemanticError::new(
+                                    Span::new(
+                                        crate::error::Position::new(0, 0),
+                                        crate::error::Position::new(0, 0),
+                                    ),
+                                    SemanticErrorKind::InvalidOperation,
+                                    format!(
+                                        "missing field '{}' in initializer for struct '{}'",
+                                        dname, type_ident.name
+                                    ),
+                                ));
+                            }
+                        }
+                    }
                 }
 
-                // If type is Auto, try to infer from context
-                // For now, just return the type as-is
-                // TODO: Implement type inference from context
                 ty.clone()
             }
 
