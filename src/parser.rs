@@ -1207,8 +1207,14 @@ peg::parser! {
         /// otherwise "Type::method()" would try to parse "Type" as an identifier
         /// and then fail on "::"
         pub rule primary() -> Expression
+            = primary_inner(true)
+
+        /// Primary, parameterised by whether a bare struct literal is allowed in
+        /// its atom (see `atom_inner`). `allow_struct=false` is used for the
+        /// for-in iterable so `Ident {` reads as iterable-then-body.
+        rule primary_inner(allow_struct: bool) -> Expression
             = type_scoped_call()
-            / postfix_expr()
+            / postfix_expr_inner(allow_struct)
 
         // ====================================================================
         // EXPRESSION GRAMMAR WITH PRECEDENCE (Task 4.5)
@@ -1238,7 +1244,16 @@ peg::parser! {
         /// Handles all operators with correct precedence and associativity
         ///
         /// Requirements validated: 1.6, 6.8, 6.16
-        pub rule expr() -> Expression = precedence!{
+        pub rule expr() -> Expression = e:expr_inner(true) { e }
+
+        /// The full expression precedence table, parameterised by whether a bare
+        /// struct literal is allowed in the base atom. `allow_struct=true` is the
+        /// normal expression; `allow_struct=false` is the for-in iterable, where
+        /// a bare `Ident { … }` would be ambiguous with the loop body. The flag
+        /// is threaded to the single `primary_inner` base case, so the whole
+        /// binary/comparison/logical/range tree is shared (no duplicated table)
+        /// and `for x in a + b { }` parses with no parens.
+        rule expr_inner(allow_struct: bool) -> Expression = precedence!{
             // Level 1: Comma operator (lowest precedence, left-associative)
             // Used in for-loop increments: i++, j--
             l:(@) _ "," _ r:@ {
@@ -1568,7 +1583,7 @@ peg::parser! {
             }
             --
             // Level 15: Primary expressions (highest precedence)
-            e:primary() { e }
+            e:primary_inner(allow_struct) { e }
         }
 
         /// Assignment expression: all operators except comma
@@ -2198,30 +2213,15 @@ peg::parser! {
         /// The iterable is parsed through the struct-literal-free atom tier
         /// (`allow_struct=false`), so a bare `Ident {` reads as "`Ident` is the
         /// iterable, `{` begins the loop body" — covering `for x in coll { }`
-        /// (empty body), ranges (`0..n`), calls and method chains. A
-        /// parenthesised expression (including a parenthesised struct literal)
-        /// is reached via the normal `expr()` fallback, since `(` is
-        /// unambiguous.
+        /// The iterable is the full expression precedence table parsed through
+        /// the struct-literal-free atom tier (`expr_inner(false)`), so every
+        /// expression form — ranges (`0..n`), binary arithmetic (`a + b`),
+        /// comparisons, calls, method chains, field access — parses with no
+        /// parens, while a bare `Ident {` reads as "`Ident` is the iterable,
+        /// `{` begins the loop body". A struct literal must be parenthesised:
+        /// `for p in (Point { x: 1 }) { }`, reached because `(` is unambiguous.
         rule for_in_iter() -> Expression
-            = e:range_expr_ns() { e }
-            / e:binary_ns() { e }
-
-        /// Struct-free range expression for the iterable (`start..end`,
-        /// `start..=end`, and open-ended forms), with struct-free operands.
-        rule range_expr_ns() -> Expression
-            = _ start:binary_ns()? _ ".." inclusive:"="? _ end:binary_ns()? _ {
-                Expression::Range {
-                    start: start.map(Box::new),
-                    end: end.map(Box::new),
-                    inclusive: inclusive.is_some(),
-                }
-            }
-
-        /// Struct-free binary/primary expression for the iterable: reuses the
-        /// struct-free primary tier, so struct literals are excluded but calls,
-        /// field access, indexing, parenthesised forms and literals all parse.
-        rule binary_ns() -> Expression
-            = range_primary_inner(false)
+            = e:expr_inner(false) { e }
 
         /// Switch statement: multi-way branch
         /// Syntax: switch (expr) { case value: { body } ... [default: { body }] }
@@ -11629,6 +11629,9 @@ mod control_flow_tests {
             ("for i in 0..=10 { }", "inclusive range"),
             ("for e in m.iter() { }", "method call"),
             ("for v in data.values { }", "field access"),
+            ("for i in 0..n + 1 { }", "range with binary end operand"),
+            ("for x in a + b { }", "binary addition iterable"),
+            ("for x in lo * 2 .. hi - 1 { }", "range with binary operands both sides"),
             ("for x in (Point { x: 1 }) { }", "parenthesised struct literal"),
         ];
         for (src, label) in cases {
