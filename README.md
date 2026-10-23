@@ -255,90 +255,18 @@ The example demonstrates all major Crusty features and is automatically tested i
 
 ## Development
 
-### Running Tests
-```bash
-cargo test
-```
+Developer setup, the full test/format/lint workflow, pre-commit hooks, the
+CI/CD workflow architecture, and the release process are documented in
+**[CONTRIBUTING.md](CONTRIBUTING.md)**.
 
-### Code Formatting
-```bash
-cargo fmt
-```
-
-### Linting
-```bash
-cargo clippy
-```
-
-### Pre-commit Hooks
-
-Install pre-commit hooks for automatic code quality checks:
+Quick start for contributors:
 
 ```bash
-pip install pre-commit
-pre-commit install
+cargo test          # run the test suite
+cargo fmt           # format
+cargo clippy        # lint
+crusty test         # run a Crusty project's tests via the cargo harness
 ```
-
-The hooks will automatically run:
-- Crusty syntax validation on `.crst` files
-- Rust formatting checks on `.rs` files
-- Clippy linting on `.rs` files
-
-## CI/CD Workflows
-
-The project uses a modular CI/CD architecture with GitHub Actions workflows organized into component workflows and entry-point workflows.
-
-### Component Workflows
-
-Reusable workflows that can be called from other workflows:
-
-- **pre-commit.yml** - Validates pre-commit hooks
-- **format.yml** - Checks code formatting with rustfmt
-- **security-audit.yml** - Runs cargo-audit for security vulnerabilities
-- **lint.yml** - Runs clippy for code quality
-- **build.yml** - Builds the project (supports multiple platforms)
-- **unit-tests.yml** - Runs unit tests
-- **property-tests.yml** - Runs property-based tests
-- **coverage.yml** - Measures code coverage and enforces thresholds
-- **release-tag.yml** - Creates release candidate tags
-- **changelog.yml** - Generates changelog between releases
-- **version-alias-tags.yml** - Updates version alias tags (vX, vX.Y)
-
-### Entry-Point Workflows
-
-Workflows triggered by GitHub events:
-
-- **pull-request-default.yml** - Runs on PRs to main branch
-  - Executes all quality checks in parallel
-  - Builds on multiple platforms (Linux, macOS, Windows)
-  - Runs tests and enforces 90% coverage thresholds
-
-- **release-candidate.yml** - Runs on pushes to release/vX.Y branches
-  - Validates issue references in commits
-  - Runs full CI checks
-  - Creates release candidate tags (vX.Y.Z-rcN)
-
-- **release-publish.yml** - Runs on version tags (vX.Y.Z)
-  - Verifies tag placement and version ancestry
-  - Runs full CI checks
-  - Builds release artifacts for all platforms
-  - Generates changelog
-  - Creates GitHub release
-  - Updates version alias tags
-
-### Shell Scripts
-
-All workflow scripts are extracted to `.github/scripts/` for maintainability and testability. Scripts follow strict POSIX compliance standards documented in [.github/scripts/README.md](.github/scripts/README.md).
-
-**Available scripts:**
-- `validate-issue-reference.sh` - Validates PR commit issue references
-- `verify-release-tag.sh` - Verifies release tag placement and ancestry
-- `create-rc-tag.sh` - Creates release candidate tags
-- `update-version-alias.sh` - Updates version alias tags
-- `generate-changelog.sh` - Generates changelog between releases
-- `check-coverage.sh` - Checks coverage against thresholds
-
-See [.github/scripts/README.md](.github/scripts/README.md) for detailed script documentation.
 
 ## Documentation
 
@@ -357,7 +285,7 @@ See [.github/scripts/README.md](.github/scripts/README.md) for detailed script d
 
 ### Contributing
 - **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to the project
-- **[Development Workflow](#development)** - Running tests, formatting, linting
+- **[Development Workflow](CONTRIBUTING.md#development-workflow)** - Running tests, formatting, linting
 
 ### Design &amp; Architecture
 - **[Architecture Overview](docs/architecture/overview.md)** - Compiler pipeline and component design
@@ -367,38 +295,9 @@ See [.github/scripts/README.md](.github/scripts/README.md) for detailed script d
 
 ## Contributing
 
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-### Development Workflow
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Ensure all tests pass: `cargo test`
-5. Format code: `cargo fmt`
-6. Check for warnings: `cargo clippy`
-7. Commit using [Conventional Commits](https://www.conventionalcommits.org/) format
-8. Submit a pull request
-
-### Commit Message Format
-```
-type(scope): subject
-
-body
-
-footer
-```
-
-Types: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`
-
-Example:
-```
-feat(parser): add support for labeled loops
-
-Implemented parsing for labeled loops with .label: syntax.
-Translates to Rust's 'label: syntax.
-
-Validates: Requirements 6.13, 6.14, 6.15
-```
+Contributions are welcome! See **[CONTRIBUTING.md](CONTRIBUTING.md)** for the
+development workflow, branch and commit conventions, testing and CI
+expectations, and the review and release process.
 
 ## License
 
