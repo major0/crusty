@@ -165,7 +165,10 @@ mod tests {
         };
 
         let result_type = analyzer.analyze_expression_test(&type_scoped);
-        assert_eq!(result_type, Type::Ident(Ident::new("MyType")));
+        // SEM-02 (ADR-0010): an UNREGISTERED scope type no longer echoes the
+        // scope back — it resolves to Auto (rustc arbitrates), since no method
+        // signature is recorded for `MyType::new`.
+        assert_eq!(result_type, Type::Auto);
     }
 
     #[test]

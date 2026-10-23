@@ -1039,4 +1039,163 @@ mod tests {
             result
         );
     }
+
+    // ------------------------------------------------------------------
+    // SEM-00 (ADR-0010): method-signature typing for MethodCall / TypeScopedCall
+    // ------------------------------------------------------------------
+
+    /// A `Point` struct with an instance method `scaled(self, int) -> Point`
+    /// and an associated method `make() -> Point`.
+    fn point_with_methods() -> Item {
+        Item::Struct(Struct {
+            visibility: Visibility::Public,
+            name: Ident::new("Point"),
+            fields: vec![Field {
+                visibility: Visibility::Public,
+                name: Ident::new("x"),
+                ty: Type::Primitive(PrimitiveType::Int),
+                doc_comments: vec![],
+                attributes: vec![],
+            }],
+            methods: vec![
+                Function {
+                    visibility: Visibility::Public,
+                    name: Ident::new("scaled"),
+                    params: vec![
+                        Param {
+                            name: Ident::new("self"),
+                            ty: Type::Ident(Ident::new("Self")),
+                        },
+                        Param {
+                            name: Ident::new("factor"),
+                            ty: Type::Primitive(PrimitiveType::Int),
+                        },
+                    ],
+                    return_type: Some(Type::Ident(Ident::new("Point"))),
+                    body: Some(Block::new(vec![])),
+                    is_variadic: false,
+                    doc_comments: vec![],
+                    attributes: vec![],
+                },
+                Function {
+                    visibility: Visibility::Public,
+                    name: Ident::new("make"),
+                    params: vec![],
+                    return_type: Some(Type::Ident(Ident::new("Point"))),
+                    body: Some(Block::new(vec![])),
+                    is_variadic: false,
+                    doc_comments: vec![],
+                    attributes: vec![],
+                },
+                Function {
+                    visibility: Visibility::Public,
+                    name: Ident::new("origin_x"),
+                    params: vec![],
+                    return_type: Some(Type::Primitive(PrimitiveType::Int)),
+                    body: Some(Block::new(vec![])),
+                    is_variadic: false,
+                    doc_comments: vec![],
+                    attributes: vec![],
+                },
+            ],
+            doc_comments: vec![],
+            attributes: vec![],
+        })
+    }
+
+    // A StructInit of Point types to Type::Ident("Point"), giving a known
+    // struct receiver without any symbol-table setup.
+    fn point_value() -> Expression {
+        Expression::StructInit {
+            ty: Type::Ident(Ident::new("Point")),
+            fields: vec![(Ident::new("x"), Expression::Literal(Literal::Int(0)))],
+            base: None,
+        }
+    }
+
+    #[test]
+    fn test_method_call_returns_declared_return_type() {
+        let mut analyzer = SemanticAnalyzer::new();
+        // Register the struct (and its method signatures) via a file analysis.
+        let _ = analyzer.analyze(&create_file_with_items(vec![point_with_methods()]));
+
+        // `Point{..}.scaled(2)` resolves the instance method's return type.
+        let call = Expression::MethodCall {
+            receiver: Box::new(point_value()),
+            method: Ident::new("scaled"),
+            args: vec![Expression::Literal(Literal::Int(2))],
+        };
+        let ty = analyzer.analyze_expression_test(&call);
+        assert_eq!(ty, Type::Ident(Ident::new("Point")));
+    }
+
+    #[test]
+    fn test_method_call_unknown_method_on_known_struct_errors() {
+        let mut analyzer = SemanticAnalyzer::new();
+        let _ = analyzer.analyze(&create_file_with_items(vec![point_with_methods()]));
+        let before = analyzer.errors().len();
+
+        let call = Expression::MethodCall {
+            receiver: Box::new(point_value()),
+            method: Ident::new("bogus"),
+            args: vec![],
+        };
+        let ty = analyzer.analyze_expression_test(&call);
+        assert_eq!(ty, Type::Auto);
+        let new_errors: Vec<_> = analyzer.errors()[before..]
+            .iter()
+            .filter(|e| e.message.contains("no method 'bogus' on type 'Point'"))
+            .collect();
+        assert_eq!(new_errors.len(), 1, "expected exactly one missing-method error");
+    }
+
+    #[test]
+    fn test_method_call_on_non_struct_receiver_is_auto() {
+        let mut analyzer = SemanticAnalyzer::new();
+        let _ = analyzer.analyze(&create_file_with_items(vec![point_with_methods()]));
+        let before = analyzer.errors().len();
+
+        // Receiver is an integer literal — not a struct. Pass through as Auto,
+        // no error (rustc arbitrates methods on built-in types).
+        let call = Expression::MethodCall {
+            receiver: Box::new(Expression::Literal(Literal::Int(1))),
+            method: Ident::new("scaled"),
+            args: vec![],
+        };
+        let ty = analyzer.analyze_expression_test(&call);
+        assert_eq!(ty, Type::Auto);
+        assert_eq!(analyzer.errors().len(), before, "must not push an error");
+    }
+
+    #[test]
+    fn test_type_scoped_call_returns_declared_return_type() {
+        let mut analyzer = SemanticAnalyzer::new();
+        let _ = analyzer.analyze(&create_file_with_items(vec![point_with_methods()]));
+
+        // `Point::origin_x()` returns the associated method's DECLARED return
+        // type (int) — proving SEM-02 returns the signature's return rather
+        // than echoing the scope type (Point), which the old code did.
+        let call = Expression::TypeScopedCall {
+            ty: Type::Ident(Ident::new("Point")),
+            method: Ident::new("origin_x"),
+            args: vec![],
+        };
+        let ty = analyzer.analyze_expression_test(&call);
+        assert_eq!(ty, Type::Primitive(PrimitiveType::Int));
+    }
+
+    #[test]
+    fn test_type_scoped_call_unknown_type_is_auto() {
+        let mut analyzer = SemanticAnalyzer::new();
+        let before = analyzer.errors().len();
+        // Unknown type: must return Auto (NOT echo the scope type) and not error.
+        let call = Expression::TypeScopedCall {
+            ty: Type::Ident(Ident::new("Nonexistent")),
+            method: Ident::new("make"),
+            args: vec![],
+        };
+        let ty = analyzer.analyze_expression_test(&call);
+        assert_eq!(ty, Type::Auto);
+        assert_eq!(analyzer.errors().len(), before, "must not push an error");
+    }
 }

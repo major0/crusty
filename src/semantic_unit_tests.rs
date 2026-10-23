@@ -247,6 +247,7 @@ mod tests {
                     ("x".to_string(), Type::Primitive(PrimitiveType::I32)),
                     ("y".to_string(), Type::Primitive(PrimitiveType::I32)),
                 ],
+                methods: vec![],
             },
         );
 
@@ -257,7 +258,7 @@ mod tests {
         assert_eq!(found.unwrap().name, "Point");
 
         match &found.unwrap().kind {
-            TypeKind::Struct { fields } => {
+            TypeKind::Struct { fields, .. } => {
                 assert_eq!(fields.len(), 2);
                 assert_eq!(fields[0].0, "x");
                 assert_eq!(fields[1].0, "y");
@@ -455,7 +456,13 @@ mod tests {
         assert_eq!(primitive.name, "int");
         assert!(matches!(primitive.kind, TypeKind::Primitive));
 
-        let struct_type = TypeInfo::new("Point".to_string(), TypeKind::Struct { fields: vec![] });
+        let struct_type = TypeInfo::new(
+            "Point".to_string(),
+            TypeKind::Struct {
+                fields: vec![],
+                methods: vec![],
+            },
+        );
         assert!(matches!(struct_type.kind, TypeKind::Struct { .. }));
 
         let enum_type = TypeInfo::new("Color".to_string(), TypeKind::Enum { variants: vec![] });

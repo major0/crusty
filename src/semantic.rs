@@ -158,9 +158,25 @@ impl Default for SymbolTable {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeKind {
     Primitive,
-    Struct { fields: Vec<(String, Type)> },
+    Struct {
+        fields: Vec<(String, Type)>,
+        /// Method signatures recorded by owning type (SEM-00, ADR-0010).
+        methods: Vec<MethodSig>,
+    },
     Enum { variants: Vec<String> },
     Alias { target: Type },
+}
+
+/// A struct method's signature, recorded so `MethodCall` (SEM-01) and
+/// `TypeScopedCall` (SEM-02) can resolve a declared return type (ADR-0010).
+/// `params` holds the non-`self` parameter types in order; `is_instance` is
+/// true when the method's first AST parameter is named `self`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MethodSig {
+    pub name: String,
+    pub params: Vec<Type>,
+    pub return_type: Type,
+    pub is_instance: bool,
 }
 
 /// Type information stored in the type environment
@@ -700,7 +716,38 @@ impl SemanticAnalyzer {
             .map(|f| (f.name.name.clone(), f.ty.clone()))
             .collect();
 
-        let type_info = TypeInfo::new(struct_def.name.name.clone(), TypeKind::Struct { fields });
+        // SEM-00 (ADR-0010): record each method's signature keyed by this type.
+        // An instance method is one whose first parameter is named `self`
+        // (codegen's existing convention); its `self` param is excluded from
+        // the recorded parameter list. A void/omitted return is recorded as
+        // Type::Auto so a downstream caller types it as unknown, not as unit.
+        let methods: Vec<MethodSig> = struct_def
+            .methods
+            .iter()
+            .map(|m| {
+                let is_instance = m
+                    .params
+                    .first()
+                    .is_some_and(|p| p.name.name == "self");
+                let params: Vec<Type> = m
+                    .params
+                    .iter()
+                    .skip(if is_instance { 1 } else { 0 })
+                    .map(|p| p.ty.clone())
+                    .collect();
+                MethodSig {
+                    name: m.name.name.clone(),
+                    params,
+                    return_type: m.return_type.clone().unwrap_or(Type::Auto),
+                    is_instance,
+                }
+            })
+            .collect();
+
+        let type_info = TypeInfo::new(
+            struct_def.name.name.clone(),
+            TypeKind::Struct { fields, methods },
+        );
 
         self.type_env
             .register_type(struct_def.name.name.clone(), type_info);
@@ -1826,7 +1873,7 @@ impl SemanticAnalyzer {
                     Type::Ident(ref type_ident) => {
                         if let Some(type_info) = self.type_env.get_type(&type_ident.name) {
                             match &type_info.kind {
-                                TypeKind::Struct { fields } => {
+                                TypeKind::Struct { fields, .. } => {
                                     if let Some((_, field_type)) =
                                         fields.iter().find(|(name, _)| name == &field.name)
                                     {
@@ -2070,7 +2117,7 @@ impl SemanticAnalyzer {
                 // through — Crusty is a syntax layer and rustc is the arbiter.
                 let resolved = self.type_env.resolve_type(ty);
                 if let Type::Ident(type_ident) = &resolved {
-                    if let Some(TypeKind::Struct { fields: decl_fields }) =
+                    if let Some(TypeKind::Struct { fields: decl_fields, .. }) =
                         self.type_env.get_type(&type_ident.name).map(|t| t.kind.clone())
                     {
                         // Each provided field must exist, and its value type
@@ -2249,32 +2296,77 @@ impl SemanticAnalyzer {
 
             Expression::MethodCall {
                 receiver,
-                method: _,
+                method,
                 args,
             } => {
-                let _receiver_type = self.analyze_expression(receiver);
+                let receiver_type = self.analyze_expression(receiver);
 
-                // Analyze arguments
+                // Analyze arguments (their own errors still fire).
                 for arg in args {
                     self.analyze_expression(arg);
                 }
 
-                // Method call type checking is simplified for now
+                // SEM-01 (ADR-0010): if the receiver resolves to a known struct,
+                // look up an instance method by name and return its declared
+                // return type. A known struct with no such instance method is an
+                // error; any other receiver (Auto, reference/pointer, generic,
+                // built-in, __rust__ type) passes through as Auto — rustc
+                // arbitrates autoref/deref and trait methods.
+                let resolved = self.type_env.resolve_type(&receiver_type);
+                if let Type::Ident(type_ident) = &resolved {
+                    if let Some(TypeKind::Struct { methods, .. }) =
+                        self.type_env.get_type(&type_ident.name).map(|t| t.kind.clone())
+                    {
+                        match methods
+                            .iter()
+                            .find(|m| m.is_instance && m.name == method.name)
+                        {
+                            Some(sig) => return sig.return_type.clone(),
+                            None => {
+                                self.errors.push(SemanticError::new(
+                                    Span::new(
+                                        crate::error::Position::new(0, 0),
+                                        crate::error::Position::new(0, 0),
+                                    ),
+                                    SemanticErrorKind::InvalidOperation,
+                                    format!(
+                                        "no method '{}' on type '{}'",
+                                        method.name, type_ident.name
+                                    ),
+                                ));
+                                return Type::Auto;
+                            }
+                        }
+                    }
+                }
                 Type::Auto
             }
 
             Expression::TypeScopedCall {
                 ty,
-                method: _,
+                method,
                 args,
             } => {
-                // Analyze arguments
+                // Analyze arguments.
                 for arg in args {
                     self.analyze_expression(arg);
                 }
 
-                // Type-scoped call returns the type (simplified)
-                ty.clone()
+                // SEM-02 (ADR-0010): return the named method's declared return
+                // type instead of echoing the scope type. A `Type::m()` call
+                // names the method by path, so match either an associated or an
+                // instance method. Unknown type or no such method -> Auto.
+                let resolved = self.type_env.resolve_type(ty);
+                if let Type::Ident(type_ident) = &resolved {
+                    if let Some(TypeKind::Struct { methods, .. }) =
+                        self.type_env.get_type(&type_ident.name).map(|t| t.kind.clone())
+                    {
+                        if let Some(sig) = methods.iter().find(|m| m.name == method.name) {
+                            return sig.return_type.clone();
+                        }
+                    }
+                }
+                Type::Auto
             }
 
             Expression::ExplicitGenericCall {

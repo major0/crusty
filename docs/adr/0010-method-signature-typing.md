@@ -1,7 +1,7 @@
 # ADR-0010: Method-signature typing (SEM-00)
 
 ## Status
-proposed
+accepted
 
 ## Context
 ADR-0009 moved SEM-01 (`MethodCall` return typing) and SEM-02 (`TypeScopedCall`
