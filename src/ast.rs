@@ -564,6 +564,15 @@ pub enum Literal {
     Char(char),
     Bool(bool),
     Null,
+    /// A literal whose exact source text must survive to rustc unchanged:
+    /// non-decimal integers (`0xFF`, `0o17`, `0b1010`), digit separators
+    /// (`1_000`), numeric type suffixes (`0u8`, `2.5f32`), and raw / byte
+    /// strings (`r"..."`, `b"..."`). Crusty is a syntax layer (ADR-0001): these
+    /// forms are valid Rust as written, so the text is passed through verbatim
+    /// rather than round-tripped through i64/f64 (which would drop the radix,
+    /// the separators, and — critically — the type suffix). Codegen emits the
+    /// stored string as-is.
+    Raw(String),
 }
 
 /// Identifier

@@ -338,19 +338,61 @@ peg::parser! {
         /// Integer literal: one or more decimal digits
         /// Returns Literal::Int
         pub rule int_literal() -> Literal
-            = n:$(['0'..='9']+) {
+            // PS-03/PS-04: non-decimal radix, digit separators, and integer
+            // type suffixes are kept verbatim (Literal::Raw) — the forms below
+            // are already valid Rust, and round-tripping through i64 would drop
+            // the radix, the `_` separators, and the type suffix. Ordered before
+            // the plain-decimal arm so the leading `0` of `0xFF` is not eaten.
+            = s:$("0x" ['0'..='9' | 'a'..='f' | 'A'..='F' | '_']+ int_suffix()?) {
+                Literal::Raw(s.to_string())
+            }
+            / s:$("0o" ['0'..='7' | '_']+ int_suffix()?) {
+                Literal::Raw(s.to_string())
+            }
+            / s:$("0b" ['0' | '1' | '_']+ int_suffix()?) {
+                Literal::Raw(s.to_string())
+            }
+            // Decimal carrying a `_` separator and/or a type suffix -> verbatim.
+            // Each alt structurally requires the distinguishing feature so a
+            // bare run of digits falls through to the plain Literal::Int arm and
+            // existing behaviour is unchanged.
+            //   digits ( _ digits )+  with optional suffix   (has a separator)
+            / s:$(['0'..='9']+ ("_" ['0'..='9']+)+ int_suffix()?) {
+                Literal::Raw(s.to_string())
+            }
+            //   digits suffix                                 (has a suffix)
+            / s:$(['0'..='9']+ int_suffix()) {
+                Literal::Raw(s.to_string())
+            }
+            // Plain decimal integer -> Literal::Int (unchanged).
+            / n:$(['0'..='9']+) {
                 Literal::Int(n.parse().unwrap())
             }
 
+        /// Integer type suffix (PS-04): u8..u128/usize, i8..i128/isize.
+        rule int_suffix()
+            = ['u' | 'i'] ("8" / "16" / "32" / "64" / "128" / "size")
+
         /// Float literal: decimal digits with decimal point
-        /// Returns Literal::Float
+        /// Returns Literal::Float, or Literal::Raw for a suffixed form (PS-04,
+        /// e.g. `2.5f32`) whose suffix fixes the Rust type and must survive.
         pub rule float_literal() -> Literal
-            = n:$(
+            = s:$(
+                (['0'..='9']+ "." ['0'..='9']+ (['e' | 'E'] ['+' | '-']? ['0'..='9']+)? float_suffix())
+                / (['0'..='9']+ ['e' | 'E'] ['+' | '-']? ['0'..='9']+ float_suffix())
+            ) {
+                Literal::Raw(s.to_string())
+            }
+            / n:$(
                 (['0'..='9']+ "." ['0'..='9']+ (['e' | 'E'] ['+' | '-']? ['0'..='9']+)?)
                 / (['0'..='9']+ ['e' | 'E'] ['+' | '-']? ['0'..='9']+)
             ) {
                 Literal::Float(n.parse().unwrap())
             }
+
+        /// Float type suffix (PS-04): f32 / f64.
+        rule float_suffix()
+            = "f32" / "f64"
 
         /// String literal: double-quoted with escape sequences
         /// Returns Literal::String
@@ -358,6 +400,31 @@ peg::parser! {
             = "\"" s:string_content()* "\"" {
                 Literal::String(s.into_iter().collect())
             }
+
+        /// Raw and byte string literals (PS-05): `r"…"`, `r#"…"#`, `b"…"`,
+        /// `br"…"`, `br#"…"#`. Captured VERBATIM as Literal::Raw — a raw string's
+        /// body must not have escapes processed, and a byte string is `&[u8]`
+        /// not `&str`, so neither can round-trip through Literal::String. Hash
+        /// delimiters are supported up to three (`r###"…"###`), which covers
+        /// real use; the body cannot contain the matching `"###` terminator.
+        /// Tried before string_literal/char_literal in `literal()`.
+        pub rule raw_byte_string() -> Literal
+            = s:$(['b']? "r" raw_string_hashes()) { Literal::Raw(s.to_string()) }
+            / s:$("b\"" (escape_sequence_any() / [^ '"' | '\\'])* "\"") {
+                Literal::Raw(s.to_string())
+            }
+
+        /// The `"…"` / `#"…"#` body of a raw string, by hash count (0..=3).
+        rule raw_string_hashes()
+            = "###\"" (!"\"###" [_])* "\"###"
+            / "##\"" (!"\"##" [_])* "\"##"
+            / "#\"" (!"\"#" [_])* "\"#"
+            / "\"" (!"\"" [_])* "\""
+
+        /// Any escape char run, used only to skip over `\"` inside a byte string
+        /// so the terminator is found correctly (the body is kept verbatim).
+        rule escape_sequence_any()
+            = "\\" [_]
 
         /// String content: either an escape sequence or a regular character
         rule string_content() -> char
@@ -373,6 +440,20 @@ peg::parser! {
             / "\\\"" { '"' }
             / "\\'" { '\'' }
             / "\\0" { '\0' }
+            // PS-05: \xNN byte escape and \u{…} unicode escape.
+            / "\\x" h:$(['0'..='9' | 'a'..='f' | 'A'..='F']*<2>) {?
+                u8::from_str_radix(h, 16)
+                    .ok()
+                    .map(|b| b as char)
+                    .ok_or("invalid \\x escape")
+            }
+            / "\\u{" h:$(['0'..='9' | 'a'..='f' | 'A'..='F' | '_']+) "}" {?
+                let cleaned: String = h.chars().filter(|c| *c != '_').collect();
+                u32::from_str_radix(&cleaned, 16)
+                    .ok()
+                    .and_then(char::from_u32)
+                    .ok_or("invalid \\u{…} escape")
+            }
 
         /// Character literal: single-quoted
         /// Returns Literal::Char
@@ -781,6 +862,7 @@ peg::parser! {
         rule literal() -> Literal
             = float_literal()  // Must come before int_literal (longer match)
             / int_literal()
+            / raw_byte_string()  // r"…" / b"…" — before string_literal
             / string_literal()
             / char_literal()
             / bool_literal()
@@ -3418,6 +3500,8 @@ fn const_literal_type(value: &crate::ast::Expression) -> crate::ast::Type {
         Literal::Char(_) => Type::Primitive(PrimitiveType::Char),
         Literal::Bool(_) => Type::Primitive(PrimitiveType::Bool),
         Literal::Null => Type::Primitive(PrimitiveType::I32),
+        // Raw/suffixed literal: its own text fixes the type, so let rustc infer.
+        Literal::Raw(_) => Type::Auto,
     }
 }
 
@@ -3976,6 +4060,69 @@ mod peg_tests {
         assert_eq!(
             crusty_peg_parser::int_literal("123456789"),
             Ok(Literal::Int(123456789))
+        );
+    }
+
+    // PS-03: non-decimal radices and `_` digit separators, kept verbatim.
+    #[test]
+    fn test_peg_int_literal_non_decimal_and_separators() {
+        use crate::ast::Literal::Raw;
+        assert_eq!(crusty_peg_parser::int_literal("0xFF"), Ok(Raw("0xFF".into())));
+        assert_eq!(crusty_peg_parser::int_literal("0xdead_beef"), Ok(Raw("0xdead_beef".into())));
+        assert_eq!(crusty_peg_parser::int_literal("0o17"), Ok(Raw("0o17".into())));
+        assert_eq!(crusty_peg_parser::int_literal("0b1010"), Ok(Raw("0b1010".into())));
+        assert_eq!(crusty_peg_parser::int_literal("1_000_000"), Ok(Raw("1_000_000".into())));
+        // A bare decimal still parses to Int (unchanged).
+        assert_eq!(crusty_peg_parser::int_literal("1000"), Ok(Literal::Int(1000)));
+    }
+
+    // PS-04: integer and float type suffixes, kept verbatim.
+    #[test]
+    fn test_peg_literal_type_suffixes() {
+        use crate::ast::Literal::Raw;
+        assert_eq!(crusty_peg_parser::int_literal("0u8"), Ok(Raw("0u8".into())));
+        assert_eq!(crusty_peg_parser::int_literal("255u8"), Ok(Raw("255u8".into())));
+        assert_eq!(crusty_peg_parser::int_literal("100i64"), Ok(Raw("100i64".into())));
+        assert_eq!(crusty_peg_parser::int_literal("5usize"), Ok(Raw("5usize".into())));
+        assert_eq!(crusty_peg_parser::int_literal("0xFFu8"), Ok(Raw("0xFFu8".into())));
+        assert_eq!(crusty_peg_parser::float_literal("2.5f32"), Ok(Raw("2.5f32".into())));
+        assert_eq!(crusty_peg_parser::float_literal("1.0f64"), Ok(Raw("1.0f64".into())));
+        // Plain float still parses to Float (unchanged).
+        assert_eq!(crusty_peg_parser::float_literal("2.5"), Ok(Literal::Float(2.5)));
+    }
+
+    // PS-05: raw and byte strings, kept verbatim.
+    #[test]
+    fn test_peg_raw_and_byte_strings() {
+        use crate::ast::Literal::Raw;
+        assert_eq!(
+            crusty_peg_parser::raw_byte_string("r\"a\\nb\""),
+            Ok(Raw("r\"a\\nb\"".into()))
+        );
+        assert_eq!(
+            crusty_peg_parser::raw_byte_string("r#\"has \"quote\" inside\"#"),
+            Ok(Raw("r#\"has \"quote\" inside\"#".into()))
+        );
+        assert_eq!(
+            crusty_peg_parser::raw_byte_string("b\"bytes\""),
+            Ok(Raw("b\"bytes\"".into()))
+        );
+        assert_eq!(
+            crusty_peg_parser::raw_byte_string("br\"raw bytes\""),
+            Ok(Raw("br\"raw bytes\"".into()))
+        );
+    }
+
+    // PS-05: \x and \u{…} escapes inside a normal string decode correctly.
+    #[test]
+    fn test_peg_string_hex_and_unicode_escapes() {
+        assert_eq!(
+            crusty_peg_parser::string_literal("\"\\x41\\x42\""),
+            Ok(Literal::String("AB".to_string()))
+        );
+        assert_eq!(
+            crusty_peg_parser::string_literal("\"\\u{1F600}\""),
+            Ok(Literal::String("\u{1F600}".to_string()))
         );
     }
 

@@ -1516,6 +1516,9 @@ impl CodeGenerator {
                 TargetLanguage::Rust => "Option::None".to_string(),
                 TargetLanguage::Crusty => "NULL".to_string(),
             },
+            // Verbatim passthrough: the source already is valid Rust (non-decimal
+            // int, digit separators, numeric suffix, raw/byte string). ADR-0001.
+            Literal::Raw(s) => s.clone(),
         }
     }
 

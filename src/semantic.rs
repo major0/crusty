@@ -1611,6 +1611,10 @@ impl SemanticAnalyzer {
                     },
                     Literal::Char(_) => Type::Primitive(PrimitiveType::Char),
                     Literal::Bool(_) => Type::Primitive(PrimitiveType::Bool),
+                    // A raw/suffixed literal's concrete type (u8, i64, f32,
+                    // &str, &[u8], …) is set by its own text; Crusty is a syntax
+                    // layer, so leave it to rustc and type it as Auto here.
+                    Literal::Raw(_) => Type::Auto,
                     Literal::Null => {
                         // NULL is typed as Option<_> where _ is inferred from context
                         // For now, we'll use a generic Option type
