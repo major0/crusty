@@ -940,6 +940,84 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_namespace_emits_mod() {
+        // namespace Name { fn } → pub mod Name { pub fn }
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let func = Function {
+            visibility: Visibility::Public,
+            name: Ident::new("add".to_string()),
+            params: vec![],
+            return_type: None,
+            body: Block::new(vec![]),
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let ns = Namespace {
+            name: Ident::new("math".to_string()),
+            items: vec![Item::Function(func)],
+            doc_comments: vec![],
+        };
+        let file = File {
+            items: vec![Item::Namespace(ns)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("pub mod math {"), "got: {}", output);
+        assert!(output.contains("pub fn add"), "got: {}", output);
+        assert!(output.trim_end().ends_with('}'), "mod should close: {}", output);
+    }
+
+    #[test]
+    fn test_generate_namespace_nested() {
+        // Nested namespaces produce nested mods.
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let inner = Namespace {
+            name: Ident::new("inner".to_string()),
+            items: vec![],
+            doc_comments: vec![],
+        };
+        let outer = Namespace {
+            name: Ident::new("outer".to_string()),
+            items: vec![Item::Namespace(inner)],
+            doc_comments: vec![],
+        };
+        let file = File {
+            items: vec![Item::Namespace(outer)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("pub mod outer {"), "got: {}", output);
+        assert!(output.contains("pub mod inner {"), "got: {}", output);
+    }
+
+    #[test]
+    fn test_generate_namespace_private_member() {
+        // A static (private) member inside a namespace emits no `pub`.
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let func = Function {
+            visibility: Visibility::Private,
+            name: Ident::new("helper".to_string()),
+            params: vec![],
+            return_type: None,
+            body: Block::new(vec![]),
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let ns = Namespace {
+            name: Ident::new("util".to_string()),
+            items: vec![Item::Function(func)],
+            doc_comments: vec![],
+        };
+        let file = File {
+            items: vec![Item::Namespace(ns)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("    fn helper"), "got: {}", output);
+        assert!(!output.contains("pub fn helper"), "helper should be private: {}", output);
+    }
+
+    #[test]
     fn test_generate_typedef_simple() {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let typedef = Typedef {

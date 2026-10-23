@@ -464,9 +464,23 @@ impl CodeGenerator {
         ));
     }
 
-    fn generate_namespace(&mut self, _namespace: &Namespace) {
-        // Placeholder
-        self.write_line("// TODO: generate_namespace");
+    fn generate_namespace(&mut self, namespace: &Namespace) {
+        // `namespace Name { … }` → `pub mod Name { … }`. Items nest via
+        // generate_item, matching the file-level item loop (blank line between
+        // items, current indentation respected).
+        for comment in &namespace.doc_comments {
+            self.write_line(&format!("///{}", comment));
+        }
+        self.write_line(&format!("pub mod {} {{", namespace.name.name));
+        self.indent();
+        for (i, item) in namespace.items.iter().enumerate() {
+            if i > 0 {
+                self.write_line("");
+            }
+            self.generate_item(item);
+        }
+        self.dedent();
+        self.write_line("}");
     }
 
     fn generate_import(&mut self, import_item: &Import) {

@@ -2801,6 +2801,18 @@ peg::parser! {
                 Item::ConditionalCompilation(ConditionalCompilation { cfg, negated: true, items })
             }
 
+        /// Namespace: a named module grouping a block of items.
+        /// Syntax: namespace Name { <items> }
+        /// Lowers to a Rust `mod Name { … }`. Items nest recursively via `item()`.
+        ///
+        /// Examples:
+        /// - namespace math { int add(int a, int b) { return a + b; } }
+        /// - namespace outer { namespace inner { } }
+        pub rule namespace_def() -> Item
+            = _ kw_namespace() __ name:ident() _ "{" _ items:item()* _ "}" _ {
+                Item::Namespace(Namespace { name, items, doc_comments: Vec::new() })
+            }
+
         /// Macro name: must have double-underscore prefix and suffix
         /// Returns Ident
         ///
@@ -2851,6 +2863,7 @@ peg::parser! {
             = define_def()
             / macro_def()
             / conditional_def()
+            / namespace_def()
             / struct_def()
             / enum_def()
             / typedef_def()
@@ -4494,6 +4507,49 @@ mod item_tests {
             assert_eq!(t.name.name, "MyInt");
         } else {
             panic!("Expected Item::Typedef");
+        }
+    }
+
+    #[test]
+    fn test_peg_item_namespace() {
+        // A namespace groups items into a named module.
+        let result = crusty_peg_parser::item("namespace math { int add(int a, int b) { return a + b; } }");
+        assert!(result.is_ok(), "Failed to parse namespace item: {:?}", result);
+        if let Ok(Item::Namespace(ns)) = result {
+            assert_eq!(ns.name.name, "math");
+            assert_eq!(ns.items.len(), 1, "namespace should hold one item");
+        } else {
+            panic!("Expected Item::Namespace, got: {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_peg_item_namespace_nested() {
+        // Namespaces nest recursively through item().
+        let result = crusty_peg_parser::item("namespace outer { namespace inner { } }");
+        assert!(result.is_ok(), "Failed to parse nested namespace: {:?}", result);
+        if let Ok(Item::Namespace(outer)) = result {
+            assert_eq!(outer.name.name, "outer");
+            assert_eq!(outer.items.len(), 1);
+            assert!(
+                matches!(&outer.items[0], Item::Namespace(inner) if inner.name.name == "inner"),
+                "expected a nested inner namespace"
+            );
+        } else {
+            panic!("Expected nested Item::Namespace, got: {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_peg_item_namespace_empty() {
+        // An empty namespace is valid.
+        let result = crusty_peg_parser::item("namespace empty { }");
+        assert!(result.is_ok(), "Failed to parse empty namespace: {:?}", result);
+        if let Ok(Item::Namespace(ns)) = result {
+            assert_eq!(ns.name.name, "empty");
+            assert!(ns.items.is_empty());
+        } else {
+            panic!("Expected Item::Namespace");
         }
     }
 
