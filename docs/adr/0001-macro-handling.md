@@ -2,7 +2,9 @@
 
 ## Status
 
-accepted
+accepted — invocation-form row superseded by ADR-0002 (the `__name__(…)` call
+form is removed; invocation is the bang form `name!(…)` only). All other
+decisions below stand.
 
 ## Context
 
