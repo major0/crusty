@@ -1018,6 +1018,67 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_extern_c_block() {
+        // extern "C" { int puts(char* s); } → extern "C" { pub fn puts(...) -> i32; }
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let decl = Function {
+            visibility: Visibility::Public,
+            name: Ident::new("puts".to_string()),
+            params: vec![Param {
+                name: Ident::new("s".to_string()),
+                ty: Type::Pointer {
+                    ty: Box::new(Type::Primitive(PrimitiveType::Char)),
+                    mutable: false,
+                },
+            }],
+            return_type: Some(Type::Primitive(PrimitiveType::I32)),
+            body: None,
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let ext = Extern {
+            abi: Some("C".to_string()),
+            items: vec![Item::Function(decl)],
+        };
+        let file = File {
+            items: vec![Item::Extern(ext)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("extern \"C\" {"), "got: {}", output);
+        assert!(output.contains("pub fn puts"), "got: {}", output);
+        // A body-less declaration ends in `;`, never `{ }`.
+        assert!(output.contains(";"), "declaration should end with ';': {}", output);
+        assert!(!output.contains("puts() {"), "should have no body: {}", output);
+    }
+
+    #[test]
+    fn test_generate_extern_default_abi() {
+        // A bare extern (no ABI) emits `extern {`.
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let decl = Function {
+            visibility: Visibility::Public,
+            name: Ident::new("rust_fn".to_string()),
+            params: vec![],
+            return_type: None,
+            body: None,
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let ext = Extern {
+            abi: None,
+            items: vec![Item::Function(decl)],
+        };
+        let file = File {
+            items: vec![Item::Extern(ext)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("extern {"), "got: {}", output);
+        assert!(!output.contains("extern \"\""), "no empty ABI string: {}", output);
+    }
+
+    #[test]
     fn test_generate_typedef_simple() {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let typedef = Typedef {

@@ -521,9 +521,24 @@ impl CodeGenerator {
         self.write_line(";");
     }
 
-    fn generate_extern(&mut self, _extern_block: &Extern) {
-        // Placeholder
-        self.write_line("// TODO: generate_extern");
+    fn generate_extern(&mut self, extern_block: &Extern) {
+        // `extern "ABI" { … }` → Rust extern block. A missing ABI defaults to
+        // Rust's (bare `extern`). The contained items are body-less function
+        // declarations (Function with body: None), emitted via generate_item,
+        // which terminates each with a `;`.
+        match &extern_block.abi {
+            Some(abi) => self.write_line(&format!("extern \"{}\" {{", abi)),
+            None => self.write_line("extern {"),
+        }
+        self.indent();
+        for (i, item) in extern_block.items.iter().enumerate() {
+            if i > 0 {
+                self.write_line("");
+            }
+            self.generate_item(item);
+        }
+        self.dedent();
+        self.write_line("}");
     }
 
     fn generate_const(&mut self, const_item: &Const) {

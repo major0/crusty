@@ -2813,6 +2813,53 @@ peg::parser! {
                 Item::Namespace(Namespace { name, items, doc_comments: Vec::new() })
             }
 
+        /// Extern block: FFI function declarations under an ABI.
+        /// Syntax: extern ["ABI"] { extern_fn_decl* }
+        /// Lowers to a Rust `extern "ABI" { … }` block.
+        ///
+        /// The ABI string is optional (bare `extern` defaults to the Rust ABI).
+        /// Functions inside are body-less declarations (no `{ … }`), using
+        /// Crusty's C-style `return_type name(params);` form.
+        ///
+        /// Examples:
+        /// - extern "C" { int puts(char* s); }
+        /// - extern { void some_rust_fn(); }
+        pub rule extern_block() -> Item
+            = _ kw_extern() _ abi:abi_string()? _ "{" _ items:extern_fn_decl()* _ "}" _ {
+                Item::Extern(Extern { abi, items })
+            }
+
+        /// The ABI string of an extern block, e.g. "C" or "system".
+        rule abi_string() -> String
+            = "\"" s:string_content()* "\"" { s.into_iter().collect() }
+
+        /// A single body-less function declaration inside an extern block.
+        /// Syntax: (void | return_type) name(params) ;
+        /// Produces a public Function with body: None.
+        rule extern_fn_decl() -> Item
+            = _ kw_void() __ name:ident() _ "(" _ params:function_params()? _ ")" _ ";" _ {
+                Item::Function(Function {
+                    visibility: Visibility::Public,
+                    name,
+                    params: params.unwrap_or_default(),
+                    return_type: None,
+                    body: None,
+                    doc_comments: Vec::new(),
+                    attributes: Vec::new(),
+                })
+            }
+            / _ return_type:type_expr() __ name:ident() _ "(" _ params:function_params()? _ ")" _ ";" _ {
+                Item::Function(Function {
+                    visibility: Visibility::Public,
+                    name,
+                    params: params.unwrap_or_default(),
+                    return_type: Some(return_type),
+                    body: None,
+                    doc_comments: Vec::new(),
+                    attributes: Vec::new(),
+                })
+            }
+
         /// Macro name: must have double-underscore prefix and suffix
         /// Returns Ident
         ///
@@ -2864,6 +2911,7 @@ peg::parser! {
             / macro_def()
             / conditional_def()
             / namespace_def()
+            / extern_block()
             / struct_def()
             / enum_def()
             / typedef_def()
@@ -4550,6 +4598,52 @@ mod item_tests {
             assert!(ns.items.is_empty());
         } else {
             panic!("Expected Item::Namespace");
+        }
+    }
+
+    #[test]
+    fn test_peg_item_extern_c() {
+        // An extern "C" block with body-less declarations.
+        let result =
+            crusty_peg_parser::item("extern \"C\" { int puts(char* s); void free(void* ptr); }");
+        assert!(result.is_ok(), "Failed to parse extern block: {:?}", result);
+        if let Ok(Item::Extern(ext)) = result {
+            assert_eq!(ext.abi.as_deref(), Some("C"));
+            assert_eq!(ext.items.len(), 2);
+            // Declarations have no body.
+            if let Item::Function(f) = &ext.items[0] {
+                assert_eq!(f.name.name, "puts");
+                assert!(f.body.is_none(), "extern fn should be body-less");
+            } else {
+                panic!("Expected a function declaration");
+            }
+        } else {
+            panic!("Expected Item::Extern, got: {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_peg_item_extern_default_abi() {
+        // A bare `extern` block has no ABI string.
+        let result = crusty_peg_parser::item("extern { void some_rust_fn(); }");
+        assert!(result.is_ok(), "Failed to parse bare extern: {:?}", result);
+        if let Ok(Item::Extern(ext)) = result {
+            assert_eq!(ext.abi, None);
+            assert_eq!(ext.items.len(), 1);
+        } else {
+            panic!("Expected Item::Extern");
+        }
+    }
+
+    #[test]
+    fn test_peg_item_extern_empty() {
+        let result = crusty_peg_parser::item("extern \"C\" { }");
+        assert!(result.is_ok(), "Failed to parse empty extern: {:?}", result);
+        if let Ok(Item::Extern(ext)) = result {
+            assert_eq!(ext.abi.as_deref(), Some("C"));
+            assert!(ext.items.is_empty());
+        } else {
+            panic!("Expected Item::Extern");
         }
     }
 

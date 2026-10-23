@@ -13,7 +13,6 @@ FFI is essential for systems programming. Crusty preserves Rust's extern block s
 ### C ABI (Most Common)
 ```c
 extern "C" {
-    void printf(char* format, ...);
     int puts(char* s);
     void* malloc(size_t size);
     void free(void* ptr);
@@ -23,12 +22,14 @@ extern "C" {
 Translates to:
 ```rust
 extern "C" {
-    pub fn printf(format: *const i8, ...);
-    pub fn puts(s: *const i8) -> i32;
+    pub fn puts(s: *const char) -> i32;
     pub fn malloc(size: usize) -> *mut ();
     pub fn free(ptr: *mut ());
 }
 ```
+
+> **Variadic functions** (`...`, as in C's `printf`) are not yet implemented.
+> Declare a variadic foreign function with a `__rust__{ }` block for now.
 
 ### Default ABI (Rust)
 ```c
@@ -44,18 +45,6 @@ extern "system" {
 }
 ```
 
-### Using Extern Functions
-```c
-void main() {
-    extern "C" {
-        int getpid();
-    }
-
-    let pid = getpid();
-    println!("Process ID: {}", pid);
-}
-```
-
 ## Supported ABI Strings
 
 All Rust ABI specifications are supported: `"C"`, `"cdecl"`, `"stdcall"`, `"fastcall"`, `"system"`, `"Rust"`, and others. The ABI string is preserved exactly as specified in the generated Rust code.
@@ -63,14 +52,18 @@ All Rust ABI specifications are supported: `"C"`, `"cdecl"`, `"stdcall"`, `"fast
 ## Key Points
 
 - Function declarations inside extern blocks use Crusty syntax (return type before name)
-- The ABI string is optional — omitting it defaults to Rust ABI
+- The ABI string is optional — omitting it defaults to the Rust ABI (bare `extern`)
 - Extern functions are typically unsafe to call in the generated Rust code
-- Extern blocks are supported at module level and inside functions
-- `__rust__{ }` blocks can be used within extern blocks for complex Rust-specific syntax that Crusty cannot express
+- Extern blocks are supported at module (top) level
 
-### Escape Hatch for Complex Signatures
+## Planned
 
-When an extern function signature requires Rust-specific syntax (like function pointers with ABI annotations or static mutable globals), use `__rust__{ }` blocks:
+The following are designed but **not yet implemented**:
+
+- **Variadic parameters** (`...`) in an extern function declaration.
+- **Extern blocks inside a function body** (only module-level extern blocks parse today).
+- **`__rust__{ }` escape hatch inside an extern block**, for signatures Crusty
+  cannot express (function pointers with ABI annotations, `static mut` globals):
 
 ```c
 extern "C" {
@@ -83,15 +76,8 @@ extern "C" {
 }
 ```
 
-The contents of `__rust__{ }` blocks are emitted directly as Rust code without translation.
-
-### Nesting Rules
-
-- `__rust__{ }` within extern — allowed (for complex FFI signatures)
-- extern within `__rust__{ }` at module level — allowed (handled by rustc)
-- extern within extern — disallowed (nested extern blocks)
-- `__rust__{ }` within `__rust__{ }` — disallowed (nested escape hatches)
-- extern within `__rust__{ }` within extern — disallowed (would unwrap to nested extern)
+  With the planned nesting rules: `__rust__{ }` within extern allowed; extern
+  within extern disallowed; nested `__rust__{ }` disallowed.
 
 ## Formal Grammar
 
