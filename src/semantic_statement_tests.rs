@@ -30,6 +30,7 @@ mod tests {
                 ty: Type::Primitive(PrimitiveType::Int),
                 value: Expression::Literal(Literal::Int(42)),
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -53,6 +54,7 @@ mod tests {
                 ty: Type::Primitive(PrimitiveType::Int),
                 value: Expression::Literal(Literal::Bool(true)),
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -85,6 +87,7 @@ mod tests {
                     value: Expression::Literal(Literal::Int(100)),
                 },
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -120,6 +123,7 @@ mod tests {
                     mutable: false,
                 }])),
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -143,6 +147,7 @@ mod tests {
                 then_block: Block::empty(),
                 else_block: None,
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -168,6 +173,7 @@ mod tests {
                 condition: Expression::Literal(Literal::Int(1)),
                 body: Block::empty(),
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -204,6 +210,7 @@ mod tests {
                 },
                 body: Block::empty(),
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -242,6 +249,7 @@ mod tests {
                     body: Block::empty(),
                 },
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -269,6 +277,7 @@ mod tests {
                 }],
                 default: Some(Block::empty()),
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -295,6 +304,7 @@ mod tests {
                 }],
                 default: None,
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -320,6 +330,7 @@ mod tests {
                 condition: Expression::Literal(Literal::Bool(true)),
                 body: Block::new(vec![Statement::Break(None)]),
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -343,6 +354,7 @@ mod tests {
                 condition: Expression::Literal(Literal::Bool(true)),
                 body: Block::new(vec![Statement::Continue(None)]),
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -509,6 +521,7 @@ mod tests {
                 condition: Expression::Literal(Literal::Bool(true)),
                 body: Block::new(vec![Statement::Break(Some(Ident::new("outer")))]),
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -547,6 +560,7 @@ mod tests {
                 },
                 body: Block::new(vec![Statement::Continue(Some(Ident::new("loop1")))]),
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -575,6 +589,7 @@ mod tests {
                 },
                 body: Block::new(vec![Statement::Break(Some(Ident::new("iter")))]),
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -611,6 +626,7 @@ mod tests {
                 ],
                 default: Some(Block::empty()),
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -634,6 +650,7 @@ mod tests {
                 ty: Some(Type::Primitive(PrimitiveType::Int)),
                 init: Some(Expression::Literal(Literal::Int(42))),
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -657,6 +674,7 @@ mod tests {
                 ty: Some(Type::Primitive(PrimitiveType::Int)),
                 init: Some(Expression::Literal(Literal::Bool(true))),
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -696,6 +714,7 @@ mod tests {
                 },
                 body: Block::empty(),
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -724,6 +743,7 @@ mod tests {
                 },
                 body: Block::new(vec![Statement::Expr(Expression::Ident(Ident::new("i")))]),
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -750,6 +770,7 @@ mod tests {
                 }],
                 default: None,
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };

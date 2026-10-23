@@ -2340,6 +2340,7 @@ peg::parser! {
                     params: params.unwrap_or_default(),
                     return_type: None,
                     body: Some(body),
+                    is_variadic: false,
                     doc_comments: Vec::new(),
                     attributes: attrs,
                 })
@@ -2352,6 +2353,7 @@ peg::parser! {
                     params: params.unwrap_or_default(),
                     return_type: Some(return_type),
                     body: Some(body),
+                    is_variadic: false,
                     doc_comments: Vec::new(),
                     attributes: attrs,
                 })
@@ -2364,6 +2366,7 @@ peg::parser! {
                     params: params.unwrap_or_default(),
                     return_type: None,
                     body: Some(body),
+                    is_variadic: false,
                     doc_comments: Vec::new(),
                     attributes: attrs,
                 })
@@ -2376,6 +2379,7 @@ peg::parser! {
                     params: params.unwrap_or_default(),
                     return_type: Some(return_type),
                     body: Some(body),
+                    is_variadic: false,
                     doc_comments: Vec::new(),
                     attributes: attrs,
                 })
@@ -2541,6 +2545,7 @@ peg::parser! {
                     params: params.unwrap_or_default(),
                     return_type: None,
                     body: Some(body),
+                    is_variadic: false,
                     doc_comments: Vec::new(),
                     attributes: attrs,
                 }
@@ -2553,6 +2558,7 @@ peg::parser! {
                     params: params.unwrap_or_default(),
                     return_type: Some(return_type),
                     body: Some(body),
+                    is_variadic: false,
                     doc_comments: Vec::new(),
                     attributes: attrs,
                 }
@@ -2565,6 +2571,7 @@ peg::parser! {
                     params: params.unwrap_or_default(),
                     return_type: None,
                     body: Some(body),
+                    is_variadic: false,
                     doc_comments: Vec::new(),
                     attributes: attrs,
                 }
@@ -2577,6 +2584,7 @@ peg::parser! {
                     params: params.unwrap_or_default(),
                     return_type: Some(return_type),
                     body: Some(body),
+                    is_variadic: false,
                     doc_comments: Vec::new(),
                     attributes: attrs,
                 }
@@ -2868,30 +2876,60 @@ peg::parser! {
             = "\"" s:string_content()* "\"" { s.into_iter().collect() }
 
         /// A single body-less function declaration inside an extern block.
-        /// Syntax: (void | return_type) name(params) ;
+        /// Syntax: (void | return_type) name(params[, ...]) ;
+        /// A trailing `...` marks a C-style variadic (e.g. `printf`).
         /// Produces a public Function with body: None.
         rule extern_fn_decl() -> Item
-            = _ kw_void() __ name:ident() _ "(" _ params:function_params()? _ ")" _ ";" _ {
+            = _ kw_void() __ name:ident() _ "(" _ pv:extern_params() _ ")" _ ";" _ {
                 Item::Function(Function {
                     visibility: Visibility::Public,
                     name,
-                    params: params.unwrap_or_default(),
+                    params: pv.0,
                     return_type: None,
                     body: None,
+                    is_variadic: pv.1,
                     doc_comments: Vec::new(),
                     attributes: Vec::new(),
                 })
             }
-            / _ return_type:type_expr() __ name:ident() _ "(" _ params:function_params()? _ ")" _ ";" _ {
+            / _ return_type:type_expr() __ name:ident() _ "(" _ pv:extern_params() _ ")" _ ";" _ {
                 Item::Function(Function {
                     visibility: Visibility::Public,
                     name,
-                    params: params.unwrap_or_default(),
+                    params: pv.0,
                     return_type: Some(return_type),
                     body: None,
+                    is_variadic: pv.1,
                     doc_comments: Vec::new(),
                     attributes: Vec::new(),
                 })
+            }
+
+        /// Parameter list for an extern declaration: zero or more named
+        /// parameters, with an optional trailing `...` varargs marker.
+        /// Returns (params, is_variadic). Accepts `()`, `(T a, T b)`,
+        /// `(T a, ...)`, and bare `(...)`.
+        ///
+        /// The list is parsed inline rather than via `function_params()`,
+        /// because that rule consumes an optional trailing comma which would
+        /// swallow the separator before `...`.
+        rule extern_params() -> (Vec<Param>, bool)
+            // One or more named params, optionally followed by `, ...`
+            = first:function_param()
+              rest:(_ "," _ p:function_param() { p })*
+              variadic:(_ "," _ "..." { })?
+            {
+                let mut params = vec![first];
+                params.extend(rest);
+                (params, variadic.is_some())
+            }
+            // Bare `...` with no named params
+            / "..." {
+                (Vec::new(), true)
+            }
+            // Empty parameter list
+            / "" {
+                (Vec::new(), false)
             }
 
         /// Macro name: must have double-underscore prefix and suffix
@@ -4677,6 +4715,63 @@ mod item_tests {
         if let Ok(Item::Extern(ext)) = result {
             assert_eq!(ext.abi.as_deref(), Some("C"));
             assert!(ext.items.is_empty());
+        } else {
+            panic!("Expected Item::Extern");
+        }
+    }
+
+    #[test]
+    fn test_peg_item_extern_variadic() {
+        // A C-style variadic declaration: named param(s) then a trailing `...`.
+        let result =
+            crusty_peg_parser::item("extern \"C\" { int printf(char* format, ...); }");
+        assert!(result.is_ok(), "Failed to parse variadic extern: {:?}", result);
+        if let Ok(Item::Extern(ext)) = result {
+            assert_eq!(ext.items.len(), 1);
+            if let Item::Function(f) = &ext.items[0] {
+                assert_eq!(f.name.name, "printf");
+                assert!(f.is_variadic, "printf declaration should be variadic");
+                assert_eq!(f.params.len(), 1, "the `...` is not a named parameter");
+                assert_eq!(f.params[0].name.name, "format");
+                assert!(f.body.is_none());
+            } else {
+                panic!("Expected a function declaration");
+            }
+        } else {
+            panic!("Expected Item::Extern, got: {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_peg_item_extern_variadic_bare() {
+        // A variadic declaration with no named parameters: `(...)`.
+        let result = crusty_peg_parser::item("extern \"C\" { void log_event(...); }");
+        assert!(result.is_ok(), "Failed to parse bare variadic: {:?}", result);
+        if let Ok(Item::Extern(ext)) = result {
+            if let Item::Function(f) = &ext.items[0] {
+                assert_eq!(f.name.name, "log_event");
+                assert!(f.is_variadic);
+                assert!(f.params.is_empty());
+            } else {
+                panic!("Expected a function declaration");
+            }
+        } else {
+            panic!("Expected Item::Extern");
+        }
+    }
+
+    #[test]
+    fn test_peg_item_extern_non_variadic_flag_clear() {
+        // A plain declaration must NOT set the variadic flag.
+        let result = crusty_peg_parser::item("extern \"C\" { int puts(char* s); }");
+        assert!(result.is_ok(), "Failed to parse extern: {:?}", result);
+        if let Ok(Item::Extern(ext)) = result {
+            if let Item::Function(f) = &ext.items[0] {
+                assert!(!f.is_variadic, "non-variadic decl must leave the flag clear");
+                assert_eq!(f.params.len(), 1);
+            } else {
+                panic!("Expected a function declaration");
+            }
         } else {
             panic!("Expected Item::Extern");
         }

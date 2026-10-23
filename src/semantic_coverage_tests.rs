@@ -131,6 +131,7 @@ mod tests {
                 },
                 body: Block::new(vec![]),
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -156,6 +157,7 @@ mod tests {
                 condition: Expression::Literal(Literal::Bool(true)),
                 body: Block::new(vec![Statement::Break(None)]),
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -181,6 +183,7 @@ mod tests {
                 condition: Expression::Literal(Literal::Bool(true)),
                 body: Block::new(vec![Statement::Continue(None)]),
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -209,6 +212,7 @@ mod tests {
                 }],
                 default: None,
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -251,6 +255,7 @@ mod tests {
                     right: Box::new(Expression::Literal(Literal::Int(3))),
                 }),
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -298,6 +303,7 @@ mod tests {
                     right: Box::new(Expression::Literal(Literal::Int(10))),
                 }),
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -330,6 +336,7 @@ mod tests {
                     right: Box::new(Expression::Literal(Literal::Bool(false))),
                 }),
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -377,6 +384,7 @@ mod tests {
                     right: Box::new(Expression::Literal(Literal::Int(2))),
                 }),
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -407,6 +415,7 @@ mod tests {
                     expr: Box::new(Expression::Literal(Literal::Int(42))),
                 }),
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -431,6 +440,7 @@ mod tests {
                 expr: Box::new(Expression::Literal(Literal::Int(42))),
                 ty: Type::Primitive(PrimitiveType::F64),
             })])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -454,6 +464,7 @@ mod tests {
             body: Some(Block::new(vec![Statement::Expr(Expression::Sizeof {
                 ty: Type::Primitive(PrimitiveType::Int),
             })])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -479,6 +490,7 @@ mod tests {
                 then_expr: Box::new(Expression::Literal(Literal::Int(1))),
                 else_expr: Box::new(Expression::Literal(Literal::Int(2))),
             })])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -504,6 +516,7 @@ mod tests {
                 end: Some(Box::new(Expression::Literal(Literal::Int(10)))),
                 inclusive: false,
             })])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -530,6 +543,7 @@ mod tests {
                 Statement::Expr(Expression::Literal(Literal::Char('a'))),
                 Statement::Expr(Expression::Literal(Literal::Float(2.5))),
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -561,6 +575,7 @@ mod tests {
                 params: vec![],
                 return_type: Some(Type::Ident(Ident::new("Point"))),
                 body: Some(Block::new(vec![])),
+                is_variadic: false,
                 doc_comments: vec![],
                 attributes: vec![],
             }],

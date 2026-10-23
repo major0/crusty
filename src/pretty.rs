@@ -135,6 +135,7 @@ return a+b;
             params: vec![],
             return_type: None,
             body: Some(Block::empty()),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };

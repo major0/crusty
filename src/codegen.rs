@@ -246,6 +246,15 @@ impl CodeGenerator {
                     }
                 }
 
+                // C-style varargs: emit a trailing `...` (with a leading
+                // comma when there are named parameters before it).
+                if func.is_variadic {
+                    if !func.params.is_empty() {
+                        self.write(", ");
+                    }
+                    self.write("...");
+                }
+
                 self.write(")");
 
                 // Return type (void becomes no annotation)
@@ -280,6 +289,14 @@ impl CodeGenerator {
                     self.write(&self.generate_type_string(&param.ty));
                     self.write(" ");
                     self.write(&param.name.name);
+                }
+
+                // C-style varargs marker.
+                if func.is_variadic {
+                    if !func.params.is_empty() {
+                        self.write(", ");
+                    }
+                    self.write("...");
                 }
 
                 self.write(")");

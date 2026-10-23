@@ -562,6 +562,7 @@ mod tests {
             params: vec![],
             return_type: Some(Type::Primitive(PrimitiveType::I32)),
             body: Some(Block::empty()),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -651,6 +652,7 @@ mod tests {
             params: vec![],
             return_type: Some(Type::Primitive(PrimitiveType::I32)),
             body: Some(Block::empty()),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -977,6 +979,7 @@ mod tests {
             params: vec![],
             return_type: None,
             body: Some(Block::new(vec![])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };

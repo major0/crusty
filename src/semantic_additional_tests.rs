@@ -30,6 +30,7 @@ mod tests {
                 init: Some(Expression::ArrayLit { elements: vec![] }),
                 mutable: false,
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -84,6 +85,7 @@ mod tests {
                 }),
                 mutable: false,
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -112,6 +114,7 @@ mod tests {
                 }),
                 mutable: false,
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -140,6 +143,7 @@ mod tests {
                 }),
                 mutable: false,
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -168,6 +172,7 @@ mod tests {
                 }),
                 mutable: false,
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -191,6 +196,7 @@ mod tests {
                 args: vec![],
                 delimiter: MacroDelimiter::Parens,
             })])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -215,6 +221,7 @@ mod tests {
                 init: Some(Expression::RustBlock { tokens: vec![] }),
                 mutable: false,
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -243,6 +250,7 @@ mod tests {
                 }),
                 mutable: false,
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -271,6 +279,7 @@ mod tests {
                 }),
                 mutable: false,
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -299,6 +308,7 @@ mod tests {
                 }),
                 mutable: false,
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -327,6 +337,7 @@ mod tests {
                 }),
                 mutable: false,
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -355,6 +366,7 @@ mod tests {
                 }),
                 mutable: false,
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -425,6 +437,7 @@ mod tests {
                     mutable: false,
                 },
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -465,6 +478,7 @@ mod tests {
                     right: Box::new(Expression::Literal(Literal::Int(2))),
                 }),
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -494,6 +508,7 @@ mod tests {
                     expr: Box::new(Expression::Ident(Ident::new("x"))),
                 }),
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -523,6 +538,7 @@ mod tests {
                     expr: Box::new(Expression::Ident(Ident::new("x"))),
                 }),
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -552,6 +568,7 @@ mod tests {
                     expr: Box::new(Expression::Ident(Ident::new("x"))),
                 }),
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -602,6 +619,7 @@ mod tests {
                     mutable: false,
                 },
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -632,6 +650,7 @@ mod tests {
                     right: Box::new(Expression::Literal(Literal::Int(20))),
                 }),
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };

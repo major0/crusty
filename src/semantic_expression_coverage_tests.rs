@@ -32,6 +32,7 @@ mod tests {
                     expr: Box::new(Expression::Literal(Literal::Bool(true))),
                 })),
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -56,6 +57,7 @@ mod tests {
                     expr: Box::new(Expression::Literal(Literal::Int(42))),
                 })),
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -88,6 +90,7 @@ mod tests {
                     expr: Box::new(Expression::Ident(Ident::new("ptr"))),
                 })),
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -123,6 +126,7 @@ mod tests {
                     mutable: false,
                 },
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -152,6 +156,7 @@ mod tests {
                     expr: Box::new(Expression::Ident(Ident::new("x"))),
                 }),
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -181,6 +186,7 @@ mod tests {
                     expr: Box::new(Expression::Ident(Ident::new("x"))),
                 }),
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -210,6 +216,7 @@ mod tests {
                     expr: Box::new(Expression::Ident(Ident::new("x"))),
                 }),
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -239,6 +246,7 @@ mod tests {
                     expr: Box::new(Expression::Ident(Ident::new("x"))),
                 }),
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -269,6 +277,7 @@ mod tests {
                     right: Box::new(Expression::Literal(Literal::Int(42))),
                 }),
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -300,6 +309,7 @@ mod tests {
                     right: Box::new(Expression::Literal(Literal::Int(5))),
                 }),
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -330,6 +340,7 @@ mod tests {
                     right: Box::new(Expression::Literal(Literal::Int(3))),
                 }),
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -360,6 +371,7 @@ mod tests {
                     right: Box::new(Expression::Literal(Literal::Int(2))),
                 }),
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -390,6 +402,7 @@ mod tests {
                     right: Box::new(Expression::Literal(Literal::Int(2))),
                 }),
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -411,6 +424,7 @@ mod tests {
             body: Some(Block::new(vec![
                 Statement::Return(Some(Expression::Literal(Literal::Bool(true)))),
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -434,6 +448,7 @@ mod tests {
             body: Some(Block::new(vec![
                 Statement::Return(Some(Expression::Literal(Literal::Int(42)))),
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -457,6 +472,7 @@ mod tests {
             body: Some(Block::new(vec![
                 Statement::Return(Some(Expression::Literal(Literal::Int(42)))),
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -480,6 +496,7 @@ mod tests {
             body: Some(Block::new(vec![
                 Statement::Return(None),
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };

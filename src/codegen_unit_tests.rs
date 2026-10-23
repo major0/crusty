@@ -72,6 +72,7 @@ mod tests {
             params: vec![],
             return_type: None,
             body: Some(Block::empty()),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -94,6 +95,7 @@ mod tests {
             params: vec![],
             return_type: Some(Type::Primitive(PrimitiveType::Void)),
             body: Some(Block::empty()),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -125,6 +127,7 @@ mod tests {
             ],
             return_type: Some(Type::Primitive(PrimitiveType::I32)),
             body: Some(Block::empty()),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -145,6 +148,7 @@ mod tests {
             params: vec![],
             return_type: None,
             body: Some(Block::empty()),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -172,6 +176,7 @@ mod tests {
             params: vec![],
             return_type: None,
             body: Some(Block::new(vec![stmt])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -197,6 +202,7 @@ mod tests {
             params: vec![],
             return_type: None,
             body: Some(Block::new(vec![stmt])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -222,6 +228,7 @@ mod tests {
             params: vec![],
             return_type: None,
             body: Some(Block::new(vec![stmt])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -247,6 +254,7 @@ mod tests {
             params: vec![],
             return_type: None,
             body: Some(Block::new(vec![stmt])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -272,6 +280,7 @@ mod tests {
             params: vec![],
             return_type: None,
             body: Some(Block::new(vec![stmt])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -293,6 +302,7 @@ mod tests {
             params: vec![],
             return_type: None,
             body: Some(Block::new(vec![stmt])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -314,6 +324,7 @@ mod tests {
             params: vec![],
             return_type: None,
             body: Some(Block::new(vec![stmt])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -428,6 +439,7 @@ mod tests {
             params: vec![],
             return_type: Some(Type::Ident(Ident::new("Self"))),
             body: Some(Block::empty()),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -464,6 +476,7 @@ mod tests {
             }],
             return_type: Some(Type::Primitive(PrimitiveType::I32)),
             body: Some(Block::empty()),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -506,6 +519,7 @@ mod tests {
             ],
             return_type: None,
             body: Some(Block::empty()),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -536,6 +550,7 @@ mod tests {
             params: vec![],
             return_type: Some(Type::Ident(Ident::new("Self"))),
             body: Some(Block::empty()),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -894,6 +909,7 @@ mod tests {
             params: vec![],
             return_type: None,
             body: Some(Block::new(vec![])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -921,6 +937,7 @@ mod tests {
             params: vec![],
             return_type: None,
             body: Some(Block::new(vec![])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -949,6 +966,7 @@ mod tests {
             params: vec![],
             return_type: None,
             body: Some(Block::new(vec![])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -1000,6 +1018,7 @@ mod tests {
             params: vec![],
             return_type: None,
             body: Some(Block::new(vec![])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -1033,6 +1052,7 @@ mod tests {
             }],
             return_type: Some(Type::Primitive(PrimitiveType::I32)),
             body: None,
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -1062,6 +1082,7 @@ mod tests {
             params: vec![],
             return_type: None,
             body: None,
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -1076,6 +1097,74 @@ mod tests {
         let output = gen.generate(&file);
         assert!(output.contains("extern {"), "got: {}", output);
         assert!(!output.contains("extern \"\""), "no empty ABI string: {}", output);
+    }
+
+    #[test]
+    fn test_generate_extern_variadic() {
+        // extern "C" { int printf(char* format, ...); }
+        //   → extern "C" { pub fn printf(format: *const char, ...) -> i32; }
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let decl = Function {
+            visibility: Visibility::Public,
+            name: Ident::new("printf".to_string()),
+            params: vec![Param {
+                name: Ident::new("format".to_string()),
+                ty: Type::Pointer {
+                    ty: Box::new(Type::Primitive(PrimitiveType::Char)),
+                    mutable: false,
+                },
+            }],
+            return_type: Some(Type::Primitive(PrimitiveType::I32)),
+            body: None,
+            is_variadic: true,
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let ext = Extern {
+            abi: Some("C".to_string()),
+            items: vec![Item::Function(decl)],
+        };
+        let file = File {
+            items: vec![Item::Extern(ext)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        // Named param then a comma-separated trailing `...`.
+        assert!(
+            output.contains("pub fn printf(format: *const char, ...) -> i32;"),
+            "got: {}",
+            output
+        );
+    }
+
+    #[test]
+    fn test_generate_extern_variadic_bare() {
+        // A variadic with no named params emits `(...)` — no leading comma.
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let decl = Function {
+            visibility: Visibility::Public,
+            name: Ident::new("log_event".to_string()),
+            params: vec![],
+            return_type: None,
+            body: None,
+            is_variadic: true,
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let ext = Extern {
+            abi: Some("C".to_string()),
+            items: vec![Item::Function(decl)],
+        };
+        let file = File {
+            items: vec![Item::Extern(ext)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(
+            output.contains("pub fn log_event(...);"),
+            "bare variadic should have no leading comma: {}",
+            output
+        );
     }
 
     #[test]
@@ -1359,6 +1448,7 @@ mod tests {
             params: vec![],
             return_type: None,
             body: Some(Block::new(vec![stmt])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -1420,6 +1510,7 @@ mod tests {
             params: vec![],
             return_type: None,
             body: Some(Block::new(vec![stmt])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -1453,6 +1544,7 @@ mod tests {
             params: vec![],
             return_type: None,
             body: Some(Block::new(vec![stmt])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -1488,6 +1580,7 @@ mod tests {
             params: vec![],
             return_type: None,
             body: Some(Block::new(vec![stmt])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -1521,6 +1614,7 @@ mod tests {
             params: vec![],
             return_type: None,
             body: Some(Block::new(vec![stmt])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -1569,6 +1663,7 @@ mod tests {
                 ty: Box::new(Type::Ident(Ident::new("Config"))),
             }),
             body: Some(Block::empty()),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };

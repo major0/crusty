@@ -28,8 +28,31 @@ extern "C" {
 }
 ```
 
-> **Variadic functions** (`...`, as in C's `printf`) are not yet implemented.
-> Declare a variadic foreign function with a `__rust__{ }` block for now.
+> **Variadic functions** (`...`, as in C's `printf`) are supported. See
+> [Variadic Declarations](#variadic-declarations) below.
+
+### Variadic Declarations
+A trailing `...` marks a C-style variadic foreign function. It follows the named
+parameters (or stands alone), exactly as in C:
+```c
+extern "C" {
+    int printf(char* format, ...);
+    void log_event(...);
+}
+```
+
+Translates to:
+```rust
+extern "C" {
+    pub fn printf(format: *const char, ...) -> i32;
+    pub fn log_event(...);
+}
+```
+
+The `...` is not a named parameter — it is a signature-level flag. When named
+parameters precede it, a separating comma is emitted (`format: *const char, ...`);
+a bare `(...)` emits no leading comma. Variadics are only valid on body-less
+`extern` declarations, matching Rust, which forbids them on defined functions.
 
 ### Default ABI (Rust)
 ```c
@@ -60,7 +83,6 @@ All Rust ABI specifications are supported: `"C"`, `"cdecl"`, `"stdcall"`, `"fast
 
 The following are designed but **not yet implemented**:
 
-- **Variadic parameters** (`...`) in an extern function declaration.
 - **Extern blocks inside a function body** (only module-level extern blocks parse today).
 - **`__rust__{ }` escape hatch inside an extern block**, for signatures Crusty
   cannot express (function pointers with ABI annotations, `static mut` globals):

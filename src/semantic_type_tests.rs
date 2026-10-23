@@ -48,6 +48,7 @@ mod tests {
                     mutable: false,
                 },
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -86,6 +87,7 @@ mod tests {
                     mutable: false,
                 },
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -124,6 +126,7 @@ mod tests {
                     mutable: false,
                 },
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -159,6 +162,7 @@ mod tests {
                     mutable: false,
                 },
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -214,6 +218,7 @@ mod tests {
                     mutable: false,
                 },
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -267,6 +272,7 @@ mod tests {
                     mutable: false,
                 },
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -295,6 +301,7 @@ mod tests {
                 }),
                 mutable: false,
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -323,6 +330,7 @@ mod tests {
                 }),
                 mutable: false,
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };

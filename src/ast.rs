@@ -50,6 +50,11 @@ pub struct Function {
     /// (an `extern` block function). A declaration emits a `;` instead of a
     /// `{ … }` and is not body-checked by the semantic analyzer.
     pub body: Option<Block>,
+    /// `true` when the signature ends with C-style varargs (`...`). Only
+    /// meaningful for body-less `extern` declarations — Rust forbids variadics
+    /// on a defined or safe function — so it is `false` for every ordinary
+    /// function. Codegen emits a trailing `, ...` after the named parameters.
+    pub is_variadic: bool,
     pub doc_comments: Vec<String>,
     pub attributes: Vec<Attribute>,
 }
@@ -551,6 +556,7 @@ mod tests {
             params: vec![],
             return_type: None,
             body: Some(Block::empty()),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -577,6 +583,7 @@ mod tests {
             ],
             return_type: Some(Type::Primitive(PrimitiveType::I32)),
             body: Some(Block::empty()),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -913,6 +920,7 @@ mod tests {
             params: vec![],
             return_type: None,
             body: Some(Block::empty()),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };

@@ -28,6 +28,7 @@ mod tests {
             body: Some(Block::new(vec![Statement::Return(Some(Expression::Literal(
                 Literal::Int(42),
             )))])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -47,6 +48,7 @@ mod tests {
             params: vec![],
             return_type: None,
             body: Some(Block::new(vec![Statement::Return(None)])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -68,6 +70,7 @@ mod tests {
             body: Some(Block::new(vec![Statement::Return(Some(Expression::Literal(
                 Literal::Bool(true),
             )))])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -89,6 +92,7 @@ mod tests {
             params: vec![],
             return_type: Some(Type::Primitive(PrimitiveType::Int)),
             body: Some(Block::new(vec![Statement::Return(None)])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -142,6 +146,7 @@ mod tests {
             params: vec![],
             return_type: None,
             body: Some(Block::empty()),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -165,6 +170,7 @@ mod tests {
             body: Some(Block::new(vec![Statement::Expr(Expression::Ident(Ident::new(
                 "undefined_var",
             )))])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -195,6 +201,7 @@ mod tests {
                 }),
                 mutable: false,
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -221,6 +228,7 @@ mod tests {
                 init: None,
                 mutable: false,
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -244,6 +252,7 @@ mod tests {
                 ty: Some(Type::Primitive(PrimitiveType::Int)),
                 init: None,
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -274,6 +283,7 @@ mod tests {
                     init: Some(Expression::Literal(Literal::Int(2))),
                 },
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -308,6 +318,7 @@ mod tests {
                     mutable: false,
                 },
             ])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -334,6 +345,7 @@ mod tests {
                 init: Some(Expression::Literal(Literal::Int(42))),
                 mutable: false,
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -357,6 +369,7 @@ mod tests {
                 ty: None,
                 init: Some(Expression::Literal(Literal::Int(42))),
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -381,6 +394,7 @@ mod tests {
                 init: Some(Expression::Literal(Literal::Int(42))),
                 mutable: true,
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -405,6 +419,7 @@ mod tests {
                 return_type: None,
                 body: Block::empty(),
             }])),
+            is_variadic: false,
             doc_comments: vec![],
             attributes: vec![],
         };
