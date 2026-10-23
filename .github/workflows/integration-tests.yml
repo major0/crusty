@@ -51,7 +51,7 @@ jobs:
           cargo build --release --bin crustyc
           echo "${GITHUB_WORKSPACE}/target/release" >> "${GITHUB_PATH}"
 
-      - name: Build and run example apps
+      - name: Build and test example apps
         run: .github/scripts/run-integration-apps.sh
 
       - name: Report __rust__ escape-hatch usage (metric, non-gating)

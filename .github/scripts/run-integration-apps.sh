@@ -28,7 +28,9 @@ for app in "${apps_dir}"/*/; do
     [ -f "${app}Cargo.toml" ] || continue
     ran=1
     echo "=== ${app} ==="
-    ( cd "${app}" && cargo run --quiet )
+    # `cargo test` builds the binary, runs any unit tests, and runs the native
+    # tests/ integration tests (which exercise the built binary end to end).
+    ( cd "${app}" && cargo test --quiet )
 done
 
 if [ "${ran}" -eq 0 ]; then

@@ -14,7 +14,7 @@ See `docs/adr/0005-example-apps-integration-tests.md` for the design.
 
 ## Running locally
 
-Build `crustyc`, put it on PATH, then build + run every app:
+Build `crustyc`, put it on PATH, then build + test every app:
 
 ```sh
 cargo build --release --bin crustyc
@@ -22,12 +22,17 @@ export PATH="$PWD/target/release:$PATH"
 .github/scripts/run-integration-apps.sh
 ```
 
-Or run a single app directly:
+Or test a single app directly:
 
 ```sh
 cd examples/apps/dice
-cargo run
+cargo test      # runs the native tests/ harness (asserts the app's output)
+cargo run       # or just run it
 ```
+
+Each app asserts its behaviour with a Cargo-native integration test under
+`tests/` (compiled as its own crate), which runs the built binary and checks
+its output — so a regression is a real test failure, not just a non-zero exit.
 
 ## CI
 
