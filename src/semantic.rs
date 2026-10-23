@@ -921,6 +921,27 @@ impl SemanticAnalyzer {
         // validated here.
     }
 
+    /// The element type yielded by iterating a value of type `iter_type` in a
+    /// for-in loop. A slice or array of `T` yields `T`; a reference to either
+    /// (`&[T]`, `&[T; N]`) yields `T`, since iterating a borrowed collection is
+    /// common. A range already carries its element type (see the `Range` arm of
+    /// `analyze_expression`), so it passes through. Any other type — notably
+    /// generic collections such as `Vec<T>` or `IndexMap<K, V>`, whose element
+    /// typing is not modelled — falls back to `Auto`, which keeps the loop
+    /// variable lenient rather than binding it to the wrong (collection) type.
+    fn iterable_element_type(iter_type: &Type) -> Type {
+        match iter_type {
+            Type::Slice { ty } | Type::Array { ty, .. } => (**ty).clone(),
+            Type::Reference { ty, .. } => match &**ty {
+                Type::Slice { ty } | Type::Array { ty, .. } => (**ty).clone(),
+                _ => Type::Auto,
+            },
+            // A range is already typed as its element type upstream.
+            Type::Primitive(_) => iter_type.clone(),
+            _ => Type::Auto,
+        }
+    }
+
     /// Analyze a block of statements
     fn analyze_block(&mut self, block: &crate::ast::Block) {
         for statement in &block.statements {
@@ -1260,8 +1281,16 @@ impl SemanticAnalyzer {
                 // Analyze iterator expression
                 let iter_type = self.analyze_expression(iter);
 
-                // Register loop variable (type inference from iterator)
-                let symbol = Symbol::new(var.name.clone(), iter_type, SymbolKind::Variable, false);
+                // The loop variable binds to the ITERABLE's element type, not the
+                // iterable itself: iterating a slice/array of T yields T, and a
+                // range of T yields T. Anything we don't model (generic
+                // collections like Vec/IndexMap) falls back to Auto, preserving
+                // the lenient behaviour rather than binding a wrong type.
+                let element_type = Self::iterable_element_type(&iter_type);
+
+                // Register loop variable
+                let symbol =
+                    Symbol::new(var.name.clone(), element_type, SymbolKind::Variable, false);
 
                 if let Err(msg) = self.symbol_table.insert(var.name.clone(), symbol) {
                     self.errors.push(SemanticError::new(
@@ -1999,16 +2028,19 @@ impl SemanticAnalyzer {
                 end,
                 inclusive: _,
             } => {
-                // Analyze start and end expressions if present
-                if let Some(ref start_expr) = start {
-                    self.analyze_expression(start_expr);
+                // A range's element type is the type of its endpoints. Analyze
+                // both ends; prefer a concrete endpoint type over Auto so a
+                // for-in over `0..n` binds the loop variable to the integer
+                // element type rather than Auto.
+                let start_ty = start.as_ref().map(|e| self.analyze_expression(e));
+                let end_ty = end.as_ref().map(|e| self.analyze_expression(e));
+                match (start_ty, end_ty) {
+                    (Some(t), _) if t != Type::Auto => t,
+                    (_, Some(t)) if t != Type::Auto => t,
+                    (Some(t), _) => t,
+                    (_, Some(t)) => t,
+                    (None, None) => Type::Auto,
                 }
-                if let Some(ref end_expr) = end {
-                    self.analyze_expression(end_expr);
-                }
-
-                // Range type (simplified)
-                Type::Auto
             }
 
             Expression::MacroCall { .. } => {

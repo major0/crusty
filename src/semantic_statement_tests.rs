@@ -754,6 +754,61 @@ mod tests {
     }
 
     #[test]
+    fn test_for_in_loop_binds_slice_element_type() {
+        // Regression: iterating a slice must bind the loop variable to the
+        // ELEMENT type, not the slice type. Here the loop sums `acc + x` where
+        // `acc` is an int and `x` comes from iterating an `int[]`; if `x` were
+        // bound to the slice type this would be a type mismatch.
+        let mut analyzer = SemanticAnalyzer::new();
+
+        let func = Function {
+            visibility: Visibility::Public,
+            name: Ident::new("sum"),
+            params: vec![Param {
+                name: Ident::new("xs"),
+                ty: Type::Slice {
+                    ty: Box::new(Type::Primitive(PrimitiveType::I32)),
+                },
+            }],
+            return_type: Some(Type::Primitive(PrimitiveType::I32)),
+            body: Some(Block::new(vec![
+                Statement::Let {
+                    name: Ident::new("acc"),
+                    ty: Some(Type::Primitive(PrimitiveType::I32)),
+                    init: Some(Expression::Literal(Literal::Int(0))),
+                    mutable: true,
+                },
+                Statement::ForIn {
+                    label: None,
+                    var: Ident::new("x"),
+                    iter: Expression::Ident(Ident::new("xs")),
+                    body: Block::new(vec![Statement::Expr(Expression::Binary {
+                        op: BinaryOp::Assign,
+                        left: Box::new(Expression::Ident(Ident::new("acc"))),
+                        right: Box::new(Expression::Binary {
+                            op: BinaryOp::Add,
+                            left: Box::new(Expression::Ident(Ident::new("acc"))),
+                            right: Box::new(Expression::Ident(Ident::new("x"))),
+                        }),
+                    })]),
+                },
+                Statement::Return(Some(Expression::Ident(Ident::new("acc")))),
+            ])),
+            is_variadic: false,
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+
+        let file = create_file_with_items(vec![Item::Function(func)]);
+        let result = analyzer.analyze(&file);
+        assert!(
+            result.is_ok(),
+            "slice element should bind as the element type, not the slice: {:?}",
+            result
+        );
+    }
+
+    #[test]
     fn test_switch_without_default() {
         let mut analyzer = SemanticAnalyzer::new();
 

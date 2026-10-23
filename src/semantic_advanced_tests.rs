@@ -222,8 +222,10 @@ mod tests {
         };
 
         let result_type = analyzer.analyze_expression_test(&range);
-        // Ranges return Auto (simplified)
-        assert_eq!(result_type, Type::Auto);
+        // A range types as its endpoint element type, so `0..10` is the int
+        // literal type. This is what lets a for-in over a range bind the loop
+        // variable to the element type rather than Auto.
+        assert_eq!(result_type, Type::Primitive(PrimitiveType::I32));
     }
 
     #[test]
