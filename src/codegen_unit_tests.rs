@@ -189,6 +189,41 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_attributed_statement() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let inner = Statement::Let {
+            name: Ident::new("x"),
+            ty: None,
+            init: Some(Expression::Literal(Literal::Int(1))),
+            mutable: false,
+        };
+        let stmt = Statement::Attributed {
+            attributes: vec![Attribute {
+                name: Ident::new("allow"),
+                args: vec![AttributeArg::Ident(Ident::new("unused"))],
+            }],
+            stmt: Box::new(inner),
+        };
+        let func = Function {
+            visibility: Visibility::Public,
+            name: Ident::new("test"),
+            params: vec![],
+            return_type: None,
+            body: Some(Block::new(vec![stmt])),
+            is_variadic: false,
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let file = File {
+            items: vec![Item::Function(func)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("#[allow(unused)]"), "output: {output}");
+        assert!(output.contains("let x = 1;"), "output: {output}");
+    }
+
+    #[test]
     fn test_generate_var_statement() {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let stmt = Statement::Var {

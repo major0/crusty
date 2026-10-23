@@ -174,6 +174,9 @@ peg::parser! {
         rule kw_import() = "import" !ident_char()
         rule kw_export() = "export" !ident_char()
 
+        /// Keyword: pub (explicit public visibility modifier, PS-17)
+        rule kw_pub() = "pub" !ident_char()
+
         /// Keyword: if
         rule kw_if() = "if" !ident_char()
 
@@ -321,6 +324,7 @@ peg::parser! {
             / kw_return() / kw_break() / kw_continue()
             / kw_struct() / kw_enum() / kw_typedef()
             / kw_namespace() / kw_extern() / kw_unsafe()
+            / kw_pub()
             / kw_loop() / kw_match() / kw_switch() / kw_case() / kw_default() / kw_auto()
             / kw_int() / kw_i8() / kw_i16() / kw_i32() / kw_i64() / kw_i128()
             / kw_u8() / kw_u16() / kw_u32() / kw_u64() / kw_u128()
@@ -2508,7 +2512,8 @@ peg::parser! {
         /// a C-style for is "for (...", so the two are distinguished by the token after "for".
         /// Note: nested_function must come before expr_stmt to correctly parse function declarations
         pub rule statement() -> Statement
-            = labeled_stmt()
+            = attributed_stmt()
+            / labeled_stmt()
             / if_stmt()
             / while_stmt()
             / loop_stmt()
@@ -2524,6 +2529,20 @@ peg::parser! {
             / c_style_decl_stmt()  // Type name = expr;  (implicit-let, must precede expr_stmt)
             / nested_function()  // Must come before expr_stmt
             / expr_stmt()
+
+        /// Statement carrying leading attributes (PS-17): `#[attr] <statement>`.
+        /// Requires at least one attribute, then any statement (attributes may
+        /// stack). The inner statement is parsed by statement() itself, so an
+        /// attribute can precede any statement form.
+        rule attributed_stmt() -> Statement
+            = _ first:attribute() rest:attribute()* _ inner:statement() {
+                let mut attributes = vec![first];
+                attributes.extend(rest);
+                Statement::Attributed {
+                    attributes,
+                    stmt: Box::new(inner),
+                }
+            }
 
         /// Expression statement: an expression followed by semicolon
         /// Syntax: expr;
@@ -3467,7 +3486,8 @@ peg::parser! {
         /// - #macro __MAX__(a, b) ((a) > (b) ? (a) : (b))
         /// - #ifdef FEATURE … #endif
         pub rule item() -> Item
-            = define_def()
+            = pub_item()
+            / define_def()
             / macro_def()
             / conditional_def()
             / import_def()
@@ -3480,6 +3500,26 @@ peg::parser! {
             / enum_def()
             / typedef_def()
             / item_macro_invocation()
+            / static_item()
+            / function()
+
+        /// Explicit `pub` visibility modifier (PS-17): `pub <item>`. Crusty
+        /// items are public by default and `static` marks a function private,
+        /// so `pub` is an explicit opt-in to the public default. `pub static`
+        /// is a contradiction and is rejected by the negative lookahead. The
+        /// inner item is parsed by the normal rules, then forced Public.
+        rule pub_item() -> Item
+            = _ kw_pub() __ !kw_static() inner:pub_inner_item() {
+                inner.into_public()
+            }
+
+        /// The item forms that accept a leading `pub`: the visibility-bearing
+        /// declarations. Directives, namespaces, extern blocks and raw-Rust
+        /// blocks are excluded — `pub` is meaningless or invalid on them.
+        rule pub_inner_item() -> Item
+            = struct_def()
+            / enum_def()
+            / typedef_def()
             / static_item()
             / function()
 
@@ -5128,6 +5168,38 @@ mod item_tests {
         } else {
             panic!("Expected Item::Function");
         }
+    }
+
+    // --- PS-17: explicit `pub` visibility modifier ---
+
+    #[test]
+    fn test_pub_function_is_public() {
+        let result = crusty_peg_parser::item("pub int add(int x, int y) { return x + y; }");
+        assert!(result.is_ok(), "pub function should parse: {:?}", result);
+        if let Ok(Item::Function(f)) = result {
+            assert_eq!(f.name.name, "add");
+            assert_eq!(f.visibility, Visibility::Public);
+        } else {
+            panic!("Expected a public Item::Function");
+        }
+    }
+
+    #[test]
+    fn test_pub_struct_is_public() {
+        let result = crusty_peg_parser::item("pub struct Point { int x; }");
+        assert!(result.is_ok(), "pub struct should parse: {:?}", result);
+        if let Ok(Item::Struct(s)) = result {
+            assert_eq!(s.visibility, Visibility::Public);
+        } else {
+            panic!("Expected a public Item::Struct");
+        }
+    }
+
+    #[test]
+    fn test_pub_static_is_rejected() {
+        // `pub static` is a contradiction (static = private); reject it.
+        let result = crusty_peg_parser::item("pub static void helper() { }");
+        assert!(result.is_err(), "pub static should be rejected");
     }
 
     #[test]
@@ -12462,6 +12534,35 @@ mod control_flow_tests {
         let result = crusty_peg_parser::statement("let x = 42;");
         assert!(result.is_ok());
         assert!(matches!(result.unwrap(), Statement::Let { .. }));
+    }
+
+    #[test]
+    fn test_statement_attributed() {
+        // PS-17: an attribute before a statement wraps it in Attributed.
+        let result = crusty_peg_parser::statement("#[allow(unused)] let x = 1;");
+        assert!(result.is_ok(), "attributed statement should parse: {:?}", result);
+        match result.unwrap() {
+            Statement::Attributed { attributes, stmt } => {
+                assert_eq!(attributes.len(), 1);
+                assert_eq!(attributes[0].name.name, "allow");
+                assert!(matches!(*stmt, Statement::Let { .. }));
+            }
+            other => panic!("Expected Statement::Attributed, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_statement_multiple_attributes() {
+        // Attributes may stack on one statement.
+        let result = crusty_peg_parser::statement("#[a] #[b] return;");
+        assert!(result.is_ok(), "stacked attributes should parse: {:?}", result);
+        match result.unwrap() {
+            Statement::Attributed { attributes, stmt } => {
+                assert_eq!(attributes.len(), 2);
+                assert!(matches!(*stmt, Statement::Return(None)));
+            }
+            other => panic!("Expected Statement::Attributed, got {:?}", other),
+        }
     }
 
     #[test]

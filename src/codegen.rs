@@ -1243,6 +1243,37 @@ impl CodeGenerator {
                 self.generate_block(body);
                 self.write(";\n");
             }
+            Statement::Attributed { attributes, stmt } => {
+                // Emit each attribute on its own indented line, then the inner
+                // statement (which writes its own indentation and newline).
+                for attr in attributes {
+                    self.write_indent();
+                    self.write("#[");
+                    self.write(&attr.name.name);
+                    if !attr.args.is_empty() {
+                        self.write("(");
+                        for (i, arg) in attr.args.iter().enumerate() {
+                            if i > 0 {
+                                self.write(", ");
+                            }
+                            match arg {
+                                AttributeArg::Ident(ident) => self.write(&ident.name),
+                                AttributeArg::Literal(lit) => {
+                                    self.write(&self.generate_literal_string(lit))
+                                }
+                                AttributeArg::NameValue { name, value } => {
+                                    self.write(&name.name);
+                                    self.write(" = ");
+                                    self.write(&self.generate_literal_string(value));
+                                }
+                            }
+                        }
+                        self.write(")");
+                    }
+                    self.write("]\n");
+                }
+                self.generate_statement(stmt);
+            }
         }
     }
 

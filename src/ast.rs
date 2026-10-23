@@ -44,6 +44,43 @@ pub enum Item {
     RawRust { code: String },
 }
 
+impl Item {
+    /// Force this item's visibility to Public (PS-17 explicit `pub` modifier).
+    /// Crusty items default to public already and `static` makes a function
+    /// private, so `pub` is an explicit opt-in to the public default. The
+    /// grammar forbids `pub static`, so a private item never reaches here.
+    /// Variants without a visibility field are returned unchanged.
+    pub fn into_public(self) -> Self {
+        match self {
+            Item::Function(mut f) => {
+                f.visibility = Visibility::Public;
+                Item::Function(f)
+            }
+            Item::Struct(mut s) => {
+                s.visibility = Visibility::Public;
+                Item::Struct(s)
+            }
+            Item::Enum(mut e) => {
+                e.visibility = Visibility::Public;
+                Item::Enum(e)
+            }
+            Item::Typedef(mut t) => {
+                t.visibility = Visibility::Public;
+                Item::Typedef(t)
+            }
+            Item::Const(mut c) => {
+                c.visibility = Visibility::Public;
+                Item::Const(c)
+            }
+            Item::Static(mut s) => {
+                s.visibility = Visibility::Public;
+                Item::Static(s)
+            }
+            other => other,
+        }
+    }
+}
+
 /// Conditional-compilation block (`#ifdef FOO` / `#ifndef FOO` … `#endif`).
 ///
 /// Lowers to `#[cfg(FOO)]` (or `#[cfg(not(FOO))]` when negated) applied to each
@@ -261,6 +298,14 @@ pub enum Statement {
         params: Vec<Param>,
         return_type: Option<Type>,
         body: Block,
+    },
+    /// A statement carrying one or more leading attributes (PS-17), e.g.
+    /// `#[cfg(test)] let x = 1;`. The attributes are emitted before the inner
+    /// statement; this wrapper keeps the other variants free of an attribute
+    /// field that is empty for the overwhelming majority of statements.
+    Attributed {
+        attributes: Vec<Attribute>,
+        stmt: Box<Statement>,
     },
 }
 

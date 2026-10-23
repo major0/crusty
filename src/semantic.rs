@@ -1556,6 +1556,12 @@ impl SemanticAnalyzer {
                 // Restore previous return type
                 self.expected_return_type = old_return_type;
             }
+
+            Statement::Attributed { stmt, .. } => {
+                // Attributes are syntax-layer passthrough (rustc validates
+                // them); analyze the inner statement so its errors still fire.
+                self.analyze_statement(stmt);
+            }
         }
     }
 
@@ -2713,6 +2719,9 @@ impl SemanticAnalyzer {
             Statement::Return(None) | Statement::Continue(_) => {
                 // No variables used
             }
+            Statement::Attributed { stmt, .. } => {
+                self.collect_used_variables_in_statement(stmt, used);
+            }
         }
     }
 
@@ -2847,6 +2856,9 @@ impl SemanticAnalyzer {
             }
             Statement::Return(None) | Statement::Break { .. } | Statement::Continue(_) => {
                 // No variables modified
+            }
+            Statement::Attributed { stmt, .. } => {
+                self.collect_modified_variables_in_statement(stmt, modified);
             }
         }
     }
