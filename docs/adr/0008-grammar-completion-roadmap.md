@@ -1,7 +1,7 @@
 # ADR-0008: Grammar-completion roadmap
 
 ## Status
-accepted
+superseded by ADR-0009
 
 ## Context
 A full read-only audit of the Crusty transpiler (parser surface, codegen,
