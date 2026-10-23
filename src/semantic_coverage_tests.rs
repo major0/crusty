@@ -831,6 +831,7 @@ mod tests {
                 init: Some(Expression::StructInit {
                     ty: Type::Ident(Ident::new("Point")),
                     fields: init_fields,
+                    base: None,
                 }),
                 mutable: false,
             }])),

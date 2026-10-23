@@ -2042,13 +2042,20 @@ impl SemanticAnalyzer {
                 then_type
             }
 
-            Expression::StructInit { ty, fields } => {
+            Expression::StructInit { ty, fields, base } => {
                 // Analyze every initializer so errors inside them are reported,
                 // keeping each value's inferred type for field-type checking.
                 let init_types: Vec<(String, Type)> = fields
                     .iter()
                     .map(|(name, expr)| (name.name.clone(), self.analyze_expression(expr)))
                     .collect();
+
+                // A functional-update base (`..base`) supplies every field not
+                // listed, so analyze it (to surface errors inside it) but do not
+                // require the listed fields to be complete.
+                if let Some(base) = base {
+                    self.analyze_expression(base);
+                }
 
                 // SEM-05: when `ty` names a known struct, check the initializer
                 // against its declared fields: unknown field names, field-type
@@ -2099,19 +2106,23 @@ impl SemanticAnalyzer {
                         }
 
                         // Every declared field must be initialised.
-                        for (dname, _) in &decl_fields {
-                            if !init_types.iter().any(|(fname, _)| fname == dname) {
-                                self.errors.push(SemanticError::new(
-                                    Span::new(
-                                        crate::error::Position::new(0, 0),
-                                        crate::error::Position::new(0, 0),
-                                    ),
-                                    SemanticErrorKind::InvalidOperation,
-                                    format!(
-                                        "missing field '{}' in initializer for struct '{}'",
-                                        dname, type_ident.name
-                                    ),
-                                ));
+                        // Every declared field must be initialised — unless a
+                        // functional-update base supplies the remainder.
+                        if base.is_none() {
+                            for (dname, _) in &decl_fields {
+                                if !init_types.iter().any(|(fname, _)| fname == dname) {
+                                    self.errors.push(SemanticError::new(
+                                        Span::new(
+                                            crate::error::Position::new(0, 0),
+                                            crate::error::Position::new(0, 0),
+                                        ),
+                                        SemanticErrorKind::InvalidOperation,
+                                        format!(
+                                            "missing field '{}' in initializer for struct '{}'",
+                                            dname, type_ident.name
+                                        ),
+                                    ));
+                                }
                             }
                         }
                     }
@@ -2151,6 +2162,18 @@ impl SemanticAnalyzer {
                         ty: Box::new(first_type),
                         size: Some(elements.len()),
                     }
+                }
+            }
+
+            Expression::ArrayRepeat { value, count } => {
+                // `[value; count]` yields an array of the value's type. Analyze
+                // both operands so errors inside them surface; the length is a
+                // const expression rustc evaluates, so leave the size unknown.
+                let elem_type = self.analyze_expression(value);
+                self.analyze_expression(count);
+                Type::Array {
+                    ty: Box::new(elem_type),
+                    size: None,
                 }
             }
 
@@ -2508,14 +2531,21 @@ impl SemanticAnalyzer {
                     self.collect_used_variables(elem, used);
                 }
             }
+            Expression::ArrayRepeat { value, count } => {
+                self.collect_used_variables(value, used);
+                self.collect_used_variables(count, used);
+            }
             Expression::TupleLit { elements } => {
                 for elem in elements {
                     self.collect_used_variables(elem, used);
                 }
             }
-            Expression::StructInit { fields, .. } => {
+            Expression::StructInit { fields, base, .. } => {
                 for (_, field_expr) in fields {
                     self.collect_used_variables(field_expr, used);
+                }
+                if let Some(base) = base {
+                    self.collect_used_variables(base, used);
                 }
             }
             Expression::Range { start, end, .. } => {

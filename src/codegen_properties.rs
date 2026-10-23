@@ -639,6 +639,7 @@ mod tests {
             let struct_init = Expression::StructInit {
                 ty: Type::Ident(struct_name.clone()),
                 fields: vec![(field_name.clone(), Expression::Literal(Literal::Int(42)))],
+                base: None,
             };
             let output = gen.generate_expression_string(&struct_init);
 

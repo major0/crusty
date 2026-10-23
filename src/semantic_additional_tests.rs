@@ -82,6 +82,7 @@ mod tests {
                         (Ident::new("x"), Expression::Literal(Literal::Int(10))),
                         (Ident::new("y"), Expression::Literal(Literal::Int(20))),
                     ],
+                    base: None,
                 }),
                 mutable: false,
             }])),

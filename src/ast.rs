@@ -313,9 +313,17 @@ pub enum Expression {
     StructInit {
         ty: Type,
         fields: Vec<(Ident, Expression)>,
+        /// Functional-update base (`..base`), e.g. `Point { x: 1, ..p }`.
+        /// `None` when the initializer lists every field directly.
+        base: Option<Box<Expression>>,
     },
     ArrayLit {
         elements: Vec<Expression>,
+    },
+    /// Array-repeat literal `[value; count]`, e.g. `[0; 16]`.
+    ArrayRepeat {
+        value: Box<Expression>,
+        count: Box<Expression>,
     },
     TupleLit {
         elements: Vec<Expression>,

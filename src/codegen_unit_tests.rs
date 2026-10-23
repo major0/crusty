@@ -2081,6 +2081,7 @@ mod struct_init_tests {
                 (Ident::new("x"), Expression::Literal(Literal::Int(10))),
                 (Ident::new("y"), Expression::Literal(Literal::Int(20))),
             ],
+            base: None,
         };
 
         let result = codegen.generate_expression_string(&struct_init);
@@ -2094,6 +2095,7 @@ mod struct_init_tests {
         let struct_init = Expression::StructInit {
             ty: Type::Ident(Ident::new("Point")),
             fields: vec![(Ident::new("x"), Expression::Literal(Literal::Int(10)))],
+            base: None,
         };
 
         let result = codegen.generate_expression_string(&struct_init);
@@ -2115,6 +2117,7 @@ mod struct_init_tests {
                             (Ident::new("x"), Expression::Literal(Literal::Int(0))),
                             (Ident::new("y"), Expression::Literal(Literal::Int(0))),
                         ],
+                        base: None,
                     },
                 ),
                 (
@@ -2125,9 +2128,11 @@ mod struct_init_tests {
                             (Ident::new("w"), Expression::Literal(Literal::Int(10))),
                             (Ident::new("h"), Expression::Literal(Literal::Int(20))),
                         ],
+                        base: None,
                     },
                 ),
             ],
+            base: None,
         };
 
         let result = codegen.generate_expression_string(&struct_init);
@@ -2149,6 +2154,7 @@ mod struct_init_tests {
                 (Ident::new("x"), Expression::Literal(Literal::Int(10))),
                 (Ident::new("y"), Expression::Literal(Literal::Int(20))),
             ],
+            base: None,
         };
 
         let result = codegen.generate_expression_string(&struct_init);
@@ -2157,5 +2163,46 @@ mod struct_init_tests {
         // This is a limitation - we'll need semantic analysis to resolve Auto types
         assert!(result.contains("x: 10"));
         assert!(result.contains("y: 20"));
+    }
+
+    #[test]
+    fn test_generate_struct_initializer_functional_update() {
+        let codegen = CodeGenerator::new(TargetLanguage::Rust);
+
+        let struct_init = Expression::StructInit {
+            ty: Type::Ident(Ident::new("Point")),
+            fields: vec![(Ident::new("x"), Expression::Literal(Literal::Int(1)))],
+            base: Some(Box::new(Expression::Ident(Ident::new("p")))),
+        };
+
+        let result = codegen.generate_expression_string(&struct_init);
+        assert_eq!(result, "Point { x: 1, ..p }");
+    }
+
+    #[test]
+    fn test_generate_struct_initializer_base_only() {
+        let codegen = CodeGenerator::new(TargetLanguage::Rust);
+
+        let struct_init = Expression::StructInit {
+            ty: Type::Ident(Ident::new("Point")),
+            fields: vec![],
+            base: Some(Box::new(Expression::Ident(Ident::new("p")))),
+        };
+
+        let result = codegen.generate_expression_string(&struct_init);
+        assert_eq!(result, "Point { ..p }");
+    }
+
+    #[test]
+    fn test_generate_array_repeat() {
+        let codegen = CodeGenerator::new(TargetLanguage::Rust);
+
+        let repeat = Expression::ArrayRepeat {
+            value: Box::new(Expression::Literal(Literal::Int(0))),
+            count: Box::new(Expression::Literal(Literal::Int(16))),
+        };
+
+        let result = codegen.generate_expression_string(&repeat);
+        assert_eq!(result, "[0; 16]");
     }
 }

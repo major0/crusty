@@ -278,6 +278,7 @@ mod tests {
                     Expression::Literal(Literal::String("test".to_string())),
                 ),
             ],
+            base: None,
         };
 
         let result_type = analyzer.analyze_expression_test(&struct_init);

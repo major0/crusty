@@ -416,6 +416,7 @@ mod tests {
                         (Ident::new("x"), Expression::Literal(Literal::Int(1))),
                         (Ident::new("y"), Expression::Literal(Literal::Int(2))),
                     ],
+                    base: None,
                 }),
                 mutable: false,
             },
@@ -462,6 +463,7 @@ mod tests {
                 init: Some(Expression::StructInit {
                     ty: Type::Ident(Ident::new("Point")),
                     fields: vec![(Ident::new("x"), Expression::Literal(Literal::Int(1)))],
+                    base: None,
                 }),
                 mutable: false,
             },

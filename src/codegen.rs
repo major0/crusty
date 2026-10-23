@@ -1322,7 +1322,7 @@ impl CodeGenerator {
                     self.generate_expression_string(else_expr)
                 )
             }
-            Expression::StructInit { ty, fields } => {
+            Expression::StructInit { ty, fields, base } => {
                 let mut result = self.generate_type_string(ty);
                 result.push_str(" { ");
                 for (i, (name, value)) in fields.iter().enumerate() {
@@ -1332,6 +1332,13 @@ impl CodeGenerator {
                     result.push_str(&name.name);
                     result.push_str(": ");
                     result.push_str(&self.generate_expression_string(value));
+                }
+                if let Some(base) = base {
+                    if !fields.is_empty() {
+                        result.push_str(", ");
+                    }
+                    result.push_str("..");
+                    result.push_str(&self.generate_expression_string(base));
                 }
                 result.push_str(" }");
                 result
@@ -1346,6 +1353,13 @@ impl CodeGenerator {
                 }
                 result.push(']');
                 result
+            }
+            Expression::ArrayRepeat { value, count } => {
+                format!(
+                    "[{}; {}]",
+                    self.generate_expression_string(value),
+                    self.generate_expression_string(count)
+                )
             }
             Expression::TupleLit { elements } => {
                 let mut result = String::from("(");
@@ -1534,6 +1548,7 @@ impl CodeGenerator {
     /// - an equal-precedence child needs parens only on the RIGHT (left-assoc);
     /// - comparisons are non-associative, so a comparison child directly under
     ///   a comparison parent needs parens on either side.
+    ///
     /// Assignment children never occur here (handled on the unparenthesised
     /// path), so their precedence 0 only ever forces parens, which is correct.
     fn emit_binary_operand(&self, operand: &Expression, parent: &BinaryOp, is_right: bool) -> String {

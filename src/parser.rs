@@ -898,12 +898,19 @@ peg::parser! {
         /// Struct initialization: Type { field: value, ... }
         /// Returns Expression::StructInit
         pub rule struct_init() -> Expression
-            = _ ty:struct_init_type() _ "{" _ fields:struct_init_fields()? _ "}" _ {
+            = _ ty:struct_init_type() _ "{" _ fields:struct_init_fields()? _ base:struct_init_base()? _ "}" _ {
                 Expression::StructInit {
                     ty,
                     fields: fields.unwrap_or_default(),
+                    base: base.map(Box::new),
                 }
             }
+
+        /// Functional-update base in a struct initializer: `..expr`.
+        /// Allowed after the (possibly empty) field list, optionally
+        /// preceded by a trailing comma — mirrors Rust's `..base`.
+        rule struct_init_base() -> Expression
+            = ("," _)? ".." _ e:assignment_expr() { e }
 
         /// Type for struct initialization (identifier or generic)
         rule struct_init_type() -> Type
@@ -927,10 +934,16 @@ peg::parser! {
         rule struct_init_field() -> (Ident, Expression)
             = name:ident() _ ":" _ value:assignment_expr() { (name, value) }
 
-        /// Array literal: [elem1, elem2, ...]
-        /// Returns Expression::ArrayLit
+        /// Array literal: `[elem1, elem2, ...]` or array-repeat `[value; count]`.
+        /// Returns Expression::ArrayLit or Expression::ArrayRepeat.
         pub rule array_lit() -> Expression
-            = _ "[" _ elements:array_elements()? _ "]" _ {
+            = _ "[" _ value:assignment_expr() _ ";" _ count:assignment_expr() _ "]" _ {
+                Expression::ArrayRepeat {
+                    value: Box::new(value),
+                    count: Box::new(count),
+                }
+            }
+            / _ "[" _ elements:array_elements()? _ "]" _ {
                 Expression::ArrayLit {
                     elements: elements.unwrap_or_default(),
                 }
@@ -8377,6 +8390,7 @@ mod primary_expression_tests {
             Ok(Expression::StructInit {
                 ty: Type::Ident(Ident::new("Point")),
                 fields: vec![],
+                base: None,
             })
         );
     }
@@ -8389,6 +8403,7 @@ mod primary_expression_tests {
             Ok(Expression::StructInit {
                 ty: Type::Ident(Ident::new("Point")),
                 fields: vec![(Ident::new("x"), Expression::Literal(Literal::Int(10)))],
+                base: None,
             })
         );
     }
@@ -8404,6 +8419,7 @@ mod primary_expression_tests {
                     (Ident::new("x"), Expression::Literal(Literal::Int(10))),
                     (Ident::new("y"), Expression::Literal(Literal::Int(20))),
                 ],
+                base: None,
             })
         );
     }
@@ -8419,6 +8435,7 @@ mod primary_expression_tests {
                     (Ident::new("x"), Expression::Literal(Literal::Int(10))),
                     (Ident::new("y"), Expression::Literal(Literal::Int(20))),
                 ],
+                base: None,
             })
         );
     }
@@ -8434,6 +8451,78 @@ mod primary_expression_tests {
                     args: vec![Type::Primitive(PrimitiveType::Int)],
                 },
                 fields: vec![],
+                base: None,
+            })
+        );
+    }
+
+    // --- PS-13: struct functional-update base (`..base`) ---
+
+    #[test]
+    fn test_struct_init_functional_update() {
+        let result = crusty_peg_parser::struct_init("Point { x: 1, ..p }");
+        assert_eq!(
+            result,
+            Ok(Expression::StructInit {
+                ty: Type::Ident(Ident::new("Point")),
+                fields: vec![(Ident::new("x"), Expression::Literal(Literal::Int(1)))],
+                base: Some(Box::new(Expression::Ident(Ident::new("p")))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_struct_init_base_only() {
+        let result = crusty_peg_parser::struct_init("Point { ..p }");
+        assert_eq!(
+            result,
+            Ok(Expression::StructInit {
+                ty: Type::Ident(Ident::new("Point")),
+                fields: vec![],
+                base: Some(Box::new(Expression::Ident(Ident::new("p")))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_struct_init_no_trailing_comma_before_base() {
+        // A trailing comma before `..base` is optional.
+        let result = crusty_peg_parser::struct_init("Point { x: 1 ..p }");
+        assert_eq!(
+            result,
+            Ok(Expression::StructInit {
+                ty: Type::Ident(Ident::new("Point")),
+                fields: vec![(Ident::new("x"), Expression::Literal(Literal::Int(1)))],
+                base: Some(Box::new(Expression::Ident(Ident::new("p")))),
+            })
+        );
+    }
+
+    // --- PS-12: array-repeat literal (`[value; count]`) ---
+
+    #[test]
+    fn test_array_repeat_simple() {
+        let result = crusty_peg_parser::array_lit("[0; 16]");
+        assert_eq!(
+            result,
+            Ok(Expression::ArrayRepeat {
+                value: Box::new(Expression::Literal(Literal::Int(0))),
+                count: Box::new(Expression::Literal(Literal::Int(16))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_array_repeat_vs_list_not_confused() {
+        // A comma list is still an ArrayLit, not an ArrayRepeat.
+        let result = crusty_peg_parser::array_lit("[1, 2]");
+        assert_eq!(
+            result,
+            Ok(Expression::ArrayLit {
+                elements: vec![
+                    Expression::Literal(Literal::Int(1)),
+                    Expression::Literal(Literal::Int(2)),
+                ]
             })
         );
     }
@@ -8497,6 +8586,7 @@ mod primary_expression_tests {
             Ok(Expression::StructInit {
                 ty: Type::Ident(Ident::new("Point")),
                 fields: vec![(Ident::new("x"), Expression::Literal(Literal::Int(10)))],
+                base: None,
             })
         );
     }
