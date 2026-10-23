@@ -1156,6 +1156,14 @@ impl SemanticAnalyzer {
                 self.symbol_table.exit_scope();
             }
 
+            Statement::Loop { label: _, body } => {
+                // An unconditional loop has no condition to type-check; just
+                // analyze the body in a fresh scope.
+                self.symbol_table.enter_scope();
+                self.analyze_block(body);
+                self.symbol_table.exit_scope();
+            }
+
             Statement::For {
                 label: _,
                 init,
@@ -2321,6 +2329,9 @@ impl SemanticAnalyzer {
                 self.collect_used_variables(condition, used);
                 self.collect_used_variables_in_block(body, used);
             }
+            Statement::Loop { body, .. } => {
+                self.collect_used_variables_in_block(body, used);
+            }
             Statement::For {
                 init,
                 condition,
@@ -2452,6 +2463,9 @@ impl SemanticAnalyzer {
                 condition, body, ..
             } => {
                 self.collect_modified_variables(condition, modified);
+                self.collect_modified_variables_in_block(body, modified);
+            }
+            Statement::Loop { body, .. } => {
                 self.collect_modified_variables_in_block(body, modified);
             }
             Statement::For {

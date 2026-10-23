@@ -870,6 +870,27 @@ impl CodeGenerator {
                 self.generate_block(body);
                 self.write("\n");
             }
+            Statement::Loop { label, body } => {
+                self.write_indent();
+                if let Some(ref label) = label {
+                    match self.target {
+                        TargetLanguage::Rust => {
+                            self.write("'");
+                            self.write(&label.name);
+                            self.write(": ");
+                        }
+                        TargetLanguage::Crusty => {
+                            self.write(".");
+                            self.write(&label.name);
+                            self.write(": ");
+                        }
+                    }
+                }
+                // `loop` is spelled identically in Crusty and Rust.
+                self.write("loop ");
+                self.generate_block(body);
+                self.write("\n");
+            }
             Statement::For {
                 label,
                 init,

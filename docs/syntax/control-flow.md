@@ -44,10 +44,22 @@ for item in collection {
 }
 ```
 
+### Infinite Loop
+```c
+loop {
+    if (done) {
+        break;
+    }
+    work();
+}
+```
+Translates to Rust's `loop` unchanged. Exit with `break` (optionally labeled);
+use it when there is no loop condition to evaluate up front.
+
 ### Labeled Loops
 ```c
-.outer: while (true) {
-    .inner: while (true) {
+.outer: loop {
+    .inner: loop {
         if (condition) {
             break outer;
         }
@@ -57,8 +69,8 @@ for item in collection {
 ```
 Translates to:
 ```rust
-'outer: while true {
-    'inner: while true {
+'outer: loop {
+    'inner: loop {
         if condition {
             break 'outer;
         }

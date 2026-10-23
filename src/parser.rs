@@ -1886,10 +1886,13 @@ peg::parser! {
         /// code generation emits as Rust's `'label:`. The label is applied by
         /// rewriting the parsed loop statement's `label` field.
         pub rule labeled_stmt() -> Statement
-            = _ "." label:ident() _ ":" _ loop_stmt:(while_stmt() / for_in_stmt() / for_stmt()) _ {
+            = _ "." label:ident() _ ":" _ loop_stmt:(while_stmt() / loop_stmt() / for_in_stmt() / for_stmt()) _ {
                 match loop_stmt {
                     Statement::While { condition, body, .. } => Statement::While {
                         label: Some(label), condition, body,
+                    },
+                    Statement::Loop { body, .. } => Statement::Loop {
+                        label: Some(label), body,
                     },
                     Statement::For { init, condition, increment, body, .. } => Statement::For {
                         label: Some(label), init, condition, increment, body,
@@ -1913,6 +1916,21 @@ peg::parser! {
                 Statement::While {
                     label: None,
                     condition,
+                    body,
+                }
+            }
+
+        /// Loop statement: unconditional infinite loop
+        /// Syntax: loop { body }
+        /// Returns Statement::Loop (lowers to Rust `loop`)
+        ///
+        /// Examples:
+        /// - loop { break; }
+        /// - loop { work(); }
+        pub rule loop_stmt() -> Statement
+            = _ kw_loop() _ body:block() _ {
+                Statement::Loop {
+                    label: None,
                     body,
                 }
             }
@@ -2142,6 +2160,7 @@ peg::parser! {
             = labeled_stmt()
             / if_stmt()
             / while_stmt()
+            / loop_stmt()
             / for_in_stmt()  // Must come before for_stmt
             / for_stmt()
             / switch_stmt()
@@ -10919,6 +10938,42 @@ mod control_flow_tests {
             }
             _ => panic!("Expected While statement"),
         }
+    }
+
+    #[test]
+    fn test_loop_stmt_plain() {
+        // An unconditional loop with a break.
+        let result = crusty_peg_parser::loop_stmt("loop { break; }");
+        assert!(result.is_ok(), "Failed to parse loop: {:?}", result);
+        match result.unwrap() {
+            Statement::Loop { label, body } => {
+                assert!(label.is_none());
+                assert_eq!(body.statements.len(), 1);
+            }
+            other => panic!("Expected Loop statement, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_loop_stmt_labeled() {
+        // A labeled loop: `.outer: loop { … }`.
+        let result = crusty_peg_parser::statement(".outer: loop { break outer; }");
+        assert!(result.is_ok(), "Failed to parse labeled loop: {:?}", result);
+        match result.unwrap() {
+            Statement::Loop { label, body } => {
+                assert_eq!(label.map(|l| l.name), Some("outer".to_string()));
+                assert_eq!(body.statements.len(), 1);
+            }
+            other => panic!("Expected labeled Loop statement, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_statement_loop() {
+        // `loop` is reachable through the general statement dispatch.
+        let result = crusty_peg_parser::statement("loop { }");
+        assert!(result.is_ok(), "loop should be a valid statement: {:?}", result);
+        assert!(matches!(result.unwrap(), Statement::Loop { .. }));
     }
 
     // ========================================================================

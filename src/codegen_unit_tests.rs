@@ -293,6 +293,57 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_loop_statement() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let stmt = Statement::Loop {
+            label: None,
+            body: Block::new(vec![Statement::Break(None)]),
+        };
+        let func = Function {
+            visibility: Visibility::Public,
+            name: Ident::new("test"),
+            params: vec![],
+            return_type: None,
+            body: Some(Block::new(vec![stmt])),
+            is_variadic: false,
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let file = File {
+            items: vec![Item::Function(func)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("loop {"), "got: {}", output);
+        assert!(!output.contains("while"), "loop must not emit a condition: {}", output);
+    }
+
+    #[test]
+    fn test_generate_labeled_loop() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let stmt = Statement::Loop {
+            label: Some(Ident::new("outer")),
+            body: Block::empty(),
+        };
+        let func = Function {
+            visibility: Visibility::Public,
+            name: Ident::new("test"),
+            params: vec![],
+            return_type: None,
+            body: Some(Block::new(vec![stmt])),
+            is_variadic: false,
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let file = File {
+            items: vec![Item::Function(func)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("'outer: loop"), "got: {}", output);
+    }
+
+    #[test]
     fn test_generate_break_with_label() {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let stmt = Statement::Break(Some(Ident::new("outer")));

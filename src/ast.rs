@@ -212,6 +212,13 @@ pub enum Statement {
         condition: Expression,
         body: Block,
     },
+    /// Unconditional infinite loop: `loop { … }`. Lowers to Rust `loop`.
+    /// Exited with `break` (optionally labeled); a `break <expr>` can yield a
+    /// value, matching Rust's loop-as-expression.
+    Loop {
+        label: Option<Ident>,
+        body: Block,
+    },
     For {
         label: Option<Ident>,
         init: Box<Statement>,
