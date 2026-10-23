@@ -17,4 +17,5 @@ Crusty provides a C-like syntax that transpiles to Rust, giving developers famil
 - [Macros](macros.md) - #define macros, delimiter types, and double-underscore naming
 - [Modules](modules.md) - #import and #export directives for module management
 - [Namespaces](namespaces.md) - Grouping items into named modules
+- [Static Variables](statics.md) - Top-level static globals and mutability
 - [Extern Blocks](extern-blocks.md) - FFI declarations and extern block syntax

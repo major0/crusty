@@ -1079,6 +1079,47 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_static_immutable() {
+        // static int COUNTER = 0; → pub static COUNTER: i32 = 0;
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let s = Static {
+            visibility: Visibility::Public,
+            name: Ident::new("COUNTER".to_string()),
+            ty: Type::Primitive(PrimitiveType::I32),
+            value: Expression::Literal(Literal::Int(0)),
+            mutable: false,
+            doc_comments: vec![],
+        };
+        let file = File {
+            items: vec![Item::Static(s)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("pub static COUNTER: i32 = 0;"), "got: {}", output);
+        assert!(!output.contains("mut"), "immutable static has no mut: {}", output);
+    }
+
+    #[test]
+    fn test_generate_static_mutable() {
+        // static mut int TICKS = 100; → pub static mut TICKS: i32 = 100;
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let s = Static {
+            visibility: Visibility::Public,
+            name: Ident::new("TICKS".to_string()),
+            ty: Type::Primitive(PrimitiveType::I32),
+            value: Expression::Literal(Literal::Int(100)),
+            mutable: true,
+            doc_comments: vec![],
+        };
+        let file = File {
+            items: vec![Item::Static(s)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("pub static mut TICKS: i32 = 100;"), "got: {}", output);
+    }
+
+    #[test]
     fn test_generate_typedef_simple() {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let typedef = Typedef {

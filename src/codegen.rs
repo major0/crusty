@@ -551,9 +551,22 @@ impl CodeGenerator {
         ));
     }
 
-    fn generate_static(&mut self, _static_item: &Static) {
-        // Placeholder
-        self.write_line("// TODO: generate_static");
+    fn generate_static(&mut self, static_item: &Static) {
+        // `static [mut] Type NAME = value;` → `[pub] static [mut] NAME: Type = value;`
+        for comment in &static_item.doc_comments {
+            self.write_line(&format!("///{}", comment));
+        }
+        let visibility = match static_item.visibility {
+            Visibility::Public => "pub ",
+            Visibility::Private => "",
+        };
+        let mutability = if static_item.mutable { "mut " } else { "" };
+        let ty = self.generate_type_string(&static_item.ty);
+        let value = self.generate_expression_string(&static_item.value);
+        self.write_line(&format!(
+            "{}static {}{}: {} = {};",
+            visibility, mutability, static_item.name.name, ty, value
+        ));
     }
 
     fn generate_macro_definition(&mut self, macro_def: &MacroDefinition) {

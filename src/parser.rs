@@ -2813,6 +2813,40 @@ peg::parser! {
                 Item::Namespace(Namespace { name, items, doc_comments: Vec::new() })
             }
 
+        /// Top-level static variable.
+        /// Syntax: static [mut] Type name [= value] ;
+        /// Lowers to a Rust `static [mut] NAME: Type = value;` (public).
+        ///
+        /// Disambiguation: a `static` FUNCTION (`static Type name(...) { }`,
+        /// private visibility) is handled by the `function` rule. This rule
+        /// requires `=`/`;` after the name, so the `(` of a function makes it
+        /// fail and PEG falls through to `function`.
+        ///
+        /// Examples:
+        /// - static int COUNTER = 0;
+        /// - static mut int TICKS = 0;
+        pub rule static_item() -> Item
+            = _ kw_static() __ kw_mut() __ ty:type_expr() __ name:ident() _ "=" _ value:expr() _ ";" _ {
+                Item::Static(Static {
+                    visibility: Visibility::Public,
+                    name,
+                    ty,
+                    value,
+                    mutable: true,
+                    doc_comments: Vec::new(),
+                })
+            }
+            / _ kw_static() __ ty:type_expr() __ name:ident() _ "=" _ value:expr() _ ";" _ {
+                Item::Static(Static {
+                    visibility: Visibility::Public,
+                    name,
+                    ty,
+                    value,
+                    mutable: false,
+                    doc_comments: Vec::new(),
+                })
+            }
+
         /// Extern block: FFI function declarations under an ABI.
         /// Syntax: extern ["ABI"] { extern_fn_decl* }
         /// Lowers to a Rust `extern "ABI" { … }` block.
@@ -2915,6 +2949,7 @@ peg::parser! {
             / struct_def()
             / enum_def()
             / typedef_def()
+            / static_item()
             / function()
 
         /// File: complete Crusty source file
@@ -4644,6 +4679,48 @@ mod item_tests {
             assert!(ext.items.is_empty());
         } else {
             panic!("Expected Item::Extern");
+        }
+    }
+
+    #[test]
+    fn test_peg_item_static_variable() {
+        // A top-level static variable (immutable, public).
+        let result = crusty_peg_parser::item("static int COUNTER = 0;");
+        assert!(result.is_ok(), "Failed to parse static variable: {:?}", result);
+        if let Ok(Item::Static(s)) = result {
+            assert_eq!(s.name.name, "COUNTER");
+            assert!(!s.mutable, "plain static should be immutable");
+            assert!(matches!(s.visibility, Visibility::Public));
+        } else {
+            panic!("Expected Item::Static, got: {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_peg_item_static_mut_variable() {
+        // `static mut` marks a mutable global.
+        let result = crusty_peg_parser::item("static mut int TICKS = 100;");
+        assert!(result.is_ok(), "Failed to parse static mut: {:?}", result);
+        if let Ok(Item::Static(s)) = result {
+            assert_eq!(s.name.name, "TICKS");
+            assert!(s.mutable, "static mut should be mutable");
+        } else {
+            panic!("Expected Item::Static");
+        }
+    }
+
+    #[test]
+    fn test_peg_item_static_fn_not_a_variable() {
+        // Disambiguation: `static Type name(...)` is a private FUNCTION, not a
+        // static variable — the `(` makes static_item fail and function() wins.
+        let result = crusty_peg_parser::item("static int helper(int x) { return x; }");
+        assert!(result.is_ok(), "Failed to parse static function: {:?}", result);
+        match result {
+            Ok(Item::Function(f)) => {
+                assert_eq!(f.name.name, "helper");
+                assert!(matches!(f.visibility, Visibility::Private));
+            }
+            other => panic!("Expected a private Item::Function, got: {:?}", other),
         }
     }
 
