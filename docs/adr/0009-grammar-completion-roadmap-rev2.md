@@ -82,6 +82,7 @@ ADR'd) before implementation.
   These were Tier-2 in ADR-0008; they are design-first because the type
   environment holds no method signatures today, and resolving `Type::method`
   vs instance `self`-methods is a type-system choice, not a stub completion.
+  SEM-00 is specified in ADR-0010.
 - **PS-08** generic parameters on function/struct/enum *definitions*
   (`<T>`, `where`, lifetimes, const generics), with **SEM-03** (explicit-
   generic calls discard type args) and **SEM-04** (generic-argument inference;
