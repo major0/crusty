@@ -3241,6 +3241,25 @@ peg::parser! {
         // TOP-LEVEL ITEM AND FILE RULES
         // ====================================================================
 
+        /// Item-position macro invocation: `name! { … }` / `name!( … )` /
+        /// `name![ … ]` at module level, e.g. `bitflags! { … }` or
+        /// `lazy_static! { … }`. The body is a raw span passed to rustc verbatim
+        /// (ADR-0001); an optional trailing `;` is consumed. Distinct from an
+        /// expression-position macro call inside a function body.
+        pub rule item_macro_invocation() -> Item
+            = _ name:ident() _ "!" _ d:macro_args() _ ";"? _ {
+                let (delimiter, text) = d;
+                let args = if text.is_empty() {
+                    vec![]
+                } else {
+                    vec![crate::ast::Token {
+                        kind: crate::ast::TokenKind::Other,
+                        text,
+                    }]
+                };
+                Item::MacroInvocation { name, args, delimiter }
+            }
+
         /// Item: top-level declaration in a Crusty source file
         /// Syntax: define | macro | conditional | struct | enum | typedef | function
         /// Returns Item enum variant
@@ -3269,6 +3288,7 @@ peg::parser! {
             / struct_def()
             / enum_def()
             / typedef_def()
+            / item_macro_invocation()
             / static_item()
             / function()
 
@@ -5234,6 +5254,58 @@ mod item_tests {
         } else {
             panic!("Expected Item::Const");
         }
+    }
+
+    #[test]
+    fn test_peg_item_macro_invocation_brace() {
+        // An item-position macro invocation with a brace body (e.g. bitflags!,
+        // lazy_static!) parses and preserves the body verbatim.
+        let src = "bitflags! { struct Flags: u32 { const A = 1; } }";
+        let result = crusty_peg_parser::item(src);
+        assert!(result.is_ok(), "Failed to parse item macro: {:?}", result);
+        match result.unwrap() {
+            Item::MacroInvocation {
+                name,
+                args,
+                delimiter,
+            } => {
+                assert_eq!(name.name, "bitflags");
+                assert_eq!(delimiter, MacroDelimiter::Braces);
+                let body = &args[0].text;
+                assert!(body.contains("struct Flags"), "body preserved: {body}");
+                assert!(body.contains("const A = 1;"), "body preserved: {body}");
+            }
+            other => panic!("Expected Item::MacroInvocation, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_peg_item_macro_invocation_paren_trailing_semi() {
+        // A paren-form item macro with a trailing `;` parses; the semicolon is
+        // consumed, not part of the body.
+        let result = crusty_peg_parser::item("my_macro!(a, b);");
+        assert!(result.is_ok(), "Failed to parse paren item macro: {:?}", result);
+        match result.unwrap() {
+            Item::MacroInvocation {
+                name, delimiter, ..
+            } => {
+                assert_eq!(name.name, "my_macro");
+                assert_eq!(delimiter, MacroDelimiter::Parens);
+            }
+            other => panic!("Expected Item::MacroInvocation, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_peg_item_macro_invocation_in_file() {
+        // A brace-form item macro sits among other top-level items.
+        let src = "lazy_static! { static ref X: i32 = 1; } void main() { }";
+        let result = crusty_peg_parser::file(src);
+        assert!(result.is_ok(), "Failed to parse file: {:?}", result);
+        let file = result.unwrap();
+        assert_eq!(file.items.len(), 2);
+        assert!(matches!(file.items[0], Item::MacroInvocation { .. }));
+        assert!(matches!(file.items[1], Item::Function(_)));
     }
 
     #[test]

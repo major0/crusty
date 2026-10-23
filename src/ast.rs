@@ -26,6 +26,17 @@ pub enum Item {
     Static(Static),
     MacroDefinition(MacroDefinition),
     ConditionalCompilation(ConditionalCompilation),
+    /// An item-position macro invocation, e.g. `bitflags! { … }` or
+    /// `lazy_static! { … }` at module level. The `args` hold the raw body span
+    /// (passed to rustc verbatim, see ADR-0001) and `delimiter` records the
+    /// invocation brackets so `name! { … }` is re-emitted with the same shape.
+    /// Distinct from `Expression::MacroCall`, which is a macro used in value
+    /// position inside a function body.
+    MacroInvocation {
+        name: Ident,
+        args: Vec<Token>,
+        delimiter: MacroDelimiter,
+    },
     /// Raw Rust items emitted verbatim, from a `__rust__{ … }` escape hatch.
     /// `code` is the exact source between the braces (brace-balanced, trimmed),
     /// passed through to the generated Rust untouched. Used for signatures

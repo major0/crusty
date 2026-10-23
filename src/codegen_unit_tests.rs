@@ -1072,6 +1072,47 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_item_macro_invocation_brace() {
+        // An item-position brace macro (bitflags!) emits `name! { body }` with
+        // the body verbatim and NO trailing semicolon.
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let file = File {
+            items: vec![Item::MacroInvocation {
+                name: Ident::new("bitflags".to_string()),
+                args: vec![Token {
+                    kind: TokenKind::Other,
+                    text: " struct Flags: u32 { const A = 1; } ".to_string(),
+                }],
+                delimiter: MacroDelimiter::Braces,
+            }],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("bitflags!{"), "brace form: {output}");
+        assert!(output.contains("struct Flags: u32"), "body verbatim: {output}");
+        assert!(!output.contains("};"), "brace item macro takes no semicolon: {output}");
+    }
+
+    #[test]
+    fn test_generate_item_macro_invocation_paren_gets_semi() {
+        // A paren-form item macro emits a trailing semicolon.
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let file = File {
+            items: vec![Item::MacroInvocation {
+                name: Ident::new("my_macro".to_string()),
+                args: vec![Token {
+                    kind: TokenKind::Other,
+                    text: "a, b".to_string(),
+                }],
+                delimiter: MacroDelimiter::Parens,
+            }],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("my_macro!(a, b);"), "paren form with semi: {output}");
+    }
+
+    #[test]
     fn test_generate_macro_empty_body() {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let macro_def = MacroDefinition {

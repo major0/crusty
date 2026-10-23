@@ -585,6 +585,11 @@ impl SemanticAnalyzer {
                 // Raw Rust passthrough (`__rust__{ … }`) is opaque to Crusty's
                 // analyzer — rustc validates it.
             }
+            Item::MacroInvocation { .. } => {
+                // An item-position macro invocation (`bitflags! { … }`) has a
+                // raw body Crusty does not tokenise (ADR-0001); rustc expands
+                // and validates it, so there is nothing to analyze here.
+            }
         }
     }
 

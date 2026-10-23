@@ -192,6 +192,11 @@ impl CodeGenerator {
             Item::Static(static_item) => self.generate_static(static_item),
             Item::MacroDefinition(macro_def) => self.generate_macro_definition(macro_def),
             Item::ConditionalCompilation(cc) => self.generate_conditional_compilation(cc),
+            Item::MacroInvocation {
+                name,
+                args,
+                delimiter,
+            } => self.generate_macro_invocation(name, args, delimiter),
             Item::RawRust { code } => self.generate_raw_rust(code),
         }
     }
@@ -611,6 +616,27 @@ impl CodeGenerator {
                 self.write_line(trimmed.trim_start());
             }
         }
+    }
+
+    /// Emit an item-position macro invocation: `name! <delim> body <delim>`.
+    /// The body span is passed through verbatim (ADR-0001) and the invocation
+    /// delimiter is preserved, so `bitflags! { … }` stays brace-form and
+    /// `my_macro!( … )` stays paren-form. A paren/bracket invocation is an item
+    /// statement and gets a trailing `;`; a brace invocation is a Rust item and
+    /// takes none.
+    fn generate_macro_invocation(
+        &mut self,
+        name: &Ident,
+        args: &[crate::ast::Token],
+        delimiter: &crate::ast::MacroDelimiter,
+    ) {
+        let (open, close, semi) = match delimiter {
+            crate::ast::MacroDelimiter::Parens => ('(', ')', ";"),
+            crate::ast::MacroDelimiter::Brackets => ('[', ']', ";"),
+            crate::ast::MacroDelimiter::Braces => ('{', '}', ""),
+        };
+        let body = args.first().map(|t| t.text.as_str()).unwrap_or("");
+        self.write_line(&format!("{}!{}{}{}{}", name.name, open, body, close, semi));
     }
 
     fn generate_const(&mut self, const_item: &Const) {
