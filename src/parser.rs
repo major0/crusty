@@ -2722,24 +2722,21 @@ peg::parser! {
         //
         // Components:
         // - Hash and define keyword: #define
-        // - Name: must have double-underscore prefix and suffix (e.g., __MAX__)
-        // - Parameters: optional, only parentheses style supported for #define
-        //   - Parentheses: __MACRO__(a, b)
-        //   - None: __MACRO__ (constant macro)
-        // - Body: token sequence until end of line or semicolon
+        // - Name: must have double-underscore prefix and suffix (e.g., __PI__)
+        // - Value: a single literal, optionally negated (constants only)
         //
-        // Note: Macro USAGE (not definition) can use any delimiter style:
-        // - __macro__(args) - parentheses
-        // - __macro__[args] - brackets (e.g., __vec__[1, 2, 3])
-        // - __macro__{args} - braces
-        // These usages transpile "as is" to Rust, allowing rustc to resolve them.
-        // This supports Rust macros declared via proc_macro, macro 2.0, etc.
+        // A #define is constants only (ADR-0001). A parameter list is a
+        // deliberate parse error directing the author to #macro.
+        //
+        // Macro INVOCATION is not handled here: it is the native Rust `name!(...)`
+        // bang form (see the `macro_call` rule), which keeps a macro call
+        // grammatically distinct from a function call. There is no `__name__(...)`
+        // call form — it would be lexically identical to a function call and
+        // invite shadowing.
         //
         // Examples:
         // - #define __PI__ 3.14159
-        // - #define __MAX__(a, b) ((a) > (b) ? (a) : (b))
-        //
-        // Requirements validated: 1.2, 6.6
+        // - #define __MAX_POINTS__ 100
 
         /// `#define __NAME__ value` — a named constant (ADR-0001).
         ///

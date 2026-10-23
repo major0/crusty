@@ -73,7 +73,7 @@ Several C-like semantic constructs are supported. These are semantic transformat
 - `expr?` → `expr?` (error propagation - pass through)
 - `@Type.method()` → `Type::method()` (type-scoped calls with @ prefix)
 - `.label:` → `'label:` (loop labels with dot prefix)
-- `__macro__()` → `macro!()` (double-underscore for macros)
+- `name!()` → `name!()` (macro calls use Rust's bang form and pass through)
 
 **Note:** The `@` prefix and double-underscore syntax are Crusty innovations in the C spirit, maintaining 1:1 Rust compatibility.
 
@@ -117,7 +117,7 @@ switch (x) {                     // → Rust match expression
 ### C-like Syntax with Rust Safety
 - **Familiar C syntax**: Write code with C-style function declarations, control flow, and data structures
 - **Type-scoped calls**: Use `@Type` prefix with dot notation: `@Vec.new()`, `@Option.None`
-- **Macro system**: Double-underscore naming for macros: `__println__("Hello")`, `__vec__[1, 2, 3]`
+- **Macro system**: define constants with `#define`, parameterised macros with `#macro`, and invoke with Rust's bang form: `println!("Hello")`, `vec![1, 2, 3]`
 - **Closures**: Nested functions that capture outer scope (transpile to Rust closures)
 - **Escape hatch**: Use `__rust__` to embed raw Rust code for advanced features
 - **Rust compatibility**: All Crusty code transpiles to safe, idiomatic Rust
@@ -151,7 +151,7 @@ cargo install --path .
 Create `hello.crst`:
 ```c
 void main() {
-    __println__("Hello, Crusty!");
+    println!("Hello, Crusty!");
 }
 ```
 
@@ -192,14 +192,14 @@ typedef struct {
 // Type-scoped calls with @ prefix
 void main() {
     let p = @Point.new(3, 4);
-    __println__("Distance²: {}", p.distance_squared());
+    println!("Distance²: {}", p.distance_squared());
 }
 ```
 
 ### Key Syntax Features
 
 - **Type-scoped calls**: `@Type.method()` → `Type::method()`
-- **Macros**: `__println__()` → `println!()`
+- **Macros**: `println!()` → `println!()` (pass through unchanged)
 - **Error handling**: `Type?` → `Result<Type, E>`
 - **NULL handling**: `NULL` → `Option::None`
 - **Module system**: `#import` and `#export`

@@ -95,7 +95,7 @@ impl Default for Point {
 ```c
 typedef struct {
     void print(&self) {
-        __println__("Point({}, {})", self.x, self.y);
+        println!("Point({}, {})", self.x, self.y);
     }
 } @Point.display;
 ```

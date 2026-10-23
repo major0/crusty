@@ -38,7 +38,7 @@ semantics should be identical after a round trip.
 Reverse translation would apply the inverse of Crusty's syntax rules:
 - `fn name(a: i32) -> i32` → `int name(int a)`
 - `let mut x = 42;` → `var x = 42;`
-- `println!("...")` → `__println__("...")`
+- `println!("...")` → `println!("...")` (macro calls pass through unchanged)
 - `Type::method()` → `@Type.method()`
 - `match expr { ... }` → `switch(expr) { ... }`
 

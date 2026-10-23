@@ -52,7 +52,7 @@ void main() {
     }
 
     let pid = getpid();
-    __println__("Process ID: {}", pid);
+    println!("Process ID: {}", pid);
 }
 ```
 

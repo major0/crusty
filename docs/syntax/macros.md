@@ -15,7 +15,7 @@ The complete macro surface is four directives:
 | `#define __NAME__ value`      | `const NAME: T = value;`   | Named constant (no parameters) |
 | `#macro __NAME__(a, b) body`  | `macro_rules! name { … }`  | Parameterised macro           |
 | `#ifdef FOO` … `#endif`       | `#[cfg(FOO)]`              | Conditional compilation       |
-| `__name__(args)`              | `name!(args)`             | Macro invocation              |
+| `name!(args)`                 | `name!(args)`              | Macro invocation (bang form)  |
 
 Anything else — raw `macro_rules!`, `#[derive(...)]`, attribute macros,
 procedural macros — is not modelled by Crusty. Those already work through
@@ -111,19 +111,30 @@ those.
 
 ## Invocation and delimiter preservation
 
-A macro is invoked with the `__name__` form; the double-underscores are stripped
-and a `!` is appended, producing the Rust call. The invocation delimiter
-(`()`, `[]`, or `{}`) is **preserved**, matching Rust conventions such as
-`vec![]` and `quote!{}`. The argument text is an opaque span handed to rustc.
+A macro is invoked with Rust's native `name!(...)` form — the trailing `!` is
+required. The invocation delimiter (`()`, `[]`, or `{}`) is **preserved**,
+matching Rust conventions such as `vec![]` and `quote!{}`. The argument text is
+an opaque span handed to rustc.
 
-| Crusty invocation   | Rust output   |
-|---------------------|---------------|
-| `__println__("hi")` | `println!("hi")` |
-| `__vec__[1, 2, 3]`  | `vec![1, 2, 3]`  |
-| `__format__{...}`   | `format!{...}`   |
+| Crusty invocation  | Rust output      |
+|--------------------|------------------|
+| `println!("hi")`   | `println!("hi")` |
+| `vec![1, 2, 3]`    | `vec![1, 2, 3]`  |
+| `format!{...}`     | `format!{...}`   |
 
-Built-in Rust macros are reached through their double-underscore equivalents:
-`__println__`, `__vec__`, `__assert__`, `__format__`.
+The `!` is not decoration — it is what makes a macro call unambiguous. A bare
+`name(...)` is a function call; `name!(...)` is a macro call. Without the `!`,
+an invocation would be lexically identical to a function call, and the only
+thing telling them apart would be a naming convention the grammar cannot
+enforce — opening the door to vague resolution rules and silent shadowing (a
+local binding named the same as a macro). Requiring the `!` keeps the two
+grammatically distinct, exactly as Rust does, and is the thin-syntax-layer
+choice: a Rust macro call passes through unchanged. (Macros are *defined* with a
+sigil — `#define`, `#macro __NAME__` — because a declaration site has no such
+ambiguity; only the call site does.)
+
+Built-in Rust macros are called by their Rust names: `println!`, `vec!`,
+`assert!`, `format!`.
 
 ## Formal Grammar
 
@@ -136,8 +147,8 @@ macro_body    = raw_span ;
 
 conditional   = ( "#ifdef" | "#ifndef" ) IDENT item* "#endif" ;
 
-macro_invoke  = "__" IDENT "__" ( "(" args ")" | "[" args "]" | "{" args "}" ) ;
+macro_invoke  = IDENT "!" ( "(" args ")" | "[" args "]" | "{" args "}" ) ;
 ```
 
 Note that a definition (`#macro`) only ever uses `(params)`, while an invocation
-accepts any of the three delimiters.
+uses the `!` bang form and accepts any of the three delimiters.

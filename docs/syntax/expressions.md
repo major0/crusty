@@ -86,9 +86,9 @@ Instance methods use dot notation as usual: `v.len()`, `v.get(0)`.
 
 ### Macro Invocations
 ```c
-__println__("Hello, world!");
-__vec__[1, 2, 3];
-__format__("Value: {}", x);
+println!("Hello, world!");
+vec![1, 2, 3];
+format!("Value: {}", x);
 ```
 Translates to:
 ```rust
@@ -97,7 +97,11 @@ vec![1, 2, 3];
 format!("Value: {}", x);
 ```
 
-Crusty macros use double-underscore naming (`__name__`) without the `!` suffix. The `!` is Rust-specific syntax and is added during transpilation.
+Macros are invoked with Rust's native `name!(...)` bang form. The `!` keeps a
+macro call grammatically distinct from a function call (`name(...)`), so an
+invocation can never be confused with a call or shadowed by a same-named
+binding. Macros are *defined* with a sigil (`#define`, `#macro`); see
+[macros](macros.md).
 
 ### Comma Operator
 ```c
