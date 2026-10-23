@@ -330,6 +330,28 @@ peg::parser! {
             / kw_signed() / kw_unsigned() / kw_short() / kw_long()
             / kw_true() / kw_false() / kw_null() / kw_sizeof()
 
+        /// Helper: the subset of keywords that name TYPES (and C type
+        /// specifiers). These are reserved so they cannot be parsed as a
+        /// variable identifier, but Rust does not reserve most of them, so
+        /// they are valid method/field names after `.` — see member_name().
+        rule type_keyword() = kw_auto()
+            / kw_int() / kw_i8() / kw_i16() / kw_i32() / kw_i64() / kw_i128()
+            / kw_u8() / kw_u16() / kw_u32() / kw_u64() / kw_u128()
+            / kw_usize() / kw_isize()
+            / kw_float() / kw_f32() / kw_f64()
+            / kw_bool() / kw_char() / kw_void()
+            / kw_signed() / kw_unsigned() / kw_short() / kw_long()
+
+        /// Member name in `.name` position (PS-16): a normal identifier OR a
+        /// type keyword spelled bare. Crusty reserves type keywords (`short`,
+        /// `int`, `char`, …) so they are not identifiers, but Rust does not, so
+        /// `x.short()` and `obj.long` must parse — rustc is the arbiter of
+        /// whether the member actually exists. Control-flow keywords are NOT
+        /// admitted here; they are never Rust member names.
+        pub rule member_name() -> Ident
+            = i:ident() { i }
+            / n:$(type_keyword()) { Ident::new(n) }
+
         // ====================================================================
         // LITERALS
         // ====================================================================
@@ -1124,14 +1146,14 @@ peg::parser! {
                 PostfixOp::ErrorProp
             }
             // Method call: .method(args)
-            / _ "." _ method:ident() _ "(" _ args:call_args()? _ ")" {
+            / _ "." _ method:member_name() _ "(" _ args:call_args()? _ ")" {
                 PostfixOp::MethodCall {
                     method,
                     args: args.unwrap_or_default(),
                 }
             }
             // Field access: .field
-            / _ "." _ field:ident() {
+            / _ "." _ field:member_name() {
                 PostfixOp::FieldAccess { field }
             }
             // Tuple index: .0 .1 ... (numeric field access)
@@ -9190,6 +9212,61 @@ mod call_access_expression_tests {
                 args: vec![],
             })
         );
+    }
+
+    // --- PS-16: type-keyword method/field names (`.short()`, `.int`) ---
+
+    #[test]
+    fn test_method_call_type_keyword_name() {
+        // `short` is a Crusty type keyword but a valid Rust method name.
+        let result = crusty_peg_parser::postfix_expr("d.short()");
+        assert_eq!(
+            result,
+            Ok(Expression::MethodCall {
+                receiver: Box::new(Expression::Ident(Ident::new("d"))),
+                method: Ident::new("short"),
+                args: vec![],
+            })
+        );
+    }
+
+    #[test]
+    fn test_field_access_type_keyword_name() {
+        // `int` as a field name.
+        let result = crusty_peg_parser::postfix_expr("obj.int");
+        assert_eq!(
+            result,
+            Ok(Expression::FieldAccess {
+                expr: Box::new(Expression::Ident(Ident::new("obj"))),
+                field: Ident::new("int"),
+            })
+        );
+    }
+
+    #[test]
+    fn test_method_call_type_keyword_chained() {
+        // Chained type-keyword members: v.long().char
+        let result = crusty_peg_parser::postfix_expr("v.long().char");
+        assert_eq!(
+            result,
+            Ok(Expression::FieldAccess {
+                expr: Box::new(Expression::MethodCall {
+                    receiver: Box::new(Expression::Ident(Ident::new("v"))),
+                    method: Ident::new("long"),
+                    args: vec![],
+                }),
+                field: Ident::new("char"),
+            })
+        );
+    }
+
+    #[test]
+    fn test_control_flow_keyword_not_a_member_name() {
+        // Control-flow keywords are NOT admitted as member names, so the
+        // `.if` member fails to parse — `x` alone is consumed and the `.if`
+        // tail is left over, which postfix_expr (a complete parse) rejects.
+        let result = crusty_peg_parser::postfix_expr("x.if");
+        assert!(result.is_err());
     }
 
     #[test]
