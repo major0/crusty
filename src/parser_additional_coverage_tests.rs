@@ -347,7 +347,7 @@ mod tests {
         match &file.items[0] {
             Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::While { body, .. } => match &body.statements[0] {
-                    Statement::Break(None) => {}
+                    Statement::Break { label: None, value: None } => {}
                     _ => panic!("Expected break without label"),
                 },
                 _ => panic!("Expected while statement"),

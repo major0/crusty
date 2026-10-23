@@ -297,7 +297,7 @@ mod tests {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let stmt = Statement::Loop {
             label: None,
-            body: Block::new(vec![Statement::Break(None)]),
+            body: Block::new(vec![Statement::Break { label: None, value: None }]),
         };
         let func = Function {
             visibility: Visibility::Public,
@@ -346,7 +346,7 @@ mod tests {
     #[test]
     fn test_generate_break_with_label() {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
-        let stmt = Statement::Break(Some(Ident::new("outer")));
+        let stmt = Statement::Break { label: Some(Ident::new("outer")), value: None };
         let func = Function {
             visibility: Visibility::Public,
             name: Ident::new("test"),
@@ -363,6 +363,58 @@ mod tests {
         };
         let output = gen.generate(&file);
         assert!(output.contains("break 'outer;"));
+    }
+
+    #[test]
+    fn test_generate_break_with_value() {
+        // `break 42;` -> `break 42;` (value yielded from a loop expression).
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let stmt = Statement::Break {
+            label: None,
+            value: Some(Expression::Literal(Literal::Int(42))),
+        };
+        let func = Function {
+            visibility: Visibility::Public,
+            name: Ident::new("test"),
+            params: vec![],
+            return_type: None,
+            body: Some(Block::new(vec![stmt])),
+            is_variadic: false,
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let file = File {
+            items: vec![Item::Function(func)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("break 42;"), "got: {}", output);
+    }
+
+    #[test]
+    fn test_generate_break_label_and_value() {
+        // `break .outer 42;` -> `break 'outer 42;`.
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let stmt = Statement::Break {
+            label: Some(Ident::new("outer")),
+            value: Some(Expression::Literal(Literal::Int(42))),
+        };
+        let func = Function {
+            visibility: Visibility::Public,
+            name: Ident::new("test"),
+            params: vec![],
+            return_type: None,
+            body: Some(Block::new(vec![stmt])),
+            is_variadic: false,
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let file = File {
+            items: vec![Item::Function(func)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("break 'outer 42;"), "got: {}", output);
     }
 
     #[test]
@@ -1695,7 +1747,7 @@ mod tests {
                 values: vec![Expression::Literal(Literal::Int(1))],
                 body: Block::new(vec![
                     Statement::Expr(Expression::Literal(Literal::Int(10))),
-                    Statement::Break(None),
+                    Statement::Break { label: None, value: None },
                 ]),
             }],
             default: None,

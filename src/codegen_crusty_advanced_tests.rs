@@ -173,7 +173,7 @@ mod tests {
     #[test]
     fn test_crusty_break_with_label() {
         let mut gen = CodeGenerator::new(TargetLanguage::Crusty);
-        let stmt = Statement::Break(Some(Ident::new("outer")));
+        let stmt = Statement::Break { label: Some(Ident::new("outer")), value: None };
         let func = Function {
             visibility: Visibility::Public,
             name: Ident::new("test"),

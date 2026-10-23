@@ -237,7 +237,13 @@ pub enum Statement {
         cases: Vec<SwitchCase>,
         default: Option<Block>,
     },
-    Break(Option<Ident>),
+    /// `break [.label] [value];`. `value` lowers to Rust `break <expr>`, which
+    /// yields a value from an enclosing `loop` expression. A labeled break is
+    /// written `break .label;` (the label wears the dot, as at its declaration).
+    Break {
+        label: Option<Ident>,
+        value: Option<Expression>,
+    },
     Continue(Option<Ident>),
     NestedFunction {
         name: Ident,

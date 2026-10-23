@@ -315,7 +315,7 @@ mod tests {
         #[test]
         fn prop_labeled_break_translates(label in arb_ident()) {
             let mut gen = CodeGenerator::new(TargetLanguage::Rust);
-            let stmt = Statement::Break(Some(label.clone()));
+            let stmt = Statement::Break { label: Some(label.clone()), value: None };
             let func = Function {
                 visibility: Visibility::Public,
                 name: Ident::new("test"),

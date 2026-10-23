@@ -2206,26 +2206,45 @@ peg::parser! {
             }
 
         /// Break statement: exit loop with optional label
-        /// Syntax: break [label];
+        /// Syntax: break [.label] [value];
         /// Returns Statement::Break
+        ///
+        /// A label wears the dot (`break .outer;`), matching its declaration
+        /// (`.outer:`). Without a label, a bare expression is the break VALUE
+        /// (`break 42;`), which lowers to Rust `break <expr>` and lets a `loop`
+        /// yield a value. A labeled break may also carry a value
+        /// (`break .outer 42;`).
         ///
         /// Examples:
         /// - break;
-        /// - break outer;
+        /// - break .outer;
+        /// - break 42;
+        /// - break .outer value;
         pub rule break_stmt() -> Statement
-            = _ kw_break() _ label:ident()? _ ";" _ {
-                Statement::Break(label)
+            // Labeled, optionally with a value: break .label [value];
+            = _ kw_break() _ "." label:ident() value:(__ v:expr() { v })? _ ";" _ {
+                Statement::Break { label: Some(label), value }
+            }
+            // Value only: break expr;
+            / _ kw_break() __ value:expr() _ ";" _ {
+                Statement::Break { label: None, value: Some(value) }
+            }
+            // Bare: break;
+            / _ kw_break() _ ";" _ {
+                Statement::Break { label: None, value: None }
             }
 
         /// Continue statement: skip to next iteration with optional label
-        /// Syntax: continue [label];
+        /// Syntax: continue [.label];
         /// Returns Statement::Continue
+        ///
+        /// A label wears the dot (`continue .outer;`), matching its declaration.
         ///
         /// Examples:
         /// - continue;
-        /// - continue outer;
+        /// - continue .outer;
         pub rule continue_stmt() -> Statement
-            = _ kw_continue() _ label:ident()? _ ";" _ {
+            = _ kw_continue() _ label:("." l:ident() { l })? _ ";" _ {
                 Statement::Continue(label)
             }
 
@@ -10956,13 +10975,20 @@ mod control_flow_tests {
 
     #[test]
     fn test_loop_stmt_labeled() {
-        // A labeled loop: `.outer: loop { … }`.
-        let result = crusty_peg_parser::statement(".outer: loop { break outer; }");
+        // A labeled loop: `.outer: loop { … }` with a dotted labeled break.
+        let result = crusty_peg_parser::statement(".outer: loop { break .outer; }");
         assert!(result.is_ok(), "Failed to parse labeled loop: {:?}", result);
         match result.unwrap() {
             Statement::Loop { label, body } => {
                 assert_eq!(label.map(|l| l.name), Some("outer".to_string()));
                 assert_eq!(body.statements.len(), 1);
+                // The break carries the dotted label, no value.
+                match &body.statements[0] {
+                    Statement::Break { label: Some(l), value: None } => {
+                        assert_eq!(l.name, "outer");
+                    }
+                    other => panic!("Expected labeled break, got {:?}", other),
+                }
             }
             other => panic!("Expected labeled Loop statement, got {:?}", other),
         }
@@ -10974,6 +11000,93 @@ mod control_flow_tests {
         let result = crusty_peg_parser::statement("loop { }");
         assert!(result.is_ok(), "loop should be a valid statement: {:?}", result);
         assert!(matches!(result.unwrap(), Statement::Loop { .. }));
+    }
+
+    #[test]
+    fn test_break_bare() {
+        let result = crusty_peg_parser::break_stmt("break;");
+        assert!(result.is_ok(), "{:?}", result);
+        assert!(matches!(
+            result.unwrap(),
+            Statement::Break { label: None, value: None }
+        ));
+    }
+
+    #[test]
+    fn test_break_with_value() {
+        // A bare expression after break is the break VALUE, not a label.
+        let result = crusty_peg_parser::break_stmt("break 42;");
+        assert!(result.is_ok(), "{:?}", result);
+        match result.unwrap() {
+            Statement::Break { label: None, value: Some(v) } => {
+                assert!(matches!(v, Expression::Literal(Literal::Int(42))));
+            }
+            other => panic!("Expected break with value, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_break_dotted_label() {
+        // A label at the break site wears the dot.
+        let result = crusty_peg_parser::break_stmt("break .outer;");
+        assert!(result.is_ok(), "{:?}", result);
+        match result.unwrap() {
+            Statement::Break { label: Some(l), value: None } => {
+                assert_eq!(l.name, "outer");
+            }
+            other => panic!("Expected dotted labeled break, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_break_label_and_value() {
+        let result = crusty_peg_parser::break_stmt("break .outer 42;");
+        assert!(result.is_ok(), "{:?}", result);
+        match result.unwrap() {
+            Statement::Break { label: Some(l), value: Some(v) } => {
+                assert_eq!(l.name, "outer");
+                assert!(matches!(v, Expression::Literal(Literal::Int(42))));
+            }
+            other => panic!("Expected labeled break with value, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_continue_dotted_label() {
+        let result = crusty_peg_parser::continue_stmt("continue .outer;");
+        assert!(result.is_ok(), "{:?}", result);
+        match result.unwrap() {
+            Statement::Continue(Some(l)) => assert_eq!(l.name, "outer"),
+            other => panic!("Expected dotted labeled continue, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_break_undotted_name_is_never_a_label() {
+        // INVARIANT: only `break .label` denotes a label. An undotted name is
+        // parsed as a VALUE expression, never as a label — so `break outer;`
+        // can never silently become a labeled break.
+        let result = crusty_peg_parser::break_stmt("break outer;");
+        assert!(result.is_ok(), "{:?}", result);
+        match result.unwrap() {
+            Statement::Break { label: None, value: Some(Expression::Ident(id)) } => {
+                assert_eq!(id.name, "outer", "undotted name must be a value, not a label");
+            }
+            other => panic!("Expected break with an identifier VALUE, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_continue_undotted_name_is_rejected() {
+        // INVARIANT: `continue` takes only a dotted label and no value, so an
+        // undotted name has nowhere to go and must be a parse error — it must
+        // never be accepted as a label.
+        let result = crusty_peg_parser::continue_stmt("continue outer;");
+        assert!(
+            result.is_err(),
+            "undotted `continue outer;` must be rejected, got {:?}",
+            result
+        );
     }
 
     // ========================================================================

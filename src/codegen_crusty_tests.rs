@@ -103,7 +103,7 @@ void main() {
         let source = r#"
 void main() {
     .loop_label: while (true) {
-        break loop_label;
+        break .loop_label;
     }
 }
 "#;

@@ -6,7 +6,7 @@ Crusty provides C-style control flow constructs including if/else, while loops, 
 
 ## Rationale
 
-C-style control flow is familiar to most developers. Crusty preserves this syntax while adding labeled loops using a dot-prefix notation (`.label:`) for declarations that translates to Rust's tick-prefix (`'label:`). When referencing labels in `break` and `continue` statements, the label name is used without any prefix.
+C-style control flow is familiar to most developers. Crusty preserves this syntax while adding labeled loops using a dot-prefix notation (`.label:`) that translates to Rust's tick-prefix (`'label:`). The label wears the dot at both its declaration and its reference (`break .label;`, `continue .label;`), which keeps a label distinct from a `break` value.
 
 ## Examples
 
@@ -61,9 +61,9 @@ use it when there is no loop condition to evaluate up front.
 .outer: loop {
     .inner: loop {
         if (condition) {
-            break outer;
+            break .outer;
         }
-        continue inner;
+        continue .inner;
     }
 }
 ```
@@ -79,7 +79,24 @@ Translates to:
 }
 ```
 
-Note: The dot prefix (`.label:`) is used only in label declarations. When referencing labels in `break` and `continue`, use the bare name without any prefix.
+Note: A label wears the dot (`.label`) at BOTH its declaration (`.outer:`) and
+its reference (`break .outer;`, `continue .outer;`). An undotted name is never a
+label — see Break below.
+
+### Break and Continue
+`break` has three forms; `continue` takes an optional dotted label:
+```c
+break;              // leave the innermost loop
+break value;        // leave a `loop`, yielding `value`
+break .outer;       // leave the loop labeled `.outer`
+break .outer value; // leave `.outer`, yielding `value`
+continue;           // next iteration of the innermost loop
+continue .outer;    // next iteration of the loop labeled `.outer`
+```
+The dot is what distinguishes a label from a value: an undotted name after
+`break` is always a VALUE expression (`break x;` yields `x`), never a label, so
+a labeled break cannot be written by accident. `continue` carries no value, so
+an undotted name after it is a parse error.
 
 ## Formal Grammar
 
@@ -89,6 +106,6 @@ while_stmt    = "while" "(" expr ")" block ;
 for_stmt      = "for" "(" [var_decl | expr_stmt] ";" [expr] ";" [expr] ")" block ;
 for_in_stmt   = "for" IDENT "in" expr block ;
 loop_stmt     = ["." IDENT ":"] "loop" block ;
-break_stmt    = "break" [IDENT] ";" ;
-continue_stmt = "continue" [IDENT] ";" ;
+break_stmt    = "break" ["." IDENT] [expr] ";" ;
+continue_stmt = "continue" ["." IDENT] ";" ;
 ```

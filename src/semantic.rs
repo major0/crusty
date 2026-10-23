@@ -1276,8 +1276,15 @@ impl SemanticAnalyzer {
                 }
             }
 
-            Statement::Break(_) | Statement::Continue(_) => {
-                // No semantic analysis needed for break/continue
+            Statement::Break { value, .. } => {
+                // The label (if any) is a control-flow target, not a symbol.
+                // A break value is an ordinary expression to type-check.
+                if let Some(expr) = value {
+                    self.analyze_expression(expr);
+                }
+            }
+            Statement::Continue(_) => {
+                // No semantic analysis needed for continue
             }
 
             Statement::NestedFunction {
@@ -2368,7 +2375,12 @@ impl SemanticAnalyzer {
                 // Don't traverse into nested functions - they have their own scope
                 self.collect_used_variables_in_block(body, used);
             }
-            Statement::Return(None) | Statement::Break(_) | Statement::Continue(_) => {
+            Statement::Break { value, .. } => {
+                if let Some(expr) = value {
+                    self.collect_used_variables(expr, used);
+                }
+            }
+            Statement::Return(None) | Statement::Continue(_) => {
                 // No variables used
             }
         }
@@ -2503,7 +2515,7 @@ impl SemanticAnalyzer {
             Statement::NestedFunction { body, .. } => {
                 self.collect_modified_variables_in_block(body, modified);
             }
-            Statement::Return(None) | Statement::Break(_) | Statement::Continue(_) => {
+            Statement::Return(None) | Statement::Break { .. } | Statement::Continue(_) => {
                 // No variables modified
             }
         }

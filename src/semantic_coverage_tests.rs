@@ -155,7 +155,7 @@ mod tests {
             body: Some(Block::new(vec![Statement::While {
                 label: None,
                 condition: Expression::Literal(Literal::Bool(true)),
-                body: Block::new(vec![Statement::Break(None)]),
+                body: Block::new(vec![Statement::Break { label: None, value: None }]),
             }])),
             is_variadic: false,
             doc_comments: vec![],

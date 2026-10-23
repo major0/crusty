@@ -1091,7 +1091,7 @@ impl CodeGenerator {
                     }
                 }
             }
-            Statement::Break(label) => {
+            Statement::Break { label, value } => {
                 self.write_indent();
                 self.write("break");
                 if let Some(ref label) = label {
@@ -1106,6 +1106,10 @@ impl CodeGenerator {
                             self.write(&label.name);
                         }
                     }
+                }
+                if let Some(ref value) = value {
+                    self.write(" ");
+                    self.write(&self.generate_expression_string(value));
                 }
                 self.write(";\n");
             }

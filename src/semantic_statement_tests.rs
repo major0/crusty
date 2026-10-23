@@ -328,7 +328,7 @@ mod tests {
             body: Some(Block::new(vec![Statement::While {
                 label: None,
                 condition: Expression::Literal(Literal::Bool(true)),
-                body: Block::new(vec![Statement::Break(None)]),
+                body: Block::new(vec![Statement::Break { label: None, value: None }]),
             }])),
             is_variadic: false,
             doc_comments: vec![],
@@ -519,7 +519,7 @@ mod tests {
             body: Some(Block::new(vec![Statement::While {
                 label: Some(Ident::new("outer")),
                 condition: Expression::Literal(Literal::Bool(true)),
-                body: Block::new(vec![Statement::Break(Some(Ident::new("outer")))]),
+                body: Block::new(vec![Statement::Break { label: Some(Ident::new("outer")), value: None }]),
             }])),
             is_variadic: false,
             doc_comments: vec![],
@@ -587,7 +587,7 @@ mod tests {
                     end: Some(Box::new(Expression::Literal(Literal::Int(10)))),
                     inclusive: false,
                 },
-                body: Block::new(vec![Statement::Break(Some(Ident::new("iter")))]),
+                body: Block::new(vec![Statement::Break { label: Some(Ident::new("iter")), value: None }]),
             }])),
             is_variadic: false,
             doc_comments: vec![],
