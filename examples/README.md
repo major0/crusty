@@ -26,8 +26,9 @@ Or test a single app directly:
 
 ```sh
 cd examples/apps/dice
-cargo test      # runs the native tests/ harness (asserts the app's output)
-cargo run       # or just run it
+crustyc test   # transpiles the .crst and delegates to the native cargo test harness
+cargo test     # equivalent, if crustyc is already on PATH
+cargo run      # or just run it
 ```
 
 Each app asserts its behaviour with a Cargo-native integration test under

@@ -1,7 +1,7 @@
 # ADR-0006: `crusty test` — delegating to Rust's test harness
 
 ## Status
-proposed
+accepted
 
 ## Context
 Crusty authors need to test Crusty code. Rust already has an excellent native

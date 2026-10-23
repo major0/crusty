@@ -41,10 +41,11 @@ Thumbs.db
 *.temp
 *.log
 
-# Test files (generated during test runs)
-test_*.crst
-test_*.rs
-test_*_*/
+# Test files (generated during test runs, at the repo root — anchored so they
+# do not swallow real source such as src/test_cmd.rs)
+/test_*.crst
+/test_*.rs
+/test_*_*/
 
 # Example builds (keep source, ignore builds)
 example/target/
