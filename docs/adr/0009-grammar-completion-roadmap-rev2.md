@@ -86,7 +86,7 @@ ADR'd) before implementation.
 - **PS-08** generic parameters on function/struct/enum *definitions*
   (`<T>`, `where`, lifetimes, const generics), with **SEM-03** (explicit-
   generic calls discard type args) and **SEM-04** (generic-argument inference;
-  array-literal ↔ `Vec<T>`). One cohesive workstream.
+  array-literal ↔ `Vec<T>`). One cohesive workstream. Specified in ADR-0011.
 - **PS-07** closures/lambdas (`|x| expr`) and function-pointer *types*
   (`Type::Function`, DRIFT-3).
 - **PS-06** `match` expression/statement (keyword already reserved).
