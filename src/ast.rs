@@ -401,6 +401,9 @@ pub enum PrimitiveType {
     U32,
     U64,
     U128,
+    /// Pointer-width unsigned / signed integers (Rust `usize` / `isize`).
+    Usize,
+    Isize,
     Float,
     F32,
     F64,

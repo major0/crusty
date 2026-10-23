@@ -15,6 +15,28 @@ pub enum TargetLanguage {
     Crusty,
 }
 
+/// C / POSIX type aliases recognised as identifier types and lowered to their
+/// Rust equivalents (ADR-0003). These let idiomatic C source using the
+/// `<stdint.h>` / POSIX spellings transpile unmodified. A matching user
+/// `typedef` resolves earlier and so wins over this table. Single-token names
+/// only. The alias maps to a `PrimitiveType`, so emission reuses the one
+/// primitive-to-Rust map rather than duplicating the Rust spellings here.
+fn c_type_alias_primitive(name: &str) -> Option<PrimitiveType> {
+    Some(match name {
+        "int8_t" => PrimitiveType::I8,
+        "int16_t" => PrimitiveType::I16,
+        "int32_t" => PrimitiveType::I32,
+        "int64_t" => PrimitiveType::I64,
+        "uint8_t" | "byte" => PrimitiveType::U8,
+        "uint16_t" => PrimitiveType::U16,
+        "uint32_t" => PrimitiveType::U32,
+        "uint64_t" => PrimitiveType::U64,
+        "size_t" | "uintptr_t" => PrimitiveType::Usize,
+        "ssize_t" | "ptrdiff_t" | "intptr_t" => PrimitiveType::Isize,
+        _ => return None,
+    })
+}
+
 /// Code generator that produces source code from AST
 pub struct CodeGenerator {
     target: TargetLanguage,
@@ -22,6 +44,10 @@ pub struct CodeGenerator {
     output: String,
     /// Capture information for nested functions: function_name -> captures
     nested_function_captures: HashMap<String, Vec<Capture>>,
+    /// Names the program defines via `typedef`. A C/POSIX alias (ADR-0003) is
+    /// applied only when the name is NOT here, so a user typedef of the same
+    /// name wins.
+    user_type_names: std::collections::HashSet<String>,
 }
 
 impl CodeGenerator {
@@ -32,6 +58,7 @@ impl CodeGenerator {
             indent_level: 0,
             output: String::new(),
             nested_function_captures: HashMap::new(),
+            user_type_names: std::collections::HashSet::new(),
         }
     }
 
@@ -85,6 +112,17 @@ impl CodeGenerator {
     pub fn generate(&mut self, file: &File) -> String {
         self.output.clear();
         self.indent_level = 0;
+
+        // Record user typedef names so built-in C/POSIX aliases defer to them
+        // (ADR-0003). Top-level typedefs are the common case; a typedef shadowed
+        // only inside a namespace still falls back to the alias, which is
+        // acceptable for this compatibility feature.
+        self.user_type_names.clear();
+        for item in &file.items {
+            if let Item::Typedef(td) = item {
+                self.user_type_names.insert(td.name.name.clone());
+            }
+        }
 
         // Generate doc comments for the file
         for comment in &file.doc_comments {
@@ -1519,7 +1557,20 @@ impl CodeGenerator {
     pub fn generate_type_string(&self, ty: &Type) -> String {
         match ty {
             Type::Primitive(prim) => self.generate_primitive_type_string(prim),
-            Type::Ident(ident) => ident.name.clone(),
+            Type::Ident(ident) => {
+                // A C/POSIX alias (ADR-0003) lowers to its Rust type when
+                // targeting Rust — unless the program defines a typedef of the
+                // same name, which wins. Otherwise the identifier is verbatim.
+                match self.target {
+                    TargetLanguage::Rust if !self.user_type_names.contains(&ident.name) => {
+                        match c_type_alias_primitive(&ident.name) {
+                            Some(prim) => self.generate_primitive_type_string(&prim),
+                            None => ident.name.clone(),
+                        }
+                    }
+                    _ => ident.name.clone(),
+                }
+            }
             Type::Pointer { ty, mutable } => {
                 // Translate pointers to raw pointers
                 if *mutable {
@@ -1609,6 +1660,8 @@ impl CodeGenerator {
                 PrimitiveType::U32 => "u32".to_string(),
                 PrimitiveType::U64 => "u64".to_string(),
                 PrimitiveType::U128 => "u128".to_string(),
+                PrimitiveType::Usize => "usize".to_string(),
+                PrimitiveType::Isize => "isize".to_string(),
                 PrimitiveType::Float => "f64".to_string(),
                 PrimitiveType::F32 => "f32".to_string(),
                 PrimitiveType::F64 => "f64".to_string(),
@@ -1628,6 +1681,8 @@ impl CodeGenerator {
                 PrimitiveType::U32 => "u32".to_string(),
                 PrimitiveType::U64 => "u64".to_string(),
                 PrimitiveType::U128 => "u128".to_string(),
+                PrimitiveType::Usize => "usize".to_string(),
+                PrimitiveType::Isize => "isize".to_string(),
                 PrimitiveType::Float => "float".to_string(),
                 PrimitiveType::F32 => "f32".to_string(),
                 PrimitiveType::F64 => "f64".to_string(),

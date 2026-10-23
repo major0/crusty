@@ -821,6 +821,57 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_usize_isize() {
+        let gen = CodeGenerator::new(TargetLanguage::Rust);
+        assert_eq!(
+            gen.generate_type_string(&Type::Primitive(PrimitiveType::Usize)),
+            "usize"
+        );
+        assert_eq!(
+            gen.generate_type_string(&Type::Primitive(PrimitiveType::Isize)),
+            "isize"
+        );
+    }
+
+    #[test]
+    fn test_generate_c_posix_aliases() {
+        // C/POSIX alias identifier types lower to their Rust equivalents
+        // (ADR-0003). Exercised through a full file so user_type_names is set.
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let func = Function {
+            visibility: Visibility::Public,
+            name: Ident::new("f"),
+            params: vec![
+                Param { name: Ident::new("a"), ty: Type::Ident(Ident::new("uint8_t")) },
+                Param { name: Ident::new("b"), ty: Type::Ident(Ident::new("size_t")) },
+                Param { name: Ident::new("c"), ty: Type::Ident(Ident::new("byte")) },
+            ],
+            return_type: Some(Type::Ident(Ident::new("ssize_t"))),
+            body: Some(Block::empty()),
+            is_variadic: false,
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let file = File { items: vec![Item::Function(func)], doc_comments: vec![] };
+        let output = gen.generate(&file);
+        assert!(
+            output.contains("fn f(a: u8, b: usize, c: u8) -> isize"),
+            "C aliases should lower to Rust types: {}",
+            output
+        );
+    }
+
+    #[test]
+    fn test_c_alias_unknown_ident_verbatim() {
+        // A non-alias identifier type is emitted unchanged.
+        let gen = CodeGenerator::new(TargetLanguage::Rust);
+        assert_eq!(
+            gen.generate_type_string(&Type::Ident(Ident::new("Widget"))),
+            "Widget"
+        );
+    }
+
+    #[test]
     fn test_generate_reference_types() {
         let gen = CodeGenerator::new(TargetLanguage::Rust);
         let immutable_ref = Type::Reference {

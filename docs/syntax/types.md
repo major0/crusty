@@ -28,6 +28,23 @@ integer types use the C-traditional `int<size>` / `uint<size>` spelling
 `u8`…`u128`. They may be used anywhere a type is expected — including function
 parameters and return types.
 
+### C / POSIX Type Aliases
+For compatibility with existing C source, the standard `<stdint.h>` / POSIX
+integer names are recognised as aliases and lower to their Rust equivalents, so
+basic C code transpiles with little or no modification:
+
+| C / POSIX | Rust |
+|-----------|------|
+| `int8_t`, `int16_t`, `int32_t`, `int64_t` | `i8`, `i16`, `i32`, `i64` |
+| `uint8_t`, `uint16_t`, `uint32_t`, `uint64_t` | `u8`, `u16`, `u32`, `u64` |
+| `size_t`, `uintptr_t` | `usize` |
+| `ssize_t`, `ptrdiff_t`, `intptr_t` | `isize` |
+| `byte` | `u8` |
+
+A `typedef` of the same name takes precedence over the built-in alias. These
+are single-token names; multi-word C primitives (`unsigned int`, `long long`)
+are not yet supported.
+
 ### Structs
 ```c
 struct Point {

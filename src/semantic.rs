@@ -262,6 +262,10 @@ impl TypeEnvironment {
                         }
                         _ => ty.clone(),
                     }
+                } else if let Some(prim) = Self::c_alias_to_primitive(&ident.name) {
+                    // A built-in C/POSIX alias (ADR-0003), only when the program
+                    // did not define a typedef of the same name above.
+                    Type::Primitive(prim)
                 } else {
                     ty.clone()
                 }
@@ -352,6 +356,27 @@ impl TypeEnvironment {
         }
     }
 
+    /// Map a built-in C/POSIX type alias (ADR-0003) to its primitive type, or
+    /// `None` if the name is not an alias. Used by `resolve_type` so aliases
+    /// type-check as their underlying integer; a user typedef of the same name
+    /// is consulted first and wins.
+    fn c_alias_to_primitive(name: &str) -> Option<crate::ast::PrimitiveType> {
+        use crate::ast::PrimitiveType::*;
+        Some(match name {
+            "int8_t" => I8,
+            "int16_t" => I16,
+            "int32_t" => I32,
+            "int64_t" => I64,
+            "uint8_t" | "byte" => U8,
+            "uint16_t" => U16,
+            "uint32_t" => U32,
+            "uint64_t" => U64,
+            "size_t" | "uintptr_t" => Usize,
+            "ssize_t" | "ptrdiff_t" | "intptr_t" => Isize,
+            _ => return None,
+        })
+    }
+
     /// Whether a primitive is one of the integer types (the C-style `int` plus
     /// every fixed-width signed/unsigned integer). Used for lenient integer
     /// width compatibility.
@@ -359,7 +384,7 @@ impl TypeEnvironment {
         use crate::ast::PrimitiveType::*;
         matches!(
             p,
-            Int | I8 | I16 | I32 | I64 | I128 | U8 | U16 | U32 | U64 | U128
+            Int | I8 | I16 | I32 | I64 | I128 | U8 | U16 | U32 | U64 | U128 | Usize | Isize
         )
     }
 
