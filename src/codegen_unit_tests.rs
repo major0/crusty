@@ -771,6 +771,30 @@ mod tests {
             "u64"
         );
         assert_eq!(
+            gen.generate_type_string(&Type::Primitive(PrimitiveType::I8)),
+            "i8"
+        );
+        assert_eq!(
+            gen.generate_type_string(&Type::Primitive(PrimitiveType::I16)),
+            "i16"
+        );
+        assert_eq!(
+            gen.generate_type_string(&Type::Primitive(PrimitiveType::I128)),
+            "i128"
+        );
+        assert_eq!(
+            gen.generate_type_string(&Type::Primitive(PrimitiveType::U8)),
+            "u8"
+        );
+        assert_eq!(
+            gen.generate_type_string(&Type::Primitive(PrimitiveType::U16)),
+            "u16"
+        );
+        assert_eq!(
+            gen.generate_type_string(&Type::Primitive(PrimitiveType::U128)),
+            "u128"
+        );
+        assert_eq!(
             gen.generate_type_string(&Type::Primitive(PrimitiveType::Float)),
             "f64"
         );

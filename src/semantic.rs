@@ -352,6 +352,17 @@ impl TypeEnvironment {
         }
     }
 
+    /// Whether a primitive is one of the integer types (the C-style `int` plus
+    /// every fixed-width signed/unsigned integer). Used for lenient integer
+    /// width compatibility.
+    fn is_integer_primitive(p: &crate::ast::PrimitiveType) -> bool {
+        use crate::ast::PrimitiveType::*;
+        matches!(
+            p,
+            Int | I8 | I16 | I32 | I64 | I128 | U8 | U16 | U32 | U64 | U128
+        )
+    }
+
     /// Check if two types are compatible
     pub fn is_compatible(&self, t1: &Type, t2: &Type) -> bool {
         use crate::ast::PrimitiveType;
@@ -364,11 +375,20 @@ impl TypeEnvironment {
             // Auto type is compatible with anything
             (Type::Auto, _) | (_, Type::Auto) => true,
 
-            // Numeric type compatibility (int can be used as i32, etc.)
-            (Type::Primitive(PrimitiveType::Int), Type::Primitive(PrimitiveType::I32)) => true,
-            (Type::Primitive(PrimitiveType::I32), Type::Primitive(PrimitiveType::Int)) => true,
+            // Numeric type compatibility. Crusty is lenient about integer
+            // width here — an integer literal is typed I32 but legitimately
+            // fits any integer-typed binding (rustc performs the real
+            // width/overflow checking). So any integer primitive unifies with
+            // any other, and likewise the two float types.
+            (Type::Primitive(p1), Type::Primitive(p2))
+                if Self::is_integer_primitive(p1) && Self::is_integer_primitive(p2) =>
+            {
+                true
+            }
             (Type::Primitive(PrimitiveType::Float), Type::Primitive(PrimitiveType::F64)) => true,
             (Type::Primitive(PrimitiveType::F64), Type::Primitive(PrimitiveType::Float)) => true,
+            (Type::Primitive(PrimitiveType::Float), Type::Primitive(PrimitiveType::F32)) => true,
+            (Type::Primitive(PrimitiveType::F32), Type::Primitive(PrimitiveType::Float)) => true,
 
             // Exact match for primitives
             (Type::Primitive(p1), Type::Primitive(p2)) => p1 == p2,
@@ -1767,10 +1787,16 @@ impl SemanticAnalyzer {
 
                 // Index should be an integer type
                 match index_type {
-                    Type::Primitive(PrimitiveType::I32)
+                    Type::Primitive(PrimitiveType::I8)
+                    | Type::Primitive(PrimitiveType::I16)
+                    | Type::Primitive(PrimitiveType::I32)
                     | Type::Primitive(PrimitiveType::I64)
+                    | Type::Primitive(PrimitiveType::I128)
+                    | Type::Primitive(PrimitiveType::U8)
+                    | Type::Primitive(PrimitiveType::U16)
                     | Type::Primitive(PrimitiveType::U32)
                     | Type::Primitive(PrimitiveType::U64)
+                    | Type::Primitive(PrimitiveType::U128)
                     | Type::Primitive(PrimitiveType::Int) => {}
                     _ => {
                         self.errors.push(SemanticError::new(

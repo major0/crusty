@@ -231,17 +231,35 @@ peg::parser! {
         /// Keyword: int
         rule kw_int() = "int" !ident_char()
 
+        /// Keyword: i8
+        rule kw_i8() = "i8" !ident_char()
+
+        /// Keyword: i16
+        rule kw_i16() = "i16" !ident_char()
+
         /// Keyword: i32
         rule kw_i32() = "i32" !ident_char()
 
         /// Keyword: i64
         rule kw_i64() = "i64" !ident_char()
 
+        /// Keyword: i128
+        rule kw_i128() = "i128" !ident_char()
+
+        /// Keyword: u8
+        rule kw_u8() = "u8" !ident_char()
+
+        /// Keyword: u16
+        rule kw_u16() = "u16" !ident_char()
+
         /// Keyword: u32
         rule kw_u32() = "u32" !ident_char()
 
         /// Keyword: u64
         rule kw_u64() = "u64" !ident_char()
+
+        /// Keyword: u128
+        rule kw_u128() = "u128" !ident_char()
 
         /// Keyword: float
         rule kw_float() = "float" !ident_char()
@@ -280,7 +298,8 @@ peg::parser! {
             / kw_struct() / kw_enum() / kw_typedef()
             / kw_namespace() / kw_extern() / kw_unsafe()
             / kw_loop() / kw_match() / kw_switch() / kw_case() / kw_default() / kw_auto()
-            / kw_int() / kw_i32() / kw_i64() / kw_u32() / kw_u64()
+            / kw_int() / kw_i8() / kw_i16() / kw_i32() / kw_i64() / kw_i128()
+            / kw_u8() / kw_u16() / kw_u32() / kw_u64() / kw_u128()
             / kw_float() / kw_f32() / kw_f64()
             / kw_bool() / kw_char() / kw_void()
             / kw_true() / kw_false() / kw_null() / kw_sizeof()
@@ -408,6 +427,30 @@ peg::parser! {
         pub rule primitive_i32() -> Type
             = kw_i32() { Type::Primitive(PrimitiveType::I32) }
 
+        /// Primitive type: i8
+        pub rule primitive_i8() -> Type
+            = kw_i8() { Type::Primitive(PrimitiveType::I8) }
+
+        /// Primitive type: i16
+        pub rule primitive_i16() -> Type
+            = kw_i16() { Type::Primitive(PrimitiveType::I16) }
+
+        /// Primitive type: i128
+        pub rule primitive_i128() -> Type
+            = kw_i128() { Type::Primitive(PrimitiveType::I128) }
+
+        /// Primitive type: u8
+        pub rule primitive_u8() -> Type
+            = kw_u8() { Type::Primitive(PrimitiveType::U8) }
+
+        /// Primitive type: u16
+        pub rule primitive_u16() -> Type
+            = kw_u16() { Type::Primitive(PrimitiveType::U16) }
+
+        /// Primitive type: u128
+        pub rule primitive_u128() -> Type
+            = kw_u128() { Type::Primitive(PrimitiveType::U128) }
+
         /// Primitive type: i64
         /// Returns Type::Primitive(PrimitiveType::I64)
         pub rule primitive_i64() -> Type
@@ -457,10 +500,16 @@ peg::parser! {
         /// Returns Type::Primitive variant
         /// Note: Order matters for PEG - longer matches first (i32 before int, f32 before float)
         pub rule primitive_type() -> Type
-            = primitive_i32()
+            = primitive_i128()
             / primitive_i64()
-            / primitive_u32()
+            / primitive_i32()
+            / primitive_i16()
+            / primitive_i8()
+            / primitive_u128()
             / primitive_u64()
+            / primitive_u32()
+            / primitive_u16()
+            / primitive_u8()
             / primitive_int()
             / primitive_f32()
             / primitive_f64()
@@ -5740,6 +5789,47 @@ mod primitive_type_tests {
         assert_eq!(
             crusty_peg_parser::primitive_i32("i32"),
             Ok(Type::Primitive(PrimitiveType::I32))
+        );
+    }
+
+    #[test]
+    fn test_peg_primitive_fixed_widths() {
+        // Every fixed-width integer parses to its own variant via the
+        // primitive_type entry point (which also exercises ordered-choice
+        // longest-first: i128 before i16/i1, etc.).
+        let cases = [
+            ("i8", PrimitiveType::I8),
+            ("i16", PrimitiveType::I16),
+            ("i32", PrimitiveType::I32),
+            ("i64", PrimitiveType::I64),
+            ("i128", PrimitiveType::I128),
+            ("u8", PrimitiveType::U8),
+            ("u16", PrimitiveType::U16),
+            ("u32", PrimitiveType::U32),
+            ("u64", PrimitiveType::U64),
+            ("u128", PrimitiveType::U128),
+        ];
+        for (src, expected) in cases {
+            assert_eq!(
+                crusty_peg_parser::primitive_type(src),
+                Ok(Type::Primitive(expected)),
+                "parsing primitive {:?}",
+                src
+            );
+        }
+    }
+
+    #[test]
+    fn test_peg_fixed_width_not_greedy() {
+        // `i16` must not be read as `i1` + `6`, and an identifier that merely
+        // starts with a type name is still an identifier, not a type.
+        assert_eq!(
+            crusty_peg_parser::primitive_type("i16"),
+            Ok(Type::Primitive(PrimitiveType::I16))
+        );
+        assert!(
+            crusty_peg_parser::primitive_type("i16x").is_err(),
+            "`i16x` is an identifier, not the i16 type"
         );
     }
 
