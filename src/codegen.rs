@@ -1508,6 +1508,38 @@ impl CodeGenerator {
                 result.push(')');
                 result
             }
+            Expression::TypeScopedPath { ty, member } => {
+                // Translate @Type.CONST to Type::CONST (no call).
+                format!("{}::{}", self.generate_type_string(ty), member.name)
+            }
+            Expression::TurbofishCall {
+                ty,
+                method,
+                generics,
+                args,
+            } => {
+                // Translate Type::method::<G>(args) verbatim — the turbofish
+                // binds to the method, so emit Type::method::<G>(args).
+                let mut result = self.generate_type_string(ty);
+                result.push_str("::");
+                result.push_str(&method.name);
+                result.push_str("::<");
+                for (i, gen) in generics.iter().enumerate() {
+                    if i > 0 {
+                        result.push_str(", ");
+                    }
+                    result.push_str(&self.generate_type_string(gen));
+                }
+                result.push_str(">(");
+                for (i, arg) in args.iter().enumerate() {
+                    if i > 0 {
+                        result.push_str(", ");
+                    }
+                    result.push_str(&self.generate_expression_string(arg));
+                }
+                result.push(')');
+                result
+            }
             Expression::Comma { left, right } => {
                 // Comma expression: (left, right)
                 // In Rust, we use a block with both expressions

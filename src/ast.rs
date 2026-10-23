@@ -354,10 +354,26 @@ pub enum Expression {
         method: Ident,
         args: Vec<Expression>,
     },
+    /// Type-scoped associated access with no call (PS-15), e.g. `@Option.None`
+    /// → `Option::None`. Carries no args and no parens; used for associated
+    /// constants and unit enum variants.
+    TypeScopedPath {
+        ty: Type,
+        member: Ident,
+    },
     ExplicitGenericCall {
         ty: Type,
         generics: Vec<Type>,
         method: Ident,
+        args: Vec<Expression>,
+    },
+    /// Rust-style turbofish call (PS-14), e.g. `Type::method::<G1, G2>(args)`
+    /// → emitted verbatim. The type arguments bind to the METHOD, not the
+    /// type, so this is distinct from ExplicitGenericCall's `Type::<G>::method`.
+    TurbofishCall {
+        ty: Type,
+        method: Ident,
+        generics: Vec<Type>,
         args: Vec<Expression>,
     },
     /// Comma expression: evaluates left, discards result, evaluates and returns right

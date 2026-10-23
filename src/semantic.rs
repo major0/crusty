@@ -2286,6 +2286,27 @@ impl SemanticAnalyzer {
                 ty.clone()
             }
 
+            Expression::TypeScopedPath { ty: _, member: _ } => {
+                // @Type.CONST — an associated const or unit enum variant. Its
+                // value type is not the scope type and is not recorded in the
+                // type env (SEM-00 territory), so leave it Auto for rustc.
+                Type::Auto
+            }
+
+            Expression::TurbofishCall {
+                ty,
+                method: _,
+                generics: _,
+                args,
+            } => {
+                // Analyze arguments; the real return type needs method-signature
+                // typing (SEM-00), so echo the scope type like TypeScopedCall.
+                for arg in args {
+                    self.analyze_expression(arg);
+                }
+                ty.clone()
+            }
+
             Expression::Comma { left, right } => {
                 // Analyze both expressions
                 self.analyze_expression(left);
@@ -2580,6 +2601,14 @@ impl SemanticAnalyzer {
                 }
             }
             Expression::ExplicitGenericCall { args, .. } => {
+                for arg in args {
+                    self.collect_used_variables(arg, used);
+                }
+            }
+            Expression::TypeScopedPath { .. } => {
+                // No sub-expressions: an associated path uses no variables.
+            }
+            Expression::TurbofishCall { args, .. } => {
                 for arg in args {
                     self.collect_used_variables(arg, used);
                 }

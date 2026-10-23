@@ -577,6 +577,30 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_turbofish_call() {
+        let gen = CodeGenerator::new(TargetLanguage::Rust);
+        let expr = Expression::TurbofishCall {
+            ty: Type::Ident(Ident::new("mem")),
+            method: Ident::new("size_of"),
+            generics: vec![Type::Primitive(PrimitiveType::I32)],
+            args: vec![],
+        };
+        let result = gen.generate_expression_string(&expr);
+        assert_eq!(result, "mem::size_of::<i32>()");
+    }
+
+    #[test]
+    fn test_generate_type_scoped_path() {
+        let gen = CodeGenerator::new(TargetLanguage::Rust);
+        let expr = Expression::TypeScopedPath {
+            ty: Type::Ident(Ident::new("Option")),
+            member: Ident::new("None"),
+        };
+        let result = gen.generate_expression_string(&expr);
+        assert_eq!(result, "Option::None");
+    }
+
+    #[test]
     fn test_generate_struct() {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let struct_def = Struct {

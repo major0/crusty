@@ -1062,6 +1062,22 @@ peg::parser! {
                     args: args.unwrap_or_default(),
                 }
             }
+            // Crusty type-scoped associated access, no call (PS-15):
+            // @Type.CONST -> Type::CONST (associated const / unit enum variant).
+            // Tried after the call form so @Type.method(args) stays a call.
+            / _ "@" _ ty:type_for_scoped_call() _ "." _ member:ident() _ {
+                Expression::TypeScopedPath { ty, member }
+            }
+            // Rust-style turbofish call (PS-14): Type::method::<G1, G2>(args).
+            // Tried before the plain Type::method(args) form (longer match).
+            / _ ty:type_for_scoped_call() _ "::" _ method:ident() _ "::" _ "<" _ generics:type_list() _ ">" _ "(" _ args:call_args()? _ ")" _ {
+                Expression::TurbofishCall {
+                    ty,
+                    method,
+                    generics,
+                    args: args.unwrap_or_default(),
+                }
+            }
             // Rust-style type-scoped call: Type::method(args)
             / _ ty:type_for_scoped_call() _ "::" _ method:ident() _ "(" _ args:call_args()? _ ")" _ {
                 Expression::TypeScopedCall {
@@ -9351,6 +9367,84 @@ mod call_access_expression_tests {
                 ty: Type::Ident(Ident::new("Vec")),
                 method: Ident::new("new"),
                 args: vec![],
+            })
+        );
+    }
+
+    // --- PS-14: Rust-style turbofish (`Type::method::<G>(args)`) ---
+
+    #[test]
+    fn test_turbofish_single_generic() {
+        let result = crusty_peg_parser::type_scoped_call("mem::size_of::<i32>()");
+        assert_eq!(
+            result,
+            Ok(Expression::TurbofishCall {
+                ty: Type::Ident(Ident::new("mem")),
+                method: Ident::new("size_of"),
+                generics: vec![Type::Ident(Ident::new("i32"))],
+                args: vec![],
+            })
+        );
+    }
+
+    #[test]
+    fn test_turbofish_multiple_generics_and_args() {
+        let result = crusty_peg_parser::type_scoped_call("Map::of::<int, bool>(k, v)");
+        assert_eq!(
+            result,
+            Ok(Expression::TurbofishCall {
+                ty: Type::Ident(Ident::new("Map")),
+                method: Ident::new("of"),
+                generics: vec![
+                    Type::Primitive(PrimitiveType::Int),
+                    Type::Primitive(PrimitiveType::Bool),
+                ],
+                args: vec![
+                    Expression::Ident(Ident::new("k")),
+                    Expression::Ident(Ident::new("v")),
+                ],
+            })
+        );
+    }
+
+    #[test]
+    fn test_turbofish_does_not_shadow_plain_scoped_call() {
+        // Without `::<...>`, it's still a plain TypeScopedCall.
+        let result = crusty_peg_parser::type_scoped_call("Vec::new()");
+        assert_eq!(
+            result,
+            Ok(Expression::TypeScopedCall {
+                ty: Type::Ident(Ident::new("Vec")),
+                method: Ident::new("new"),
+                args: vec![],
+            })
+        );
+    }
+
+    // --- PS-15: no-paren associated access (`@Type.CONST`) ---
+
+    #[test]
+    fn test_type_scoped_path_const() {
+        let result = crusty_peg_parser::type_scoped_call("@Option.None");
+        assert_eq!(
+            result,
+            Ok(Expression::TypeScopedPath {
+                ty: Type::Ident(Ident::new("Option")),
+                member: Ident::new("None"),
+            })
+        );
+    }
+
+    #[test]
+    fn test_type_scoped_path_does_not_shadow_call() {
+        // With `(...)` it is still a call, not a path.
+        let result = crusty_peg_parser::type_scoped_call("@String.from(\"hi\")");
+        assert_eq!(
+            result,
+            Ok(Expression::TypeScopedCall {
+                ty: Type::Ident(Ident::new("String")),
+                method: Ident::new("from"),
+                args: vec![Expression::Literal(Literal::String("hi".to_string()))],
             })
         );
     }
