@@ -98,7 +98,7 @@ Harder / accepted costs:
 
 - [ ] `#define __PI__ 3.14159` transpiles to a Rust `const` (e.g. `const PI: f64 = 3.14159;`), not a macro.
 - [ ] `#define __MAX__(a, b) …` (a `#define` with parameters) is a parse error whose message points the author to `#macro`.
-- [ ] `#macro __MAX__(a, b) a > b ? a : b` transpiles to a `macro_rules! MAX` definition with the body passed through.
+- [ ] `#macro __MAX__(a, b) a > b ? a : b` transpiles to a `macro_rules! max` definition with the body passed through.
 - [ ] `#ifdef FOO` / `#endif` around an item emits `#[cfg(FOO)]`; `#ifndef FOO` emits `#[cfg(not(FOO))]`.
 - [ ] A macro invocation `__vec__[1, 2, 3]` transpiles to `vec![1, 2, 3]` with the bracket delimiter preserved.
 - [ ] `src/ast.rs` no longer stores any macro body as `Vec<Token>`; macro bodies are `String`.

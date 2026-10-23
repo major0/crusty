@@ -47,7 +47,7 @@ var &int x;   // mutable reference
 
 ### Arrays and Tuples
 ```c
-int arr[10];           // array of 10 ints
+int[10] arr;           // array of 10 ints
 (int, float) pair;     // tuple
 ```
 

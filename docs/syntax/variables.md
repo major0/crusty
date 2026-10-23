@@ -33,8 +33,11 @@ const MAX_SIZE = 1024;       // Type inference
 ## Formal Grammar
 
 ```ebnf
-let_decl   = ["let"] type IDENT "=" expr ";"
-           | "let" IDENT "=" expr ";" ;
-var_decl   = "var" [type] IDENT "=" expr ";" ;
-const_decl = "const" [type] IDENT "=" expr ";" ;
+cstyle_decl = type IDENT ["=" expr] ";"             ; C-style, initializer optional
+let_decl    = "let" [type] IDENT ["=" expr] ";"     ; initializer optional
+var_decl    = "var" [type] IDENT ["=" expr] ";"     ; initializer optional
+const_decl  = "const" [type] IDENT "=" expr ";"     ; initializer REQUIRED
 ```
+
+A `let`/`var`/C-style declaration may omit the initializer (`int x;`, `let x;`,
+`var int count;`). A `const` must be initialized.

@@ -46,18 +46,22 @@ for item in collection {
 
 ### Labeled Loops
 ```c
-.outer: loop {
-    .inner: loop {
-        if (condition) break outer;
+.outer: while (true) {
+    .inner: while (true) {
+        if (condition) {
+            break outer;
+        }
         continue inner;
     }
 }
 ```
 Translates to:
 ```rust
-'outer: loop {
-    'inner: loop {
-        if condition { break 'outer; }
+'outer: while true {
+    'inner: while true {
+        if condition {
+            break 'outer;
+        }
         continue 'inner;
     }
 }

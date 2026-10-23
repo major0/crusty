@@ -42,7 +42,20 @@ Translates to:
 { i -= 1; i }
 ```
 
-Crusty supports only prefix increment/decrement (`++i`, `--i`). Postfix forms (`i++`, `i--`) are not supported — they introduce subtle evaluation-order bugs and have no clean Rust equivalent.
+### Postfix Increment/Decrement
+```c
+i++;    // Increment after use (yields the old value)
+i--;    // Decrement after use (yields the old value)
+```
+Translates to a block expression that captures the prior value, then mutates:
+```rust
+{ let __old = i; i += 1; __old }
+{ let __old = i; i -= 1; __old }
+```
+
+Both prefix (`++i`, `--i`) and postfix (`i++`, `i--`) forms are supported. Prefix
+yields the new value; postfix yields the value from before the mutation, matching
+C semantics.
 
 ### Type Cast
 ```c
@@ -124,9 +137,16 @@ equality   = comparison (("==" | "!=") comparison)* ;
 comparison = addition (("<" | ">" | "<=" | ">=") addition)* ;
 addition   = multiply (("+" | "-") multiply)* ;
 multiply   = unary (("*" | "/" | "%") unary)* ;
-unary      = ("!" | "-" | "&" | "*" | "++" | "--") unary | primary ;
+unary      = ("!" | "-" | "&" | "*" | "++" | "--") unary | postfix ;
+postfix    = primary ("++" | "--" | "." IDENT | "." IDENT "(" [args] ")"
+                       | "[" expr "]" | "(" [args] ")")* ;
 primary    = literal | IDENT | call | field_access | index
            | type_scoped_call | macro_call | "(" expr ")" ;
-type_scoped_call = "@" IDENT ("." IDENT)* ["->" IDENT] ["(" [args] ")"] ;
-macro_call = "__" IDENT "__" ("(" args ")" | "[" args "]" | "{" args "}") ;
+type_scoped_call = "@" IDENT "." IDENT "(" [args] ")" ;
+macro_call = IDENT "!" ("(" args ")" | "[" args "]" | "{" args "}") ;
 ```
+
+> Note: `type_scoped_call` currently accepts only the single-segment
+> `@Type.method(args)` form. Multi-segment paths (`@a.b.c.m()`), the arrow form
+> (`@Type.CONST->method()`), and the no-parens form (`@Type.None`) are not yet
+> implemented.

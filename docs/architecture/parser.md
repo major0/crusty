@@ -32,14 +32,16 @@ Key design decisions:
 Input:
 ```c
 int factorial(int n) {
-    if (n <= 1) return 1;
+    if (n <= 1) {
+        return 1;
+    }
     return n * factorial(n - 1);
 }
 ```
 
 Produces an AST with:
 - A `Function` node with name "factorial", return type `int`, parameter `n: int`
-- An `If` statement with condition `n <= 1` and body `return 1`
+- An `If` statement with condition `n <= 1` and body `{ return 1; }`
 - A `Return` statement with expression `n * factorial(n - 1)`
 
 ## Formal Grammar
