@@ -41,9 +41,29 @@ basic C code transpiles with little or no modification:
 | `ssize_t`, `ptrdiff_t`, `intptr_t` | `isize` |
 | `byte` | `u8` |
 
-A `typedef` of the same name takes precedence over the built-in alias. These
-are single-token names; multi-word C primitives (`unsigned int`, `long long`)
-are not yet supported.
+A `typedef` of the same name takes precedence over the built-in alias.
+
+### Multi-word C Primitives
+The multi-word C integer spellings are recognised and lowered with the **LP64**
+width model (the Linux/macOS convention):
+
+| C spelling | Rust |
+|------------|------|
+| `signed char` | `i8` |
+| `unsigned char` | `u8` |
+| `short`, `short int`, `signed short [int]` | `i16` |
+| `unsigned short [int]` | `u16` |
+| `signed`, `signed int` | `i32` |
+| `unsigned`, `unsigned int` | `u32` |
+| `long`, `long int`, `long long [int]`, `signed long [long] [int]` | `i64` |
+| `unsigned long [int]`, `unsigned long long [int]` | `u64` |
+
+Caveats:
+- **`long` is 64-bit here** (LP64). Code that relies on LLP64 (Windows, where
+  `long` is 32-bit) should use a fixed-width name (`int32`) or `int32_t`.
+- **Bare `char` stays Rust `char`** (a Unicode scalar), not an 8-bit integer.
+  For a byte, use `signed char` / `unsigned char` (→ `i8`/`u8`) or `byte`.
+- `long double` is not supported (Rust has no equivalent wide float).
 
 ### Structs
 ```c

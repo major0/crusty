@@ -276,6 +276,18 @@ peg::parser! {
         /// Keyword: char
         rule kw_char() = "char" !ident_char()
 
+        /// Keyword: signed (C type specifier)
+        rule kw_signed() = "signed" !ident_char()
+
+        /// Keyword: unsigned (C type specifier)
+        rule kw_unsigned() = "unsigned" !ident_char()
+
+        /// Keyword: short (C type specifier)
+        rule kw_short() = "short" !ident_char()
+
+        /// Keyword: long (C type specifier)
+        rule kw_long() = "long" !ident_char()
+
         /// Keyword: void
         rule kw_void() = "void" !ident_char()
 
@@ -302,6 +314,7 @@ peg::parser! {
             / kw_u8() / kw_u16() / kw_u32() / kw_u64() / kw_u128()
             / kw_float() / kw_f32() / kw_f64()
             / kw_bool() / kw_char() / kw_void()
+            / kw_signed() / kw_unsigned() / kw_short() / kw_long()
             / kw_true() / kw_false() / kw_null() / kw_sizeof()
 
         // ====================================================================
@@ -518,6 +531,52 @@ peg::parser! {
             / primitive_char()
             / primitive_void()
 
+        /// Multi-word C primitive integer types (ADR-0004), lowered with the
+        /// LP64 width model. Tried in the type-primary position BEFORE
+        /// primitive_type / ident_type so e.g. `unsigned int` is consumed as a
+        /// unit rather than `unsigned` being read as an identifier. Alternatives
+        /// are ordered longest-first within each family so `unsigned long long`
+        /// is not shortened to `unsigned long`.
+        ///
+        /// `signed char` -> i8, `unsigned char` -> u8;
+        /// short family -> i16/u16; signed/unsigned (int) -> i32/u32;
+        /// long and long-long families -> i64/u64 (LP64).
+        pub rule c_multiword_type() -> Type
+            // char family (must carry a sign specifier to be an integer; bare
+            // `char` stays Rust `char` via primitive_char)
+            = kw_signed() __ kw_char() { Type::Primitive(PrimitiveType::I8) }
+            / kw_unsigned() __ kw_char() { Type::Primitive(PrimitiveType::U8) }
+            // unsigned long long [int] -> u64
+            / kw_unsigned() __ kw_long() __ kw_long() __ kw_int() { Type::Primitive(PrimitiveType::U64) }
+            / kw_unsigned() __ kw_long() __ kw_long() { Type::Primitive(PrimitiveType::U64) }
+            // signed long long [int] / long long [int] -> i64
+            / kw_signed() __ kw_long() __ kw_long() __ kw_int() { Type::Primitive(PrimitiveType::I64) }
+            / kw_signed() __ kw_long() __ kw_long() { Type::Primitive(PrimitiveType::I64) }
+            / kw_long() __ kw_long() __ kw_int() { Type::Primitive(PrimitiveType::I64) }
+            / kw_long() __ kw_long() { Type::Primitive(PrimitiveType::I64) }
+            // unsigned long [int] -> u64
+            / kw_unsigned() __ kw_long() __ kw_int() { Type::Primitive(PrimitiveType::U64) }
+            / kw_unsigned() __ kw_long() { Type::Primitive(PrimitiveType::U64) }
+            // signed long [int] / long [int] -> i64
+            / kw_signed() __ kw_long() __ kw_int() { Type::Primitive(PrimitiveType::I64) }
+            / kw_signed() __ kw_long() { Type::Primitive(PrimitiveType::I64) }
+            / kw_long() __ kw_int() { Type::Primitive(PrimitiveType::I64) }
+            / kw_long() { Type::Primitive(PrimitiveType::I64) }
+            // unsigned short [int] -> u16
+            / kw_unsigned() __ kw_short() __ kw_int() { Type::Primitive(PrimitiveType::U16) }
+            / kw_unsigned() __ kw_short() { Type::Primitive(PrimitiveType::U16) }
+            // signed short [int] / short [int] -> i16
+            / kw_signed() __ kw_short() __ kw_int() { Type::Primitive(PrimitiveType::I16) }
+            / kw_signed() __ kw_short() { Type::Primitive(PrimitiveType::I16) }
+            / kw_short() __ kw_int() { Type::Primitive(PrimitiveType::I16) }
+            / kw_short() { Type::Primitive(PrimitiveType::I16) }
+            // unsigned [int] -> u32
+            / kw_unsigned() __ kw_int() { Type::Primitive(PrimitiveType::U32) }
+            / kw_unsigned() { Type::Primitive(PrimitiveType::U32) }
+            // signed [int] -> i32
+            / kw_signed() __ kw_int() { Type::Primitive(PrimitiveType::I32) }
+            / kw_signed() { Type::Primitive(PrimitiveType::I32) }
+
         // ====================================================================
         // COMPLEX TYPES (Task 3.2)
         // ====================================================================
@@ -598,7 +657,8 @@ peg::parser! {
 
         /// Base type for generics (primitive or identifier, not complex)
         rule type_base() -> Type
-            = primitive_type()
+            = c_multiword_type()
+            / primitive_type()
             / ident_type()
 
         /// Type expression using precedence! macro
@@ -677,6 +737,10 @@ peg::parser! {
             "(" _ t:type_expr() _ ")" { t }
             // Auto type
             kw_auto() { Type::Auto }
+            // Multi-word C primitive types (unsigned int, long long, ...)
+            // Must precede primitive/ident so the leading specifier word is not
+            // consumed as a shorter type or an identifier.
+            t:c_multiword_type() { t }
             // Primitive types
             t:primitive_type() { t }
             // Identifier types (user-defined)
@@ -5840,6 +5904,54 @@ mod primitive_type_tests {
     }
 
     #[test]
+    fn test_peg_multiword_c_primitives() {
+        // Multi-word C integer spellings lower to the LP64 primitive (ADR-0004),
+        // via the full type_expr entry point.
+        let cases = [
+            ("signed char", PrimitiveType::I8),
+            ("unsigned char", PrimitiveType::U8),
+            ("short", PrimitiveType::I16),
+            ("short int", PrimitiveType::I16),
+            ("unsigned short", PrimitiveType::U16),
+            ("unsigned short int", PrimitiveType::U16),
+            ("signed", PrimitiveType::I32),
+            ("signed int", PrimitiveType::I32),
+            ("unsigned", PrimitiveType::U32),
+            ("unsigned int", PrimitiveType::U32),
+            ("long", PrimitiveType::I64),
+            ("long int", PrimitiveType::I64),
+            ("unsigned long", PrimitiveType::U64),
+            ("unsigned long int", PrimitiveType::U64),
+            ("long long", PrimitiveType::I64),
+            ("long long int", PrimitiveType::I64),
+            ("unsigned long long", PrimitiveType::U64),
+            ("unsigned long long int", PrimitiveType::U64),
+        ];
+        for (src, expected) in cases {
+            assert_eq!(
+                crusty_peg_parser::type_expr(src),
+                Ok(Type::Primitive(expected)),
+                "parsing multi-word C type {:?}",
+                src
+            );
+        }
+    }
+
+    #[test]
+    fn test_peg_multiword_does_not_hijack_bare_or_ident() {
+        // Bare `int` is still i32, and an identifier starting with a width word
+        // (e.g. `longitude`) is NOT parsed as `long` + rest.
+        assert_eq!(
+            crusty_peg_parser::type_expr("int"),
+            Ok(Type::Primitive(PrimitiveType::Int))
+        );
+        assert_eq!(
+            crusty_peg_parser::type_expr("longitude"),
+            Ok(Type::Ident(Ident::new("longitude")))
+        );
+    }
+
+    #[test]
     fn test_peg_primitive_i64() {
         // Test int64 type
         assert_eq!(
@@ -10574,12 +10686,12 @@ mod statement_tests {
 
     #[test]
     fn test_let_stmt_with_u32_type() {
-        // Test let statement with u32 type
-        let result = crusty_peg_parser::let_stmt("let uint32 unsigned = 42;");
+        // Test let statement with uint32 type
+        let result = crusty_peg_parser::let_stmt("let uint32 counter = 42;");
         assert_eq!(
             result,
             Ok(Statement::Let {
-                name: Ident::new("unsigned"),
+                name: Ident::new("counter"),
                 ty: Some(Type::Primitive(PrimitiveType::U32)),
                 init: Some(Expression::Literal(Literal::Int(42))),
                 mutable: false,
