@@ -128,6 +128,45 @@ void main() {
     }
 
     #[test]
+    fn test_post_increment_borrows_place_once() {
+        // Regression (CG-3): x++ must borrow the place ONCE — no double
+        // evaluation of the operand and no `&mut` of a copy. The old codegen
+        // emitted `let __old = (x); let __tmp = &mut (x); …` (operand twice).
+        let source = r#"
+void main() {
+    var int x = 0;
+    let y = x++;
+}
+"#;
+        let mut parser = Parser::new(source).unwrap();
+        let file = parser.parse_file().unwrap();
+        let mut codegen = CodeGenerator::new(TargetLanguage::Rust);
+        let rust_code = codegen.generate(&file);
+
+        assert_eq!(rust_code.matches("&mut").count(), 1, "one borrow only: {rust_code}");
+        assert!(rust_code.contains("let __old = *__p"), "old value via borrow: {rust_code}");
+    }
+
+    #[test]
+    fn test_compound_assignment_is_not_parenthesised() {
+        // Regression (CG-2): `i += 1;` as a statement must emit `i += 1;`, not
+        // `(i += 1);` — a parenthesised assignment is not a valid Rust statement.
+        let source = r#"
+void main() {
+    var int i = 0;
+    i += 1;
+}
+"#;
+        let mut parser = Parser::new(source).unwrap();
+        let file = parser.parse_file().unwrap();
+        let mut codegen = CodeGenerator::new(TargetLanguage::Rust);
+        let rust_code = codegen.generate(&file);
+
+        assert!(rust_code.contains("i += 1;"), "unparenthesised compound assign: {rust_code}");
+        assert!(!rust_code.contains("(i += 1)"), "no wrapping parens: {rust_code}");
+    }
+
+    #[test]
     fn test_generate_bool_literal() {
         let source = r#"
 void main() {

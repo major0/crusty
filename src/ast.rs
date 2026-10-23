@@ -519,6 +519,29 @@ pub enum BinaryOp {
     ShrAssign,
 }
 
+impl BinaryOp {
+    /// Whether this operator is an assignment or compound-assignment
+    /// (`=`, `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, `>>=`).
+    /// Assignments are statement-level place-expressions whose value is `()`,
+    /// so codegen must not wrap them in parens the way it does value operators.
+    pub fn is_assignment(&self) -> bool {
+        matches!(
+            self,
+            BinaryOp::Assign
+                | BinaryOp::AddAssign
+                | BinaryOp::SubAssign
+                | BinaryOp::MulAssign
+                | BinaryOp::DivAssign
+                | BinaryOp::ModAssign
+                | BinaryOp::BitAndAssign
+                | BinaryOp::BitOrAssign
+                | BinaryOp::BitXorAssign
+                | BinaryOp::ShlAssign
+                | BinaryOp::ShrAssign
+        )
+    }
+}
+
 /// Unary operators
 #[derive(Debug, Clone, PartialEq)]
 pub enum UnaryOp {

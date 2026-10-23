@@ -1252,12 +1252,27 @@ impl CodeGenerator {
             Expression::Literal(lit) => self.generate_literal_string(lit),
             Expression::Ident(ident) => ident.name.clone(),
             Expression::Binary { op, left, right } => {
-                format!(
-                    "({} {} {})",
-                    self.generate_expression_string(left),
-                    self.generate_binary_op_string(op),
-                    self.generate_expression_string(right)
-                )
+                // Assignment and compound-assignment (`=`, `+=`, …) are
+                // statement-level place-expressions whose value is `()`. They
+                // must NOT be wrapped in parens: `(i += 1);` is not a valid
+                // statement/expression in Rust, and `x = (a = b)` would try to
+                // use the `()` of the inner assignment. Every other binary op is
+                // a value expression and keeps its parens.
+                if op.is_assignment() {
+                    format!(
+                        "{} {} {}",
+                        self.generate_expression_string(left),
+                        self.generate_binary_op_string(op),
+                        self.generate_expression_string(right)
+                    )
+                } else {
+                    format!(
+                        "({} {} {})",
+                        self.generate_expression_string(left),
+                        self.generate_binary_op_string(op),
+                        self.generate_expression_string(right)
+                    )
+                }
             }
             Expression::Unary { op, expr } => self.generate_unary_expression_string(op, expr),
             Expression::Call { func, args } => {
@@ -1547,32 +1562,32 @@ impl CodeGenerator {
             UnaryOp::Ref => format!("&({})", self.generate_expression_string(expr)),
             UnaryOp::Deref => format!("*({})", self.generate_expression_string(expr)),
             UnaryOp::PreInc => {
-                // ++x translates to { x += 1; x }
+                // ++x: borrow the place once, increment, yield the new value.
                 format!(
-                    "{{ let __tmp = &mut ({}); *__tmp += 1; *__tmp }}",
+                    "{{ let __p = &mut ({}); *__p += 1; *__p }}",
                     self.generate_expression_string(expr)
                 )
             }
             UnaryOp::PreDec => {
-                // --x translates to { x -= 1; x }
+                // --x: borrow the place once, decrement, yield the new value.
                 format!(
-                    "{{ let __tmp = &mut ({}); *__tmp -= 1; *__tmp }}",
+                    "{{ let __p = &mut ({}); *__p -= 1; *__p }}",
                     self.generate_expression_string(expr)
                 )
             }
             UnaryOp::PostInc => {
-                // x++ translates to { let tmp = x; x += 1; tmp }
+                // x++: borrow the place ONCE (so the operand is evaluated once
+                // and the increment targets the real place, not a copy), read
+                // the old value, increment, yield the old value.
                 format!(
-                    "{{ let __old = ({}); let __tmp = &mut ({}); *__tmp += 1; __old }}",
-                    self.generate_expression_string(expr),
+                    "{{ let __p = &mut ({}); let __old = *__p; *__p += 1; __old }}",
                     self.generate_expression_string(expr)
                 )
             }
             UnaryOp::PostDec => {
-                // x-- translates to { let tmp = x; x -= 1; tmp }
+                // x--: borrow the place once, read old, decrement, yield old.
                 format!(
-                    "{{ let __old = ({}); let __tmp = &mut ({}); *__tmp -= 1; __old }}",
-                    self.generate_expression_string(expr),
+                    "{{ let __p = &mut ({}); let __old = *__p; *__p -= 1; __old }}",
                     self.generate_expression_string(expr)
                 )
             }

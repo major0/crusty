@@ -1813,7 +1813,9 @@ mod tests {
             right: Box::new(Expression::Literal(Literal::Null)),
         };
         let result = gen.generate_expression_string(&expr);
-        assert_eq!(result, "(ptr = Option::None)");
+        // Assignment is a statement-level place-expression: no wrapping parens
+        // (a parenthesised `(ptr = …)` is not valid as a statement in Rust).
+        assert_eq!(result, "ptr = Option::None");
     }
 
     #[test]
