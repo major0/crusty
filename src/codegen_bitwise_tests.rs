@@ -17,7 +17,7 @@ mod tests {
             right: Box::new(Expression::Literal(Literal::Int(3))),
         };
         let result = gen.generate_expression_string(&expr);
-        assert_eq!(result, "(10 % 3)");
+        assert_eq!(result, "10 % 3");
     }
 
     #[test]
@@ -29,7 +29,7 @@ mod tests {
             right: Box::new(Expression::Literal(Literal::Int(7))),
         };
         let result = gen.generate_expression_string(&expr);
-        assert_eq!(result, "(15 & 7)");
+        assert_eq!(result, "15 & 7");
     }
 
     #[test]
@@ -41,7 +41,7 @@ mod tests {
             right: Box::new(Expression::Literal(Literal::Int(4))),
         };
         let result = gen.generate_expression_string(&expr);
-        assert_eq!(result, "(8 | 4)");
+        assert_eq!(result, "8 | 4");
     }
 
     #[test]
@@ -53,7 +53,7 @@ mod tests {
             right: Box::new(Expression::Literal(Literal::Int(5))),
         };
         let result = gen.generate_expression_string(&expr);
-        assert_eq!(result, "(12 ^ 5)");
+        assert_eq!(result, "12 ^ 5");
     }
 
     #[test]
@@ -65,7 +65,7 @@ mod tests {
             right: Box::new(Expression::Literal(Literal::Int(3))),
         };
         let result = gen.generate_expression_string(&expr);
-        assert_eq!(result, "(1 << 3)");
+        assert_eq!(result, "1 << 3");
     }
 
     #[test]
@@ -77,7 +77,7 @@ mod tests {
             right: Box::new(Expression::Literal(Literal::Int(2))),
         };
         let result = gen.generate_expression_string(&expr);
-        assert_eq!(result, "(16 >> 2)");
+        assert_eq!(result, "16 >> 2");
     }
 
     #[test]

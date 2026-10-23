@@ -593,7 +593,7 @@ void outer() {
         let rust_code = codegen.generate(&file);
 
         assert!(rust_code.contains("let add = |x: i32, y: i32| -> i32"));
-        assert!(rust_code.contains("return (x + y);"));
+        assert!(rust_code.contains("return x + y;"));
     }
 
     #[test]

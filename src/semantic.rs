@@ -1854,15 +1854,24 @@ impl SemanticAnalyzer {
                         }
                     }
                     _ => {
-                        self.errors.push(SemanticError::new(
-                            Span::new(
-                                crate::error::Position::new(0, 0),
-                                crate::error::Position::new(0, 0),
-                            ),
-                            SemanticErrorKind::InvalidOperation,
-                            "field access on non-struct type".to_string(),
-                        ));
-                        Type::Auto
+                        // SEM-06: an unknown receiver type (Auto — e.g. a
+                        // method-call result we do not yet type) cannot be
+                        // checked here; Crusty is a syntax layer, so pass it
+                        // through and let rustc resolve the field. Only a
+                        // receiver we KNOW is not a struct is an error.
+                        if matches!(actual_type, Type::Auto) {
+                            Type::Auto
+                        } else {
+                            self.errors.push(SemanticError::new(
+                                Span::new(
+                                    crate::error::Position::new(0, 0),
+                                    crate::error::Position::new(0, 0),
+                                ),
+                                SemanticErrorKind::InvalidOperation,
+                                "field access on non-struct type".to_string(),
+                            ));
+                            Type::Auto
+                        }
                     }
                 }
             }
@@ -1874,7 +1883,8 @@ impl SemanticAnalyzer {
                 let array_type = self.analyze_expression(array_expr);
                 let index_type = self.analyze_expression(index_expr);
 
-                // Index should be an integer type
+                // Index should be an integer type. usize/isize are the natural
+                // index types (SEM-07); an unknown index (Auto) is left to rustc.
                 match index_type {
                     Type::Primitive(PrimitiveType::I8)
                     | Type::Primitive(PrimitiveType::I16)
@@ -1886,7 +1896,10 @@ impl SemanticAnalyzer {
                     | Type::Primitive(PrimitiveType::U32)
                     | Type::Primitive(PrimitiveType::U64)
                     | Type::Primitive(PrimitiveType::U128)
-                    | Type::Primitive(PrimitiveType::Int) => {}
+                    | Type::Primitive(PrimitiveType::Usize)
+                    | Type::Primitive(PrimitiveType::Isize)
+                    | Type::Primitive(PrimitiveType::Int)
+                    | Type::Auto => {}
                     _ => {
                         self.errors.push(SemanticError::new(
                             Span::new(
@@ -1899,9 +1912,22 @@ impl SemanticAnalyzer {
                     }
                 }
 
-                // Get element type from array/slice
+                // Get element type from array/slice, from an indexable generic
+                // collection like Vec<T> (SEM-07), or pass an unknown through.
                 match array_type {
                     Type::Array { ty, .. } | Type::Slice { ty } => *ty,
+                    Type::Generic { base, args } => {
+                        // Vec<T>/VecDeque<T> index to T; other single-arg
+                        // generics are treated the same leniently. Fall back to
+                        // Auto for a multi-arg or odd shape.
+                        if let (Type::Ident(_), [elem]) = (base.as_ref(), args.as_slice()) {
+                            elem.clone()
+                        } else {
+                            Type::Auto
+                        }
+                    }
+                    // Unknown receiver — let rustc resolve the index.
+                    Type::Auto => Type::Auto,
                     _ => {
                         self.errors.push(SemanticError::new(
                             Span::new(
@@ -1932,16 +1958,28 @@ impl SemanticAnalyzer {
                 // 1. Compatible types (including through typedef)
                 // 2. Numeric types
                 // 3. Pointer types
-                let is_valid_cast = self
-                    .type_env
-                    .is_compatible(&resolved_expr_type, &resolved_target_type)
+                // 4. An enum to a primitive integer (SEM-08: `MyEnum as i32`)
+                // 5. Anything when a side is unknown (Auto) — rustc arbitrates
+                let src_is_enum = matches!(
+                    &resolved_expr_type,
+                    Type::Ident(id) if matches!(
+                        self.type_env.get_type(&id.name).map(|t| &t.kind),
+                        Some(TypeKind::Enum { .. })
+                    )
+                );
+                let is_valid_cast = matches!(resolved_expr_type, Type::Auto)
+                    || matches!(resolved_target_type, Type::Auto)
+                    || self
+                        .type_env
+                        .is_compatible(&resolved_expr_type, &resolved_target_type)
                     || matches!(
                         (&resolved_expr_type, &resolved_target_type),
                         (Type::Primitive(_), Type::Primitive(_))
                             | (Type::Pointer { .. }, Type::Pointer { .. })
                             | (Type::Primitive(_), Type::Pointer { .. })
                             | (Type::Pointer { .. }, Type::Primitive(_))
-                    );
+                    )
+                    || (src_is_enum && matches!(resolved_target_type, Type::Primitive(_)));
 
                 if !is_valid_cast {
                     self.errors.push(SemanticError::new(

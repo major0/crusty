@@ -485,7 +485,49 @@ mod tests {
             right: Box::new(Expression::Literal(Literal::Int(2))),
         };
         let result = gen.generate_expression_string(&expr);
-        assert_eq!(result, "(1 + 2)");
+        assert_eq!(result, "1 + 2");
+    }
+
+    // CG-1: parentheses are emitted only where precedence/associativity need
+    // them, not around every binary (which tripped rustc's unused_parens).
+    #[test]
+    fn test_binary_minimal_parens() {
+        let gen = CodeGenerator::new(TargetLanguage::Rust);
+        let lit = |n| Box::new(Expression::Literal(Literal::Int(n)));
+        let bin = |op, l, r| Expression::Binary { op, left: l, right: r };
+
+        // a * b + c : `*` binds tighter, no parens needed anywhere.
+        let e = bin(
+            BinaryOp::Add,
+            Box::new(bin(BinaryOp::Mul, lit(1), lit(2))),
+            lit(3),
+        );
+        assert_eq!(gen.generate_expression_string(&e), "1 * 2 + 3");
+
+        // a * (b + c) : the looser `+` child must be parenthesised.
+        let e = bin(
+            BinaryOp::Mul,
+            lit(1),
+            Box::new(bin(BinaryOp::Add, lit(2), lit(3))),
+        );
+        assert_eq!(gen.generate_expression_string(&e), "1 * (2 + 3)");
+
+        // a - (b - c) : right child at equal precedence needs parens
+        // (subtraction is left-associative).
+        let e = bin(
+            BinaryOp::Sub,
+            lit(1),
+            Box::new(bin(BinaryOp::Sub, lit(2), lit(3))),
+        );
+        assert_eq!(gen.generate_expression_string(&e), "1 - (2 - 3)");
+
+        // (a - b) - c : left child at equal precedence needs NO parens.
+        let e = bin(
+            BinaryOp::Sub,
+            Box::new(bin(BinaryOp::Sub, lit(1), lit(2))),
+            lit(3),
+        );
+        assert_eq!(gen.generate_expression_string(&e), "1 - 2 - 3");
     }
 
     #[test]
@@ -1800,7 +1842,7 @@ mod tests {
             right: Box::new(Expression::Literal(Literal::Null)),
         };
         let result = gen.generate_expression_string(&expr);
-        assert_eq!(result, "(ptr == Option::None)");
+        assert_eq!(result, "ptr == Option::None");
     }
 
     #[test]

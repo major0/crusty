@@ -540,9 +540,39 @@ impl BinaryOp {
                 | BinaryOp::ShrAssign
         )
     }
-}
 
-/// Unary operators
+    /// Binary-operator precedence for minimal-parenthesization codegen (CG-1),
+    /// matching Rust's precedence. Higher binds tighter. Assignment is lowest
+    /// (0); it is emitted without parens via the dedicated path, so its value
+    /// here only needs to sit below every value operator.
+    ///
+    /// Rust order (tight -> loose): `* / %` > `+ -` > `<< >>` > `&` > `^` >
+    /// `|` > comparison (`== != < > <= >=`, non-associative) > `&&` > `||`.
+    pub fn precedence(&self) -> u8 {
+        use BinaryOp::*;
+        match self {
+            Mul | Div | Mod => 10,
+            Add | Sub => 9,
+            Shl | Shr => 8,
+            BitAnd => 7,
+            BitXor => 6,
+            BitOr => 5,
+            Eq | Ne | Lt | Gt | Le | Ge => 4,
+            And => 3,
+            Or => 2,
+            // Assignment family (emitted unparenthesised through its own path).
+            _ => 0,
+        }
+    }
+
+    /// Whether this is a comparison operator. Rust's comparisons are
+    /// non-associative, so a comparison nested directly under another needs
+    /// parentheses regardless of side.
+    pub fn is_comparison(&self) -> bool {
+        use BinaryOp::*;
+        matches!(self, Eq | Ne | Lt | Gt | Le | Ge)
+    }
+}
 #[derive(Debug, Clone, PartialEq)]
 pub enum UnaryOp {
     Not,

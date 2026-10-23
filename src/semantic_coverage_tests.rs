@@ -904,4 +904,138 @@ mod tests {
             .any(|e| e.kind == SemanticErrorKind::TypeMismatch
                 && e.message.contains("struct field 'y'")));
     }
+
+    // ------------------------------------------------------------------
+    // SEM-06: field access on an unknown (Auto) receiver does not error
+    // ------------------------------------------------------------------
+    #[test]
+    fn test_field_access_on_unknown_receiver_ok() {
+        let mut analyzer = SemanticAnalyzer::new();
+        // `foo().field` — a method/‑free call result types to Auto, so the
+        // field access must pass through rather than erroring.
+        let expr = Expression::FieldAccess {
+            expr: Box::new(Expression::MethodCall {
+                receiver: Box::new(Expression::Ident(Ident::new("obj"))),
+                method: Ident::new("make"),
+                args: vec![],
+            }),
+            field: Ident::new("port"),
+        };
+        analyzer.analyze_expression_test(&expr);
+        assert!(
+            analyzer
+                .errors()
+                .iter()
+                .all(|e| e.kind != SemanticErrorKind::InvalidOperation),
+            "field access on an unknown receiver must not error: {:?}",
+            analyzer.errors()
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // SEM-07: usize/isize indexing, and Vec<T> indexing
+    // ------------------------------------------------------------------
+    #[test]
+    fn test_index_with_usize_and_vec() {
+        let mut analyzer = SemanticAnalyzer::new();
+        // Index an array by a usize-typed value: `arr[n as usize]`.
+        let arr = Expression::Ident(Ident::new("arr"));
+        // Fake the array's type by indexing a literal array; element i32.
+        let array_expr = Expression::ArrayLit {
+            elements: vec![
+                Expression::Literal(Literal::Int(1)),
+                Expression::Literal(Literal::Int(2)),
+            ],
+        };
+        let idx = Expression::Cast {
+            expr: Box::new(Expression::Literal(Literal::Int(0))),
+            ty: Type::Primitive(PrimitiveType::Usize),
+        };
+        let e = Expression::Index {
+            expr: Box::new(array_expr),
+            index: Box::new(idx),
+        };
+        analyzer.analyze_expression_test(&e);
+        assert!(
+            analyzer.errors().is_empty(),
+            "usize index on an array must be accepted: {:?}",
+            analyzer.errors()
+        );
+        let _ = arr;
+
+        // Index a Vec<i32> by an int: element type comes out as i32, no error.
+        let mut analyzer = SemanticAnalyzer::new();
+        let vec_val = Expression::Cast {
+            // A cast to Vec<i32> is a convenient way to get that static type
+            // onto an expression for the index check.
+            expr: Box::new(Expression::ArrayLit { elements: vec![] }),
+            ty: Type::Generic {
+                base: Box::new(Type::Ident(Ident::new("Vec"))),
+                args: vec![Type::Primitive(PrimitiveType::I32)],
+            },
+        };
+        let e = Expression::Index {
+            expr: Box::new(vec_val),
+            index: Box::new(Expression::Literal(Literal::Int(0))),
+        };
+        let ty = analyzer.analyze_expression_test(&e);
+        assert!(
+            !analyzer
+                .errors()
+                .iter()
+                .any(|er| er.message.contains("cannot index")),
+            "Vec<T> indexing must not error: {:?}",
+            analyzer.errors()
+        );
+        assert_eq!(ty, Type::Primitive(PrimitiveType::I32));
+    }
+
+    // ------------------------------------------------------------------
+    // SEM-08: casting an enum to a primitive integer is allowed
+    // ------------------------------------------------------------------
+    #[test]
+    fn test_enum_to_int_cast_ok() {
+        let mut analyzer = SemanticAnalyzer::new();
+        let enum_item = Item::Enum(Enum {
+            visibility: Visibility::Public,
+            name: Ident::new("Color"),
+            variants: vec![
+                EnumVariant { name: Ident::new("Red"), value: Some(0) },
+                EnumVariant { name: Ident::new("Green"), value: Some(1) },
+            ],
+            doc_comments: vec![],
+            attributes: vec![],
+        });
+        // void main() { let n = (Color as i32); }  — Color is a known enum.
+        let main = Item::Function(Function {
+            visibility: Visibility::Public,
+            name: Ident::new("main"),
+            params: vec![],
+            return_type: None,
+            body: Some(Block::new(vec![Statement::Let {
+                name: Ident::new("n"),
+                ty: None,
+                init: Some(Expression::Cast {
+                    expr: Box::new(Expression::Ident(Ident::new("Color"))),
+                    ty: Type::Primitive(PrimitiveType::I32),
+                }),
+                mutable: false,
+            }])),
+            is_variadic: false,
+            doc_comments: vec![],
+            attributes: vec![],
+        });
+        let file = create_file_with_items(vec![enum_item, main]);
+        let result = analyzer.analyze(&file);
+        assert!(
+            result.is_ok()
+                || !result
+                    .as_ref()
+                    .unwrap_err()
+                    .iter()
+                    .any(|e| e.message.contains("invalid cast")),
+            "enum -> int cast must not be an invalid-cast error: {:?}",
+            result
+        );
+    }
 }

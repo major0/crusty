@@ -1266,11 +1266,14 @@ impl CodeGenerator {
                         self.generate_expression_string(right)
                     )
                 } else {
+                    // CG-1: emit parentheses only where precedence/associativity
+                    // require them, instead of wrapping every value binary — the
+                    // blanket parens tripped rustc's `unused_parens` lint.
                     format!(
-                        "({} {} {})",
-                        self.generate_expression_string(left),
+                        "{} {} {}",
+                        self.emit_binary_operand(left, op, false),
                         self.generate_binary_op_string(op),
-                        self.generate_expression_string(right)
+                        self.emit_binary_operand(right, op, true)
                     )
                 }
             }
@@ -1520,6 +1523,35 @@ impl CodeGenerator {
             // int, digit separators, numeric suffix, raw/byte string). ADR-0001.
             Literal::Raw(s) => s.clone(),
         }
+    }
+
+    /// Emit one operand of a value binary expression, parenthesising it only
+    /// when the parent operator's precedence/associativity requires it (CG-1).
+    /// `is_right` is true for the right-hand operand of the parent.
+    ///
+    /// Value binary operators in Crusty/Rust are left-associative, so:
+    /// - a child binary binding looser than the parent always needs parens;
+    /// - an equal-precedence child needs parens only on the RIGHT (left-assoc);
+    /// - comparisons are non-associative, so a comparison child directly under
+    ///   a comparison parent needs parens on either side.
+    /// Assignment children never occur here (handled on the unparenthesised
+    /// path), so their precedence 0 only ever forces parens, which is correct.
+    fn emit_binary_operand(&self, operand: &Expression, parent: &BinaryOp, is_right: bool) -> String {
+        let inner = self.generate_expression_string(operand);
+        if let Expression::Binary { op: child, .. } = operand {
+            if child.is_assignment() {
+                // An assignment nested in a value position is unusual, but if it
+                // appears it must be grouped to read as a value.
+                return format!("({inner})");
+            }
+            let needs = child.precedence() < parent.precedence()
+                || (child.precedence() == parent.precedence() && is_right)
+                || (parent.is_comparison() && child.is_comparison());
+            if needs {
+                return format!("({inner})");
+            }
+        }
+        inner
     }
 
     /// Generate a binary operator as string
