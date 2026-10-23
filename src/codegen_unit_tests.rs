@@ -1252,6 +1252,38 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_import_export() {
+        // #import a.b.c -> use a::b::c;   #export a.b -> pub use a::b;
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let import = Item::Import(Import {
+            path: vec![
+                Ident::new("std".to_string()),
+                Ident::new("collections".to_string()),
+                Ident::new("HashMap".to_string()),
+            ],
+            alias: None,
+        });
+        let export = Item::Export(Export {
+            path: vec![
+                Ident::new("mylib".to_string()),
+                Ident::new("Config".to_string()),
+            ],
+            alias: None,
+        });
+        let file = File {
+            items: vec![import, export],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(
+            output.contains("use std::collections::HashMap;"),
+            "got: {}",
+            output
+        );
+        assert!(output.contains("pub use mylib::Config;"), "got: {}", output);
+    }
+
+    #[test]
     fn test_generate_extern_c_block() {
         // extern "C" { int puts(char* s); } → extern "C" { pub fn puts(...) -> i32; }
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);

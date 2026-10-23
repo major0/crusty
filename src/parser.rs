@@ -168,6 +168,10 @@ peg::parser! {
         rule kw_ifndef() = "ifndef" !ident_char()
         rule kw_endif() = "endif" !ident_char()
 
+        /// Keyword: import / export (module directives)
+        rule kw_import() = "import" !ident_char()
+        rule kw_export() = "export" !ident_char()
+
         /// Keyword: if
         rule kw_if() = "if" !ident_char()
 
@@ -2974,6 +2978,40 @@ peg::parser! {
                 Item::ConditionalCompilation(ConditionalCompilation { cfg, negated: true, items })
             }
 
+        /// Module directives (modules.md):
+        ///   #import a.b.c   -> use a::b::c;
+        ///   #export a.b     -> pub use a::b;
+        /// The dotted path becomes a `::`-joined Rust path. `#include` and the
+        /// legacy `#use` are rejected with a directing message.
+        pub rule import_def() -> Item
+            = _ "#" _ kw_import() __ path:module_path() _ ";"? _ {
+                Item::Import(Import { path, alias: None })
+            }
+
+        pub rule export_def() -> Item
+            = _ "#" _ kw_export() __ path:module_path() _ ";"? _ {
+                Item::Export(Export { path, alias: None })
+            }
+
+        /// `#include` / `#use` are not Crusty directives — reject them with the
+        /// message modules.md documents, rather than failing obscurely.
+        rule rejected_directive() -> Item
+            = _ "#" _ "include" !ident_char() {?
+                Err("#include is not supported — use #import instead")
+            }
+            / _ "#" _ "use" !ident_char() {?
+                Err("#use is not supported — use #import or #export instead")
+            }
+
+        /// A dotted module path: one or more identifiers joined by `.`,
+        /// lowered to a `::`-joined Rust path.
+        rule module_path() -> Vec<Ident>
+            = first:ident() rest:(_ "." _ i:ident() { i })* {
+                let mut path = vec![first];
+                path.extend(rest);
+                path
+            }
+
         /// Namespace: a named module grouping a block of items.
         /// Syntax: namespace Name { <items> }
         /// Lowers to a Rust `mod Name { … }`. Items nest recursively via `item()`.
@@ -3170,6 +3208,9 @@ peg::parser! {
             = define_def()
             / macro_def()
             / conditional_def()
+            / import_def()
+            / export_def()
+            / rejected_directive()
             / namespace_def()
             / extern_block()
             / struct_def()
@@ -4861,6 +4902,58 @@ mod item_tests {
         } else {
             panic!("Expected Item::Namespace");
         }
+    }
+
+    #[test]
+    fn test_peg_item_import() {
+        // #import a.b.c -> Item::Import with the dotted path as a segment list.
+        let result = crusty_peg_parser::item("#import std.collections.HashMap");
+        assert!(result.is_ok(), "Failed to parse #import: {:?}", result);
+        if let Ok(Item::Import(imp)) = result {
+            let segs: Vec<_> = imp.path.iter().map(|i| i.name.as_str()).collect();
+            assert_eq!(segs, ["std", "collections", "HashMap"]);
+            assert!(imp.alias.is_none());
+        } else {
+            panic!("Expected Item::Import, got: {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_peg_item_import_single_segment() {
+        let result = crusty_peg_parser::item("#import mymodule");
+        assert!(result.is_ok(), "Failed to parse single-segment import: {:?}", result);
+        if let Ok(Item::Import(imp)) = result {
+            assert_eq!(imp.path.len(), 1);
+            assert_eq!(imp.path[0].name, "mymodule");
+        } else {
+            panic!("Expected Item::Import");
+        }
+    }
+
+    #[test]
+    fn test_peg_item_export() {
+        let result = crusty_peg_parser::item("#export mylib.Config");
+        assert!(result.is_ok(), "Failed to parse #export: {:?}", result);
+        if let Ok(Item::Export(exp)) = result {
+            let segs: Vec<_> = exp.path.iter().map(|i| i.name.as_str()).collect();
+            assert_eq!(segs, ["mylib", "Config"]);
+        } else {
+            panic!("Expected Item::Export, got: {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_peg_item_include_rejected() {
+        // #include is not a Crusty directive.
+        let result = crusty_peg_parser::item("#include stdio");
+        assert!(result.is_err(), "#include must be rejected");
+    }
+
+    #[test]
+    fn test_peg_item_use_rejected() {
+        // The legacy #use is replaced by #import / #export.
+        let result = crusty_peg_parser::item("#use std.io");
+        assert!(result.is_err(), "#use must be rejected");
     }
 
     #[test]
