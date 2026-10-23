@@ -1168,6 +1168,47 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_extern_rust_escape_hatch() {
+        // A __rust__ item inside an extern block emits its raw Rust verbatim,
+        // indented alongside the ordinary declarations.
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let decl = Function {
+            visibility: Visibility::Public,
+            name: Ident::new("simple".to_string()),
+            params: vec![],
+            return_type: None,
+            body: None,
+            is_variadic: false,
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let raw = Item::RawRust {
+            code: "static mut GLOBAL_STATE: i32;".to_string(),
+        };
+        let ext = Extern {
+            abi: Some("C".to_string()),
+            items: vec![Item::Function(decl), raw],
+        };
+        let file = File {
+            items: vec![Item::Extern(ext)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        // The raw line is passed through untouched, indented inside the block.
+        assert!(
+            output.contains("    static mut GLOBAL_STATE: i32;"),
+            "raw Rust should be emitted verbatim and indented: {}",
+            output
+        );
+        // It must NOT be wrapped in braces or treated as an expression.
+        assert!(
+            !output.contains("{ static mut"),
+            "raw item must not be brace-wrapped: {}",
+            output
+        );
+    }
+
+    #[test]
     fn test_generate_static_immutable() {
         // static int COUNTER = 0; → pub static COUNTER: i32 = 0;
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);

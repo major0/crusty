@@ -54,6 +54,37 @@ parameters precede it, a separating comma is emitted (`format: *const char, ...`
 a bare `(...)` emits no leading comma. Variadics are only valid on body-less
 `extern` declarations, matching Rust, which forbids them on defined functions.
 
+### Raw Rust Escape Hatch
+For FFI signatures Crusty cannot express — function pointers with ABI
+annotations, `static mut` globals — a `__rust__{ … }` block inside an extern
+block passes its contents through to the generated Rust **verbatim**:
+```c
+extern "C" {
+    void simple_function();
+
+    __rust__{
+        fn complex_function(callback: extern "C" fn(i32) -> i32) -> i32;
+        static mut GLOBAL_STATE: i32;
+    }
+}
+```
+
+Translates to (the `__rust__` contents emitted untouched, indented in place):
+```rust
+extern "C" {
+    pub fn simple_function();
+
+    fn complex_function(callback: extern "C" fn(i32) -> i32) -> i32;
+    static mut GLOBAL_STATE: i32;
+}
+```
+
+The block body is brace-balanced and is **not parsed** by Crusty — rustc is the
+only arbiter of its validity. Nesting rules follow from the grammar: a
+`__rust__{ }` block is valid only inside an extern block; an extern block
+cannot nest inside another; and because the body is opaque, a `__rust__` block
+cannot contain a parsed extern block or another `__rust__` block.
+
 ### Default ABI (Rust)
 ```c
 extern {
@@ -78,32 +109,19 @@ All Rust ABI specifications are supported: `"C"`, `"cdecl"`, `"stdcall"`, `"fast
 - The ABI string is optional — omitting it defaults to the Rust ABI (bare `extern`)
 - Extern functions are typically unsafe to call in the generated Rust code
 - Extern blocks are supported at module (top) level
+- A `__rust__{ … }` block passes raw Rust through verbatim for signatures Crusty cannot express
 
 ## Planned
 
 The following are designed but **not yet implemented**:
 
 - **Extern blocks inside a function body** (only module-level extern blocks parse today).
-- **`__rust__{ }` escape hatch inside an extern block**, for signatures Crusty
-  cannot express (function pointers with ABI annotations, `static mut` globals):
-
-```c
-extern "C" {
-    void simple_function();
-
-    __rust__{
-        fn complex_function(callback: extern "C" fn(i32) -> i32) -> i32;
-        static mut GLOBAL_STATE: i32;
-    }
-}
-```
-
-  With the planned nesting rules: `__rust__{ }` within extern allowed; extern
-  within extern disallowed; nested `__rust__{ }` disallowed.
 
 ## Formal Grammar
 
 ```ebnf
-extern_block = "extern" [string_literal] "{" extern_fn_decl* "}" ;
-extern_fn_decl = type IDENT "(" param_list ")" ";" ;
+extern_block   = "extern" [string_literal] "{" extern_item* "}" ;
+extern_item    = rust_escape | extern_fn_decl ;
+rust_escape    = "__rust__" "{" <brace-balanced raw Rust> "}" ;
+extern_fn_decl = (type | "void") IDENT "(" [param_list] ["," "..."] ")" ";" ;
 ```

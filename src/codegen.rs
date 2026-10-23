@@ -154,6 +154,7 @@ impl CodeGenerator {
             Item::Static(static_item) => self.generate_static(static_item),
             Item::MacroDefinition(macro_def) => self.generate_macro_definition(macro_def),
             Item::ConditionalCompilation(cc) => self.generate_conditional_compilation(cc),
+            Item::RawRust { code } => self.generate_raw_rust(code),
         }
     }
 
@@ -556,6 +557,22 @@ impl CodeGenerator {
         }
         self.dedent();
         self.write_line("}");
+    }
+
+    /// Emit a `__rust__{ … }` escape hatch: the captured raw Rust source,
+    /// verbatim, one line per source line at the current indent level. Blank
+    /// lines are preserved without indentation so trailing whitespace is not
+    /// introduced. The code is passed through untouched — Crusty does not
+    /// parse or validate it; rustc is the arbiter.
+    fn generate_raw_rust(&mut self, code: &str) {
+        for line in code.lines() {
+            let trimmed = line.trim_end();
+            if trimmed.is_empty() {
+                self.write("\n");
+            } else {
+                self.write_line(trimmed.trim_start());
+            }
+        }
     }
 
     fn generate_const(&mut self, const_item: &Const) {

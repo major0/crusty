@@ -26,6 +26,11 @@ pub enum Item {
     Static(Static),
     MacroDefinition(MacroDefinition),
     ConditionalCompilation(ConditionalCompilation),
+    /// Raw Rust items emitted verbatim, from a `__rust__{ … }` escape hatch.
+    /// `code` is the exact source between the braces (brace-balanced, trimmed),
+    /// passed through to the generated Rust untouched. Used for signatures
+    /// Crusty cannot express, e.g. inside an `extern` block.
+    RawRust { code: String },
 }
 
 /// Conditional-compilation block (`#ifdef FOO` / `#ifndef FOO` … `#endif`).

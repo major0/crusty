@@ -536,6 +536,10 @@ impl SemanticAnalyzer {
             Item::Namespace(_) | Item::Import(_) | Item::Export(_) | Item::Extern(_) => {
                 // These items don't require semantic analysis in this phase
             }
+            Item::RawRust { .. } => {
+                // Raw Rust passthrough (`__rust__{ … }`) is opaque to Crusty's
+                // analyzer — rustc validates it.
+            }
         }
     }
 

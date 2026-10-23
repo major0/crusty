@@ -2875,12 +2875,23 @@ peg::parser! {
         rule abi_string() -> String
             = "\"" s:string_content()* "\"" { s.into_iter().collect() }
 
-        /// A single body-less function declaration inside an extern block.
-        /// Syntax: (void | return_type) name(params[, ...]) ;
-        /// A trailing `...` marks a C-style variadic (e.g. `printf`).
-        /// Produces a public Function with body: None.
+        /// A single item inside an extern block: either a `__rust__{ … }`
+        /// escape hatch (raw Rust passthrough) or a body-less function
+        /// declaration.
+        ///
+        /// Syntax:
+        /// - `__rust__{ <raw Rust> }`           → Item::RawRust
+        /// - `(void | return_type) name(params[, ...]) ;` → body-less Function
+        ///
+        /// A trailing `...` on the declaration marks a C-style variadic.
+        /// The `__rust__` contents are captured verbatim (brace-balanced) and
+        /// are NOT re-parsed, so extern-within-extern and nested `__rust__`
+        /// simply cannot arise — matching the designed nesting rules.
         rule extern_fn_decl() -> Item
-            = _ kw_void() __ name:ident() _ "(" _ pv:extern_params() _ ")" _ ";" _ {
+            = _ "__rust__" _ "{" code:rust_raw_body() "}" _ {
+                Item::RawRust { code: code.trim().to_string() }
+            }
+            / _ kw_void() __ name:ident() _ "(" _ pv:extern_params() _ ")" _ ";" _ {
                 Item::Function(Function {
                     visibility: Visibility::Public,
                     name,
@@ -2904,6 +2915,18 @@ peg::parser! {
                     attributes: Vec::new(),
                 })
             }
+
+        /// Raw, brace-balanced body of a `__rust__{ … }` block, captured as a
+        /// verbatim source slice (not re-parsed). Matches any run of non-brace
+        /// characters interleaved with fully-nested `{ … }` groups, so the
+        /// capture ends at the block's own closing brace, not the first inner
+        /// one.
+        rule rust_raw_body() -> &'input str
+            = s:$(rust_raw_atom()*) { s }
+
+        rule rust_raw_atom()
+            = "{" rust_raw_atom()* "}"
+            / (!"{" !"}" [_])
 
         /// Parameter list for an extern declaration: zero or more named
         /// parameters, with an optional trailing `...` varargs marker.
@@ -4775,6 +4798,71 @@ mod item_tests {
         } else {
             panic!("Expected Item::Extern");
         }
+    }
+
+    #[test]
+    fn test_peg_item_extern_rust_escape_hatch() {
+        // A __rust__{ } block inside extern captures raw Rust verbatim.
+        let src = "extern \"C\" { __rust__{ static mut G: i32; } }";
+        let result = crusty_peg_parser::item(src);
+        assert!(result.is_ok(), "Failed to parse __rust__ in extern: {:?}", result);
+        if let Ok(Item::Extern(ext)) = result {
+            assert_eq!(ext.items.len(), 1);
+            if let Item::RawRust { code } = &ext.items[0] {
+                assert_eq!(code, "static mut G: i32;");
+            } else {
+                panic!("Expected Item::RawRust, got: {:?}", ext.items[0]);
+            }
+        } else {
+            panic!("Expected Item::Extern, got: {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_peg_item_extern_rust_escape_hatch_nested_braces() {
+        // The raw body is brace-balanced: inner `{ … }` does not end the block.
+        let src = "extern \"C\" { __rust__{ fn f() -> i32 { 42 } } }";
+        let result = crusty_peg_parser::item(src);
+        assert!(result.is_ok(), "nested braces should balance: {:?}", result);
+        if let Ok(Item::Extern(ext)) = result {
+            if let Item::RawRust { code } = &ext.items[0] {
+                assert_eq!(code, "fn f() -> i32 { 42 }");
+            } else {
+                panic!("Expected Item::RawRust");
+            }
+        } else {
+            panic!("Expected Item::Extern");
+        }
+    }
+
+    #[test]
+    fn test_peg_item_extern_rust_escape_hatch_mixed() {
+        // A __rust__ block coexists with ordinary declarations in one block.
+        let src = "extern \"C\" { void f(); __rust__{ static X: i32 = 1; } int g(); }";
+        let result = crusty_peg_parser::item(src);
+        assert!(result.is_ok(), "mixed extern items should parse: {:?}", result);
+        if let Ok(Item::Extern(ext)) = result {
+            assert_eq!(ext.items.len(), 3);
+            assert!(matches!(ext.items[0], Item::Function(_)));
+            assert!(matches!(ext.items[1], Item::RawRust { .. }));
+            assert!(matches!(ext.items[2], Item::Function(_)));
+        } else {
+            panic!("Expected Item::Extern");
+        }
+    }
+
+    #[test]
+    fn test_peg_item_rust_escape_hatch_rejected_at_top_level() {
+        // __rust__ is an extern-only item: it must not parse at module level.
+        let result = crusty_peg_parser::item("__rust__{ fn foo(); }");
+        assert!(result.is_err(), "top-level __rust__ must be rejected");
+    }
+
+    #[test]
+    fn test_peg_item_extern_in_extern_rejected() {
+        // Extern cannot nest inside extern.
+        let result = crusty_peg_parser::item("extern \"C\" { extern \"C\" { void f(); } }");
+        assert!(result.is_err(), "extern-in-extern must be rejected");
     }
 
     #[test]
