@@ -299,7 +299,7 @@ mod tests {
 
     #[test]
     fn test_parse_for_in_simple() {
-        let source = "void func() { for (item in collection) { } }";
+        let source = "void func() { for item in collection { } }";
         let mut parser = Parser::new(source).unwrap();
         let file = parser.parse_file().unwrap();
         assert_eq!(file.items.len(), 1);

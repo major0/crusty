@@ -12,7 +12,7 @@ void main() {
     counts.insert("pears".to_string(), 1);
     counts.insert("plums".to_string(), 4);
 
-    for (entry in counts.iter()) {
+    for entry in counts.iter() {
         println!("{} = {}", entry.0, entry.1);
     }
 

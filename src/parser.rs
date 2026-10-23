@@ -1009,7 +1009,13 @@ peg::parser! {
         /// Postfix expression: base expression followed by zero or more postfix operations
         /// This handles chains like: obj.field.method(arg)[0]
         pub rule postfix_expr() -> Expression
-            = base:atom() ops:postfix_op()* {
+            = postfix_expr_inner(true)
+
+        /// Postfix expression, parameterised by whether a bare struct literal is
+        /// allowed in its base atom (see `atom_inner`). `allow_struct=false`
+        /// is used for the for-in iterable.
+        rule postfix_expr_inner(allow_struct: bool) -> Expression
+            = base:atom_inner(allow_struct) ops:postfix_op()* {
                 ops.into_iter().fold(base, |expr, op| {
                     match op {
                         PostfixOp::Call { args } => Expression::Call {
@@ -1095,8 +1101,11 @@ peg::parser! {
         /// Helper: primary expression for range operands (no range expressions)
         /// This prevents infinite recursion in range parsing
         rule range_primary() -> Expression
+            = range_primary_inner(true)
+
+        rule range_primary_inner(allow_struct: bool) -> Expression
             = type_scoped_call()
-            / postfix_expr()
+            / postfix_expr_inner(allow_struct)
 
         /// Macro call expression: name!(args) or name![args] or name!{args}
         /// Returns Expression::MacroCall
@@ -1157,13 +1166,21 @@ peg::parser! {
         /// Atom: the most basic expression forms (no postfix operations)
         /// These are the building blocks that postfix operations attach to
         rule atom() -> Expression
+            = atom_inner(true)
+
+        /// Atom, parameterised by whether a bare struct literal (`Ident { … }`)
+        /// is permitted. `allow_struct=false` is used only for the for-in
+        /// iterable, so `for x in coll { }` reads `coll` as the iterable and
+        /// `{ }` as the loop body instead of `coll {}` as an empty struct
+        /// literal. A struct literal in that position must be parenthesised.
+        rule atom_inner(allow_struct: bool) -> Expression
             = loop_expr()
             / sizeof_expr()
             / macro_call()
             / cast_expr()
             / tuple_lit()
             / paren_expr()
-            / struct_init()
+            / s:struct_init() {? if allow_struct { Ok(s) } else { Err("struct literal not allowed here") } }
             / array_lit()
             / literal_expr()
             / ident_expr()
@@ -2155,14 +2172,14 @@ peg::parser! {
             = e:expr() { e }
 
         /// For-in statement: iterator-based for loop
-        /// Syntax: for (var in iterable) { body }
+        /// Syntax: for var in iterable { body }
         /// Returns Statement::ForIn
         ///
         /// Examples:
-        /// - for (x in array) { ... }
-        /// - for (item in 0..10) { ... }
+        /// - for x in array { ... }
+        /// - for item in 0..10 { ... }
         pub rule for_in_stmt() -> Statement
-            = _ kw_for() _ "(" _ var:ident() __ kw_in() __ iter:expr() _ ")" _ body:block() _ {
+            = _ kw_for() __ var:ident() __ kw_in() __ iter:for_in_iter() _ body:block() _ {
                 Statement::ForIn {
                     label: None,
                     var,
@@ -2170,6 +2187,41 @@ peg::parser! {
                     body,
                 }
             }
+
+        /// For-in iterable: an expression in struct-literal-restricted position.
+        ///
+        /// `for p in Point { x: 1 } { }` is ambiguous — the `{ x: 1 }` could be
+        /// the struct body or the loop body. Mirroring Rust's no-struct-literal
+        /// rule for `for`/`if`/`while` heads, a bare struct literal is forbidden
+        /// as the iterable and must be parenthesised: `for p in (Point { x: 1 }) { }`.
+        ///
+        /// The iterable is parsed through the struct-literal-free atom tier
+        /// (`allow_struct=false`), so a bare `Ident {` reads as "`Ident` is the
+        /// iterable, `{` begins the loop body" — covering `for x in coll { }`
+        /// (empty body), ranges (`0..n`), calls and method chains. A
+        /// parenthesised expression (including a parenthesised struct literal)
+        /// is reached via the normal `expr()` fallback, since `(` is
+        /// unambiguous.
+        rule for_in_iter() -> Expression
+            = e:range_expr_ns() { e }
+            / e:binary_ns() { e }
+
+        /// Struct-free range expression for the iterable (`start..end`,
+        /// `start..=end`, and open-ended forms), with struct-free operands.
+        rule range_expr_ns() -> Expression
+            = _ start:binary_ns()? _ ".." inclusive:"="? _ end:binary_ns()? _ {
+                Expression::Range {
+                    start: start.map(Box::new),
+                    end: end.map(Box::new),
+                    inclusive: inclusive.is_some(),
+                }
+            }
+
+        /// Struct-free binary/primary expression for the iterable: reuses the
+        /// struct-free primary tier, so struct literals are excluded but calls,
+        /// field access, indexing, parenthesised forms and literals all parse.
+        rule binary_ns() -> Expression
+            = range_primary_inner(false)
 
         /// Switch statement: multi-way branch
         /// Syntax: switch (expr) { case value: { body } ... [default: { body }] }
@@ -2285,7 +2337,8 @@ peg::parser! {
         /// 4. Nested function declarations (must come before expr_stmt)
         /// 5. Expression statements (including assignments)
         ///
-        /// Note: for_in_stmt must come before for_stmt to correctly parse "for (x in ...)"
+        /// Note: for_in_stmt must come before for_stmt; for-in is "for IDENT in ...",
+        /// a C-style for is "for (...", so the two are distinguished by the token after "for".
         /// Note: nested_function must come before expr_stmt to correctly parse function declarations
         pub rule statement() -> Statement
             = labeled_stmt()
@@ -11530,7 +11583,7 @@ mod control_flow_tests {
     #[test]
     fn test_for_in_stmt_simple() {
         // Test simple for-in statement
-        let result = crusty_peg_parser::for_in_stmt("for (x in array) { print(x); }");
+        let result = crusty_peg_parser::for_in_stmt("for x in array { print(x); }");
         assert!(result.is_ok());
         let stmt = result.unwrap();
         match stmt {
@@ -11552,7 +11605,7 @@ mod control_flow_tests {
     #[test]
     fn test_for_in_stmt_range() {
         // Test for-in statement with range
-        let result = crusty_peg_parser::for_in_stmt("for (i in 0..10) { }");
+        let result = crusty_peg_parser::for_in_stmt("for i in 0..10 { }");
         assert!(result.is_ok());
         let stmt = result.unwrap();
         match stmt {
@@ -11562,6 +11615,42 @@ mod control_flow_tests {
             }
             _ => panic!("Expected ForIn statement"),
         }
+    }
+
+    #[test]
+    fn test_for_in_iterable_forms_parse() {
+        // Every unambiguous iterable form parses as iterable-then-body, including
+        // an empty loop body after a bare identifier (which must NOT be read as
+        // an empty struct literal). Table-driven: one row per iterable shape.
+        let cases = [
+            ("for x in array { }", "bare ident, empty body"),
+            ("for x in array { f(x); }", "bare ident, statement body"),
+            ("for i in 0..10 { }", "exclusive range"),
+            ("for i in 0..=10 { }", "inclusive range"),
+            ("for e in m.iter() { }", "method call"),
+            ("for v in data.values { }", "field access"),
+            ("for x in (Point { x: 1 }) { }", "parenthesised struct literal"),
+        ];
+        for (src, label) in cases {
+            let result = crusty_peg_parser::for_in_stmt(src);
+            assert!(result.is_ok(), "expected {label} to parse: {src}");
+            assert!(
+                matches!(result.unwrap(), Statement::ForIn { .. }),
+                "expected a ForIn for {label}: {src}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_for_in_bare_struct_literal_iterable_rejected() {
+        // A bare (unparenthesised) struct literal in iterable position is
+        // forbidden — the `{ x: 1 }` would be ambiguous with the loop body.
+        // It must be parenthesised (covered by the parse test above).
+        let result = crusty_peg_parser::for_in_stmt("for p in Point { x: 1 } { }");
+        assert!(
+            result.is_err(),
+            "a bare struct-literal iterable must be rejected; parenthesise it"
+        );
     }
 
     // ========================================================================
@@ -11719,7 +11808,7 @@ mod control_flow_tests {
     #[test]
     fn test_statement_for_in() {
         // Test that statement() can parse for-in statements
-        let result = crusty_peg_parser::statement("for (x in array) { }");
+        let result = crusty_peg_parser::statement("for x in array { }");
         assert!(result.is_ok());
         assert!(matches!(result.unwrap(), Statement::ForIn { .. }));
     }
