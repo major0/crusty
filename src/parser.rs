@@ -267,6 +267,12 @@ peg::parser! {
         /// Keyword: uint128
         rule kw_u128() = "uint128" !ident_char()
 
+        /// Keyword: usize (pointer-width unsigned, PS-11)
+        rule kw_usize() = "usize" !ident_char()
+
+        /// Keyword: isize (pointer-width signed, PS-11)
+        rule kw_isize() = "isize" !ident_char()
+
         /// Keyword: float
         rule kw_float() = "float" !ident_char()
 
@@ -318,6 +324,7 @@ peg::parser! {
             / kw_loop() / kw_match() / kw_switch() / kw_case() / kw_default() / kw_auto()
             / kw_int() / kw_i8() / kw_i16() / kw_i32() / kw_i64() / kw_i128()
             / kw_u8() / kw_u16() / kw_u32() / kw_u64() / kw_u128()
+            / kw_usize() / kw_isize()
             / kw_float() / kw_f32() / kw_f64()
             / kw_bool() / kw_char() / kw_void()
             / kw_signed() / kw_unsigned() / kw_short() / kw_long()
@@ -551,6 +558,14 @@ peg::parser! {
         pub rule primitive_u128() -> Type
             = kw_u128() { Type::Primitive(PrimitiveType::U128) }
 
+        /// Primitive type: usize (pointer-width unsigned, PS-11)
+        pub rule primitive_usize() -> Type
+            = kw_usize() { Type::Primitive(PrimitiveType::Usize) }
+
+        /// Primitive type: isize (pointer-width signed, PS-11)
+        pub rule primitive_isize() -> Type
+            = kw_isize() { Type::Primitive(PrimitiveType::Isize) }
+
         /// Primitive type: i64
         /// Returns Type::Primitive(PrimitiveType::I64)
         pub rule primitive_i64() -> Type
@@ -610,6 +625,8 @@ peg::parser! {
             / primitive_u32()
             / primitive_u16()
             / primitive_u8()
+            / primitive_usize()
+            / primitive_isize()
             / primitive_int()
             / primitive_f32()
             / primitive_f64()
@@ -6427,6 +6444,30 @@ mod primitive_type_tests {
             crusty_peg_parser::primitive_u64("uint64"),
             Ok(Type::Primitive(PrimitiveType::U64))
         );
+    }
+
+    // PS-11: usize / isize are pointer-width primitive keywords, reachable
+    // directly in a type position (not only via a C/POSIX alias).
+    #[test]
+    fn test_peg_primitive_usize_isize() {
+        assert_eq!(
+            crusty_peg_parser::primitive_type("usize"),
+            Ok(Type::Primitive(PrimitiveType::Usize))
+        );
+        assert_eq!(
+            crusty_peg_parser::primitive_type("isize"),
+            Ok(Type::Primitive(PrimitiveType::Isize))
+        );
+        // And through the full type grammar, e.g. as a pointer element.
+        assert_eq!(
+            crusty_peg_parser::type_expr("usize*"),
+            Ok(Type::Pointer {
+                ty: Box::new(Type::Primitive(PrimitiveType::Usize)),
+                mutable: false,
+            })
+        );
+        // `usizex` is an identifier, not the keyword (boundary check).
+        assert!(crusty_peg_parser::primitive_type("usizex").is_err());
     }
 
     #[test]
