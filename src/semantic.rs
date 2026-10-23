@@ -1477,8 +1477,9 @@ impl SemanticAnalyzer {
                 match lit {
                     Literal::Int(_) => Type::Primitive(PrimitiveType::I32),
                     Literal::Float(_) => Type::Primitive(PrimitiveType::F64),
+                    // A Rust string literal is `&str`.
                     Literal::String(_) => Type::Reference {
-                        ty: Box::new(Type::Primitive(PrimitiveType::Char)),
+                        ty: Box::new(Type::Ident(Ident::new("str"))),
                         mutable: false,
                     },
                     Literal::Char(_) => Type::Primitive(PrimitiveType::Char),

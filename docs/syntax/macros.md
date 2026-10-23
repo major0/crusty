@@ -42,7 +42,7 @@ by convention for constants). Type inference follows the literal:
 |----------------|--------------------|
 | `42`           | `i32`              |
 | `3.14159`      | `f64`              |
-| `"text"`       | `&char`            |
+| `"text"`       | `&str`             |
 | `'c'`          | `char`             |
 | `true`/`false` | `bool`             |
 

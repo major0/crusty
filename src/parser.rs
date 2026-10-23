@@ -2912,11 +2912,13 @@ fn const_name(macro_name: &crate::ast::Ident) -> crate::ast::Ident {
     crate::ast::Ident::new(stripped.to_uppercase())
 }
 
-/// Infer the Rust type of a `#define` constant from its literal value, mirroring
-/// the semantic analyzer's literal typing (int -> i32, float -> f64, string ->
-/// &char, char, bool). A negated numeric keeps the inner literal's type. Only
-/// literal values reach here (the grammar rejects compound expressions), so the
-/// `Null`/non-literal fallback is unreachable in practice. ADR-0001.
+/// Infer the Rust type of a `#define` constant from its literal value
+/// (int -> i32, float -> f64, string -> &str, char -> char, bool -> bool). A
+/// negated numeric keeps the inner literal's type. Only literal values reach
+/// here (the grammar rejects compound expressions), so the `Null`/non-literal
+/// fallback is unreachable in practice. The semantic analyzer types a string
+/// literal the same way (`&str`), so the declared const type and the inferred
+/// value type agree. ADR-0001.
 fn const_literal_type(value: &crate::ast::Expression) -> crate::ast::Type {
     use crate::ast::{Expression, Literal, PrimitiveType, Type};
     let lit = match value {
@@ -2933,8 +2935,10 @@ fn const_literal_type(value: &crate::ast::Expression) -> crate::ast::Type {
     match lit {
         Literal::Int(_) => Type::Primitive(PrimitiveType::I32),
         Literal::Float(_) => Type::Primitive(PrimitiveType::F64),
+        // A Rust string literal is `&str`, so a string #define must emit
+        // `const NAME: &str = "...";` — `&char` would not type-check.
         Literal::String(_) => Type::Reference {
-            ty: Box::new(Type::Primitive(PrimitiveType::Char)),
+            ty: Box::new(Type::Ident(crate::ast::Ident::new("str"))),
             mutable: false,
         },
         Literal::Char(_) => Type::Primitive(PrimitiveType::Char),
@@ -4269,6 +4273,19 @@ mod macro_def_tests {
         if let Ok(Item::Const(c)) = result {
             assert_eq!(c.name.name, "GREETING");
             assert!(matches!(c.value, Expression::Literal(Literal::String(_))));
+            // Regression: a string #define must infer `&str`, not `&char` —
+            // `const G: &char = "hello";` does not type-check (ADR-0001).
+            match &c.ty {
+                Type::Reference { ty, mutable } => {
+                    assert!(!mutable);
+                    assert!(
+                        matches!(ty.as_ref(), Type::Ident(i) if i.name == "str"),
+                        "expected &str, got {:?}",
+                        c.ty
+                    );
+                }
+                other => panic!("expected Type::Reference to str, got {:?}", other),
+            }
         } else {
             panic!("Expected Item::Const, got {:?}", result);
         }
