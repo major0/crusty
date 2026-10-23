@@ -39,7 +39,7 @@ for (var i = 0; i < 10; i++) {
 
 ### For-In Loop
 ```c
-for item in collection {
+for (item in collection) {
     println!("{}", item);
 }
 ```
@@ -116,7 +116,7 @@ an undotted name after it is a parse error.
 if_stmt       = "if" "(" expr ")" block ["else" (if_stmt | block)] ;
 while_stmt    = "while" "(" expr ")" block ;
 for_stmt      = "for" "(" [var_decl | expr_stmt] ";" [expr] ";" [expr] ")" block ;
-for_in_stmt   = "for" IDENT "in" expr block ;
+for_in_stmt   = "for" "(" IDENT "in" expr ")" block ;
 loop_stmt     = ["." IDENT ":"] "loop" block ;
 break_stmt    = "break" ["." IDENT] [expr] ";" ;
 continue_stmt = "continue" ["." IDENT] ";" ;
