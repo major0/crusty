@@ -8,7 +8,7 @@ By participating in this project, you agree to maintain a respectful and inclusi
 
 ## Understanding Crusty's Philosophy
 
-Before contributing, please read [SYNTAX_PHILOSOPHY.md](.kiro/specs/crusty-compiler-phase1/SYNTAX_PHILOSOPHY.md) to understand Crusty's core principle: **syntactic transpilation, not semantic transformation**. This philosophy guides all implementation decisions.
+Before contributing, please read [docs/design/philosophy.md](docs/design/philosophy.md) to understand Crusty's core principle: **syntactic transpilation, not semantic transformation**. This philosophy guides all implementation decisions.
 
 ## Getting Started
 
@@ -118,8 +118,7 @@ footer
 - `style`: Code style changes
 
 **Scope:**
-- Task number (e.g., `task-2.1`) when implementing from tasks.md
-- Component name (e.g., `parser`, `lexer`, `codegen`)
+- Component name (e.g., `parser`, `semantic`, `codegen`, `cli`)
 
 **Examples:**
 ```
@@ -206,7 +205,7 @@ All pull requests automatically run through CI/CD workflows:
 ### Documentation
 
 - Update README.md if adding user-facing features
-- Update specification documents (requirements.md, design.md, tasks.md) for significant changes
+- Update the relevant docs under `docs/` (syntax, architecture) for significant changes, and add an ADR under `docs/adr/` for design decisions
 - Add doc comments to public APIs
 - Include examples in documentation
 - Update CHANGELOG.md (when it exists)
@@ -215,7 +214,7 @@ All pull requests automatically run through CI/CD workflows:
 
 - Make atomic commits (one logical change per commit)
 - Write clear commit messages following Conventional Commits
-- Reference requirements when implementing from tasks.md
+- Reference the relevant ADR when implementing a recorded design decision
 - Reference issues when fixing bugs
 - Keep commits focused and reviewable
 
@@ -246,7 +245,7 @@ When requesting features, please include:
 We welcome contributions in these areas:
 
 **High Priority:**
-- Implementing tasks from tasks.md
+- Closing grammar gaps and language features (see the example apps under `examples/` and open issues)
 - Bug fixes
 - Test coverage improvements
 - Documentation improvements
@@ -304,11 +303,13 @@ Reviewers will check for:
 ### Working with the Codebase
 
 **Key modules:**
-- `src/lexer.rs` - Tokenization
-- `src/parser.rs` - Parsing Crusty syntax
+- `src/parser.rs` - PEG grammar: lexes and parses Crusty syntax into the AST
 - `src/ast.rs` - Abstract syntax tree definitions
 - `src/semantic.rs` - Semantic analysis and type checking
 - `src/codegen.rs` - Code generation (Crusty → Rust)
+- `src/pretty.rs` - Pretty-printing the generated Rust
+- `src/rustc.rs` - Invoking rustc to compile the generated Rust
+- `src/error.rs` - Diagnostics and error reporting
 - `src/cli.rs` - Command-line interface
 
 **Testing:**
@@ -324,16 +325,14 @@ Reviewers will check for:
 ### Common Tasks
 
 **Adding a new language feature:**
-1. Update requirements.md with user story and acceptance criteria
-2. Update design.md with design details
-3. Add task to tasks.md
-4. Implement lexer changes (if needed)
-5. Implement parser changes
-6. Update AST (if needed)
-7. Implement semantic analysis (if needed)
-8. Implement code generation
-9. Add tests (unit and property-based)
-10. Update documentation
+1. For a hard-to-reverse or cross-cutting decision, write an ADR under `docs/adr/` (see [docs/adr/](docs/adr/))
+2. Update the relevant syntax docs under `docs/syntax/` (and `docs/architecture/` if the pipeline changes)
+3. Implement parser/grammar changes in `src/parser.rs`
+4. Update the AST (`src/ast.rs`) if needed
+5. Implement semantic analysis (`src/semantic.rs`) if needed
+6. Implement code generation (`src/codegen.rs`)
+7. Add tests (unit and property-based)
+8. Keep the docs in sync with the implementation
 
 **Fixing a bug:**
 1. Write a failing test that reproduces the bug
@@ -436,8 +435,8 @@ Thank you for contributing to Crusty!
 
 ## See Also
 
-- [SYNTAX_PHILOSOPHY.md](.kiro/specs/crusty-compiler-phase1/SYNTAX_PHILOSOPHY.md) - Core principle: syntax-only transpilation
-- [requirements.md](.kiro/specs/crusty-compiler-phase1/requirements.md) - Detailed feature requirements
-- [design.md](.kiro/specs/crusty-compiler-phase1/design.md) - Architecture and component design
-- [tasks.md](.kiro/specs/crusty-compiler-phase1/tasks.md) - Implementation plan and progress
+- [docs/design/philosophy.md](docs/design/philosophy.md) - Core principle: syntax-only transpilation
+- [docs/architecture/overview.md](docs/architecture/overview.md) - Compiler pipeline and component design
+- [docs/syntax/README.md](docs/syntax/README.md) - Per-feature syntax documentation
+- [docs/adr/](docs/adr/) - Architecture Decision Records: numbered, durable design decisions
 - [README.md](README.md) - Project overview and quick start guide
