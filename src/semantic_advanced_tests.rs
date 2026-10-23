@@ -351,14 +351,14 @@ mod tests {
                     name: Ident::new("test_func"),
                     params: vec![],
                     return_type: Some(Type::Primitive(PrimitiveType::Void)),
-                    body: Block {
+                    body: Some(Block {
                         statements: vec![Statement::Let {
                             name: Ident::new("obj"),
                             ty: Some(Type::Ident(Ident::new("MyStruct"))),
                             init: None,
                             mutable: false,
                         }],
-                    },
+                    }),
                     doc_comments: vec![],
                     attributes: vec![],
                 }),

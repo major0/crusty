@@ -624,8 +624,11 @@ impl SemanticAnalyzer {
             }
         }
 
-        // Analyze function body
-        self.analyze_block(&func.body);
+        // Analyze function body (definitions only; a body-less extern
+        // declaration has nothing to check).
+        if let Some(ref body) = func.body {
+            self.analyze_block(body);
+        }
 
         // Exit function scope
         self.symbol_table.exit_scope();

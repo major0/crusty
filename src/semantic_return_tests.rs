@@ -25,9 +25,9 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: Some(Type::Primitive(PrimitiveType::Int)),
-            body: Block::new(vec![Statement::Return(Some(Expression::Literal(
+            body: Some(Block::new(vec![Statement::Return(Some(Expression::Literal(
                 Literal::Int(42),
-            )))]),
+            )))])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -46,7 +46,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![Statement::Return(None)]),
+            body: Some(Block::new(vec![Statement::Return(None)])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -65,9 +65,9 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: Some(Type::Primitive(PrimitiveType::Int)),
-            body: Block::new(vec![Statement::Return(Some(Expression::Literal(
+            body: Some(Block::new(vec![Statement::Return(Some(Expression::Literal(
                 Literal::Bool(true),
-            )))]),
+            )))])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -88,7 +88,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: Some(Type::Primitive(PrimitiveType::Int)),
-            body: Block::new(vec![Statement::Return(None)]),
+            body: Some(Block::new(vec![Statement::Return(None)])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -141,7 +141,7 @@ mod tests {
             name: Ident::new("__test__"),
             params: vec![],
             return_type: None,
-            body: Block::empty(),
+            body: Some(Block::empty()),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -162,9 +162,9 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![Statement::Expr(Expression::Ident(Ident::new(
+            body: Some(Block::new(vec![Statement::Expr(Expression::Ident(Ident::new(
                 "undefined_var",
-            )))]),
+            )))])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -185,7 +185,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![Statement::Let {
+            body: Some(Block::new(vec![Statement::Let {
                 name: Ident::new("result"),
                 ty: None,
                 init: Some(Expression::Binary {
@@ -194,7 +194,7 @@ mod tests {
                     right: Box::new(Expression::Literal(Literal::Bool(true))),
                 }),
                 mutable: false,
-            }]),
+            }])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -215,12 +215,12 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![Statement::Let {
+            body: Some(Block::new(vec![Statement::Let {
                 name: Ident::new("x"),
                 ty: Some(Type::Primitive(PrimitiveType::Int)),
                 init: None,
                 mutable: false,
-            }]),
+            }])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -239,11 +239,11 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![Statement::Var {
+            body: Some(Block::new(vec![Statement::Var {
                 name: Ident::new("x"),
                 ty: Some(Type::Primitive(PrimitiveType::Int)),
                 init: None,
-            }]),
+            }])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -262,7 +262,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![
+            body: Some(Block::new(vec![
                 Statement::Var {
                     name: Ident::new("x"),
                     ty: Some(Type::Primitive(PrimitiveType::Int)),
@@ -273,7 +273,7 @@ mod tests {
                     ty: Some(Type::Primitive(PrimitiveType::Int)),
                     init: Some(Expression::Literal(Literal::Int(2))),
                 },
-            ]),
+            ])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -294,7 +294,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![
+            body: Some(Block::new(vec![
                 Statement::Let {
                     name: Ident::new("x"),
                     ty: Some(Type::Primitive(PrimitiveType::Int)),
@@ -307,7 +307,7 @@ mod tests {
                     init: Some(Expression::Literal(Literal::Int(2))),
                     mutable: false,
                 },
-            ]),
+            ])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -328,12 +328,12 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![Statement::Let {
+            body: Some(Block::new(vec![Statement::Let {
                 name: Ident::new("x"),
                 ty: None,
                 init: Some(Expression::Literal(Literal::Int(42))),
                 mutable: false,
-            }]),
+            }])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -352,11 +352,11 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![Statement::Var {
+            body: Some(Block::new(vec![Statement::Var {
                 name: Ident::new("x"),
                 ty: None,
                 init: Some(Expression::Literal(Literal::Int(42))),
-            }]),
+            }])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -375,12 +375,12 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![Statement::Let {
+            body: Some(Block::new(vec![Statement::Let {
                 name: Ident::new("x"),
                 ty: Some(Type::Primitive(PrimitiveType::Int)),
                 init: Some(Expression::Literal(Literal::Int(42))),
                 mutable: true,
-            }]),
+            }])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -399,12 +399,12 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![Statement::NestedFunction {
+            body: Some(Block::new(vec![Statement::NestedFunction {
                 name: Ident::new("__nested__"),
                 params: vec![],
                 return_type: None,
                 body: Block::empty(),
-            }]),
+            }])),
             doc_comments: vec![],
             attributes: vec![],
         };

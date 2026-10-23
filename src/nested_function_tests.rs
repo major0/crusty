@@ -32,9 +32,9 @@ void outer() {
 
         if let Item::Function(func) = &file.items[0] {
             assert_eq!(func.name.name, "outer");
-            assert_eq!(func.body.statements.len(), 1);
+            assert_eq!(func.body.as_ref().unwrap().statements.len(), 1);
 
-            if let Statement::NestedFunction { name, .. } = &func.body.statements[0] {
+            if let Statement::NestedFunction { name, .. } = &func.body.as_ref().unwrap().statements[0] {
                 assert_eq!(name.name, "inner");
             } else {
                 panic!("Expected NestedFunction statement");
@@ -57,7 +57,7 @@ void outer() {
         let file = parser.parse_file().unwrap();
 
         if let Item::Function(func) = &file.items[0] {
-            if let Statement::NestedFunction { name, params, .. } = &func.body.statements[0] {
+            if let Statement::NestedFunction { name, params, .. } = &func.body.as_ref().unwrap().statements[0] {
                 assert_eq!(name.name, "add");
                 assert_eq!(params.len(), 2);
                 assert_eq!(params[0].name.name, "x");
@@ -83,7 +83,7 @@ void outer() {
         if let Item::Function(func) = &file.items[0] {
             if let Statement::NestedFunction {
                 name, return_type, ..
-            } = &func.body.statements[0]
+            } = &func.body.as_ref().unwrap().statements[0]
             {
                 assert_eq!(name.name, "get_value");
                 assert!(return_type.is_some());
@@ -114,15 +114,15 @@ void outer() {
         let file = parser.parse_file().unwrap();
 
         if let Item::Function(func) = &file.items[0] {
-            assert_eq!(func.body.statements.len(), 2);
+            assert_eq!(func.body.as_ref().unwrap().statements.len(), 2);
 
-            if let Statement::NestedFunction { name, .. } = &func.body.statements[0] {
+            if let Statement::NestedFunction { name, .. } = &func.body.as_ref().unwrap().statements[0] {
                 assert_eq!(name.name, "first");
             } else {
                 panic!("Expected first NestedFunction");
             }
 
-            if let Statement::NestedFunction { name, .. } = &func.body.statements[1] {
+            if let Statement::NestedFunction { name, .. } = &func.body.as_ref().unwrap().statements[1] {
                 assert_eq!(name.name, "second");
             } else {
                 panic!("Expected second NestedFunction");
@@ -144,7 +144,7 @@ void outer() {
         let file = parser.parse_file().unwrap();
 
         if let Item::Function(func) = &file.items[0] {
-            if let Statement::NestedFunction { body, .. } = &func.body.statements[0] {
+            if let Statement::NestedFunction { body, .. } = &func.body.as_ref().unwrap().statements[0] {
                 assert_eq!(body.statements.len(), 2);
             } else {
                 panic!("Expected NestedFunction statement");
@@ -1173,7 +1173,7 @@ void outer() {
 
         // Verify that NestedFunction doesn't have a static field
         if let Item::Function(func) = &file.items[0] {
-            if let Statement::NestedFunction { .. } = &func.body.statements[0] {
+            if let Statement::NestedFunction { .. } = &func.body.as_ref().unwrap().statements[0] {
                 // The fact that we can match this pattern without a 'static' field
                 // confirms that nested functions cannot be static by design
                 // Test passes by successfully matching the pattern

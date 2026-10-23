@@ -2339,7 +2339,7 @@ peg::parser! {
                     name,
                     params: params.unwrap_or_default(),
                     return_type: None,
-                    body,
+                    body: Some(body),
                     doc_comments: Vec::new(),
                     attributes: attrs,
                 })
@@ -2351,7 +2351,7 @@ peg::parser! {
                     name,
                     params: params.unwrap_or_default(),
                     return_type: Some(return_type),
-                    body,
+                    body: Some(body),
                     doc_comments: Vec::new(),
                     attributes: attrs,
                 })
@@ -2363,7 +2363,7 @@ peg::parser! {
                     name,
                     params: params.unwrap_or_default(),
                     return_type: None,
-                    body,
+                    body: Some(body),
                     doc_comments: Vec::new(),
                     attributes: attrs,
                 })
@@ -2375,7 +2375,7 @@ peg::parser! {
                     name,
                     params: params.unwrap_or_default(),
                     return_type: Some(return_type),
-                    body,
+                    body: Some(body),
                     doc_comments: Vec::new(),
                     attributes: attrs,
                 })
@@ -2540,7 +2540,7 @@ peg::parser! {
                     name,
                     params: params.unwrap_or_default(),
                     return_type: None,
-                    body,
+                    body: Some(body),
                     doc_comments: Vec::new(),
                     attributes: attrs,
                 }
@@ -2552,7 +2552,7 @@ peg::parser! {
                     name,
                     params: params.unwrap_or_default(),
                     return_type: Some(return_type),
-                    body,
+                    body: Some(body),
                     doc_comments: Vec::new(),
                     attributes: attrs,
                 }
@@ -2564,7 +2564,7 @@ peg::parser! {
                     name,
                     params: params.unwrap_or_default(),
                     return_type: None,
-                    body,
+                    body: Some(body),
                     doc_comments: Vec::new(),
                     attributes: attrs,
                 }
@@ -2576,7 +2576,7 @@ peg::parser! {
                     name,
                     params: params.unwrap_or_default(),
                     return_type: Some(return_type),
-                    body,
+                    body: Some(body),
                     doc_comments: Vec::new(),
                     attributes: attrs,
                 }
@@ -11165,7 +11165,7 @@ mod function_item_tests {
         let item = result.unwrap();
         if let Item::Function(func) = item {
             assert_eq!(func.name.name, "factorial");
-            assert!(!func.body.statements.is_empty());
+            assert!(!func.body.as_ref().unwrap().statements.is_empty());
         } else {
             panic!("Expected Item::Function");
         }

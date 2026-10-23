@@ -134,7 +134,7 @@ return a+b;
             name: Ident::new("test"),
             params: vec![],
             return_type: None,
-            body: Block::empty(),
+            body: Some(Block::empty()),
             doc_comments: vec![],
             attributes: vec![],
         };

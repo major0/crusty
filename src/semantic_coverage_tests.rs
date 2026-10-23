@@ -111,7 +111,7 @@ mod tests {
             name: Ident::new("test_func"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![Statement::For {
+            body: Some(Block::new(vec![Statement::For {
                 label: None,
                 init: Box::new(Statement::Let {
                     name: Ident::new("i"),
@@ -130,7 +130,7 @@ mod tests {
                     right: Box::new(Expression::Literal(Literal::Int(1))),
                 },
                 body: Block::new(vec![]),
-            }]),
+            }])),
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -151,11 +151,11 @@ mod tests {
             name: Ident::new("test_func"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![Statement::While {
+            body: Some(Block::new(vec![Statement::While {
                 label: None,
                 condition: Expression::Literal(Literal::Bool(true)),
                 body: Block::new(vec![Statement::Break(None)]),
-            }]),
+            }])),
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -176,11 +176,11 @@ mod tests {
             name: Ident::new("test_func"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![Statement::While {
+            body: Some(Block::new(vec![Statement::While {
                 label: None,
                 condition: Expression::Literal(Literal::Bool(true)),
                 body: Block::new(vec![Statement::Continue(None)]),
-            }]),
+            }])),
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -201,14 +201,14 @@ mod tests {
             name: Ident::new("test_func"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![Statement::Switch {
+            body: Some(Block::new(vec![Statement::Switch {
                 expr: Expression::Literal(Literal::Int(1)),
                 cases: vec![SwitchCase {
                     values: vec![Expression::Literal(Literal::Int(1))],
                     body: Block::new(vec![]),
                 }],
                 default: None,
-            }]),
+            }])),
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -229,7 +229,7 @@ mod tests {
             name: Ident::new("test_func"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![
+            body: Some(Block::new(vec![
                 Statement::Expr(Expression::Binary {
                     op: BinaryOp::Sub,
                     left: Box::new(Expression::Literal(Literal::Int(10))),
@@ -250,7 +250,7 @@ mod tests {
                     left: Box::new(Expression::Literal(Literal::Int(10))),
                     right: Box::new(Expression::Literal(Literal::Int(3))),
                 }),
-            ]),
+            ])),
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -271,7 +271,7 @@ mod tests {
             name: Ident::new("test_func"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![
+            body: Some(Block::new(vec![
                 Statement::Expr(Expression::Binary {
                     op: BinaryOp::Gt,
                     left: Box::new(Expression::Literal(Literal::Int(10))),
@@ -297,7 +297,7 @@ mod tests {
                     left: Box::new(Expression::Literal(Literal::Int(5))),
                     right: Box::new(Expression::Literal(Literal::Int(10))),
                 }),
-            ]),
+            ])),
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -318,7 +318,7 @@ mod tests {
             name: Ident::new("test_func"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![
+            body: Some(Block::new(vec![
                 Statement::Expr(Expression::Binary {
                     op: BinaryOp::And,
                     left: Box::new(Expression::Literal(Literal::Bool(true))),
@@ -329,7 +329,7 @@ mod tests {
                     left: Box::new(Expression::Literal(Literal::Bool(true))),
                     right: Box::new(Expression::Literal(Literal::Bool(false))),
                 }),
-            ]),
+            ])),
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -350,7 +350,7 @@ mod tests {
             name: Ident::new("test_func"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![
+            body: Some(Block::new(vec![
                 Statement::Expr(Expression::Binary {
                     op: BinaryOp::BitAnd,
                     left: Box::new(Expression::Literal(Literal::Int(15))),
@@ -376,7 +376,7 @@ mod tests {
                     left: Box::new(Expression::Literal(Literal::Int(8))),
                     right: Box::new(Expression::Literal(Literal::Int(2))),
                 }),
-            ]),
+            ])),
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -397,7 +397,7 @@ mod tests {
             name: Ident::new("test_func"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![
+            body: Some(Block::new(vec![
                 Statement::Expr(Expression::Unary {
                     op: UnaryOp::Not,
                     expr: Box::new(Expression::Literal(Literal::Bool(true))),
@@ -406,7 +406,7 @@ mod tests {
                     op: UnaryOp::Neg,
                     expr: Box::new(Expression::Literal(Literal::Int(42))),
                 }),
-            ]),
+            ])),
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -427,10 +427,10 @@ mod tests {
             name: Ident::new("test_func"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![Statement::Expr(Expression::Cast {
+            body: Some(Block::new(vec![Statement::Expr(Expression::Cast {
                 expr: Box::new(Expression::Literal(Literal::Int(42))),
                 ty: Type::Primitive(PrimitiveType::F64),
-            })]),
+            })])),
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -451,9 +451,9 @@ mod tests {
             name: Ident::new("test_func"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![Statement::Expr(Expression::Sizeof {
+            body: Some(Block::new(vec![Statement::Expr(Expression::Sizeof {
                 ty: Type::Primitive(PrimitiveType::Int),
-            })]),
+            })])),
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -474,11 +474,11 @@ mod tests {
             name: Ident::new("test_func"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![Statement::Expr(Expression::Ternary {
+            body: Some(Block::new(vec![Statement::Expr(Expression::Ternary {
                 condition: Box::new(Expression::Literal(Literal::Bool(true))),
                 then_expr: Box::new(Expression::Literal(Literal::Int(1))),
                 else_expr: Box::new(Expression::Literal(Literal::Int(2))),
-            })]),
+            })])),
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -499,11 +499,11 @@ mod tests {
             name: Ident::new("test_func"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![Statement::Expr(Expression::Range {
+            body: Some(Block::new(vec![Statement::Expr(Expression::Range {
                 start: Some(Box::new(Expression::Literal(Literal::Int(0)))),
                 end: Some(Box::new(Expression::Literal(Literal::Int(10)))),
                 inclusive: false,
-            })]),
+            })])),
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -524,12 +524,12 @@ mod tests {
             name: Ident::new("test_func"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![
+            body: Some(Block::new(vec![
                 Statement::Expr(Expression::Literal(Literal::Null)),
                 Statement::Expr(Expression::Literal(Literal::String("hello".to_string()))),
                 Statement::Expr(Expression::Literal(Literal::Char('a'))),
                 Statement::Expr(Expression::Literal(Literal::Float(2.5))),
-            ]),
+            ])),
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -560,7 +560,7 @@ mod tests {
                 name: Ident::new("new"),
                 params: vec![],
                 return_type: Some(Type::Ident(Ident::new("Point"))),
-                body: Block::new(vec![]),
+                body: Some(Block::new(vec![])),
                 doc_comments: vec![],
                 attributes: vec![],
             }],

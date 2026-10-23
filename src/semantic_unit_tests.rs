@@ -561,7 +561,7 @@ mod tests {
             name: Ident::new("test_func"),
             params: vec![],
             return_type: Some(Type::Primitive(PrimitiveType::I32)),
-            body: Block::empty(),
+            body: Some(Block::empty()),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -650,7 +650,7 @@ mod tests {
             name: Ident::new("duplicate"),
             params: vec![],
             return_type: Some(Type::Primitive(PrimitiveType::I32)),
-            body: Block::empty(),
+            body: Some(Block::empty()),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -976,7 +976,7 @@ mod tests {
             name: Ident::new("__my_function__".to_string()),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![]),
+            body: Some(Block::new(vec![])),
             doc_comments: vec![],
             attributes: vec![],
         };

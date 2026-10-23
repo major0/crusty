@@ -130,7 +130,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![stmt]),
+            body: Some(Block::new(vec![stmt])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -156,7 +156,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![stmt]),
+            body: Some(Block::new(vec![stmt])),
             doc_comments: vec![],
             attributes: vec![],
         };

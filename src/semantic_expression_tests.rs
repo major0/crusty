@@ -22,7 +22,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: None,
-            body: Block::new(body),
+            body: Some(Block::new(body)),
             doc_comments: vec![],
             attributes: vec![],
         }
@@ -251,7 +251,7 @@ mod tests {
                 },
             ],
             return_type: Some(Type::Primitive(PrimitiveType::Int)),
-            body: Block::empty(),
+            body: Some(Block::empty()),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -293,7 +293,7 @@ mod tests {
                 },
             ],
             return_type: Some(Type::Primitive(PrimitiveType::Int)),
-            body: Block::empty(),
+            body: Some(Block::empty()),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -329,7 +329,7 @@ mod tests {
                 },
             ],
             return_type: Some(Type::Primitive(PrimitiveType::Int)),
-            body: Block::empty(),
+            body: Some(Block::empty()),
             doc_comments: vec![],
             attributes: vec![],
         };

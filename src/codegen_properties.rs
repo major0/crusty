@@ -134,7 +134,7 @@ mod tests {
                 name,
                 params: vec![],
                 return_type: Some(ret_type),
-                body: Block::empty(),
+                body: Some(Block::empty()),
                 doc_comments: vec![],
                 attributes: vec![],
             }
@@ -232,7 +232,7 @@ mod tests {
                 name: Ident::new("test"),
                 params: vec![],
                 return_type: None,
-                body: Block::new(vec![stmt]),
+                body: Some(Block::new(vec![stmt])),
                 doc_comments: vec![],
             attributes: vec![],
             };
@@ -265,7 +265,7 @@ mod tests {
                 name: Ident::new("test"),
                 params: vec![],
                 return_type: None,
-                body: Block::new(vec![stmt]),
+                body: Some(Block::new(vec![stmt])),
                 doc_comments: vec![],
             attributes: vec![],
             };
@@ -318,7 +318,7 @@ mod tests {
                 name: Ident::new("test"),
                 params: vec![],
                 return_type: None,
-                body: Block::new(vec![stmt]),
+                body: Some(Block::new(vec![stmt])),
                 doc_comments: vec![],
             attributes: vec![],
             };
@@ -342,7 +342,7 @@ mod tests {
                 name: Ident::new("test"),
                 params: vec![],
                 return_type: None,
-                body: Block::new(vec![stmt]),
+                body: Some(Block::new(vec![stmt])),
                 doc_comments: vec![],
             attributes: vec![],
             };
@@ -370,7 +370,7 @@ mod tests {
                 name: Ident::new("test"),
                 params: vec![],
                 return_type: None,
-                body: Block::new(vec![stmt]),
+                body: Some(Block::new(vec![stmt])),
                 doc_comments: vec![],
             attributes: vec![],
             };
@@ -667,7 +667,7 @@ mod tests {
                     },
                 }],
                 return_type: None,
-                body: Block::empty(),
+                body: Some(Block::empty()),
                 doc_comments: vec![],
                 attributes: vec![],
             };
@@ -717,7 +717,7 @@ mod tests {
                 name: Ident::new("test"),
                 params: vec![],
                 return_type: None,
-                body: Block::new(vec![for_in]),
+                body: Some(Block::new(vec![for_in])),
                 doc_comments: vec![],
                 attributes: vec![],
             };
@@ -767,7 +767,7 @@ mod tests {
                 name: Ident::new("test"),
                 params: vec![],
                 return_type: None,
-                body: Block::new(vec![c_for]),
+                body: Some(Block::new(vec![c_for])),
                 doc_comments: vec![],
                 attributes: vec![],
             };
@@ -809,7 +809,7 @@ mod tests {
                 name: Ident::new("test"),
                 params: vec![],
                 return_type: None,
-                body: Block::new(vec![switch]),
+                body: Some(Block::new(vec![switch])),
                 doc_comments: vec![],
                 attributes: vec![],
             };
@@ -927,9 +927,9 @@ mod tests {
                 name: Ident::new("outer"),
                 params: vec![],
                 return_type: Some(Type::Primitive(PrimitiveType::Void)),
-                body: Block {
+                body: Some(Block {
                     statements: vec![nested_func],
-                },
+                }),
                 doc_comments: vec![],
                 attributes: vec![],
             };
@@ -986,7 +986,7 @@ mod tests {
                 name: Ident::new("outer"),
                 params: vec![],
                 return_type: Some(Type::Primitive(PrimitiveType::Void)),
-                body: Block {
+                body: Some(Block {
                     statements: vec![
                         Statement::Let {
                             name: capture_var.clone(),
@@ -996,7 +996,7 @@ mod tests {
                         },
                         nested_func,
                     ],
-                },
+                }),
                 doc_comments: vec![],
                 attributes: vec![],
             };
@@ -1057,7 +1057,7 @@ mod tests {
                 name: Ident::new("outer"),
                 params: vec![],
                 return_type: Some(Type::Primitive(PrimitiveType::Void)),
-                body: Block {
+                body: Some(Block {
                     statements: vec![
                         Statement::Var {
                             name: capture_var.clone(),
@@ -1066,7 +1066,7 @@ mod tests {
                         },
                         nested_func,
                     ],
-                },
+                }),
                 doc_comments: vec![],
                 attributes: vec![],
             };

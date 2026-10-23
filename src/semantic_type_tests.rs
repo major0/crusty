@@ -25,7 +25,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![
+            body: Some(Block::new(vec![
                 Statement::Let {
                     name: Ident::new("ptr1"),
                     ty: Some(Type::Pointer {
@@ -47,7 +47,7 @@ mod tests {
                     }),
                     mutable: false,
                 },
-            ]),
+            ])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -66,7 +66,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![
+            body: Some(Block::new(vec![
                 Statement::Let {
                     name: Ident::new("addr"),
                     ty: Some(Type::Primitive(PrimitiveType::U64)),
@@ -85,7 +85,7 @@ mod tests {
                     }),
                     mutable: false,
                 },
-            ]),
+            ])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -104,7 +104,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![
+            body: Some(Block::new(vec![
                 Statement::Let {
                     name: Ident::new("ptr"),
                     ty: Some(Type::Pointer {
@@ -123,7 +123,7 @@ mod tests {
                     }),
                     mutable: false,
                 },
-            ]),
+            ])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -142,7 +142,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![
+            body: Some(Block::new(vec![
                 Statement::Let {
                     name: Ident::new("s"),
                     ty: Some(Type::Ident(Ident::new("String"))),
@@ -158,7 +158,7 @@ mod tests {
                     }),
                     mutable: false,
                 },
-            ]),
+            ])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -194,7 +194,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![
+            body: Some(Block::new(vec![
                 Statement::Let {
                     name: Ident::new("p_ref"),
                     ty: Some(Type::Reference {
@@ -213,7 +213,7 @@ mod tests {
                     }),
                     mutable: false,
                 },
-            ]),
+            ])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -247,7 +247,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![
+            body: Some(Block::new(vec![
                 Statement::Let {
                     name: Ident::new("p_ptr"),
                     ty: Some(Type::Pointer {
@@ -266,7 +266,7 @@ mod tests {
                     }),
                     mutable: false,
                 },
-            ]),
+            ])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -285,7 +285,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![Statement::Let {
+            body: Some(Block::new(vec![Statement::Let {
                 name: Ident::new("result"),
                 ty: None,
                 init: Some(Expression::Binary {
@@ -294,7 +294,7 @@ mod tests {
                     right: Box::new(Expression::Literal(Literal::Bool(false))),
                 }),
                 mutable: false,
-            }]),
+            }])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -313,7 +313,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: None,
-            body: Block::new(vec![Statement::Let {
+            body: Some(Block::new(vec![Statement::Let {
                 name: Ident::new("result"),
                 ty: None,
                 init: Some(Expression::Binary {
@@ -322,7 +322,7 @@ mod tests {
                     right: Box::new(Expression::Literal(Literal::Bool(false))),
                 }),
                 mutable: false,
-            }]),
+            }])),
             doc_comments: vec![],
             attributes: vec![],
         };

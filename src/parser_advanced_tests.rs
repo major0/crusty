@@ -63,7 +63,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Return(Some(expr)) => {
                     assert!(matches!(expr, Expression::TypeScopedCall { .. }));
                 }
@@ -80,7 +80,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Return(Some(expr)) => match expr {
                     Expression::ExplicitGenericCall {
                         ty: _,
@@ -110,7 +110,7 @@ mod tests {
 
         match &file.items[0] {
             Item::Function(func) => {
-                match &func.body.statements[0] {
+                match &func.body.as_ref().unwrap().statements[0] {
                     Statement::Return(Some(expr)) => {
                         match expr {
                             Expression::ExplicitGenericCall { generics, .. } => {
@@ -181,7 +181,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Expr(expr) => match expr {
                     Expression::MacroCall { name, .. } => {
                         assert_eq!(name.name, "println");
@@ -201,7 +201,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Let {
                     init: Some(expr), ..
                 } => match expr {
@@ -223,7 +223,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Let {
                     init: Some(expr), ..
                 } => match expr {
@@ -245,7 +245,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Return(Some(expr)) => match expr {
                     Expression::FieldAccess { field, .. } => {
                         assert_eq!(field.name, "0");
@@ -265,7 +265,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Let {
                     init: Some(expr), ..
                 } => match expr {
@@ -296,7 +296,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Let {
                     init: Some(expr), ..
                 } => match expr {

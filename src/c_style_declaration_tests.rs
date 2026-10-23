@@ -18,8 +18,8 @@ mod tests {
 
         match &file.items[0] {
             Item::Function(func) => {
-                assert_eq!(func.body.statements.len(), 2);
-                match &func.body.statements[0] {
+                assert_eq!(func.body.as_ref().unwrap().statements.len(), 2);
+                match &func.body.as_ref().unwrap().statements[0] {
                     Statement::Let {
                         name,
                         ty,
@@ -51,7 +51,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[1] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Let {
                     name,
                     ty,
@@ -77,7 +77,7 @@ mod tests {
 
         match &file.items[0] {
             Item::Function(func) => {
-                match &func.body.statements[0] {
+                match &func.body.as_ref().unwrap().statements[0] {
                     Statement::Let {
                         name,
                         ty,
@@ -105,7 +105,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Var { name, ty, init } => {
                     assert_eq!(name.name, "x");
                     assert!(matches!(ty, Some(Type::Primitive(PrimitiveType::Int))));
@@ -131,7 +131,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[1] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Var { name, ty, init } => {
                     assert_eq!(name.name, "x");
                     assert!(matches!(ty, Some(Type::Ident(_))));
@@ -151,7 +151,7 @@ mod tests {
 
         match &file.items[0] {
             Item::Function(func) => {
-                match &func.body.statements[0] {
+                match &func.body.as_ref().unwrap().statements[0] {
                     Statement::Var { name, ty, init } => {
                         assert_eq!(name.name, "x");
                         assert!(ty.is_none()); // Type inference
@@ -173,7 +173,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Const { name, ty, value: _ } => {
                     assert_eq!(name.name, "MAX");
                     assert!(matches!(ty, Type::Primitive(PrimitiveType::Int)));
@@ -197,7 +197,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[1] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Const { name, ty, value: _ } => {
                     assert_eq!(name.name, "MAX");
                     assert!(matches!(ty, Type::Ident(_)));
@@ -216,7 +216,7 @@ mod tests {
 
         match &file.items[0] {
             Item::Function(func) => {
-                match &func.body.statements[0] {
+                match &func.body.as_ref().unwrap().statements[0] {
                     Statement::Const {
                         name,
                         ty: _,
@@ -242,7 +242,7 @@ mod tests {
 
         match &file.items[0] {
             Item::Function(func) => {
-                match &func.body.statements[0] {
+                match &func.body.as_ref().unwrap().statements[0] {
                     Statement::Let {
                         name,
                         ty,
@@ -254,7 +254,7 @@ mod tests {
                         assert!(init.is_some());
                         assert!(!mutable); // Implicit let is immutable
                     }
-                    _ => panic!("Expected Let statement, got {:?}", func.body.statements[0]),
+                    _ => panic!("Expected Let statement, got {:?}", func.body.as_ref().unwrap().statements[0]),
                 }
             }
             _ => panic!("Expected function"),
@@ -274,7 +274,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[1] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Let {
                     name,
                     ty,
@@ -299,7 +299,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Let {
                     name,
                     ty,
@@ -329,11 +329,11 @@ mod tests {
 
         match &file.items[0] {
             Item::Function(func) => {
-                assert_eq!(func.body.statements.len(), 3);
+                assert_eq!(func.body.as_ref().unwrap().statements.len(), 3);
                 // First statement should be a declaration
-                assert!(matches!(func.body.statements[0], Statement::Let { .. }));
+                assert!(matches!(func.body.as_ref().unwrap().statements[0], Statement::Let { .. }));
                 // Second statement should also be a declaration with cast in init
-                match &func.body.statements[1] {
+                match &func.body.as_ref().unwrap().statements[1] {
                     Statement::Let { name, init, .. } => {
                         assert_eq!(name.name, "y");
                         // The init should contain a cast expression
@@ -355,11 +355,11 @@ mod tests {
 
         match &file.items[0] {
             Item::Function(func) => {
-                assert_eq!(func.body.statements.len(), 3);
+                assert_eq!(func.body.as_ref().unwrap().statements.len(), 3);
                 // First statement is declaration
-                assert!(matches!(func.body.statements[0], Statement::Let { .. }));
+                assert!(matches!(func.body.as_ref().unwrap().statements[0], Statement::Let { .. }));
                 // Second statement is assignment (expression statement)
-                assert!(matches!(func.body.statements[1], Statement::Expr(_)));
+                assert!(matches!(func.body.as_ref().unwrap().statements[1], Statement::Expr(_)));
             }
             _ => panic!("Expected function"),
         }
@@ -381,12 +381,12 @@ mod tests {
 
         match &file.items[0] {
             Item::Function(func) => {
-                assert_eq!(func.body.statements.len(), 5);
+                assert_eq!(func.body.as_ref().unwrap().statements.len(), 5);
                 // All should parse successfully
-                assert!(matches!(func.body.statements[0], Statement::Let { .. }));
-                assert!(matches!(func.body.statements[1], Statement::Let { .. }));
-                assert!(matches!(func.body.statements[2], Statement::Var { .. }));
-                assert!(matches!(func.body.statements[3], Statement::Const { .. }));
+                assert!(matches!(func.body.as_ref().unwrap().statements[0], Statement::Let { .. }));
+                assert!(matches!(func.body.as_ref().unwrap().statements[1], Statement::Let { .. }));
+                assert!(matches!(func.body.as_ref().unwrap().statements[2], Statement::Var { .. }));
+                assert!(matches!(func.body.as_ref().unwrap().statements[3], Statement::Const { .. }));
             }
             _ => panic!("Expected function"),
         }
@@ -408,14 +408,14 @@ mod tests {
 
         match &file.items[0] {
             Item::Function(func) => {
-                assert_eq!(func.body.statements.len(), 3);
+                assert_eq!(func.body.as_ref().unwrap().statements.len(), 3);
                 // First should be nested function
                 assert!(matches!(
-                    func.body.statements[0],
+                    func.body.as_ref().unwrap().statements[0],
                     Statement::NestedFunction { .. }
                 ));
                 // Second should be declaration
-                assert!(matches!(func.body.statements[1], Statement::Let { .. }));
+                assert!(matches!(func.body.as_ref().unwrap().statements[1], Statement::Let { .. }));
             }
             _ => panic!("Expected function"),
         }

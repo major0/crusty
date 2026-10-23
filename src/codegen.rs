@@ -286,8 +286,14 @@ impl CodeGenerator {
             }
         }
 
-        self.write(" ");
-        self.generate_block(&func.body);
+        match &func.body {
+            Some(block) => {
+                self.write(" ");
+                self.generate_block(block);
+            }
+            // Body-less declaration (extern fn): terminate with `;`.
+            None => self.write(";"),
+        }
         self.write("\n");
     }
 

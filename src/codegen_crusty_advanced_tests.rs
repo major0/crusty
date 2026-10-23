@@ -26,7 +26,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: Some(Type::Primitive(PrimitiveType::Void)),
-            body: Block::new(vec![stmt]),
+            body: Some(Block::new(vec![stmt])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -52,7 +52,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: Some(Type::Primitive(PrimitiveType::Void)),
-            body: Block::new(vec![stmt]),
+            body: Some(Block::new(vec![stmt])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -86,7 +86,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: Some(Type::Primitive(PrimitiveType::Void)),
-            body: Block::new(vec![stmt]),
+            body: Some(Block::new(vec![stmt])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -118,7 +118,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: Some(Type::Primitive(PrimitiveType::Void)),
-            body: Block::new(vec![stmt]),
+            body: Some(Block::new(vec![stmt])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -152,7 +152,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: Some(Type::Primitive(PrimitiveType::Void)),
-            body: Block::new(vec![stmt]),
+            body: Some(Block::new(vec![stmt])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -174,7 +174,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: Some(Type::Primitive(PrimitiveType::Void)),
-            body: Block::new(vec![stmt]),
+            body: Some(Block::new(vec![stmt])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -195,7 +195,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: Some(Type::Primitive(PrimitiveType::Void)),
-            body: Block::new(vec![stmt]),
+            body: Some(Block::new(vec![stmt])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -234,7 +234,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: Some(Type::Primitive(PrimitiveType::Void)),
-            body: Block::new(vec![stmt]),
+            body: Some(Block::new(vec![stmt])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -284,7 +284,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: Some(Type::Primitive(PrimitiveType::Void)),
-            body: Block::new(vec![stmt]),
+            body: Some(Block::new(vec![stmt])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -314,7 +314,7 @@ mod tests {
                 },
             ],
             return_type: Some(Type::Primitive(PrimitiveType::Int)),
-            body: Block::empty(),
+            body: Some(Block::empty()),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -335,7 +335,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: Some(Type::Primitive(PrimitiveType::Int)),
-            body: Block::new(vec![stmt]),
+            body: Some(Block::new(vec![stmt])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -361,7 +361,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: Some(Type::Primitive(PrimitiveType::Void)),
-            body: Block::new(vec![stmt]),
+            body: Some(Block::new(vec![stmt])),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -386,7 +386,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: Some(Type::Primitive(PrimitiveType::Void)),
-            body: Block::new(vec![stmt]),
+            body: Some(Block::new(vec![stmt])),
             doc_comments: vec![],
             attributes: vec![],
         };

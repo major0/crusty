@@ -46,7 +46,10 @@ pub struct Function {
     pub name: Ident,
     pub params: Vec<Param>,
     pub return_type: Option<Type>,
-    pub body: Block,
+    /// `Some(block)` for a definition, `None` for a body-less declaration
+    /// (an `extern` block function). A declaration emits a `;` instead of a
+    /// `{ … }` and is not body-checked by the semantic analyzer.
+    pub body: Option<Block>,
     pub doc_comments: Vec<String>,
     pub attributes: Vec<Attribute>,
 }
@@ -547,7 +550,7 @@ mod tests {
             name: Ident::new("main"),
             params: vec![],
             return_type: None,
-            body: Block::empty(),
+            body: Some(Block::empty()),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -573,7 +576,7 @@ mod tests {
                 },
             ],
             return_type: Some(Type::Primitive(PrimitiveType::I32)),
-            body: Block::empty(),
+            body: Some(Block::empty()),
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -909,7 +912,7 @@ mod tests {
             name: Ident::new("test"),
             params: vec![],
             return_type: None,
-            body: Block::empty(),
+            body: Some(Block::empty()),
             doc_comments: vec![],
             attributes: vec![],
         };

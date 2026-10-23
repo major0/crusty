@@ -76,7 +76,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Let {
                     init: Some(expr), ..
                 } => match expr {
@@ -98,7 +98,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Let {
                     init: Some(expr), ..
                 } => match expr {
@@ -120,7 +120,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Let {
                     init: Some(expr), ..
                 } => match expr {
@@ -142,7 +142,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Let {
                     init: Some(expr), ..
                 } => match expr {
@@ -164,7 +164,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Let {
                     init: Some(expr), ..
                 } => match expr {
@@ -186,7 +186,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Let {
                     init: Some(expr), ..
                 } => match expr {
@@ -208,7 +208,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Let {
                     init: Some(expr), ..
                 } => match expr {
@@ -230,7 +230,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Let {
                     init: Some(expr), ..
                 } => match expr {
@@ -252,7 +252,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Let {
                     init: Some(expr), ..
                 } => match expr {
@@ -274,7 +274,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Let {
                     init: Some(expr), ..
                 } => match expr {
@@ -296,7 +296,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Let {
                     init: Some(expr), ..
                 } => match expr {
@@ -328,7 +328,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::If { else_block, .. } => {
                     assert!(else_block.is_some());
                 }
@@ -345,7 +345,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::While { body, .. } => match &body.statements[0] {
                     Statement::Break(None) => {}
                     _ => panic!("Expected break without label"),
@@ -363,7 +363,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::While { body, .. } => match &body.statements[0] {
                     Statement::Continue(None) => {}
                     _ => panic!("Expected continue without label"),
@@ -537,7 +537,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Let { init: Some(_), .. } => {}
                 _ => panic!("Expected let statement"),
             },
@@ -552,7 +552,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Expr(Expression::Binary {
                     op: BinaryOp::Assign,
                     right,
@@ -576,7 +576,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Let {
                     init: Some(expr), ..
                 } => match expr {
@@ -596,7 +596,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Let { init: Some(_), .. } => {}
                 _ => panic!("Expected let statement"),
             },
@@ -611,7 +611,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Let {
                     init: Some(expr), ..
                 } => match expr {
@@ -633,7 +633,7 @@ mod tests {
         let file = parser.parse_file().unwrap();
 
         match &file.items[0] {
-            Item::Function(func) => match &func.body.statements[0] {
+            Item::Function(func) => match &func.body.as_ref().unwrap().statements[0] {
                 Statement::Let {
                     init: Some(expr), ..
                 } => match expr {
