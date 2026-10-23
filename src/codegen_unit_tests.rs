@@ -344,6 +344,43 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_loop_expression() {
+        // `let x = loop { break 7; };` -> the loop renders in expression
+        // position as `loop { break 7; }` on the let initializer.
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let loop_expr = Expression::Loop {
+            label: None,
+            body: Box::new(Block::new(vec![Statement::Break {
+                label: None,
+                value: Some(Expression::Literal(Literal::Int(7))),
+            }])),
+        };
+        let let_stmt = Statement::Let {
+            name: Ident::new("x"),
+            ty: None,
+            init: Some(loop_expr),
+            mutable: false,
+        };
+        let func = Function {
+            visibility: Visibility::Public,
+            name: Ident::new("test"),
+            params: vec![],
+            return_type: None,
+            body: Some(Block::new(vec![let_stmt])),
+            is_variadic: false,
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let file = File {
+            items: vec![Item::Function(func)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("let x = loop {"), "got: {}", output);
+        assert!(output.contains("break 7;"), "got: {}", output);
+    }
+
+    #[test]
     fn test_generate_break_with_label() {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let stmt = Statement::Break { label: Some(Ident::new("outer")), value: None };

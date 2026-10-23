@@ -56,6 +56,18 @@ loop {
 Translates to Rust's `loop` unchanged. Exit with `break` (optionally labeled);
 use it when there is no loop condition to evaluate up front.
 
+A `loop` is also an expression: it can appear where a value is expected and
+yields the value of a `break <value>` inside it.
+```c
+let first_even = loop {
+    if (n % 2 == 0) {
+        break n;
+    }
+    n = n + 1;
+};
+```
+Only `loop` is value-producing this way; `while` and `for` are statements.
+
 ### Labeled Loops
 ```c
 .outer: loop {

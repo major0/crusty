@@ -1310,6 +1310,36 @@ impl CodeGenerator {
                 let body = args.first().map(|t| t.text.as_str()).unwrap_or("");
                 format!("{}!{}{}{}", name.name, open, body, close)
             }
+            Expression::Loop { label, body } => {
+                // Render the body with a sub-generator so we reuse the real
+                // statement/block emitter (generate_block is &mut self; this
+                // string context is &self). The sub-generator inherits the
+                // target, indent level, and nested-function captures.
+                let mut sub = CodeGenerator::new(self.target);
+                sub.indent_level = self.indent_level;
+                sub.nested_function_captures = self.nested_function_captures.clone();
+                sub.generate_block(body);
+                let body_str = sub.output;
+
+                let mut result = String::new();
+                if let Some(label) = label {
+                    match self.target {
+                        TargetLanguage::Rust => {
+                            result.push('\'');
+                            result.push_str(&label.name);
+                            result.push_str(": ");
+                        }
+                        TargetLanguage::Crusty => {
+                            result.push('.');
+                            result.push_str(&label.name);
+                            result.push_str(": ");
+                        }
+                    }
+                }
+                result.push_str("loop ");
+                result.push_str(&body_str);
+                result
+            }
             Expression::RustBlock { tokens } => {
                 let mut result = String::from("{ ");
                 for token in tokens {

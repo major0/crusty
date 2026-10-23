@@ -2042,6 +2042,47 @@ impl SemanticAnalyzer {
                 // Comma expression returns the type of the right expression
                 self.analyze_expression(right)
             }
+
+            Expression::Loop { body, .. } => {
+                // Analyze the body so errors inside it (e.g. undefined
+                // variables) are reported.
+                self.symbol_table.enter_scope();
+                self.analyze_block(body);
+                self.symbol_table.exit_scope();
+                // A loop expression yields the type of its first
+                // `break <value>`; with no value-carrying break it yields unit.
+                match Self::first_break_value(body) {
+                    Some(value) => self.analyze_expression(value),
+                    None => Type::Primitive(PrimitiveType::Void),
+                }
+            }
+        }
+    }
+
+    /// Find the first `break <value>` directly within a loop body (not
+    /// descending into nested loops, whose breaks bind to the inner loop).
+    /// Returns the break's value expression, if any.
+    fn first_break_value(block: &crate::ast::Block) -> Option<&crate::ast::Expression> {
+        for stmt in &block.statements {
+            if let Some(v) = Self::first_break_value_in_statement(stmt) {
+                return Some(v);
+            }
+        }
+        None
+    }
+
+    fn first_break_value_in_statement(
+        stmt: &crate::ast::Statement,
+    ) -> Option<&crate::ast::Expression> {
+        use crate::ast::Statement;
+        match stmt {
+            Statement::Break { value, .. } => value.as_ref(),
+            // Descend into conditional/branch bodies, which belong to THIS loop.
+            Statement::If { then_block, else_block, .. } => Self::first_break_value(then_block)
+                .or_else(|| else_block.as_ref().and_then(Self::first_break_value)),
+            // Do NOT descend into nested loops/while/for: their breaks bind
+            // to the inner loop, not this one.
+            _ => None,
         }
     }
 
@@ -2289,6 +2330,9 @@ impl SemanticAnalyzer {
             Expression::Comma { left, right } => {
                 self.collect_used_variables(left, used);
                 self.collect_used_variables(right, used);
+            }
+            Expression::Loop { body, .. } => {
+                self.collect_used_variables_in_block(body, used);
             }
             Expression::Literal(_) => {
                 // Literals don't use variables

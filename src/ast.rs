@@ -259,6 +259,13 @@ pub enum Statement {
 pub enum Expression {
     Literal(Literal),
     Ident(Ident),
+    /// `loop { … }` in expression position — yields the value given to
+    /// `break <value>` inside it. The statement form is `Statement::Loop`;
+    /// this variant exists so `let x = loop { … break v; };` parses.
+    Loop {
+        label: Option<Ident>,
+        body: Box<Block>,
+    },
     Binary {
         op: BinaryOp,
         left: Box<Expression>,

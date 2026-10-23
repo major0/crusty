@@ -1040,7 +1040,8 @@ peg::parser! {
         /// Atom: the most basic expression forms (no postfix operations)
         /// These are the building blocks that postfix operations attach to
         rule atom() -> Expression
-            = sizeof_expr()
+            = loop_expr()
+            / sizeof_expr()
             / macro_call()
             / cast_expr()
             / tuple_lit()
@@ -1049,6 +1050,19 @@ peg::parser! {
             / array_lit()
             / literal_expr()
             / ident_expr()
+
+        /// Loop expression: `loop { … }` (optionally labeled) in expression
+        /// position. Yields the value of a `break <value>` inside it. The
+        /// statement dispatch tries `loop_stmt()` first, so a loop in statement
+        /// position stays a Statement::Loop; this rule only fires when a loop
+        /// appears where an expression is expected (e.g. a `let` initializer).
+        rule loop_expr() -> Expression
+            = _ "." label:ident() _ ":" _ kw_loop() _ body:block() _ {
+                Expression::Loop { label: Some(label), body: Box::new(body) }
+            }
+            / _ kw_loop() _ body:block() _ {
+                Expression::Loop { label: None, body: Box::new(body) }
+            }
 
         /// Primary expression: the atomic building blocks of expressions
         /// Order matters for PEG ordered choice:
@@ -11000,6 +11014,21 @@ mod control_flow_tests {
         let result = crusty_peg_parser::statement("loop { }");
         assert!(result.is_ok(), "loop should be a valid statement: {:?}", result);
         assert!(matches!(result.unwrap(), Statement::Loop { .. }));
+    }
+
+    #[test]
+    fn test_loop_as_expression() {
+        // `loop` in expression position (a let initializer) is an
+        // Expression::Loop, not a statement, so it can yield a value.
+        let result = crusty_peg_parser::statement("let x = loop { break 42; };");
+        assert!(result.is_ok(), "loop expression should parse: {:?}", result);
+        match result.unwrap() {
+            Statement::Let { init: Some(Expression::Loop { label, body }), .. } => {
+                assert!(label.is_none());
+                assert_eq!(body.statements.len(), 1);
+            }
+            other => panic!("Expected let with a loop-expression init, got {:?}", other),
+        }
     }
 
     #[test]
