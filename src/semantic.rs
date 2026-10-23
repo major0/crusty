@@ -2087,9 +2087,14 @@ impl SemanticAnalyzer {
             Expression::ErrorProp { expr: inner_expr } => {
                 let expr_type = self.analyze_expression(inner_expr);
 
-                // Error propagation should be on fallible types
+                // Error propagation should be on fallible types. Crusty is a
+                // syntax layer (ADR-0001): when the operand type is unknown
+                // (Auto — e.g. a method-call result we do not yet type), let it
+                // pass and leave the fallibility check to rustc. Only a type we
+                // KNOW is non-fallible is a hard error.
                 match expr_type {
                     Type::Fallible { ty } => *ty,
+                    Type::Auto => Type::Auto,
                     _ => {
                         self.errors.push(SemanticError::new(
                             Span::new(
@@ -2097,7 +2102,7 @@ impl SemanticAnalyzer {
                                 crate::error::Position::new(0, 0),
                             ),
                             SemanticErrorKind::InvalidOperation,
-                            "error propagation operator (!) can only be used on fallible types"
+                            "error propagation operator (?) can only be used on fallible types"
                                 .to_string(),
                         ));
                         Type::Auto

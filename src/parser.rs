@@ -82,6 +82,8 @@ enum PostfixOp {
     PostInc,
     /// Postfix decrement: --
     PostDec,
+    /// Error propagation: ?
+    ErrorProp,
 }
 
 /// Helper enum for struct members in struct parsing
@@ -716,6 +718,10 @@ peg::parser! {
             t:(@) _ "[" _ "]" {
                 Type::Slice { ty: Box::new(t) }
             }
+            // T? - fallible type -> Result<T, Box<dyn Error>> (PS-02)
+            t:(@) _ "?" {
+                Type::Fallible { ty: Box::new(t) }
+            }
             --
             // Level 3: Primary types (highest precedence)
             // Generic type: Base<T1, T2, ...>
@@ -982,6 +988,13 @@ peg::parser! {
             / _ "--" {
                 PostfixOp::PostDec
             }
+            // Error propagation: expr? (PS-01). The negative lookahead keeps a
+            // ternary's `?` (cond ? then : else) from being consumed here —
+            // error-prop is a pure suffix, so it must NOT match when a ternary
+            // then-branch and `:` follow.
+            / _ "?" !(_ expr() _ ":") {
+                PostfixOp::ErrorProp
+            }
             // Method call: .method(args)
             / _ "." _ method:ident() _ "(" _ args:call_args()? _ ")" {
                 PostfixOp::MethodCall {
@@ -1041,6 +1054,9 @@ peg::parser! {
                         },
                         PostfixOp::PostDec => Expression::Unary {
                             op: UnaryOp::PostDec,
+                            expr: Box::new(expr),
+                        },
+                        PostfixOp::ErrorProp => Expression::ErrorProp {
                             expr: Box::new(expr),
                         },
                     }
@@ -10313,6 +10329,101 @@ mod special_expression_tests {
                     condition: Box::new(Expression::Ident(Ident::new("c"))),
                     then_expr: Box::new(Expression::Ident(Ident::new("d"))),
                     else_expr: Box::new(Expression::Ident(Ident::new("e"))),
+                }),
+            })
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // ERROR-PROPAGATION `?` (PS-01) — must coexist with the ternary `?`
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn test_error_prop_simple() {
+        // expr? parses as error propagation, not a dangling ternary.
+        let result = crusty_peg_parser::expr("foo?");
+        assert_eq!(
+            result,
+            Ok(Expression::ErrorProp {
+                expr: Box::new(Expression::Ident(Ident::new("foo"))),
+            })
+        );
+    }
+
+    #[test]
+    fn test_error_prop_on_call() {
+        // The documented form: a call result propagated, e.g. str.parse()?
+        let result = crusty_peg_parser::expr("parse()?");
+        assert_eq!(
+            result,
+            Ok(Expression::ErrorProp {
+                expr: Box::new(Expression::Call {
+                    func: Box::new(Expression::Ident(Ident::new("parse"))),
+                    args: vec![],
+                }),
+            })
+        );
+    }
+
+    #[test]
+    fn test_error_prop_then_field_access() {
+        // `?` binds as a postfix op, so a following `.field` applies to the
+        // propagated value: read_config()?.port
+        let result = crusty_peg_parser::expr("read_config()?.port");
+        assert_eq!(
+            result,
+            Ok(Expression::FieldAccess {
+                expr: Box::new(Expression::ErrorProp {
+                    expr: Box::new(Expression::Call {
+                        func: Box::new(Expression::Ident(Ident::new("read_config"))),
+                        args: vec![],
+                    }),
+                }),
+                field: Ident::new("port"),
+            })
+        );
+    }
+
+    #[test]
+    fn test_error_prop_does_not_break_ternary() {
+        // The negative lookahead must leave a real ternary intact even though
+        // its condition ends right before the `?`.
+        let result = crusty_peg_parser::expr("a ? b : c");
+        assert_eq!(
+            result,
+            Ok(Expression::Ternary {
+                condition: Box::new(Expression::Ident(Ident::new("a"))),
+                then_expr: Box::new(Expression::Ident(Ident::new("b"))),
+                else_expr: Box::new(Expression::Ident(Ident::new("c"))),
+            })
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // FALLIBLE TYPE `T?` (PS-02)
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn test_fallible_type_primitive() {
+        let result = crusty_peg_parser::type_expr("int?");
+        assert_eq!(
+            result,
+            Ok(Type::Fallible {
+                ty: Box::new(Type::Primitive(PrimitiveType::Int)),
+            })
+        );
+    }
+
+    #[test]
+    fn test_fallible_type_on_pointer() {
+        // Postfix `?` binds looser than `*`, so `char*?` is a fallible pointer.
+        let result = crusty_peg_parser::type_expr("char*?");
+        assert_eq!(
+            result,
+            Ok(Type::Fallible {
+                ty: Box::new(Type::Pointer {
+                    ty: Box::new(Type::Primitive(PrimitiveType::Char)),
+                    mutable: false,
                 }),
             })
         );
