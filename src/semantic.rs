@@ -925,19 +925,45 @@ impl SemanticAnalyzer {
     /// for-in loop. A slice or array of `T` yields `T`; a reference to either
     /// (`&[T]`, `&[T; N]`) yields `T`, since iterating a borrowed collection is
     /// common. A range already carries its element type (see the `Range` arm of
-    /// `analyze_expression`), so it passes through. Any other type — notably
-    /// generic collections such as `Vec<T>` or `IndexMap<K, V>`, whose element
-    /// typing is not modelled — falls back to `Auto`, which keeps the loop
+    /// `analyze_expression`), so it passes through.
+    ///
+    /// Generic collections are modelled by their base name: a sequence or set
+    /// of one element type (`Vec<T>`, `VecDeque<T>`, `HashSet<T>`,
+    /// `BTreeSet<T>`, `Option<T>`, …) yields `T`; a map of two type arguments
+    /// (`HashMap<K, V>`, `BTreeMap<K, V>`, `IndexMap<K, V>`, …) yields the
+    /// `(K, V)` pair, matching Rust's `for (k, v) in map`. An unrecognised
+    /// generic, or anything else, falls back to `Auto`, which keeps the loop
     /// variable lenient rather than binding it to the wrong (collection) type.
     fn iterable_element_type(iter_type: &Type) -> Type {
         match iter_type {
             Type::Slice { ty } | Type::Array { ty, .. } => (**ty).clone(),
-            Type::Reference { ty, .. } => match &**ty {
-                Type::Slice { ty } | Type::Array { ty, .. } => (**ty).clone(),
-                _ => Type::Auto,
-            },
+            Type::Reference { ty, .. } => Self::iterable_element_type(ty),
+            Type::Generic { base, args } => Self::generic_element_type(base, args),
             // A range is already typed as its element type upstream.
             Type::Primitive(_) => iter_type.clone(),
+            _ => Type::Auto,
+        }
+    }
+
+    /// Element type yielded by iterating a generic collection `Base<args...>`.
+    /// Sequence/set-like bases with one argument yield that argument; map-like
+    /// bases with two arguments yield the `(K, V)` pair. Anything else — an
+    /// unknown base, or an unexpected argument count — is `Auto`.
+    fn generic_element_type(base: &Type, args: &[Type]) -> Type {
+        let Type::Ident(name) = base else {
+            return Type::Auto;
+        };
+        match (name.name.as_str(), args) {
+            // Map-like: iterating yields a (key, value) pair.
+            ("HashMap" | "BTreeMap" | "IndexMap", [k, v]) => Type::Tuple {
+                types: vec![k.clone(), v.clone()],
+            },
+            // Sequence/set/option-like: iterating yields the single element.
+            (
+                "Vec" | "VecDeque" | "HashSet" | "BTreeSet" | "IndexSet" | "BinaryHeap"
+                | "LinkedList" | "Option",
+                [elem],
+            ) => elem.clone(),
             _ => Type::Auto,
         }
     }

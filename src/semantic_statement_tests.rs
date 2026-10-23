@@ -809,6 +809,103 @@ mod tests {
     }
 
     #[test]
+    fn test_for_in_loop_binds_vec_element_type() {
+        // Iterating a `Vec<int>` binds the loop variable to `int` (the single
+        // type argument), so `acc + x` type-checks — not the collection type.
+        let mut analyzer = SemanticAnalyzer::new();
+
+        let func = Function {
+            visibility: Visibility::Public,
+            name: Ident::new("sum"),
+            params: vec![Param {
+                name: Ident::new("xs"),
+                ty: Type::Generic {
+                    base: Box::new(Type::Ident(Ident::new("Vec"))),
+                    args: vec![Type::Primitive(PrimitiveType::I32)],
+                },
+            }],
+            return_type: Some(Type::Primitive(PrimitiveType::I32)),
+            body: Some(Block::new(vec![
+                Statement::Let {
+                    name: Ident::new("acc"),
+                    ty: Some(Type::Primitive(PrimitiveType::I32)),
+                    init: Some(Expression::Literal(Literal::Int(0))),
+                    mutable: true,
+                },
+                Statement::ForIn {
+                    label: None,
+                    var: Ident::new("x"),
+                    iter: Expression::Ident(Ident::new("xs")),
+                    body: Block::new(vec![Statement::Expr(Expression::Binary {
+                        op: BinaryOp::Assign,
+                        left: Box::new(Expression::Ident(Ident::new("acc"))),
+                        right: Box::new(Expression::Binary {
+                            op: BinaryOp::Add,
+                            left: Box::new(Expression::Ident(Ident::new("acc"))),
+                            right: Box::new(Expression::Ident(Ident::new("x"))),
+                        }),
+                    })]),
+                },
+                Statement::Return(Some(Expression::Ident(Ident::new("acc")))),
+            ])),
+            is_variadic: false,
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+
+        let file = create_file_with_items(vec![Item::Function(func)]);
+        let result = analyzer.analyze(&file);
+        assert!(
+            result.is_ok(),
+            "Vec<int> element should bind as int: {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_for_in_loop_binds_map_pair_type() {
+        // Iterating a `HashMap<String, int>` binds the loop variable to the
+        // `(String, int)` pair, matching Rust's `for (k, v) in map`. The loop
+        // just references the bound variable, which must analyze cleanly.
+        let mut analyzer = SemanticAnalyzer::new();
+
+        let func = Function {
+            visibility: Visibility::Public,
+            name: Ident::new("walk"),
+            params: vec![Param {
+                name: Ident::new("m"),
+                ty: Type::Generic {
+                    base: Box::new(Type::Ident(Ident::new("HashMap"))),
+                    args: vec![
+                        Type::Ident(Ident::new("String")),
+                        Type::Primitive(PrimitiveType::I32),
+                    ],
+                },
+            }],
+            return_type: None,
+            body: Some(Block::new(vec![Statement::ForIn {
+                label: None,
+                var: Ident::new("entry"),
+                iter: Expression::Ident(Ident::new("m")),
+                body: Block::new(vec![Statement::Expr(Expression::Ident(Ident::new(
+                    "entry",
+                )))]),
+            }])),
+            is_variadic: false,
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+
+        let file = create_file_with_items(vec![Item::Function(func)]);
+        let result = analyzer.analyze(&file);
+        assert!(
+            result.is_ok(),
+            "HashMap<String, int> iteration should bind the (String, int) pair: {:?}",
+            result
+        );
+    }
+
+    #[test]
     fn test_switch_without_default() {
         let mut analyzer = SemanticAnalyzer::new();
 
