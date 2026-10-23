@@ -231,35 +231,35 @@ peg::parser! {
         /// Keyword: int
         rule kw_int() = "int" !ident_char()
 
-        /// Keyword: i8
-        rule kw_i8() = "i8" !ident_char()
+        /// Keyword: int8
+        rule kw_i8() = "int8" !ident_char()
 
-        /// Keyword: i16
-        rule kw_i16() = "i16" !ident_char()
+        /// Keyword: int16
+        rule kw_i16() = "int16" !ident_char()
 
-        /// Keyword: i32
-        rule kw_i32() = "i32" !ident_char()
+        /// Keyword: int32
+        rule kw_i32() = "int32" !ident_char()
 
-        /// Keyword: i64
-        rule kw_i64() = "i64" !ident_char()
+        /// Keyword: int64
+        rule kw_i64() = "int64" !ident_char()
 
-        /// Keyword: i128
-        rule kw_i128() = "i128" !ident_char()
+        /// Keyword: int128
+        rule kw_i128() = "int128" !ident_char()
 
-        /// Keyword: u8
-        rule kw_u8() = "u8" !ident_char()
+        /// Keyword: uint8
+        rule kw_u8() = "uint8" !ident_char()
 
-        /// Keyword: u16
-        rule kw_u16() = "u16" !ident_char()
+        /// Keyword: uint16
+        rule kw_u16() = "uint16" !ident_char()
 
-        /// Keyword: u32
-        rule kw_u32() = "u32" !ident_char()
+        /// Keyword: uint32
+        rule kw_u32() = "uint32" !ident_char()
 
-        /// Keyword: u64
-        rule kw_u64() = "u64" !ident_char()
+        /// Keyword: uint64
+        rule kw_u64() = "uint64" !ident_char()
 
-        /// Keyword: u128
-        rule kw_u128() = "u128" !ident_char()
+        /// Keyword: uint128
+        rule kw_u128() = "uint128" !ident_char()
 
         /// Keyword: float
         rule kw_float() = "float" !ident_char()
@@ -3405,20 +3405,20 @@ mod peg_tests {
             Ok("int".to_string())
         );
         assert_eq!(
-            crusty_peg_parser::test_keyword("i32"),
-            Ok("i32".to_string())
+            crusty_peg_parser::test_keyword("int32"),
+            Ok("int32".to_string())
         );
         assert_eq!(
-            crusty_peg_parser::test_keyword("i64"),
-            Ok("i64".to_string())
+            crusty_peg_parser::test_keyword("int64"),
+            Ok("int64".to_string())
         );
         assert_eq!(
-            crusty_peg_parser::test_keyword("u32"),
-            Ok("u32".to_string())
+            crusty_peg_parser::test_keyword("uint32"),
+            Ok("uint32".to_string())
         );
         assert_eq!(
-            crusty_peg_parser::test_keyword("u64"),
-            Ok("u64".to_string())
+            crusty_peg_parser::test_keyword("uint64"),
+            Ok("uint64".to_string())
         );
         assert_eq!(
             crusty_peg_parser::test_keyword("float"),
@@ -3495,8 +3495,9 @@ mod peg_tests {
         // "return_value" should NOT match as keyword "return"
         assert!(crusty_peg_parser::test_keyword("return_value").is_err());
 
-        // "int32" should NOT match as keyword "int"
-        assert!(crusty_peg_parser::test_keyword("int32").is_err());
+        // "integer" should NOT match as keyword "int" (int32 is now its own
+        // keyword, so use an identifier that merely starts with `int`).
+        assert!(crusty_peg_parser::test_keyword("integer").is_err());
     }
 
     #[test]
@@ -3577,10 +3578,10 @@ mod peg_tests {
             "default",
             "auto",
             "int",
-            "i32",
-            "i64",
-            "u32",
-            "u64",
+            "int32",
+            "int64",
+            "uint32",
+            "uint64",
             "float",
             "f32",
             "f64",
@@ -5785,9 +5786,9 @@ mod primitive_type_tests {
 
     #[test]
     fn test_peg_primitive_i32() {
-        // Test i32 type
+        // Test int32 type
         assert_eq!(
-            crusty_peg_parser::primitive_i32("i32"),
+            crusty_peg_parser::primitive_i32("int32"),
             Ok(Type::Primitive(PrimitiveType::I32))
         );
     }
@@ -5795,19 +5796,19 @@ mod primitive_type_tests {
     #[test]
     fn test_peg_primitive_fixed_widths() {
         // Every fixed-width integer parses to its own variant via the
-        // primitive_type entry point (which also exercises ordered-choice
-        // longest-first: i128 before i16/i1, etc.).
+        // primitive_type entry point. Surface spelling is the C-traditional
+        // intN / uintN form; the AST variants keep the Rust iN/uN names.
         let cases = [
-            ("i8", PrimitiveType::I8),
-            ("i16", PrimitiveType::I16),
-            ("i32", PrimitiveType::I32),
-            ("i64", PrimitiveType::I64),
-            ("i128", PrimitiveType::I128),
-            ("u8", PrimitiveType::U8),
-            ("u16", PrimitiveType::U16),
-            ("u32", PrimitiveType::U32),
-            ("u64", PrimitiveType::U64),
-            ("u128", PrimitiveType::U128),
+            ("int8", PrimitiveType::I8),
+            ("int16", PrimitiveType::I16),
+            ("int32", PrimitiveType::I32),
+            ("int64", PrimitiveType::I64),
+            ("int128", PrimitiveType::I128),
+            ("uint8", PrimitiveType::U8),
+            ("uint16", PrimitiveType::U16),
+            ("uint32", PrimitiveType::U32),
+            ("uint64", PrimitiveType::U64),
+            ("uint128", PrimitiveType::U128),
         ];
         for (src, expected) in cases {
             assert_eq!(
@@ -5817,45 +5818,50 @@ mod primitive_type_tests {
                 src
             );
         }
+        // Bare `int` is the default integer, distinct from `int8` etc.
+        assert_eq!(
+            crusty_peg_parser::primitive_type("int"),
+            Ok(Type::Primitive(PrimitiveType::Int))
+        );
     }
 
     #[test]
     fn test_peg_fixed_width_not_greedy() {
-        // `i16` must not be read as `i1` + `6`, and an identifier that merely
-        // starts with a type name is still an identifier, not a type.
+        // `int16` must not be read as `int` + `16`, and an identifier that
+        // merely starts with a type name is still an identifier, not a type.
         assert_eq!(
-            crusty_peg_parser::primitive_type("i16"),
+            crusty_peg_parser::primitive_type("int16"),
             Ok(Type::Primitive(PrimitiveType::I16))
         );
         assert!(
-            crusty_peg_parser::primitive_type("i16x").is_err(),
-            "`i16x` is an identifier, not the i16 type"
+            crusty_peg_parser::primitive_type("int16x").is_err(),
+            "`int16x` is an identifier, not the int16 type"
         );
     }
 
     #[test]
     fn test_peg_primitive_i64() {
-        // Test i64 type
+        // Test int64 type
         assert_eq!(
-            crusty_peg_parser::primitive_i64("i64"),
+            crusty_peg_parser::primitive_i64("int64"),
             Ok(Type::Primitive(PrimitiveType::I64))
         );
     }
 
     #[test]
     fn test_peg_primitive_u32() {
-        // Test u32 type
+        // Test uint32 type
         assert_eq!(
-            crusty_peg_parser::primitive_u32("u32"),
+            crusty_peg_parser::primitive_u32("uint32"),
             Ok(Type::Primitive(PrimitiveType::U32))
         );
     }
 
     #[test]
     fn test_peg_primitive_u64() {
-        // Test u64 type
+        // Test uint64 type
         assert_eq!(
-            crusty_peg_parser::primitive_u64("u64"),
+            crusty_peg_parser::primitive_u64("uint64"),
             Ok(Type::Primitive(PrimitiveType::U64))
         );
     }
@@ -5922,19 +5928,19 @@ mod primitive_type_tests {
             Ok(Type::Primitive(PrimitiveType::Int))
         );
         assert_eq!(
-            crusty_peg_parser::primitive_type("i32"),
+            crusty_peg_parser::primitive_type("int32"),
             Ok(Type::Primitive(PrimitiveType::I32))
         );
         assert_eq!(
-            crusty_peg_parser::primitive_type("i64"),
+            crusty_peg_parser::primitive_type("int64"),
             Ok(Type::Primitive(PrimitiveType::I64))
         );
         assert_eq!(
-            crusty_peg_parser::primitive_type("u32"),
+            crusty_peg_parser::primitive_type("uint32"),
             Ok(Type::Primitive(PrimitiveType::U32))
         );
         assert_eq!(
-            crusty_peg_parser::primitive_type("u64"),
+            crusty_peg_parser::primitive_type("uint64"),
             Ok(Type::Primitive(PrimitiveType::U64))
         );
         assert_eq!(
@@ -5968,7 +5974,7 @@ mod primitive_type_tests {
         // Test that primitive types are not parsed as identifiers
         // (they should fail because they ARE keywords)
         assert!(crusty_peg_parser::ident("int").is_err());
-        assert!(crusty_peg_parser::ident("i32").is_err());
+        assert!(crusty_peg_parser::ident("int32").is_err());
         assert!(crusty_peg_parser::ident("float").is_err());
         assert!(crusty_peg_parser::ident("bool").is_err());
         assert!(crusty_peg_parser::ident("void").is_err());
@@ -5988,13 +5994,13 @@ mod primitive_type_tests {
     fn test_peg_primitive_type_order() {
         // Test that longer type names are matched before shorter ones
         // i32 should match before int, f32 should match before float
-        // This is important because "i32" starts with "i" which could match "int" prefix
+        // This is important because "int32" starts with "i" which could match "int" prefix
         assert_eq!(
-            crusty_peg_parser::primitive_type("i32"),
+            crusty_peg_parser::primitive_type("int32"),
             Ok(Type::Primitive(PrimitiveType::I32))
         );
         assert_eq!(
-            crusty_peg_parser::primitive_type("i64"),
+            crusty_peg_parser::primitive_type("int64"),
             Ok(Type::Primitive(PrimitiveType::I64))
         );
         assert_eq!(
@@ -6737,7 +6743,7 @@ mod complex_type_tests {
             Ok(Type::Primitive(PrimitiveType::Int))
         );
         assert_eq!(
-            crusty_peg_parser::type_expr("i32"),
+            crusty_peg_parser::type_expr("int32"),
             Ok(Type::Primitive(PrimitiveType::I32))
         );
         assert_eq!(
@@ -6766,7 +6772,7 @@ mod complex_type_properties {
 
     // All primitive type names
     const PRIMITIVE_TYPES: &[&str] = &[
-        "int", "i32", "i64", "u32", "u64", "float", "f32", "f64", "bool", "char", "void",
+        "int", "int32", "int64", "uint32", "uint64", "float", "f32", "f64", "bool", "char", "void",
     ];
 
     // Strategy: Generate a random primitive type name
@@ -6780,10 +6786,10 @@ mod complex_type_properties {
             !matches!(
                 s.as_str(),
                 "int"
-                    | "i32"
-                    | "i64"
-                    | "u32"
-                    | "u64"
+                    | "int32"
+                    | "int64"
+                    | "uint32"
+                    | "uint64"
                     | "float"
                     | "f32"
                     | "f64"
@@ -7206,10 +7212,10 @@ mod keyword_properties {
         "default",
         "auto",
         "int",
-        "i32",
-        "i64",
-        "u32",
-        "u64",
+        "int32",
+        "int64",
+        "uint32",
+        "uint64",
         "float",
         "f32",
         "f64",
@@ -8079,10 +8085,10 @@ mod primary_expression_tests {
         // Test cast with all primitive types
         let types = vec![
             ("int", Type::Primitive(PrimitiveType::Int)),
-            ("i32", Type::Primitive(PrimitiveType::I32)),
-            ("i64", Type::Primitive(PrimitiveType::I64)),
-            ("u32", Type::Primitive(PrimitiveType::U32)),
-            ("u64", Type::Primitive(PrimitiveType::U64)),
+            ("int32", Type::Primitive(PrimitiveType::I32)),
+            ("int64", Type::Primitive(PrimitiveType::I64)),
+            ("uint32", Type::Primitive(PrimitiveType::U32)),
+            ("uint64", Type::Primitive(PrimitiveType::U64)),
             ("float", Type::Primitive(PrimitiveType::Float)),
             ("f32", Type::Primitive(PrimitiveType::F32)),
             ("f64", Type::Primitive(PrimitiveType::F64)),
@@ -9572,7 +9578,7 @@ mod special_expression_tests {
             })
         );
 
-        let result = crusty_peg_parser::sizeof_expr("sizeof(i32)");
+        let result = crusty_peg_parser::sizeof_expr("sizeof(int32)");
         assert_eq!(
             result,
             Ok(Expression::Sizeof {
@@ -10540,7 +10546,7 @@ mod statement_tests {
     #[test]
     fn test_let_stmt_with_i32_type() {
         // Test let statement with i32 type
-        let result = crusty_peg_parser::let_stmt("let i32 x = 42;");
+        let result = crusty_peg_parser::let_stmt("let int32 x = 42;");
         assert_eq!(
             result,
             Ok(Statement::Let {
@@ -10555,7 +10561,7 @@ mod statement_tests {
     #[test]
     fn test_var_stmt_with_i64_type() {
         // Test var statement with i64 type
-        let result = crusty_peg_parser::var_stmt("var i64 big = 9223372036854775807;");
+        let result = crusty_peg_parser::var_stmt("var int64 big = 9223372036854775807;");
         assert_eq!(
             result,
             Ok(Statement::Var {
@@ -10569,7 +10575,7 @@ mod statement_tests {
     #[test]
     fn test_let_stmt_with_u32_type() {
         // Test let statement with u32 type
-        let result = crusty_peg_parser::let_stmt("let u32 unsigned = 42;");
+        let result = crusty_peg_parser::let_stmt("let uint32 unsigned = 42;");
         assert_eq!(
             result,
             Ok(Statement::Let {
@@ -10584,7 +10590,7 @@ mod statement_tests {
     #[test]
     fn test_var_stmt_with_u64_type() {
         // Test var statement with u64 type
-        let result = crusty_peg_parser::var_stmt("var u64 big_unsigned = 42;");
+        let result = crusty_peg_parser::var_stmt("var uint64 big_unsigned = 42;");
         assert_eq!(
             result,
             Ok(Statement::Var {

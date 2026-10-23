@@ -14,8 +14,8 @@ Using C-style type names (e.g., `int` instead of `i32`) reduces the learning cur
 | Crusty | Rust |
 |--------|------|
 | `int` | `i32` |
-| `i8`, `i16`, `i32`, `i64`, `i128` | `i8`, `i16`, `i32`, `i64`, `i128` |
-| `u8`, `u16`, `u32`, `u64`, `u128` | `u8`, `u16`, `u32`, `u64`, `u128` |
+| `int8`, `int16`, `int32`, `int64`, `int128` | `i8`, `i16`, `i32`, `i64`, `i128` |
+| `uint8`, `uint16`, `uint32`, `uint64`, `uint128` | `u8`, `u16`, `u32`, `u64`, `u128` |
 | `float` | `f64` |
 | `f32`, `f64` | `f32`, `f64` |
 | `bool` | `bool` |
@@ -23,8 +23,9 @@ Using C-style type names (e.g., `int` instead of `i32`) reduces the learning cur
 | `void` | `()` |
 
 `int` and `float` are C-friendly aliases for `i32` and `f64`. The fixed-width
-integer types (`i8`…`i128`, `u8`…`u128`) map one-to-one to their Rust
-counterparts and may be used anywhere a type is expected — including function
+integer types use the C-traditional `int<size>` / `uint<size>` spelling
+(`int8`…`int128`, `uint8`…`uint128`) and lower to Rust's `i8`…`i128` /
+`u8`…`u128`. They may be used anywhere a type is expected — including function
 parameters and return types.
 
 ### Structs
@@ -61,7 +62,7 @@ int[10] arr;           // array of 10 ints
 ```ebnf
 type_expr  = primitive_type | struct_type | enum_type | pointer_type
            | reference_type | array_type | tuple_type | generic_type ;
-primitive  = "int" | "i8" | "i16" | "i32" | "i64" | "i128"
-           | "u8" | "u16" | "u32" | "u64" | "u128"
+primitive  = "int" | "int8" | "int16" | "int32" | "int64" | "int128"
+           | "uint8" | "uint16" | "uint32" | "uint64" | "uint128"
            | "float" | "f32" | "f64" | "bool" | "char" | "void" ;
 ```
