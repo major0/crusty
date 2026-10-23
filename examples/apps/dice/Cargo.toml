@@ -1,0 +1,19 @@
+# Example application: a Crusty program that links the real `rand` cargo crate.
+# This is an integration test — built and run locally and in GitHub PR CI, NOT
+# in pre-commit. See docs/adr/0005-example-apps-integration-tests.md.
+[package]
+name = "crusty-app-dice"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Crusty example app linking the rand crate (integration test)"
+
+[[bin]]
+name = "crusty-app-dice"
+path = "src/main.rs"
+
+[dependencies]
+rand = "0.8"
+
+[build-dependencies]
+crustyc = { path = "../../.." }

@@ -91,6 +91,14 @@ jobs:
     uses: ./.github/workflows/property-tests.yml
     with:
       ref: ${{ inputs.ref || github.ref }}
+
+  # Integration tests: build + run the example apps that link real cargo crates.
+  # Runs on every PR; deliberately excluded from pre-commit (compiles real crates).
+  integration-tests:
+    needs: build
+    uses: ./.github/workflows/integration-tests.yml
+    with:
+      ref: ${{ inputs.ref || github.ref }}
   
   # Coverage (depends on tests)
   coverage:

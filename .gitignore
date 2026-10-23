@@ -50,5 +50,9 @@ test_*_*/
 example/target/
 example/Cargo.lock
 
+# Integration example apps: ignore build output; Cargo.lock IS committed so CI
+# builds against pinned dependency versions.
+examples/apps/*/target/
+
 # Review and analysis files (local only)
 **/REVIEW_FINDINGS.md

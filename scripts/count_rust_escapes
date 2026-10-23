@@ -1,0 +1,38 @@
+#!/bin/sh
+# count_rust_escapes — report how often the example apps fall back to the
+# `__rust__` escape hatch. Each occurrence marks a Crusty expressiveness gap
+# (see docs/adr/0005-example-apps-integration-tests.md). This is a METRIC, not
+# a gate: it always exits 0 so CI records the number without failing on it.
+#
+# Usage: scripts/count_rust_escapes [root]
+#   root defaults to examples/apps
+set -eu
+
+root="${1:-examples/apps}"
+
+if [ ! -d "${root}" ]; then
+    echo "count_rust_escapes: no such directory: ${root}" >&2
+    exit 0
+fi
+
+total=0
+any=0
+
+# One line per app that has .crst sources, with its __rust__ count.
+for app in "${root}"/*/; do
+    [ -d "${app}src" ] || continue
+    any=1
+    count=$(grep -rohE '__rust__[[:space:]]*\{' "${app}src" 2>/dev/null | wc -l | tr -d ' ')
+    name=$(basename "${app}")
+    printf '%-24s %s\n' "${name}" "${count}"
+    total=$((total + count))
+done
+
+if [ "${any}" -eq 0 ]; then
+    echo "count_rust_escapes: no apps with src/ under ${root}"
+    exit 0
+fi
+
+echo "----"
+printf '%-24s %s\n' "TOTAL" "${total}"
+exit 0

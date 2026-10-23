@@ -1,0 +1,19 @@
+// A tiny Crusty program that links the real `rand` cargo crate and rolls a die.
+// Demonstrates Crusty <-> Rust cross-compatibility: it calls into rand's API
+// and prints the result.
+
+#import rand.Rng
+
+// Roll a six-sided die. Uses rand's Rng::gen() for a raw byte (type inferred
+// from the C-style declaration) and folds it into 1..=6 with modulo, avoiding
+// a range-argument call.
+uint8 roll() {
+    var rng = @rand.thread_rng();
+    uint8 raw = rng.gen();
+    return (raw % 6) + 1;
+}
+
+void main() {
+    let value = roll();
+    println!("You rolled a {}", value);
+}

@@ -1,0 +1,58 @@
+# Integration Tests
+#
+# Builds and runs the example applications under examples/apps/*, which are
+# real Crusty programs that link actual cargo crates. This is the end-to-end
+# proof of Crusty <-> Rust cross-compatibility.
+#
+# Policy (see docs/adr/0005-example-apps-integration-tests.md):
+#   - runs on every pull request (via pull-request-default.yml)
+#   - runnable locally (build crustyc, put it on PATH, `cargo run` in each app)
+#   - deliberately NOT part of pre-commit (it compiles real crates — too slow)
+#
+# Inputs:
+#   ref: Git reference to check out (required)
+
+name: Integration Tests
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Git reference to check out'
+        required: true
+        type: string
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-integration-${{ hashFiles('**/Cargo.lock', 'examples/apps/**/Cargo.toml') }}
+
+      - name: Build crustyc and expose it on PATH
+        run: |
+          cargo build --release --bin crustyc
+          echo "${GITHUB_WORKSPACE}/target/release" >> "${GITHUB_PATH}"
+
+      - name: Build and run example apps
+        run: .github/scripts/run-integration-apps.sh
+
+      - name: Report __rust__ escape-hatch usage (metric, non-gating)
+        run: scripts/count_rust_escapes
