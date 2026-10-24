@@ -92,7 +92,9 @@ ADR'd) before implementation.
   revised by ADR-0014.
 - **PS-06** `match` expression/statement (keyword already reserved). Specified
   in ADR-0012.
-- **PS-09** `trait`/`impl` items; `unsafe`; `async`.
+- **PS-09** `trait`/`impl` items; `unsafe`; `async`. Scoped and sequenced in
+  ADR-0015 (commits `unsafe` + inherent `impl`; defers `trait` and `async` to
+  their own ADRs).
 
 ### Tier 5 — Documentation reconciliation (do alongside the relevant tier)
 - **DRIFT-1** `typedef.md` impl-block family — no grammar and no AST; cut it or
