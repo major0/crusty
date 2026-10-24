@@ -99,7 +99,7 @@ does not become one unreviewable mega-change.
   `typedef default { } @Point;` yields a working `Default` impl — then update
   `typedef.md` to mark the surface implemented and resolve DRIFT-1.
 
-### Unit 3 — defining new `trait`s + general `impl Trait for Type` (DEFER to ADR-00NN)
+### Unit 3 — defining new `trait`s + general `impl Trait for Type` (DEFERRED; now ADR-0016)
 - Needs a new `Item::Trait` (method signatures + optional default bodies) and a
   general `impl Trait for Type` form (Unit 2 covers only the `typedef default`
   → `impl Default for` case), plus associated-item surface. Trait-bound
@@ -200,7 +200,7 @@ the idea and the spelling.
 - [ ] `cargo test` green and `clippy` clean after each phase.
 
 ### Deferred
-- [ ] Unit 3 (`trait` / `impl Trait for`) is specified in its own ADR before
-      implementation.
+- [x] Unit 3 (`trait` / `impl Trait for`) is specified in its own ADR before
+      implementation — ADR-0016 (proposed).
 - [ ] Unit 4 (`async` / `await`) is specified in its own ADR before
       implementation.

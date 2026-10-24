@@ -95,7 +95,8 @@ ADR'd) before implementation.
 - **PS-09** `trait`/`impl` items; `unsafe`; `async`. Scoped and sequenced in
   ADR-0015 (commits `unsafe` + the `typedef … @Type` impl surface, which also
   resolves DRIFT-1; defers defining new `trait`s and `async` to their own ADRs;
-  records `__thread__` as a future direction).
+  records `__thread__` as a future direction). Unit 3 (defining new `trait`s +
+  general `impl Trait for Type`) is specified in ADR-0016.
 
 ### Tier 5 — Documentation reconciliation (do alongside the relevant tier)
 - **DRIFT-1** `typedef.md` impl-block family — RESOLVED: the `typedef … @Type`
