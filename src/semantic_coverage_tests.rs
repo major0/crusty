@@ -134,6 +134,7 @@ mod tests {
                 body: Block::new(vec![]),
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -162,6 +163,7 @@ mod tests {
                 body: Block::new(vec![Statement::Break { label: None, value: None }]),
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -190,6 +192,7 @@ mod tests {
                 body: Block::new(vec![Statement::Continue(None)]),
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -221,6 +224,7 @@ mod tests {
                 default: None,
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -266,6 +270,7 @@ mod tests {
                 }),
             ])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -316,6 +321,7 @@ mod tests {
                 }),
             ])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -351,6 +357,7 @@ mod tests {
                 }),
             ])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -401,6 +408,7 @@ mod tests {
                 }),
             ])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -434,6 +442,7 @@ mod tests {
                 }),
             ])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -461,6 +470,7 @@ mod tests {
                 ty: Type::Primitive(PrimitiveType::F64),
             })])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -487,6 +497,7 @@ mod tests {
                 ty: Type::Primitive(PrimitiveType::Int),
             })])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -515,6 +526,7 @@ mod tests {
                 else_expr: Box::new(Expression::Literal(Literal::Int(2))),
             })])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -543,6 +555,7 @@ mod tests {
                 inclusive: false,
             })])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -572,6 +585,7 @@ mod tests {
                 Statement::Expr(Expression::Literal(Literal::Float(2.5))),
             ])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -608,6 +622,7 @@ mod tests {
                 return_type: Some(Type::Ident(Ident::new("Point"))),
                 body: Some(Block::new(vec![])),
                 is_variadic: false,
+                is_unsafe: false,
                 doc_comments: vec![],
                 attributes: vec![],
             }],
@@ -874,6 +889,7 @@ mod tests {
                 mutable: false,
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -1065,6 +1081,7 @@ mod tests {
                 mutable: false,
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         });
@@ -1120,6 +1137,7 @@ mod tests {
                     return_type: Some(Type::Ident(Ident::new("Point"))),
                     body: Some(Block::new(vec![])),
                     is_variadic: false,
+                    is_unsafe: false,
                     doc_comments: vec![],
                     attributes: vec![],
                 },
@@ -1132,6 +1150,7 @@ mod tests {
                     return_type: Some(Type::Ident(Ident::new("Point"))),
                     body: Some(Block::new(vec![])),
                     is_variadic: false,
+                    is_unsafe: false,
                     doc_comments: vec![],
                     attributes: vec![],
                 },
@@ -1144,6 +1163,7 @@ mod tests {
                     return_type: Some(Type::Primitive(PrimitiveType::Int)),
                     body: Some(Block::new(vec![])),
                     is_variadic: false,
+                    is_unsafe: false,
                     doc_comments: vec![],
                     attributes: vec![],
                 },
@@ -1295,6 +1315,7 @@ mod tests {
                     return_type: Some(Type::Ident(Ident::new("U"))),
                     body: Some(Block::new(vec![])),
                     is_variadic: false,
+                    is_unsafe: false,
                     doc_comments: vec![],
                     attributes: vec![],
                 },
@@ -1307,6 +1328,7 @@ mod tests {
                     return_type: Some(Type::Primitive(PrimitiveType::Int)),
                     body: Some(Block::new(vec![])),
                     is_variadic: false,
+                    is_unsafe: false,
                     doc_comments: vec![],
                     attributes: vec![],
                 },
@@ -1506,5 +1528,23 @@ mod tests {
             "void main() { let n = 7; let r = n(1); }",
         );
         assert!(result.is_err(), "calling an int should still error");
+    }
+
+    // --- PS-09 Unit 1: unsafe + deref relaxation (ADR-0015) ---
+
+    #[test]
+    fn test_unsafe_block_body_is_analysed() {
+        // An unsafe block is a passthrough marker; its body is still analysed,
+        // so an undefined reference inside it errors.
+        let (_, result) = analyze_source("void main() { unsafe { let y = bogus; } }");
+        assert!(result.is_err(), "undefined var in unsafe block should error");
+    }
+
+    #[test]
+    fn test_deref_of_known_non_pointer_still_errors() {
+        // The Auto-deref relaxation must NOT permit dereferencing a known
+        // non-pointer (an int) — that still hard-errors.
+        let (_, result) = analyze_source("void main() { int n = 5; let d = *n; }");
+        assert!(result.is_err(), "deref of a known int should still error");
     }
 }

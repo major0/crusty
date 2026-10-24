@@ -31,6 +31,7 @@ mod tests {
                 Literal::Int(42),
             )))])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -53,6 +54,7 @@ mod tests {
             return_type: None,
             body: Some(Block::new(vec![Statement::Return(None)])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -77,6 +79,7 @@ mod tests {
                 Literal::Bool(true),
             )))])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -101,6 +104,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::Int)),
             body: Some(Block::new(vec![Statement::Return(None)])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -157,6 +161,7 @@ mod tests {
             return_type: None,
             body: Some(Block::empty()),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -183,6 +188,7 @@ mod tests {
                 "undefined_var",
             )))])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -216,6 +222,7 @@ mod tests {
                 mutable: false,
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -245,6 +252,7 @@ mod tests {
                 mutable: false,
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -271,6 +279,7 @@ mod tests {
                 init: None,
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -304,6 +313,7 @@ mod tests {
                 },
             ])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -341,6 +351,7 @@ mod tests {
                 },
             ])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -370,6 +381,7 @@ mod tests {
                 mutable: false,
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -396,6 +408,7 @@ mod tests {
                 init: Some(Expression::Literal(Literal::Int(42))),
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -423,6 +436,7 @@ mod tests {
                 mutable: true,
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -450,6 +464,7 @@ mod tests {
                 body: Block::empty(),
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };

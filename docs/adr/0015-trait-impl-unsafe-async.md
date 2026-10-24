@@ -174,12 +174,12 @@ the idea and the spelling.
 ## Verification
 
 ### Unit 1 — `unsafe`
-- [ ] `Statement::Unsafe(Block)` and `Function.is_unsafe` exist in `src/ast.rs`.
-- [ ] `unsafe { … }` and `unsafe int f(...) { … }` parse into those nodes
+- [x] `Statement::Unsafe(Block)` and `Function.is_unsafe` exist in `src/ast.rs`.
+- [x] `unsafe { … }` and `unsafe int f(...) { … }` parse into those nodes
       (parser tests); `unsafe` remains rejected as an identifier.
-- [ ] Codegen emits `unsafe { … }` / `unsafe fn …`; non-unsafe output is
+- [x] Codegen emits `unsafe { … }` / `unsafe fn …`; non-unsafe output is
       byte-unchanged.
-- [ ] End-to-end: an `unsafe` block performing a raw-pointer deref (value from
+- [x] End-to-end: an `unsafe` block performing a raw-pointer deref (value from
       `__rust__`) transpiles, compiles under `rustc -D unused_parens`, and runs.
 
 ### Unit 2 — `typedef … @Type` impl blocks (resolves DRIFT-1)

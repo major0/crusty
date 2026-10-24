@@ -75,6 +75,7 @@ mod tests {
             return_type: None,
             body: Some(Block::empty()),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -100,6 +101,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::Void)),
             body: Some(Block::empty()),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -134,6 +136,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::I32)),
             body: Some(Block::empty()),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -157,6 +160,7 @@ mod tests {
             return_type: None,
             body: Some(Block::empty()),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -187,6 +191,7 @@ mod tests {
             return_type: None,
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -223,6 +228,7 @@ mod tests {
             return_type: None,
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -252,6 +258,7 @@ mod tests {
             return_type: None,
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -280,6 +287,7 @@ mod tests {
             return_type: None,
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -308,6 +316,7 @@ mod tests {
             return_type: None,
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -336,6 +345,7 @@ mod tests {
             return_type: None,
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -363,6 +373,7 @@ mod tests {
             return_type: None,
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -391,6 +402,7 @@ mod tests {
             return_type: None,
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -429,6 +441,7 @@ mod tests {
             return_type: None,
             body: Some(Block::new(vec![let_stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -454,6 +467,7 @@ mod tests {
             return_type: None,
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -482,6 +496,7 @@ mod tests {
             return_type: None,
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -510,6 +525,7 @@ mod tests {
             return_type: None,
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -534,6 +550,7 @@ mod tests {
             return_type: None,
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -845,6 +862,7 @@ mod tests {
             return_type: Some(Type::Ident(Ident::new("Self"))),
             body: Some(Block::empty()),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -886,6 +904,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::I32)),
             body: Some(Block::empty()),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -933,6 +952,7 @@ mod tests {
             return_type: None,
             body: Some(Block::empty()),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -968,6 +988,7 @@ mod tests {
             return_type: Some(Type::Ident(Ident::new("Self"))),
             body: Some(Block::empty()),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -1075,6 +1096,7 @@ mod tests {
             return_type: Some(Type::Ident(Ident::new("T"))),
             body: Some(Block::empty()),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -1107,6 +1129,7 @@ mod tests {
             return_type: Some(Type::Ident(Ident::new("A"))),
             body: Some(Block::empty()),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -1313,6 +1336,7 @@ mod tests {
             return_type: Some(Type::Ident(Ident::new("ssize_t"))),
             body: Some(Block::empty()),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -1632,6 +1656,7 @@ mod tests {
             return_type: None,
             body: Some(Block::new(vec![])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -1662,6 +1687,7 @@ mod tests {
             return_type: None,
             body: Some(Block::new(vec![])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -1693,6 +1719,7 @@ mod tests {
             return_type: None,
             body: Some(Block::new(vec![])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -1747,6 +1774,7 @@ mod tests {
             return_type: None,
             body: Some(Block::new(vec![])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -1815,6 +1843,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::I32)),
             body: None,
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -1847,6 +1876,7 @@ mod tests {
             return_type: None,
             body: None,
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -1883,6 +1913,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::I32)),
             body: None,
             is_variadic: true,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -1916,6 +1947,7 @@ mod tests {
             return_type: None,
             body: None,
             is_variadic: true,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -1949,6 +1981,7 @@ mod tests {
             return_type: None,
             body: None,
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -2262,6 +2295,7 @@ mod tests {
             return_type: None,
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -2328,6 +2362,7 @@ mod tests {
             return_type: None,
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -2364,6 +2399,7 @@ mod tests {
             return_type: None,
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -2402,6 +2438,7 @@ mod tests {
             return_type: None,
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -2438,6 +2475,7 @@ mod tests {
             return_type: None,
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -2489,6 +2527,7 @@ mod tests {
             }),
             body: Some(Block::empty()),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -2670,6 +2709,7 @@ mod struct_init_tests {
             return_type: Some(Type::Ident(Ident::new("Point"))),
             body: Some(Block::empty()),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         }
@@ -2716,5 +2756,55 @@ mod struct_init_tests {
         assert!(out.contains("impl Default for Point {"), "trait impl header: {out}");
         assert!(out.contains("fn default()"), "method: {out}");
         assert!(!out.contains("pub fn default"), "trait method must not be pub: {out}");
+    }
+
+    // --- PS-09 Unit 1: unsafe codegen (ADR-0015) ---
+
+    #[test]
+    fn test_generate_unsafe_fn() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let file = File {
+            items: vec![Item::Function(Function {
+                generic_params: vec![],
+                where_clause: None,
+                visibility: Visibility::Public,
+                name: Ident::new("raw"),
+                params: vec![],
+                return_type: None,
+                body: Some(Block::empty()),
+                is_variadic: false,
+                is_unsafe: true,
+                doc_comments: vec![],
+                attributes: vec![],
+            })],
+            doc_comments: vec![],
+        };
+        let out = gen.generate(&file);
+        assert!(out.contains("pub unsafe fn raw("), "unsafe fn header: {out}");
+    }
+
+    #[test]
+    fn test_generate_unsafe_block_statement() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let file = File {
+            items: vec![Item::Function(Function {
+                generic_params: vec![],
+                where_clause: None,
+                visibility: Visibility::Public,
+                name: Ident::new("f"),
+                params: vec![],
+                return_type: None,
+                body: Some(Block::new(vec![Statement::Unsafe(Block::new(vec![
+                    Statement::Expr(Expression::Ident(Ident::new("x"))),
+                ]))])),
+                is_variadic: false,
+                is_unsafe: false,
+                doc_comments: vec![],
+                attributes: vec![],
+            })],
+            doc_comments: vec![],
+        };
+        let out = gen.generate(&file);
+        assert!(out.contains("unsafe {"), "unsafe block: {out}");
     }
 }

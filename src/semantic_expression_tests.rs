@@ -26,6 +26,7 @@ mod tests {
             return_type: None,
             body: Some(Block::new(body)),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         }
@@ -258,6 +259,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::Int)),
             body: Some(Block::empty()),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -303,6 +305,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::Int)),
             body: Some(Block::empty()),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -342,6 +345,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::Int)),
             body: Some(Block::empty()),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };

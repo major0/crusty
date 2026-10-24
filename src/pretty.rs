@@ -138,6 +138,7 @@ return a+b;
             return_type: None,
             body: Some(Block::empty()),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };

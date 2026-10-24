@@ -252,6 +252,11 @@ impl CodeGenerator {
                     Visibility::Private => {} // No keyword for private
                 }
 
+                // `unsafe` goes after `pub`, before `fn` (PS-09 Unit 1).
+                if func.is_unsafe {
+                    self.write("unsafe ");
+                }
+
                 self.write("fn ");
                 self.write(&func.name.name);
                 self.write(&self.generate_generic_params_string(&func.generic_params));
@@ -312,7 +317,10 @@ impl CodeGenerator {
                 }
             }
             TargetLanguage::Crusty => {
-                // Crusty syntax: static? return_type name(params) { }
+                // Crusty syntax: unsafe? static? return_type name(params) { }
+                if func.is_unsafe {
+                    self.write("unsafe ");
+                }
                 if matches!(func.visibility, Visibility::Private) {
                     self.write("static ");
                 }
@@ -1354,10 +1362,16 @@ impl CodeGenerator {
                 }
                 self.generate_statement(stmt);
             }
+            Statement::Unsafe(block) => {
+                // PS-09 Unit 1 (ADR-0015): `unsafe { … }` — emit the keyword
+                // then the block verbatim; rustc owns unsafety (ADR-0001).
+                self.write_indent();
+                self.write("unsafe ");
+                self.generate_block(block);
+                self.write("\n");
+            }
         }
     }
-
-    /// Generate an expression and return as string
     pub fn generate_expression_string(&self, expr: &Expression) -> String {
         match expr {
             Expression::Literal(lit) => self.generate_literal_string(lit),

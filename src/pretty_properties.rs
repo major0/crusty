@@ -118,6 +118,7 @@ fn arb_simple_function() -> impl Strategy<Value = Function> {
             return_type: Some(Type::Primitive(PrimitiveType::Int)),
             body: Some(Block::new(statements)),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         })

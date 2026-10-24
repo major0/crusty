@@ -134,6 +134,7 @@ mod tests {
             return_type: None,
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -163,6 +164,7 @@ mod tests {
             return_type: None,
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };

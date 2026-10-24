@@ -391,6 +391,54 @@ void main() {
         }
     }
 
+    // PS-09 Unit 1 (ADR-0015): an unsafe fn and an unsafe block (raw-pointer
+    // deref from a __rust__ value) transpile and compile.
+    #[test]
+    fn test_compile_unsafe_block_and_fn() {
+        let test_source = r#"
+unsafe int read_raw(int* p) {
+    return *p;
+}
+
+void main() {
+    int value = 42;
+    let ptr = __rust__{ &value as *const i32 };
+    var got = 0;
+    unsafe {
+        got = *ptr;
+    }
+    println!("got={}", got);
+}
+"#;
+        let input_path = PathBuf::from("test_compile_unsafe_12345.crst");
+        let output_path = PathBuf::from("test_compile_unsafe_12345");
+
+        fs::write(&input_path, test_source).unwrap();
+
+        let options = CompilerOptions {
+            input_file: input_path.clone(),
+            output_file: Some(output_path.clone()),
+            out_dir: None,
+            emit: EmitMode::Binary,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        let result = run_compiler(&options);
+
+        let _ = fs::remove_file(&input_path);
+        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(format!("{}.rs", output_path.display()));
+
+        if let Err(err) = result {
+            assert!(
+                matches!(err, crate::error::CompilerError::RustcInvocation(_)),
+                "unsafe block/fn should transpile cleanly; got {err:?}"
+            );
+        }
+    }
+
     #[test]
     fn test_rustc_error_reporting() {        // Create a Crusty file that will generate invalid Rust code
         // This is a bit tricky since our compiler should generate valid Rust

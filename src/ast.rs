@@ -152,6 +152,9 @@ pub struct Function {
     /// on a defined or safe function — so it is `false` for every ordinary
     /// function. Codegen emits a trailing `, ...` after the named parameters.
     pub is_variadic: bool,
+    /// `true` when the function is declared `unsafe` (PS-09 Unit 1, ADR-0015).
+    /// Codegen emits `unsafe fn …`; Crusty does no unsafety analysis (ADR-0001).
+    pub is_unsafe: bool,
     /// Raw `where` clause span (PS-08), e.g. `"T: Clone, U: Debug"`, carried
     /// verbatim to rustc. `None` when absent.
     pub where_clause: Option<String>,
@@ -362,6 +365,10 @@ pub enum Statement {
         attributes: Vec<Attribute>,
         stmt: Box<Statement>,
     },
+    /// `unsafe { … }` block (PS-09 Unit 1, ADR-0015). Lowers verbatim to a Rust
+    /// `unsafe { … }` block; Crusty does no unsafety analysis — rustc owns it
+    /// (ADR-0001). A passthrough marker, not a checker.
+    Unsafe(Block),
 }
 
 /// Expression types
@@ -848,6 +855,7 @@ mod tests {
             return_type: None,
             body: Some(Block::empty()),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -877,6 +885,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::I32)),
             body: Some(Block::empty()),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -1220,6 +1229,7 @@ mod tests {
             return_type: None,
             body: Some(Block::empty()),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };

@@ -1838,6 +1838,14 @@ impl SemanticAnalyzer {
                 // them); analyze the inner statement so its errors still fire.
                 self.analyze_statement(stmt);
             }
+            Statement::Unsafe(block) => {
+                // PS-09 Unit 1 (ADR-0015): `unsafe` is a passthrough marker, so
+                // analyse the block body in its own scope exactly as a normal
+                // block — Crusty permits nothing extra; rustc owns unsafety.
+                self.symbol_table.enter_scope();
+                self.analyze_block(block);
+                self.symbol_table.exit_scope();
+            }
         }
     }
 
@@ -1992,6 +2000,12 @@ impl SemanticAnalyzer {
                     },
                     UnaryOp::Deref => match expr_type {
                         Type::Pointer { ty, .. } | Type::Reference { ty, .. } => *ty,
+                        // An `Auto` operand is an unknown Crusty cannot resolve
+                        // locally (e.g. a `__rust__` value or an unsafe raw
+                        // pointer); defer to rustc rather than false-reject
+                        // (ADR-0001 syntax-layer stance). A KNOWN non-pointer
+                        // still hard-errors below, preserving that diagnostic.
+                        Type::Auto => Type::Auto,
                         _ => {
                             self.errors.push(SemanticError::new(
                                 Span::new(
@@ -3195,6 +3209,9 @@ impl SemanticAnalyzer {
             Statement::Attributed { stmt, .. } => {
                 self.collect_used_variables_in_statement(stmt, used);
             }
+            Statement::Unsafe(block) => {
+                self.collect_used_variables_in_block(block, used);
+            }
         }
     }
 
@@ -3332,6 +3349,9 @@ impl SemanticAnalyzer {
             }
             Statement::Attributed { stmt, .. } => {
                 self.collect_modified_variables_in_statement(stmt, modified);
+            }
+            Statement::Unsafe(block) => {
+                self.collect_modified_variables_in_block(block, modified);
             }
         }
     }

@@ -33,6 +33,7 @@ mod tests {
                 mutable: false,
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -93,6 +94,7 @@ mod tests {
                 mutable: false,
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -124,6 +126,7 @@ mod tests {
                 mutable: false,
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -155,6 +158,7 @@ mod tests {
                 mutable: false,
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -186,6 +190,7 @@ mod tests {
                 mutable: false,
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -212,6 +217,7 @@ mod tests {
                 delimiter: MacroDelimiter::Parens,
             })])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -239,6 +245,7 @@ mod tests {
                 mutable: false,
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -270,6 +277,7 @@ mod tests {
                 mutable: false,
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -301,6 +309,7 @@ mod tests {
                 mutable: false,
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -332,6 +341,7 @@ mod tests {
                 mutable: false,
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -363,6 +373,7 @@ mod tests {
                 mutable: false,
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -394,6 +405,7 @@ mod tests {
                 mutable: false,
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -467,6 +479,7 @@ mod tests {
                 },
             ])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -510,6 +523,7 @@ mod tests {
                 }),
             ])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -542,6 +556,7 @@ mod tests {
                 }),
             ])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -574,6 +589,7 @@ mod tests {
                 }),
             ])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -606,6 +622,7 @@ mod tests {
                 }),
             ])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -659,6 +676,7 @@ mod tests {
                 },
             ])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -692,6 +710,7 @@ mod tests {
                 }),
             ])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };

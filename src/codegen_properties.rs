@@ -138,6 +138,7 @@ mod tests {
                 return_type: Some(ret_type),
                 body: Some(Block::empty()),
                 is_variadic: false,
+                is_unsafe: false,
                 doc_comments: vec![],
                 attributes: vec![],
             }
@@ -243,6 +244,7 @@ mod tests {
                 return_type: None,
                 body: Some(Block::new(vec![stmt])),
                 is_variadic: false,
+                is_unsafe: false,
                 doc_comments: vec![],
             attributes: vec![],
             };
@@ -279,6 +281,7 @@ mod tests {
                 return_type: None,
                 body: Some(Block::new(vec![stmt])),
                 is_variadic: false,
+                is_unsafe: false,
                 doc_comments: vec![],
             attributes: vec![],
             };
@@ -335,6 +338,7 @@ mod tests {
                 return_type: None,
                 body: Some(Block::new(vec![stmt])),
                 is_variadic: false,
+                is_unsafe: false,
                 doc_comments: vec![],
             attributes: vec![],
             };
@@ -362,6 +366,7 @@ mod tests {
                 return_type: None,
                 body: Some(Block::new(vec![stmt])),
                 is_variadic: false,
+                is_unsafe: false,
                 doc_comments: vec![],
             attributes: vec![],
             };
@@ -393,6 +398,7 @@ mod tests {
                 return_type: None,
                 body: Some(Block::new(vec![stmt])),
                 is_variadic: false,
+                is_unsafe: false,
                 doc_comments: vec![],
             attributes: vec![],
             };
@@ -694,6 +700,7 @@ mod tests {
                 return_type: None,
                 body: Some(Block::empty()),
                 is_variadic: false,
+                is_unsafe: false,
                 doc_comments: vec![],
                 attributes: vec![],
             };
@@ -749,6 +756,7 @@ mod tests {
                 return_type: None,
                 body: Some(Block::new(vec![for_in])),
                 is_variadic: false,
+                is_unsafe: false,
                 doc_comments: vec![],
                 attributes: vec![],
             };
@@ -802,6 +810,7 @@ mod tests {
                 return_type: None,
                 body: Some(Block::new(vec![c_for])),
                 is_variadic: false,
+                is_unsafe: false,
                 doc_comments: vec![],
                 attributes: vec![],
             };
@@ -847,6 +856,7 @@ mod tests {
                 return_type: None,
                 body: Some(Block::new(vec![switch])),
                 is_variadic: false,
+                is_unsafe: false,
                 doc_comments: vec![],
                 attributes: vec![],
             };
@@ -970,6 +980,7 @@ mod tests {
                     statements: vec![nested_func],
                 }),
                 is_variadic: false,
+                is_unsafe: false,
                 doc_comments: vec![],
                 attributes: vec![],
             };

@@ -30,6 +30,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::Void)),
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -59,6 +60,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::Void)),
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -96,6 +98,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::Void)),
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -131,6 +134,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::Void)),
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -168,6 +172,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::Void)),
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -193,6 +198,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::Void)),
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -217,6 +223,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::Void)),
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -259,6 +266,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::Void)),
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -312,6 +320,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::Void)),
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -345,6 +354,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::Int)),
             body: Some(Block::empty()),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -369,6 +379,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::Int)),
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -398,6 +409,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::Void)),
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -426,6 +438,7 @@ mod tests {
             return_type: Some(Type::Primitive(PrimitiveType::Void)),
             body: Some(Block::new(vec![stmt])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };

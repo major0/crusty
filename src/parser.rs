@@ -2699,6 +2699,7 @@ peg::parser! {
         /// Note: nested_function must come before expr_stmt to correctly parse function declarations
         pub rule statement() -> Statement
             = attributed_stmt()
+            / unsafe_stmt()
             / labeled_stmt()
             / if_stmt()
             / while_stmt()
@@ -2728,6 +2729,13 @@ peg::parser! {
                     attributes,
                     stmt: Box::new(inner),
                 }
+            }
+
+        /// `unsafe { … }` block statement (PS-09 Unit 1, ADR-0015). Lowers
+        /// verbatim to a Rust `unsafe { … }` block; rustc owns unsafety.
+        rule unsafe_stmt() -> Statement
+            = _ kw_unsafe() _ body:block() _ {
+                Statement::Unsafe(body)
             }
 
         /// Expression statement: an expression followed by semicolon
@@ -2976,6 +2984,21 @@ peg::parser! {
         /// Examples:
         /// - void main() { }
         /// - int add(int x, int y) { return x + y; }
+        /// `unsafe` function modifier (PS-09 Unit 1, ADR-0015): `unsafe` before
+        /// an ordinary function, producing a Rust `unsafe fn`. Delegates to
+        /// `function()` and flips `is_unsafe` on the result, so the four
+        /// function arms stay untouched.
+        pub rule unsafe_function() -> Item
+            = _ kw_unsafe() __ inner:function() {
+                match inner {
+                    Item::Function(mut f) => {
+                        f.is_unsafe = true;
+                        Item::Function(f)
+                    }
+                    other => other,
+                }
+            }
+
         /// - static void helper() { }
         /// - #[test] void test_something() { }
         pub rule function() -> Item
@@ -2989,6 +3012,7 @@ peg::parser! {
                     return_type: None,
                     body: Some(body),
                     is_variadic: false,
+                    is_unsafe: false,
                     where_clause: wc,
                     doc_comments: Vec::new(),
                     attributes: attrs,
@@ -3004,6 +3028,7 @@ peg::parser! {
                     return_type: Some(return_type),
                     body: Some(body),
                     is_variadic: false,
+                    is_unsafe: false,
                     where_clause: wc,
                     doc_comments: Vec::new(),
                     attributes: attrs,
@@ -3019,6 +3044,7 @@ peg::parser! {
                     return_type: None,
                     body: Some(body),
                     is_variadic: false,
+                    is_unsafe: false,
                     where_clause: wc,
                     doc_comments: Vec::new(),
                     attributes: attrs,
@@ -3034,6 +3060,7 @@ peg::parser! {
                     return_type: Some(return_type),
                     body: Some(body),
                     is_variadic: false,
+                    is_unsafe: false,
                     where_clause: wc,
                     doc_comments: Vec::new(),
                     attributes: attrs,
@@ -3204,6 +3231,7 @@ peg::parser! {
                     return_type: None,
                     body: Some(body),
                     is_variadic: false,
+                    is_unsafe: false,
                     where_clause: None,
                     doc_comments: Vec::new(),
                     attributes: attrs,
@@ -3219,6 +3247,7 @@ peg::parser! {
                     return_type: Some(return_type),
                     body: Some(body),
                     is_variadic: false,
+                    is_unsafe: false,
                     where_clause: None,
                     doc_comments: Vec::new(),
                     attributes: attrs,
@@ -3234,6 +3263,7 @@ peg::parser! {
                     return_type: None,
                     body: Some(body),
                     is_variadic: false,
+                    is_unsafe: false,
                     where_clause: None,
                     doc_comments: Vec::new(),
                     attributes: attrs,
@@ -3249,6 +3279,7 @@ peg::parser! {
                     return_type: Some(return_type),
                     body: Some(body),
                     is_variadic: false,
+                    is_unsafe: false,
                     where_clause: None,
                     doc_comments: Vec::new(),
                     attributes: attrs,
@@ -3639,6 +3670,7 @@ peg::parser! {
                     return_type: None,
                     body: None,
                     is_variadic: pv.1,
+                    is_unsafe: false,
                     where_clause: None,
                     doc_comments: Vec::new(),
                     attributes: Vec::new(),
@@ -3653,6 +3685,7 @@ peg::parser! {
                     return_type: Some(return_type),
                     body: None,
                     is_variadic: pv.1,
+                    is_unsafe: false,
                     where_clause: None,
                     doc_comments: Vec::new(),
                     attributes: Vec::new(),
@@ -3803,6 +3836,7 @@ peg::parser! {
             / typedef_def()
             / item_macro_invocation()
             / static_item()
+            / unsafe_function()
             / function()
 
         /// Explicit `pub` visibility modifier (PS-17): `pub <item>`. Crusty
@@ -3824,6 +3858,7 @@ peg::parser! {
             / impl_block_def()
             / typedef_def()
             / static_item()
+            / unsafe_function()
             / function()
 
         /// File: complete Crusty source file
@@ -5794,6 +5829,38 @@ mod item_tests {
             assert_eq!(ib.visibility, Visibility::Private);
         } else {
             panic!("expected Item::ImplBlock, got {:?}", result);
+        }
+    }
+
+    // --- PS-09 Unit 1: unsafe blocks and unsafe fn (ADR-0015) ---
+
+    #[test]
+    fn test_unsafe_block_statement_parses() {
+        let result = crusty_peg_parser::statement("unsafe { let x = 1; }");
+        assert!(result.is_ok(), "unsafe block should parse: {:?}", result);
+        assert!(matches!(result, Ok(Statement::Unsafe(_))));
+    }
+
+    #[test]
+    fn test_unsafe_fn_parses_and_sets_flag() {
+        let result = crusty_peg_parser::item("unsafe int raw_read(int* p) { return *p; }");
+        assert!(result.is_ok(), "unsafe fn should parse: {:?}", result);
+        if let Ok(Item::Function(f)) = result {
+            assert!(f.is_unsafe, "is_unsafe should be set");
+            assert_eq!(f.name.name, "raw_read");
+        } else {
+            panic!("expected Item::Function, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_non_unsafe_fn_flag_is_false() {
+        let result = crusty_peg_parser::item("int add(int x) { return x; }");
+        assert!(result.is_ok());
+        if let Ok(Item::Function(f)) = result {
+            assert!(!f.is_unsafe, "a plain fn must not be unsafe");
+        } else {
+            panic!("expected Item::Function");
         }
     }
 

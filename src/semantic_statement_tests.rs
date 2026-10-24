@@ -33,6 +33,7 @@ mod tests {
                 value: Expression::Literal(Literal::Int(42)),
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -59,6 +60,7 @@ mod tests {
                 value: Expression::Literal(Literal::Bool(true)),
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -94,6 +96,7 @@ mod tests {
                 },
             ])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -132,6 +135,7 @@ mod tests {
                 }])),
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -158,6 +162,7 @@ mod tests {
                 else_block: None,
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -186,6 +191,7 @@ mod tests {
                 body: Block::empty(),
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -225,6 +231,7 @@ mod tests {
                 body: Block::empty(),
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -266,6 +273,7 @@ mod tests {
                 },
             ])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -296,6 +304,7 @@ mod tests {
                 default: Some(Block::empty()),
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -325,6 +334,7 @@ mod tests {
                 default: None,
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -353,6 +363,7 @@ mod tests {
                 body: Block::new(vec![Statement::Break { label: None, value: None }]),
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -379,6 +390,7 @@ mod tests {
                 body: Block::new(vec![Statement::Continue(None)]),
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -556,6 +568,7 @@ mod tests {
                 body: Block::new(vec![Statement::Break { label: Some(Ident::new("outer")), value: None }]),
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -597,6 +610,7 @@ mod tests {
                 body: Block::new(vec![Statement::Continue(Some(Ident::new("loop1")))]),
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -628,6 +642,7 @@ mod tests {
                 body: Block::new(vec![Statement::Break { label: Some(Ident::new("iter")), value: None }]),
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -667,6 +682,7 @@ mod tests {
                 default: Some(Block::empty()),
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -693,6 +709,7 @@ mod tests {
                 init: Some(Expression::Literal(Literal::Int(42))),
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -719,6 +736,7 @@ mod tests {
                 init: Some(Expression::Literal(Literal::Bool(true))),
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -761,6 +779,7 @@ mod tests {
                 body: Block::empty(),
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -792,6 +811,7 @@ mod tests {
                 body: Block::new(vec![Statement::Expr(Expression::Ident(Ident::new("i")))]),
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -845,6 +865,7 @@ mod tests {
                 Statement::Return(Some(Expression::Ident(Ident::new("acc")))),
             ])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -901,6 +922,7 @@ mod tests {
                 Statement::Return(Some(Expression::Ident(Ident::new("acc")))),
             ])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -946,6 +968,7 @@ mod tests {
                 )))]),
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
@@ -979,6 +1002,7 @@ mod tests {
                 default: None,
             }])),
             is_variadic: false,
+            is_unsafe: false,
             doc_comments: vec![],
             attributes: vec![],
         };
