@@ -113,24 +113,24 @@ typing, and non-goals) carries forward unchanged.
   single Rust construct both hoists and captures, so one form cannot serve both.
 
 ## Verification
-- [ ] `Statement::NestedFunction` codegen emits a Rust `fn name(params) -> ret
+- [x] `Statement::NestedFunction` codegen emits a Rust `fn name(params) -> ret
       { body }` item, not a `let`-closure.
-- [ ] A named nested function is callable **before** its textual definition in
+- [x] A named nested function is callable **before** its textual definition in
       the enclosing body (hoisting), proven end-to-end: transpile, compile under
       `rustc -D unused_parens` (RC=0), run.
-- [ ] A **recursive** named nested function (e.g. factorial) transpiles,
+- [x] A **recursive** named nested function (e.g. factorial) transpiles,
       compiles, and runs with the expected result.
-- [ ] A nested function that references an enclosing local is a rustc error
+- [x] A nested function that references an enclosing local is a rustc error
       (documented as the non-capture consequence), while the same logic written
       with the local passed as a parameter compiles.
-- [ ] `__func__` still lowers to a capturing closure: a `__func__` that reads an
+- [x] `__func__` still lowers to a capturing closure: a `__func__` that reads an
       enclosing local transpiles, compiles, and runs.
-- [ ] The nested-function capture machinery no longer runs on the
+- [x] The nested-function capture machinery no longer runs on the
       nested-function path; any capture tests are rewritten against `__func__`
       or removed.
-- [ ] Docs (control-flow / functions) state the split: named nested function →
+- [x] Docs (control-flow / functions) state the split: named nested function →
       hoisted, recursive, non-capturing Rust `fn`; `__func__` → capturing,
       non-hoisted, non-recursive closure; and the overloaded-but-unambiguous
       `return`.
-- [ ] ADR-0013 status is set to `superseded by ADR-0014`.
-- [ ] `cargo test` green and `clippy` clean after each phase.
+- [x] ADR-0013 status is set to `superseded by ADR-0014`.
+- [x] `cargo test` green and `clippy` clean after each phase.

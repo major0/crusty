@@ -12,7 +12,7 @@ Crusty provides a C-like syntax that transpiles to Rust, giving developers famil
 - [Types](types.md) - Primitive types, structs, enums, pointers, references
 - [Expressions](expressions.md) - Operators, precedence, and special expressions
 - [Typedef](typedef.md) - Typedef syntax for structs, impl blocks, and trait implementations
-- [Nested Functions](nested-functions.md) - Nested functions as closures with capture semantics
+- [Nested and Anonymous Functions](nested-functions.md) - Hoisted nested `fn` items and capturing `__func__` anonymous functions
 - [Error Handling](error-handling.md) - Fallible types, error propagation, and Result mapping
 - [Macros](macros.md) - #define macros, delimiter types, and double-underscore naming
 - [Modules](modules.md) - #import and #export directives for module management

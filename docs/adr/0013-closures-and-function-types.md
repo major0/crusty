@@ -188,37 +188,38 @@ lowering deliberately does not).
 ## Verification
 
 ### Workstream A — function-pointer types
-- [ ] `type_expr` parses `fn(int) -> int` and `fn(int, bool)` into
+- [x] `type_expr` parses `fn(int) -> int` and `fn(int, bool)` into
       `Type::Function { params, return_type }` (the return-less form defaulting
       its return to unit), proven by a parser unit test.
-- [ ] A Crusty function with a function-type parameter
+- [x] A Crusty function with a function-type parameter
       (`void run(fn(int) -> int cb) { … }`) transpiles to
       `fn run(cb: fn(i32) -> i32)`, compiles under `rustc -D unused_parens`, and
       runs when called with a named function.
-- [ ] The types/function docs describe the `fn(T) -> R` surface; DRIFT-3 is
+- [x] The types/function docs describe the `fn(T) -> R` surface; DRIFT-3 is
       marked resolved in the roadmap.
 
 ### Workstream B — anonymous functions (`__func__`)
-- [ ] `src/ast.rs` has `Expression::AnonFunction { params, return_type, body }`
+- [x] `src/ast.rs` has `Expression::AnonFunction { params, return_type, body }`
       reusing `Param` and `Block`.
-- [ ] `int __func__(int x) { return x + 1; }` and a return-less
+- [x] `int __func__(int x) { return x + 1; }` and a return-less
       `void __func__(int fd) { … }` parse into an `AnonFunction` with the
       expected typed params and body, proven by a parser unit test; an untyped
       param (`__func__(x)`) is a parse error.
-- [ ] Codegen emits `|x: i32| -> i32 { return x + 1; }` (and the unit-return
+- [x] Codegen emits `|x: i32| -> i32 { return x + 1; }` (and the unit-return
       form); a program with no anonymous function is byte-unchanged.
-- [ ] End-to-end: a `file_operations`-style struct with a `fn(int,int) -> int`
+- [x] End-to-end: a `file_operations`-style struct with a `fn(int,int) -> int`
       field (Workstream A), a `__func__` assigned to it, and a call through the
       field transpiles, compiles under `rustc -D unused_parens` (RC=0), and runs
       with the expected output.
-- [ ] A `__func__` parameter is in scope in its body (a binding-scope semantic
+- [x] A `__func__` parameter is in scope in its body (a binding-scope semantic
       test); an unknown identifier in the body still errors.
-- [ ] Nested functions: a regression test proves a named nested function lowers
-      to a `let`-closure, is not in scope outside its enclosing function, and is
-      not usable before its own declaration.
-- [ ] The docs describe the `__func__` surface (callable, not a run-once
+- [~] Nested functions: SUPERSEDED by ADR-0014 — a named nested function now
+      lowers to a hoisted Rust `fn` item (callable before its definition,
+      recursive, non-capturing), NOT a `let`-closure. See ADR-0014's
+      verification for the current nested-function tests.
+- [x] The docs describe the `__func__` surface (callable, not a run-once
       block), the non-capturing-into-`fn`-pointer rule, and the nested-function
       companion.
 
 ### Both
-- [ ] `cargo test` green and `clippy` clean after each phase.
+- [x] `cargo test` green and `clippy` clean after each phase.
