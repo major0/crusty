@@ -902,6 +902,187 @@ mod tests {
         assert!(output.contains("Blue = 2,"));
     }
 
+    // --- ADR-0011 Phase 2: generic parameters lower to Rust ---
+
+    #[test]
+    fn test_generate_generic_params_string_forms() {
+        let gen = CodeGenerator::new(TargetLanguage::Rust);
+        // Empty list emits nothing.
+        assert_eq!(gen.generate_generic_params_string(&[]), "");
+        // A type param with bounds, a lifetime, and a const generic.
+        let params = vec![
+            GenericParam::Lifetime {
+                name: Ident::new("a"),
+            },
+            GenericParam::Type {
+                name: Ident::new("T"),
+                bounds: vec!["Clone".to_string(), "Debug".to_string()],
+            },
+            GenericParam::Const {
+                name: Ident::new("N"),
+                ty: Type::Primitive(PrimitiveType::Usize),
+            },
+        ];
+        assert_eq!(
+            gen.generate_generic_params_string(&params),
+            "<'a, T: Clone + Debug, const N: usize>"
+        );
+        // The bare argument form drops bounds and the const type.
+        assert_eq!(gen.generate_generic_args_string(&params), "<'a, T, N>");
+    }
+
+    #[test]
+    fn test_generate_generic_function_with_where() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let func = Function {
+            generic_params: vec![GenericParam::Type {
+                name: Ident::new("T"),
+                bounds: vec!["Clone".to_string()],
+            }],
+            where_clause: Some("T: Copy".to_string()),
+            visibility: Visibility::Public,
+            name: Ident::new("echo"),
+            params: vec![Param {
+                name: Ident::new("x"),
+                ty: Type::Ident(Ident::new("T")),
+            }],
+            return_type: Some(Type::Ident(Ident::new("T"))),
+            body: Some(Block::empty()),
+            is_variadic: false,
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let file = File {
+            items: vec![Item::Function(func)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(
+            output.contains("pub fn echo<T: Clone>(x: T) -> T where T: Copy"),
+            "got: {output}"
+        );
+    }
+
+    #[test]
+    fn test_generate_generic_struct_with_impl() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let method = Function {
+            generic_params: vec![],
+            where_clause: None,
+            visibility: Visibility::Private,
+            name: Ident::new("first"),
+            params: vec![Param {
+                name: Ident::new("self"),
+                ty: Type::Reference {
+                    ty: Box::new(Type::Ident(Ident::new("Self"))),
+                    mutable: false,
+                },
+            }],
+            return_type: Some(Type::Ident(Ident::new("A"))),
+            body: Some(Block::empty()),
+            is_variadic: false,
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let struct_def = Struct {
+            generic_params: vec![
+                GenericParam::Type {
+                    name: Ident::new("A"),
+                    bounds: vec![],
+                },
+                GenericParam::Type {
+                    name: Ident::new("B"),
+                    bounds: vec![],
+                },
+            ],
+            where_clause: None,
+            visibility: Visibility::Public,
+            name: Ident::new("Pair"),
+            fields: vec![
+                Field {
+                    visibility: Visibility::Public,
+                    name: Ident::new("first"),
+                    ty: Type::Ident(Ident::new("A")),
+                    doc_comments: vec![],
+                    attributes: vec![],
+                },
+                Field {
+                    visibility: Visibility::Public,
+                    name: Ident::new("second"),
+                    ty: Type::Ident(Ident::new("B")),
+                    doc_comments: vec![],
+                    attributes: vec![],
+                },
+            ],
+            methods: vec![method],
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let file = File {
+            items: vec![Item::Struct(struct_def)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("pub struct Pair<A, B>"), "got: {output}");
+        // The impl declares the params and references them as arguments.
+        assert!(output.contains("impl<A, B> Pair<A, B>"), "got: {output}");
+    }
+
+    #[test]
+    fn test_generate_generic_enum() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let enum_def = Enum {
+            generic_params: vec![GenericParam::Type {
+                name: Ident::new("T"),
+                bounds: vec![],
+            }],
+            where_clause: None,
+            visibility: Visibility::Public,
+            name: Ident::new("Opt"),
+            variants: vec![
+                EnumVariant {
+                    name: Ident::new("None"),
+                    value: Some(0),
+                },
+                EnumVariant {
+                    name: Ident::new("Some"),
+                    value: Some(1),
+                },
+            ],
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let file = File {
+            items: vec![Item::Enum(enum_def)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("pub enum Opt<T>"), "got: {output}");
+    }
+
+    #[test]
+    fn test_generate_non_generic_definition_unchanged() {
+        // A struct with no generic params must emit no angle brackets.
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let struct_def = Struct {
+            generic_params: vec![],
+            where_clause: None,
+            visibility: Visibility::Public,
+            name: Ident::new("Plain"),
+            fields: vec![],
+            methods: vec![],
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let file = File {
+            items: vec![Item::Struct(struct_def)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("pub struct Plain {"), "got: {output}");
+        assert!(!output.contains("Plain<"), "got: {output}");
+    }
+
     #[test]
     fn test_generate_primitive_types() {
         let gen = CodeGenerator::new(TargetLanguage::Rust);

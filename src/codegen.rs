@@ -253,6 +253,7 @@ impl CodeGenerator {
 
                 self.write("fn ");
                 self.write(&func.name.name);
+                self.write(&self.generate_generic_params_string(&func.generic_params));
                 self.write("(");
 
                 // Parameters
@@ -323,6 +324,7 @@ impl CodeGenerator {
                 }
                 self.write(" ");
                 self.write(&func.name.name);
+                self.write(&self.generate_generic_params_string(&func.generic_params));
                 self.write("(");
 
                 // Parameters
@@ -345,6 +347,13 @@ impl CodeGenerator {
 
                 self.write(")");
             }
+        }
+
+        // Where clause (verbatim, ADR-0011 Phase 2) sits between the
+        // signature and the body for both targets.
+        if let Some(ref where_clause) = func.where_clause {
+            self.write(" where ");
+            self.write(where_clause);
         }
 
         match &func.body {
@@ -404,6 +413,11 @@ impl CodeGenerator {
         }
         self.write("struct ");
         self.write(&struct_def.name.name);
+        self.write(&self.generate_generic_params_string(&struct_def.generic_params));
+        if let Some(ref where_clause) = struct_def.where_clause {
+            self.write(" where ");
+            self.write(where_clause);
+        }
         self.write(" {\n");
         self.indent();
 
@@ -430,8 +444,15 @@ impl CodeGenerator {
         if !struct_def.methods.is_empty() {
             self.write_line("");
             self.write_indent();
-            self.write("impl ");
+            self.write("impl");
+            self.write(&self.generate_generic_params_string(&struct_def.generic_params));
+            self.write(" ");
             self.write(&struct_def.name.name);
+            self.write(&self.generate_generic_args_string(&struct_def.generic_params));
+            if let Some(ref where_clause) = struct_def.where_clause {
+                self.write(" where ");
+                self.write(where_clause);
+            }
             self.write(" {\n");
             self.indent();
 
@@ -493,6 +514,11 @@ impl CodeGenerator {
         }
         self.write("enum ");
         self.write(&enum_def.name.name);
+        self.write(&self.generate_generic_params_string(&enum_def.generic_params));
+        if let Some(ref where_clause) = enum_def.where_clause {
+            self.write(" where ");
+            self.write(where_clause);
+        }
         self.write(" {\n");
         self.indent();
 
@@ -1705,6 +1731,52 @@ impl CodeGenerator {
                 )
             }
         }
+    }
+
+    /// Render a generic-parameter list as `<...>`, or `""` when there are
+    /// none. Bounds and const-generic types are carried verbatim (ADR-0011
+    /// Phase 2): Crusty does not model trait bounds, it hands them to rustc.
+    pub fn generate_generic_params_string(&self, params: &[GenericParam]) -> String {
+        if params.is_empty() {
+            return String::new();
+        }
+        let rendered: Vec<String> = params
+            .iter()
+            .map(|param| match param {
+                GenericParam::Lifetime { name } => format!("'{}", name.name),
+                GenericParam::Const { name, ty } => {
+                    format!("const {}: {}", name.name, self.generate_type_string(ty))
+                }
+                GenericParam::Type { name, bounds } => {
+                    if bounds.is_empty() {
+                        name.name.clone()
+                    } else {
+                        format!("{}: {}", name.name, bounds.join(" + "))
+                    }
+                }
+            })
+            .collect();
+        format!("<{}>", rendered.join(", "))
+    }
+
+    /// Render the bare generic-ARGUMENT form `<T, 'a, N>` (names only, no
+    /// bounds or `const`/type annotations), used where a generic type is
+    /// *referenced* rather than declared — e.g. `impl<T> Name<T>`. Returns
+    /// `""` when there are no params.
+    pub fn generate_generic_args_string(&self, params: &[GenericParam]) -> String {
+        if params.is_empty() {
+            return String::new();
+        }
+        let rendered: Vec<String> = params
+            .iter()
+            .map(|param| match param {
+                GenericParam::Lifetime { name } => format!("'{}", name.name),
+                GenericParam::Const { name, .. } | GenericParam::Type { name, .. } => {
+                    name.name.clone()
+                }
+            })
+            .collect();
+        format!("<{}>", rendered.join(", "))
     }
 
     /// Generate a type as string
