@@ -1,7 +1,7 @@
 # ADR-0013: Anonymous functions and function-pointer types (PS-07, DRIFT-3)
 
 ## Status
-proposed
+accepted
 
 ## Context
 ADR-0009's Tier 4 lists **PS-07** — closures/lambdas (`|x| expr`) and
@@ -91,7 +91,18 @@ near-complete feature needing only a surface.
   scope and analyse the body so its own errors surface; the anonymous function
   itself types as `Auto` (rustc infers the concrete `fn` pointer or `Fn*`
   trait), consistent with ADR-0001. This mirrors the existing nested-function
-  capture analysis.
+  capture analysis. A `return` inside a `__func__` body returns a value from
+  **that anonymous function** (to its caller), not from the enclosing
+  function — so `int __func__() { return 1; }` called as `a()` yields `1`, and
+  does not return from the function `a` is declared in. This matches Rust
+  closure semantics and the existing nested-function lowering; it is stated
+  explicitly because a C reader may expect `return` to exit the outer function.
+- **Multiple independent definitions:** `__func__` is a keyword, not a name, so
+  an anonymous function is never entered in the symbol table and any number of
+  `__func__` expressions coexist — even with identical signatures
+  (`let a = int __func__(int x) { return x+1; }` and
+  `let b = int __func__(int x) { return x+2; }` are two distinct values, no
+  collision). Each body's parameters are scoped to that body alone.
 - **Phase B4 — docs:** document the `__func__` surface, that it is callable
   (not a run-once block), the non-capturing-into-`fn`-pointer rule, and the
   nested-function companion.
