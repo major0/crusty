@@ -1455,4 +1455,56 @@ mod tests {
         );
         assert!(result.is_ok(), "raw-pattern arm body must not error: {:?}", result);
     }
+
+    // ------------------------------------------------------------------
+    // PS-07 (ADR-0013/0014): __func__ anonymous functions.
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn test_anon_function_param_in_scope_and_callable() {
+        // The param is in scope in the body; binding the __func__ and calling
+        // it type-checks (the Auto-typed callee is permitted).
+        let (_, result) = analyze_source(
+            "void main() { let a = int __func__(int x) { return x + 1; }; let r = a(41); }",
+        );
+        assert!(result.is_ok(), "__func__ define+call should check: {:?}", result);
+    }
+
+    #[test]
+    fn test_anon_function_captures_enclosing_local() {
+        // The body may reference an enclosing local (capture) without error.
+        let (_, result) = analyze_source(
+            "void main() { let base = 100; let f = int __func__(int x) { return x + base; }; let s = f(5); }",
+        );
+        assert!(result.is_ok(), "capturing __func__ should check: {:?}", result);
+    }
+
+    #[test]
+    fn test_anon_function_return_checked_against_itself_not_enclosing() {
+        // `return x` in the __func__ is checked against the __func__'s own
+        // `int` return, NOT main's void — so this must NOT error.
+        let (_, result) = analyze_source(
+            "void main() { let a = int __func__(int x) { return x; }; let r = a(1); }",
+        );
+        assert!(result.is_ok(), "__func__ return must check against itself: {:?}", result);
+    }
+
+    #[test]
+    fn test_anon_function_body_undefined_variable_errors() {
+        // A real undefined reference inside the body still errors.
+        let (_, result) = analyze_source(
+            "void main() { let a = int __func__(int x) { return bogus; }; }",
+        );
+        assert!(result.is_err(), "undefined var in __func__ body should error");
+    }
+
+    #[test]
+    fn test_calling_non_function_value_still_errors() {
+        // The Auto-callee relaxation must not permit calling a concrete
+        // non-function (an int) — that still errors.
+        let (_, result) = analyze_source(
+            "void main() { let n = 7; let r = n(1); }",
+        );
+        assert!(result.is_err(), "calling an int should still error");
+    }
 }

@@ -463,6 +463,17 @@ pub enum Expression {
         scrutinee: Box<Expression>,
         arms: Vec<MatchArm>,
     },
+    /// Anonymous function (PS-07, ADR-0013/0014): `[ret] __func__(typed-params)
+    /// { body }` in expression position. A callable value — lowered to a Rust
+    /// closure `|params| -> ret { body }`, which captures enclosing locals.
+    /// Distinct from a NAMED nested function, which lowers to a hoisted Rust
+    /// `fn` item (ADR-0014). Reuses `Param` (typed, like every function) and
+    /// `Block`; `return_type` is `None` for a `void`/unit-returning body.
+    AnonFunction {
+        params: Vec<Param>,
+        return_type: Option<Type>,
+        body: Box<Block>,
+    },
 }
 
 /// One arm of a `match` expression (PS-06). The body is an expression; a

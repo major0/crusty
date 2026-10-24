@@ -1345,6 +1345,7 @@ peg::parser! {
         /// literal. A struct literal in that position must be parenthesised.
         rule atom_inner(allow_struct: bool) -> Expression
             = rust_block_expr()
+            / anon_function()
             / loop_expr()
             / match_expr()
             / sizeof_expr()
@@ -1368,6 +1369,35 @@ peg::parser! {
             }
             / _ kw_loop() _ body:block() _ {
                 Expression::Loop { label: None, body: Box::new(body) }
+            }
+
+        /// Anonymous function (PS-07, ADR-0013/0014): a normal Crusty function
+        /// declaration with `__func__` in the name slot, in expression
+        /// position — `[ret | void] __func__(typed-params) { body }`. Reuses
+        /// `function_params` and `block`; the optional C-style return type
+        /// before `__func__` lowers to a closure's `-> ret` (`void`/omitted ⇒
+        /// unit). Produces a callable value; lowered to a Rust closure.
+        rule anon_function() -> Expression
+            = _ kw_void() __ "__func__" _ "(" _ params:function_params()? _ ")" _ body:block() _ {
+                Expression::AnonFunction {
+                    params: params.unwrap_or_default(),
+                    return_type: None,
+                    body: Box::new(body),
+                }
+            }
+            / _ ret:type_expr() __ "__func__" _ "(" _ params:function_params()? _ ")" _ body:block() _ {
+                Expression::AnonFunction {
+                    params: params.unwrap_or_default(),
+                    return_type: Some(ret),
+                    body: Box::new(body),
+                }
+            }
+            / _ "__func__" _ "(" _ params:function_params()? _ ")" _ body:block() _ {
+                Expression::AnonFunction {
+                    params: params.unwrap_or_default(),
+                    return_type: None,
+                    body: Box::new(body),
+                }
             }
 
         /// Match expression (PS-06, ADR-0012): `match <scrutinee> { arm,* }`.
@@ -5582,6 +5612,61 @@ mod item_tests {
         } else {
             panic!("expected a let with a Match initializer, got {:?}", result);
         }
+    }
+
+    // --- PS-07: __func__ anonymous functions (ADR-0013/0014) ---
+
+    #[test]
+    fn test_anon_function_with_return_type_parses() {
+        let result = crusty_peg_parser::expr("int __func__(int x) { return x + 1; }");
+        assert!(result.is_ok(), "__func__ should parse: {:?}", result);
+        if let Ok(Expression::AnonFunction { params, return_type, body }) = result {
+            assert_eq!(params.len(), 1);
+            assert_eq!(params[0].name.name, "x");
+            assert!(return_type.is_some());
+            assert_eq!(body.statements.len(), 1);
+        } else {
+            panic!("expected Expression::AnonFunction, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_anon_function_void_and_no_return_type() {
+        // `void __func__` and a bare `__func__` both yield return_type: None.
+        let v = crusty_peg_parser::expr("void __func__(int fd) { let a = fd; }");
+        assert!(v.is_ok(), "void __func__ should parse: {:?}", v);
+        if let Ok(Expression::AnonFunction { return_type, .. }) = v {
+            assert!(return_type.is_none());
+        } else {
+            panic!("expected AnonFunction, got {:?}", v);
+        }
+        let b = crusty_peg_parser::expr("__func__(int fd) { let a = fd; }");
+        assert!(b.is_ok(), "bare __func__ should parse: {:?}", b);
+        if let Ok(Expression::AnonFunction { return_type, params, .. }) = b {
+            assert!(return_type.is_none());
+            assert_eq!(params.len(), 1);
+        } else {
+            panic!("expected AnonFunction, got {:?}", b);
+        }
+    }
+
+    #[test]
+    fn test_anon_function_in_let_initializer() {
+        let result =
+            crusty_peg_parser::statement("let a = int __func__(int x) { return x + 1; };");
+        assert!(result.is_ok(), "__func__ in let should parse: {:?}", result);
+        assert!(matches!(
+            result,
+            Ok(Statement::Let { init: Some(Expression::AnonFunction { .. }), .. })
+        ));
+    }
+
+    #[test]
+    fn test_anon_function_multiple_independent_definitions() {
+        // Two __func__ with identical signatures are distinct values, no clash.
+        let a = crusty_peg_parser::statement("let a = int __func__(int x) { return x + 1; };");
+        let b = crusty_peg_parser::statement("let b = int __func__(int x) { return x + 2; };");
+        assert!(a.is_ok() && b.is_ok(), "both should parse: {:?} {:?}", a, b);
     }
 
     #[test]

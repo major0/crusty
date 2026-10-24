@@ -2028,6 +2028,13 @@ impl SemanticAnalyzer {
 
                         *return_type
                     }
+                    // An `Auto`-typed callee is a value whose callability Crusty
+                    // cannot resolve locally — an anonymous function
+                    // (`__func__`), a captured closure, a method result, etc.
+                    // Permit the call and defer the result type to rustc
+                    // (ADR-0001), rather than false-rejecting it. Arguments
+                    // were already analysed above, so their own errors surfaced.
+                    Type::Auto => Type::Auto,
                     _ => {
                         self.errors.push(SemanticError::new(
                             Span::new(
@@ -2676,6 +2683,38 @@ impl SemanticAnalyzer {
                     _ => Type::Auto,
                 }
             }
+            Expression::AnonFunction { params, return_type, body } => {
+                // PS-07 (ADR-0013/0014): analyse the anonymous function's body
+                // in a fresh scope with its typed parameters in scope, so its
+                // own errors surface. A `return` inside the body is checked
+                // against THIS function's declared return (not the enclosing
+                // one), so save/restore `expected_return_type` around the body.
+                // The anonymous function itself types as `Auto` — rustc infers
+                // the concrete `fn` pointer / `Fn*` trait (ADR-0001). It may
+                // capture enclosing locals, so the enclosing scope stays
+                // visible (a nested scope, not a reset).
+                let old_return_type = self.expected_return_type.clone();
+                self.expected_return_type = Some(match return_type {
+                    Some(ret) => self.erase_generics(ret),
+                    None => Type::Primitive(PrimitiveType::Void),
+                });
+                self.symbol_table.enter_scope();
+                for param in params {
+                    let _ = self.symbol_table.insert(
+                        param.name.name.clone(),
+                        Symbol::new(
+                            param.name.name.clone(),
+                            param.ty.clone(),
+                            SymbolKind::Variable,
+                            false,
+                        ),
+                    );
+                }
+                self.analyze_block(body);
+                self.symbol_table.exit_scope();
+                self.expected_return_type = old_return_type;
+                Type::Auto
+            }
         }
     }
 
@@ -3012,6 +3051,11 @@ impl SemanticAnalyzer {
                     }
                     self.collect_used_variables(&arm.body, used);
                 }
+            }
+            Expression::AnonFunction { body, .. } => {
+                // An anonymous function captures enclosing locals, so a
+                // variable it references in its body is used (ADR-0013/0014).
+                self.collect_used_variables_in_block(body, used);
             }
             Expression::Literal(_) => {
                 // Literals don't use variables

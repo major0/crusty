@@ -1627,6 +1627,40 @@ impl CodeGenerator {
                 result.push('}');
                 result
             }
+            Expression::AnonFunction {
+                params,
+                return_type,
+                body,
+            } => {
+                // PS-07 (ADR-0013/0014): `__func__` lowers to a Rust closure
+                // `|p: T, …| -> R { body }`. Params carry their written types;
+                // the return type is emitted when present (omitted ⇒ unit).
+                // The body is rendered with a sub-generator so the real
+                // statement/block emitter (generate_block is &mut self) is
+                // reused from this &self string context — same idiom as Loop.
+                let mut result = String::from("|");
+                for (i, param) in params.iter().enumerate() {
+                    if i > 0 {
+                        result.push_str(", ");
+                    }
+                    result.push_str(&param.name.name);
+                    result.push_str(": ");
+                    result.push_str(&self.generate_type_string(&param.ty));
+                }
+                result.push('|');
+                if let Some(ref ret) = return_type {
+                    result.push_str(" -> ");
+                    result.push_str(&self.generate_type_string(ret));
+                }
+                result.push(' ');
+
+                let mut sub = CodeGenerator::new(self.target);
+                sub.indent_level = self.indent_level;
+                sub.nested_function_captures = self.nested_function_captures.clone();
+                sub.generate_block(body);
+                result.push_str(&sub.output);
+                result
+            }
         }
     }
 

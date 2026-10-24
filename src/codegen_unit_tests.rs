@@ -641,6 +641,48 @@ mod tests {
         assert!(out.contains("Some(y) => 5,"), "raw: {out}");
     }
 
+    // --- PS-07: __func__ anonymous-function codegen (ADR-0013/0014) ---
+
+    #[test]
+    fn test_generate_anon_function_closure() {
+        let gen = CodeGenerator::new(TargetLanguage::Rust);
+        // int __func__(int x) { return x + 1; }
+        let expr = Expression::AnonFunction {
+            params: vec![Param {
+                name: Ident::new("x"),
+                ty: Type::Primitive(PrimitiveType::I32),
+            }],
+            return_type: Some(Type::Primitive(PrimitiveType::I32)),
+            body: Box::new(Block::new(vec![Statement::Return(Some(
+                Expression::Binary {
+                    op: BinaryOp::Add,
+                    left: Box::new(Expression::Ident(Ident::new("x"))),
+                    right: Box::new(Expression::Literal(Literal::Int(1))),
+                },
+            ))])),
+        };
+        let out = gen.generate_expression_string(&expr);
+        assert!(out.starts_with("|x: i32| -> i32"), "closure header: {out}");
+        assert!(out.contains("return x + 1;"), "body: {out}");
+    }
+
+    #[test]
+    fn test_generate_anon_function_no_return_type() {
+        let gen = CodeGenerator::new(TargetLanguage::Rust);
+        // __func__(int fd) { } -> no `-> ret`
+        let expr = Expression::AnonFunction {
+            params: vec![Param {
+                name: Ident::new("fd"),
+                ty: Type::Primitive(PrimitiveType::I32),
+            }],
+            return_type: None,
+            body: Box::new(Block::new(vec![])),
+        };
+        let out = gen.generate_expression_string(&expr);
+        assert!(out.starts_with("|fd: i32|"), "header: {out}");
+        assert!(!out.contains("->"), "should have no return arrow: {out}");
+    }
+
     // CG-1: parentheses are emitted only where precedence/associativity need
     // them, not around every binary (which tripped rustc's unused_parens).
     #[test]
