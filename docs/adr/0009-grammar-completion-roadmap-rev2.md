@@ -93,12 +93,14 @@ ADR'd) before implementation.
 - **PS-06** `match` expression/statement (keyword already reserved). Specified
   in ADR-0012.
 - **PS-09** `trait`/`impl` items; `unsafe`; `async`. Scoped and sequenced in
-  ADR-0015 (commits `unsafe` + inherent `impl`; defers `trait` and `async` to
-  their own ADRs).
+  ADR-0015 (commits `unsafe` + the `typedef … @Type` impl surface, which also
+  resolves DRIFT-1; defers defining new `trait`s and `async` to their own ADRs;
+  records `__thread__` as a future direction).
 
 ### Tier 5 — Documentation reconciliation (do alongside the relevant tier)
-- **DRIFT-1** `typedef.md` impl-block family — no grammar and no AST; cut it or
-  mark "Planned". Fix now.
+- **DRIFT-1** `typedef.md` impl-block family — documented but no grammar and no
+  AST. RESOLUTION: implement it (ADR-0015 Unit 2) rather than cut it — the
+  `typedef … @Type` impl surface is wanted. Resolved when that unit lands.
 - **DRIFT-5** `expressions.md` multi-segment / `->` / no-paren `@Type` calls —
   demote to "Planned".
 - **DRIFT-4** `control-flow.md` `for_stmt` EBNF marks the condition optional;

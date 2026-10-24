@@ -16,10 +16,20 @@ What the code holds today (read in `src/parser.rs`, `src/codegen.rs`,
 - **`unsafe` is reserved but unused.** `kw_unsafe()` exists and is in the
   `keyword()` set, so `unsafe` cannot be an identifier — but no grammar rule
   consumes it. There is no `unsafe` block or `unsafe fn`.
-- **`impl` already emits — for struct methods only.** `generate_struct` emits
+- **`impl` already emits — for struct methods only — and a C-style surface for
+  it is already DESIGNED but unimplemented.** `generate_struct` emits
   `impl Name<…> where … { fn … }` for a struct's own methods (ADR-0010/SEM-00).
-  There is NO user-written `impl` block and NO trait `impl`. `impl` is NOT a
-  reserved keyword in the real grammar.
+  Separately, `docs/syntax/typedef.md` specifies a C-style impl-block surface —
+  `typedef struct { methods } @Point;` → `impl Point { … }`,
+  `typedef default { … } @Point;` → `impl Default for Point`, and
+  `@Point.name` named blocks — but that surface has NO grammar and NO AST
+  (the `@` code paths today are the unrelated expression-level `@Type.method()`
+  calls of PS-14/15). This is ADR-0009's **DRIFT-1**: documented, not built.
+  Crusty does NOT reserve `impl` as a keyword; the impl surface is `typedef`-
+  based, so no `impl` keyword is needed.
+- **`typedef default { … } @Point;` already DESIGNS a slice of trait impl** —
+  implementing a named trait (`Default`) for a type — so trait-impl is not
+  entirely greenfield even though Unit 3 (defining new traits) is deferred.
 - **`trait`, `async`, `await` are not modelled and not even reserved.** They
   appear only in proptest keyword generators, not in the parser's `keyword()`
   set, so a Crusty program could currently use them as identifiers. No AST node,
@@ -65,22 +75,38 @@ does not become one unreviewable mega-change.
   end-to-end rustc proof (an `unsafe` block dereferencing a raw pointer from a
   `__rust__` value).
 
-### Unit 2 — inherent `impl` blocks (COMMIT)
-- **Surface:** a free-standing `impl Type { <methods> }` item, letting methods
-  be written outside the struct body (as Rust allows). `impl` becomes a
-  reserved keyword.
-- **Lowering:** the method-emission path already produces `impl Name { fn … }`
-  for struct methods; a user `impl` block reuses it directly. Generics/`where`
-  reuse ADR-0011's helpers.
-- **AST:** an `Item::Impl { ty, generic_params, where_clause, methods }`.
-- **Phase:** grammar+AST, then codegen (largely reuse), with a proof that a
-  method defined in a separate `impl` block compiles and is callable.
+### Unit 2 — `typedef … @Type` impl blocks (COMMIT; resolves DRIFT-1)
+- **Surface:** the already-DESIGNED C-style impl-block surface from
+  `typedef.md`, not a Rust-style `impl Type { }`:
+  - `typedef struct { <methods> } @Point;` → `impl Point { … }`
+  - `typedef struct { <methods> } @Point.name;` → a named organisational block,
+    merged into one `impl Point` per type in codegen.
+  - `typedef default { <methods> } @Point;` → `impl Default for Point` (the one
+    trait-impl form this unit covers; general `trait`/`impl Trait for` stays
+    Unit 3).
+  No new `impl` keyword — the surface reuses `typedef` + the `@Type` target.
+- **Lowering:** reuse the existing method-emission path (`generate_struct`
+  already emits `impl Name { fn … }` for struct methods); generics/`where`
+  reuse ADR-0011's helpers. The `default` form emits `impl Default for Name`.
+- **AST:** a dedicated `Item::ImplBlock { target: Ident, trait_name:
+  Option<Ident>, name: Option<Ident>, methods: Vec<Function> }` — `trait_name`
+  is `Some("Default")` for the `default` form, `name` is the optional
+  `.name`. A dedicated item (not an extension of `Struct`) because the `@Type`
+  target and the trait form do not fit the struct-definition shape.
+- **Phase:** grammar+AST (the `impl_block` / `typedef_target` productions already
+  in `typedef.md`), then codegen (largely reuse), with a proof that a method
+  defined in a `typedef … @Point;` block is callable, and that
+  `typedef default { } @Point;` yields a working `Default` impl — then update
+  `typedef.md` to mark the surface implemented and resolve DRIFT-1.
 
-### Unit 3 — `trait` + `impl Trait for Type` (DEFER to ADR-00NN)
-- Needs a new `Item::Trait` (method signatures + optional default bodies) and an
-  `impl Trait for Type` form, plus associated-item surface. Trait-bound checking
-  stays rustc's. This is a feature the size of PS-08 and deserves its own ADR
-  with its own phases; it should NOT be bundled into PS-09's first landing.
+### Unit 3 — defining new `trait`s + general `impl Trait for Type` (DEFER to ADR-00NN)
+- Needs a new `Item::Trait` (method signatures + optional default bodies) and a
+  general `impl Trait for Type` form (Unit 2 covers only the `typedef default`
+  → `impl Default for` case), plus associated-item surface. Trait-bound
+  checking stays rustc's. This is a feature the size of PS-08 and deserves its
+  own ADR with its own phases; it should NOT be bundled into PS-09's first
+  landing. The `typedef default { } @Type;` form (Unit 2) is the template the
+  general trait-impl surface will generalise.
 - Until then, a trait and its impls are written in `__rust__ { … }`.
 
 ### Unit 4 — `async` / `await` (DEFER to ADR-00MM, lowest priority)
@@ -89,6 +115,17 @@ does not become one unreviewable mega-change.
   little today and is the least aligned with the C-compat goal. Defer until a
   concrete need and a runtime-integration decision exist. Writable in
   `__rust__ { … }` meanwhile.
+
+### Future direction (NOT decided here) — `__thread__ { … }`
+Recorded so the intent is not lost, not committed. A `__thread__ { … }` block —
+double-underscore convention like `__rust__`/`__func__` — would spawn its body
+to run concurrently on its own core, a go-routine-style primitive, as Crusty's
+stylistic answer to concurrency rather than importing `async`/`await`. It is a
+DIRECTION signal, not a solution to the missing Rust keywords, and it needs a
+threading/runtime decision (which runtime, join/handle semantics, data-sharing
+rules) before it can be specified — the same runtime gap that defers async
+(Unit 4). It gets its own ADR if and when it is pursued; this note only reserves
+the idea and the spelling.
 
 ### Non-goals (explicit)
 - **No unsafety, trait-coherence, or send/sync reasoning.** rustc owns all of
@@ -99,28 +136,37 @@ does not become one unreviewable mega-change.
   permit anything it otherwise rejects; it only emits the keyword for rustc.
 
 ## Consequences
-- **Easier:** the two cheap wins (`unsafe`, inherent `impl`) land first and
-  unblock FFI/raw-pointer code and out-of-struct method organisation, reusing
-  existing emission. PS-09 stops being a monolith.
-- **Harder / accepted cost:** `trait` and `async` remain `__rust__`-only until
-  their ADRs. Making `impl` a reserved keyword is a small source-compat break
-  (a program using `impl` as an identifier stops compiling) — acceptable, since
-  `impl` as an identifier in C-like code is rare and the reservation matches
-  every other Rust-item keyword Crusty already reserves (`struct`, `enum`, …).
-- **Reversible-cost:** Units 1 and 2 are additive variants/flags plus one new
-  reserved word. The deferral of 3 and 4 is the main judgement; it is recorded
-  here so a future reader does not read PS-09 as "all four, now".
+- **Easier:** the two cheap wins (`unsafe`, the `typedef … @Type` impl surface)
+  land first and unblock FFI/raw-pointer code and out-of-struct method
+  organisation, reusing existing emission. Unit 2 also resolves DRIFT-1 by
+  implementing a surface that was documented but unbuilt. PS-09 stops being a
+  monolith.
+- **Harder / accepted cost:** `trait` (defining new traits) and `async` remain
+  `__rust__`-only until their ADRs. Unit 2 reuses `typedef`, so there is **no
+  new reserved keyword** and no source-compat break — `impl` stays a plain
+  identifier. The one semantic commitment is that `typedef default` is special-
+  cased to `impl Default for`, which the general trait-impl (Unit 3) later
+  generalises.
+- **Reversible-cost:** Unit 1 is additive variants/flags; Unit 2 is a new
+  additive `Item::ImplBlock` over an already-documented surface. The deferral of
+  3 and 4 is the main judgement; it is recorded here so a future reader does not
+  read PS-09 as "all four, now".
 
 ### Alternatives considered
 - **One PS-09 ADR specifying all four.** Rejected: trait and async are each
   PS-08-sized; one ADR covering four features of this spread is unreviewable and
   violates one-decision-per-ADR. This ADR commits the cheap two and defers the
   big two by name.
+- **A Rust-style `impl Type { }` item instead of the `typedef … @Type`
+  surface.** Rejected: the C-style `typedef { } @Type` surface is already
+  designed and documented (DRIFT-1), matches Crusty's C-flavoured philosophy,
+  and needs no new `impl` keyword. Introducing a parallel Rust-style spelling
+  would be two surfaces for one feature.
 - **Do `trait` before `unsafe`/`impl`** because it is "more important".
-  Rejected: the house rule is simplest-first; `unsafe` and inherent `impl` are
-  small, reuse existing paths, and deliver value immediately, while `trait`
-  needs a design pass. Value-ordering a harder feature ahead buys nothing but
-  risk.
+  Rejected: the house rule is simplest-first; `unsafe` and the typedef impl
+  surface are small, reuse existing paths, and deliver value immediately, while
+  defining new `trait`s needs a design pass. Value-ordering a harder feature
+  ahead buys nothing but risk.
 - **Skip `unsafe` as a surface feature (keep it `__rust__`-only).** Rejected:
   raw-pointer / FFI work is squarely in the C-compat target, `unsafe` is already
   reserved, and the lowering is a one-line passthrough — it earns its surface.
@@ -136,12 +182,18 @@ does not become one unreviewable mega-change.
 - [ ] End-to-end: an `unsafe` block performing a raw-pointer deref (value from
       `__rust__`) transpiles, compiles under `rustc -D unused_parens`, and runs.
 
-### Unit 2 — inherent `impl`
-- [ ] `Item::Impl { ty, generic_params, where_clause, methods }` exists.
-- [ ] `impl Point { int get_x(self) { … } }` parses; `impl` is reserved.
-- [ ] Codegen emits `impl Point { fn get_x(&self) -> i32 { … } }`, reusing the
-      method emitter; a method defined in a separate `impl` block is callable
-      end-to-end under rustc.
+### Unit 2 — `typedef … @Type` impl blocks (resolves DRIFT-1)
+- [ ] `Item::ImplBlock { target, trait_name, name, methods }` exists.
+- [ ] `typedef struct { int get_x(self) { … } } @Point;` parses into an
+      `ImplBlock` with `target=Point`, `trait_name=None`; `@Point.name` sets
+      `name`; `typedef default { … } @Point;` sets `trait_name=Some(Default)`.
+      No `impl` keyword is introduced (`impl` stays a valid identifier).
+- [ ] Codegen emits `impl Point { fn get_x(&self) -> i32 { … } }` (reusing the
+      method emitter) and `impl Default for Point { … }` for the `default` form;
+      a method defined in a `typedef … @Point;` block is callable end-to-end
+      under rustc, and `typedef default` yields a working `Default` impl.
+- [ ] `docs/syntax/typedef.md` is updated to mark the impl-block surface
+      implemented; DRIFT-1 is resolved in the roadmap.
 
 ### Both committed units
 - [ ] `cargo test` green and `clippy` clean after each phase.
