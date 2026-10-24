@@ -557,6 +557,90 @@ mod tests {
         assert_eq!(result, "1 + 2");
     }
 
+    // --- PS-06 Phase 2: match-expression codegen (ADR-0012) ---
+
+    fn match_arm(pattern: Pattern, guard: Option<Expression>, body: Expression) -> MatchArm {
+        MatchArm {
+            pattern,
+            guard,
+            body: Box::new(body),
+        }
+    }
+
+    #[test]
+    fn test_generate_match_literal_wildcard() {
+        let gen = CodeGenerator::new(TargetLanguage::Rust);
+        let expr = Expression::Match {
+            scrutinee: Box::new(Expression::Ident(Ident::new("n"))),
+            arms: vec![
+                match_arm(
+                    Pattern::Literal(Literal::Int(1)),
+                    None,
+                    Expression::Literal(Literal::Int(10)),
+                ),
+                match_arm(Pattern::Wildcard, None, Expression::Literal(Literal::Int(0))),
+            ],
+        };
+        let out = gen.generate_expression_string(&expr);
+        assert!(out.starts_with("match n {"), "got: {out}");
+        assert!(out.contains("1 => 10,"), "got: {out}");
+        assert!(out.contains("_ => 0,"), "got: {out}");
+    }
+
+    #[test]
+    fn test_generate_match_guard_range_or_path_raw() {
+        let gen = CodeGenerator::new(TargetLanguage::Rust);
+        let body = |n| Expression::Literal(Literal::Int(n));
+        let expr = Expression::Match {
+            scrutinee: Box::new(Expression::Ident(Ident::new("x"))),
+            arms: vec![
+                // inclusive range
+                match_arm(
+                    Pattern::Range {
+                        lo: Box::new(Expression::Literal(Literal::Int(1))),
+                        hi: Box::new(Expression::Literal(Literal::Int(5))),
+                        inclusive: true,
+                    },
+                    None,
+                    body(1),
+                ),
+                // binding with guard
+                match_arm(
+                    Pattern::Binding(Ident::new("v")),
+                    Some(Expression::Binary {
+                        op: BinaryOp::Gt,
+                        left: Box::new(Expression::Ident(Ident::new("v"))),
+                        right: Box::new(Expression::Literal(Literal::Int(0))),
+                    }),
+                    body(2),
+                ),
+                // or-alternation
+                match_arm(
+                    Pattern::Or(vec![
+                        Pattern::Literal(Literal::Int(7)),
+                        Pattern::Literal(Literal::Int(8)),
+                    ]),
+                    None,
+                    body(3),
+                ),
+                // path pattern
+                match_arm(
+                    Pattern::Path(vec![Ident::new("Color"), Ident::new("Red")]),
+                    None,
+                    body(4),
+                ),
+                // raw passthrough
+                match_arm(Pattern::Raw("Some(y)".to_string()), None, body(5)),
+            ],
+        };
+        let out = gen.generate_expression_string(&expr);
+        assert!(out.contains("1..=5 => 1,"), "range: {out}");
+        assert!(out.contains("v if v > 0 => 2,"), "guard: {out}");
+        assert!(out.contains("7 | 8 => 3,"), "or: {out}");
+        assert!(out.contains("Color::Red => 4,"), "path: {out}");
+        assert!(out.contains("Some(y) => 5,"), "raw: {out}");
+    }
+
     // CG-1: parentheses are emitted only where precedence/associativity need
     // them, not around every binary (which tripped rustc's unused_parens).
     #[test]

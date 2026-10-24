@@ -186,9 +186,57 @@ int square(int n) {
         assert!(result.is_ok());
     }
 
+    // PS-06 Phase 2 (ADR-0012): a `let = match …` expression-position program
+    // with a range arm, a guard, a binding, and a wildcard must transpile and
+    // compile under rustc.
     #[test]
-    fn test_rustc_error_reporting() {
-        // Create a Crusty file that will generate invalid Rust code
+    fn test_compile_match_expression_to_binary() {
+        let test_source = r#"
+void main() {
+    int n = 7;
+    int grade = match n {
+        0 => 100,
+        1..=5 => 50,
+        x if x > 6 => 10,
+        _ => 0,
+    };
+    println!("grade={}", grade);
+}
+"#;
+        let input_path = PathBuf::from("test_compile_match_12345.crst");
+        let output_path = PathBuf::from("test_compile_match_12345");
+
+        fs::write(&input_path, test_source).unwrap();
+
+        let options = CompilerOptions {
+            input_file: input_path.clone(),
+            output_file: Some(output_path.clone()),
+            out_dir: None,
+            emit: EmitMode::Binary,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        let result = run_compiler(&options);
+
+        // Clean up
+        let _ = fs::remove_file(&input_path);
+        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(format!("{}.rs", output_path.display()));
+
+        // Succeeds when rustc is available; otherwise a RustcInvocation error.
+        // Either way it must NOT be a parse/semantic failure of the match.
+        if let Err(err) = result {
+            assert!(
+                matches!(err, crate::error::CompilerError::RustcInvocation(_)),
+                "match program should transpile cleanly; got {err:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_rustc_error_reporting() {        // Create a Crusty file that will generate invalid Rust code
         // This is a bit tricky since our compiler should generate valid Rust
         // For now, we'll test that the error reporting mechanism works
         // by checking that rustc errors are properly captured

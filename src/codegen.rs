@@ -1607,12 +1607,59 @@ impl CodeGenerator {
                 result.push_str(" }");
                 result
             }
-            Expression::Match { .. } => {
-                // PS-06 Phase 1 is parse-and-store only; code generation for
-                // `match` lands in Phase 2 (ADR-0012). No Phase-1 path emits a
-                // match, so this marker is never reached by a passing build.
-                unimplemented!("match-expression codegen is ADR-0012 Phase 2")
+            Expression::Match { scrutinee, arms } => {
+                // PS-06 (ADR-0012): lower to a Rust `match`, emitted inline as
+                // an expression so `let x = match … { … };` works. Each arm is
+                // `<pattern> [if <guard>] => <body>,`.
+                let mut result = String::from("match ");
+                result.push_str(&self.generate_expression_string(scrutinee));
+                result.push_str(" {\n");
+                for arm in arms {
+                    result.push_str(&self.generate_pattern_string(&arm.pattern));
+                    if let Some(ref guard) = arm.guard {
+                        result.push_str(" if ");
+                        result.push_str(&self.generate_expression_string(guard));
+                    }
+                    result.push_str(" => ");
+                    result.push_str(&self.generate_expression_string(&arm.body));
+                    result.push_str(",\n");
+                }
+                result.push('}');
+                result
             }
+        }
+    }
+
+    /// Generate a match-arm pattern as a Rust string (PS-06, ADR-0012).
+    /// Structural patterns are emitted from their parts; `Pattern::Raw` is
+    /// emitted verbatim (ADR-0001 — rustc arbitrates what Crusty does not
+    /// model structurally).
+    fn generate_pattern_string(&self, pattern: &crate::ast::Pattern) -> String {
+        use crate::ast::Pattern;
+        match pattern {
+            Pattern::Wildcard => "_".to_string(),
+            Pattern::Literal(lit) => self.generate_literal_string(lit),
+            Pattern::Binding(name) => name.name.clone(),
+            Pattern::Range { lo, hi, inclusive } => {
+                let mut result = self.generate_expression_string(lo);
+                result.push_str("..");
+                if *inclusive {
+                    result.push('=');
+                }
+                result.push_str(&self.generate_expression_string(hi));
+                result
+            }
+            Pattern::Or(alts) => alts
+                .iter()
+                .map(|p| self.generate_pattern_string(p))
+                .collect::<Vec<_>>()
+                .join(" | "),
+            Pattern::Path(segs) => segs
+                .iter()
+                .map(|s| s.name.clone())
+                .collect::<Vec<_>>()
+                .join("::"),
+            Pattern::Raw(s) => s.clone(),
         }
     }
 
