@@ -183,7 +183,12 @@ mod tests {
         };
 
         let result_type = analyzer.analyze_expression_test(&generic_call);
-        assert_eq!(result_type, Type::Ident(Ident::new("Vec")));
+        // SEM-03 (ADR-0011): an explicit-generic call no longer blindly echoes
+        // the scope type. `Vec` is not a registered struct with a `new` method
+        // returning its own generic parameter, so the result is Auto — rustc
+        // arbitrates. The supplied type argument is substituted only when the
+        // named method is recorded as returning exactly that parameter.
+        assert_eq!(result_type, Type::Auto);
     }
 
     #[test]

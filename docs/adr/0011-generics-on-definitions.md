@@ -1,7 +1,7 @@
 # ADR-0011: Generic parameters on definitions (PS-08, SEM-03, SEM-04)
 
 ## Status
-proposed
+accepted
 
 ## Context
 ADR-0009 groups three gaps into one cohesive design-first workstream:

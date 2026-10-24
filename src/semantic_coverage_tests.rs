@@ -6,7 +6,7 @@
 #[cfg(test)]
 mod tests {
     use crate::ast::*;
-    use crate::error::SemanticErrorKind;
+    use crate::error::{SemanticError, SemanticErrorKind};
     use crate::semantic::SemanticAnalyzer;
 
     // Helper to create a simple file with items
@@ -1247,5 +1247,170 @@ mod tests {
         let ty = analyzer.analyze_expression_test(&call);
         assert_eq!(ty, Type::Auto);
         assert_eq!(analyzer.errors().len(), before, "must not push an error");
+    }
+
+    // ------------------------------------------------------------------
+    // SEM-03 (ADR-0011): explicit-generic / turbofish return substitution
+    // ------------------------------------------------------------------
+
+    /// Parse Crusty source and analyze it, returning the analyzer so callers
+    /// can inspect errors.
+    fn analyze_source(src: &str) -> (SemanticAnalyzer, Result<(), Vec<SemanticError>>) {
+        use crate::parser::Parser;
+        let mut parser = Parser::new(src).expect("parser init");
+        let file = parser.parse_file().expect("parse");
+        let mut analyzer = SemanticAnalyzer::new();
+        let result = analyzer.analyze(&file);
+        (analyzer, result)
+    }
+
+    /// A struct `Box` with a static method `wrap<U>(U) -> U` (returns its own
+    /// generic parameter) plus `first(&self) -> int` (concrete return).
+    fn box_with_generic_method() -> Item {
+        Item::Struct(Struct {
+            generic_params: vec![],
+            where_clause: None,
+            visibility: Visibility::Public,
+            name: Ident::new("Boxy"),
+            fields: vec![Field {
+                visibility: Visibility::Public,
+                name: Ident::new("v"),
+                ty: Type::Primitive(PrimitiveType::Int),
+                doc_comments: vec![],
+                attributes: vec![],
+            }],
+            methods: vec![
+                Function {
+                    generic_params: vec![GenericParam::Type {
+                        name: Ident::new("U"),
+                        bounds: vec![],
+                    }],
+                    where_clause: None,
+                    visibility: Visibility::Public,
+                    name: Ident::new("wrap"),
+                    params: vec![Param {
+                        name: Ident::new("x"),
+                        ty: Type::Ident(Ident::new("U")),
+                    }],
+                    return_type: Some(Type::Ident(Ident::new("U"))),
+                    body: Some(Block::new(vec![])),
+                    is_variadic: false,
+                    doc_comments: vec![],
+                    attributes: vec![],
+                },
+                Function {
+                    generic_params: vec![],
+                    where_clause: None,
+                    visibility: Visibility::Public,
+                    name: Ident::new("make"),
+                    params: vec![],
+                    return_type: Some(Type::Primitive(PrimitiveType::Int)),
+                    body: Some(Block::new(vec![])),
+                    is_variadic: false,
+                    doc_comments: vec![],
+                    attributes: vec![],
+                },
+            ],
+            doc_comments: vec![],
+            attributes: vec![],
+        })
+    }
+
+    #[test]
+    fn test_explicit_generic_call_substitutes_type_param_return() {
+        let mut analyzer = SemanticAnalyzer::new();
+        let _ = analyzer.analyze(&create_file_with_items(vec![box_with_generic_method()]));
+
+        // `@Boxy(i32).wrap(0)` — wrap returns its own param `U`, so the result
+        // is the supplied type argument i32.
+        let call = Expression::ExplicitGenericCall {
+            ty: Type::Ident(Ident::new("Boxy")),
+            generics: vec![Type::Primitive(PrimitiveType::I32)],
+            method: Ident::new("wrap"),
+            args: vec![Expression::Literal(Literal::Int(0))],
+        };
+        let ty = analyzer.analyze_expression_test(&call);
+        assert_eq!(ty, Type::Primitive(PrimitiveType::I32));
+    }
+
+    #[test]
+    fn test_turbofish_call_substitutes_type_param_return() {
+        let mut analyzer = SemanticAnalyzer::new();
+        let _ = analyzer.analyze(&create_file_with_items(vec![box_with_generic_method()]));
+
+        // `Boxy::wrap::<bool>(true)` — same substitution through TurbofishCall.
+        let call = Expression::TurbofishCall {
+            ty: Type::Ident(Ident::new("Boxy")),
+            method: Ident::new("wrap"),
+            generics: vec![Type::Primitive(PrimitiveType::Bool)],
+            args: vec![Expression::Literal(Literal::Bool(true))],
+        };
+        let ty = analyzer.analyze_expression_test(&call);
+        assert_eq!(ty, Type::Primitive(PrimitiveType::Bool));
+    }
+
+    #[test]
+    fn test_explicit_generic_call_concrete_return_is_auto() {
+        let mut analyzer = SemanticAnalyzer::new();
+        let _ = analyzer.analyze(&create_file_with_items(vec![box_with_generic_method()]));
+
+        // `make` returns a concrete `int`, not a generic param, so an
+        // explicit-generic call on it is undecidable here -> Auto.
+        let call = Expression::ExplicitGenericCall {
+            ty: Type::Ident(Ident::new("Boxy")),
+            generics: vec![Type::Primitive(PrimitiveType::I32)],
+            method: Ident::new("make"),
+            args: vec![],
+        };
+        let ty = analyzer.analyze_expression_test(&call);
+        assert_eq!(ty, Type::Auto);
+    }
+
+    // ------------------------------------------------------------------
+    // SEM-04 (ADR-0011): generic-param argument compatibility, generic
+    // return construction, and array-literal <-> Vec<T>.
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn test_generic_function_accepts_concrete_args() {
+        // A generic free function called with concrete arguments must type-
+        // check: its `T` parameters erase to Auto, so `i32` is accepted.
+        let (_, result) = analyze_source(
+            "T echo<T>(T x) { return x; } void main() { let n = echo(7); }",
+        );
+        assert!(result.is_ok(), "generic fn call with concrete args: {:?}", result);
+    }
+
+    #[test]
+    fn test_generic_struct_monomorphic_init_returns() {
+        // A static constructor returning `Stack<T>` from a `Stack { .. }`
+        // initializer must type-check (SEM-04 generic-return construction).
+        let (_, result) = analyze_source(
+            "struct Stack<T> { Vec<T> items; \
+             static Stack<T> new() { return Stack { items: @Vec.new() }; } }",
+        );
+        assert!(result.is_ok(), "generic struct ctor: {:?}", result);
+    }
+
+    #[test]
+    fn test_array_literal_initialises_declared_vec() {
+        use crate::semantic::TypeEnvironment;
+        // SEM-04 part 1: a declared `Vec<i32>` accepts an `[i32; n]` literal.
+        let env = TypeEnvironment::new();
+        let vec_i32 = Type::Generic {
+            base: Box::new(Type::Ident(Ident::new("Vec"))),
+            args: vec![Type::Primitive(PrimitiveType::I32)],
+        };
+        let arr_i32 = Type::Array {
+            ty: Box::new(Type::Primitive(PrimitiveType::I32)),
+            size: Some(3),
+        };
+        assert!(env.is_compatible(&vec_i32, &arr_i32));
+        // Element-type mismatch is still rejected.
+        let arr_bool = Type::Array {
+            ty: Box::new(Type::Primitive(PrimitiveType::Bool)),
+            size: Some(1),
+        };
+        assert!(!env.is_compatible(&vec_i32, &arr_bool));
     }
 }

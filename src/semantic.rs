@@ -177,6 +177,10 @@ pub struct MethodSig {
     pub params: Vec<Type>,
     pub return_type: Type,
     pub is_instance: bool,
+    /// The method's own generic parameters (SEM-03, ADR-0011). Used to decide
+    /// whether `return_type` names one of them, so an explicit-generic call
+    /// can substitute the supplied type argument.
+    pub generic_params: Vec<crate::ast::GenericParam>,
 }
 
 /// Type information stored in the type environment
@@ -513,7 +517,49 @@ impl TypeEnvironment {
                 self.is_compatible(ty1, ty2)
             }
 
+            // SEM-04 (ADR-0011): an array literal / slice initialises a
+            // declared growable collection. A `Vec<E>` (or VecDeque) accepts an
+            // `[F; n]` / `[F]` when the element types unify; the direction is
+            // symmetric so a declared `Vec<T>` on either side matches.
+            (
+                Type::Generic { base, args },
+                Type::Array { ty: elem, .. } | Type::Slice { ty: elem },
+            )
+            | (
+                Type::Array { ty: elem, .. } | Type::Slice { ty: elem },
+                Type::Generic { base, args },
+            ) if Self::is_vec_like(base) && args.len() == 1 => {
+                self.is_compatible(&args[0], elem)
+            }
+
+            // SEM-04 (ADR-0011): a monomorphic construction of a generic type —
+            // a bare `Ident`/`Primitive` carrying the same base name as a
+            // declared `Generic { base, .. }` — matches regardless of the type
+            // arguments (e.g. a `Stack { .. }` initializer satisfies a declared
+            // `Stack<T>` return). Argument checking is rustc's job.
+            (Type::Generic { base, .. }, other) | (other, Type::Generic { base, .. })
+                if Self::type_base_name(base) == Self::type_base_name(other)
+                    && Self::type_base_name(other).is_some() =>
+            {
+                true
+            }
+
             _ => false,
+        }
+    }
+
+    /// True when a type's base is a growable Rust collection that an array /
+    /// slice literal may initialise (SEM-04).
+    fn is_vec_like(ty: &Type) -> bool {
+        matches!(Self::type_base_name(ty).as_deref(), Some("Vec" | "VecDeque"))
+    }
+
+    /// The simple name of a nominal type (`Ident`), or `None` for a structural
+    /// type that has no single name.
+    fn type_base_name(ty: &Type) -> Option<String> {
+        match ty {
+            Type::Ident(ident) => Some(ident.name.clone()),
+            _ => None,
         }
     }
 }
@@ -541,6 +587,12 @@ pub struct SemanticAnalyzer {
     /// This flag is set to true when analyzing a nested function body and is used to reject
     /// nested functions within nested functions (Requirement 59.19: no multi-level nesting).
     inside_nested_function: bool,
+    /// Names of the generic type/const parameters currently in scope
+    /// (ADR-0011, SEM-04). While analyzing a generic definition's body, a type
+    /// that names one of these is treated as unknown (`Auto`) for
+    /// compatibility checks — Crusty does not reason about the parameter, it
+    /// defers to rustc.
+    generic_scope: std::collections::HashSet<String>,
 }
 
 impl SemanticAnalyzer {
@@ -554,6 +606,7 @@ impl SemanticAnalyzer {
             modified_variables: std::collections::HashSet::new(),
             expected_return_type: None,
             inside_nested_function: false,
+            generic_scope: std::collections::HashSet::new(),
         }
     }
 
@@ -609,6 +662,113 @@ impl SemanticAnalyzer {
         }
     }
 
+    /// Collect the type/const parameter NAMES from a generic-parameter list
+    /// (lifetimes are not types, so they are not collected).
+    fn generic_param_names(params: &[crate::ast::GenericParam]) -> Vec<String> {
+        use crate::ast::GenericParam;
+        params
+            .iter()
+            .filter_map(|p| match p {
+                GenericParam::Type { name, .. } | GenericParam::Const { name, .. } => {
+                    Some(name.name.clone())
+                }
+                GenericParam::Lifetime { .. } => None,
+            })
+            .collect()
+    }
+
+    /// Rewrite a type so any identifier naming an in-scope generic parameter
+    /// becomes `Type::Auto` (ADR-0011, SEM-04). Applied to a definition's
+    /// parameter and return types before they flow into compatibility checks,
+    /// so a value of a concrete type satisfies a generic-parameter-typed slot
+    /// and Crusty defers the real check to rustc. Recurses through the
+    /// compound type forms so `Vec<T>`, `T[]`, `*T`, `&T`, and `(T, U)` all
+    /// erase their generic leaves.
+    fn erase_generics(&self, ty: &Type) -> Type {
+        let names = self.generic_scope.clone();
+        Self::erase_generics_in(ty, &names)
+    }
+
+    /// Erase against an explicit parameter list rather than the current scope
+    /// — used while REGISTERING a definition, before its params are pushed.
+    fn erase_generics_with(
+        &self,
+        ty: &Type,
+        params: &[crate::ast::GenericParam],
+    ) -> Type {
+        let names: std::collections::HashSet<String> =
+            Self::generic_param_names(params).into_iter().collect();
+        Self::erase_generics_in(ty, &names)
+    }
+
+    /// Core recursion: map any `Type::Ident` whose name is in `names` to
+    /// `Type::Auto`, descending through compound type forms.
+    fn erase_generics_in(ty: &Type, names: &std::collections::HashSet<String>) -> Type {
+        match ty {
+            Type::Ident(ident) if names.contains(&ident.name) => Type::Auto,
+            Type::Pointer { ty, mutable } => Type::Pointer {
+                ty: Box::new(Self::erase_generics_in(ty, names)),
+                mutable: *mutable,
+            },
+            Type::Reference { ty, mutable } => Type::Reference {
+                ty: Box::new(Self::erase_generics_in(ty, names)),
+                mutable: *mutable,
+            },
+            Type::Array { ty, size } => Type::Array {
+                ty: Box::new(Self::erase_generics_in(ty, names)),
+                size: *size,
+            },
+            Type::Slice { ty } => Type::Slice {
+                ty: Box::new(Self::erase_generics_in(ty, names)),
+            },
+            Type::Tuple { types } => Type::Tuple {
+                types: types.iter().map(|t| Self::erase_generics_in(t, names)).collect(),
+            },
+            Type::Generic { base, args } => Type::Generic {
+                base: Box::new(Self::erase_generics_in(base, names)),
+                args: args.iter().map(|t| Self::erase_generics_in(t, names)).collect(),
+            },
+            Type::Fallible { ty } => Type::Fallible {
+                ty: Box::new(Self::erase_generics_in(ty, names)),
+            },
+            other => other.clone(),
+        }
+    }
+
+    /// SEM-03 (ADR-0011): resolve the return type of an explicit-generic or
+    /// turbofish call. If the named method's declared return type is exactly
+    /// one of the method's own generic parameters, return the supplied type
+    /// argument in the same position; otherwise `Type::Auto` (the type args
+    /// are not discarded only in the one case the AST makes decidable).
+    fn generic_call_return_type(
+        &self,
+        ty: &Type,
+        method: &Ident,
+        generics: &[Type],
+    ) -> Type {
+        let resolved = self.type_env.resolve_type(ty);
+        let Type::Ident(type_ident) = &resolved else {
+            return Type::Auto;
+        };
+        let Some(TypeKind::Struct { methods, .. }) =
+            self.type_env.get_type(&type_ident.name).map(|t| t.kind.clone())
+        else {
+            return Type::Auto;
+        };
+        let Some(sig) = methods.iter().find(|m| m.name == method.name) else {
+            return Type::Auto;
+        };
+        // Is the declared return type one of the method's own generic params?
+        let Type::Ident(ret_ident) = &sig.return_type else {
+            return Type::Auto;
+        };
+        let param_names = Self::generic_param_names(&sig.generic_params);
+        match param_names.iter().position(|n| n == &ret_ident.name) {
+            Some(pos) if pos < generics.len() => generics[pos].clone(),
+            _ => Type::Auto,
+        }
+    }
+
     /// Analyze a function declaration
     fn analyze_function(&mut self, func: &crate::ast::Function) {
         // Validate that function names don't use double-underscore pattern (reserved for macros)
@@ -627,17 +787,22 @@ impl SemanticAnalyzer {
             return;
         }
 
-        // Register function in symbol table
-        let func_type = if let Some(ref return_type) = func.return_type {
-            Type::Function {
-                params: func.params.iter().map(|p| p.ty.clone()).collect(),
-                return_type: Box::new(return_type.clone()),
-            }
-        } else {
-            Type::Function {
-                params: func.params.iter().map(|p| p.ty.clone()).collect(),
-                return_type: Box::new(Type::Primitive(crate::ast::PrimitiveType::Void)),
-            }
+        // Register function in symbol table. A generic parameter in a
+        // signature type is erased to `Auto` (ADR-0011, SEM-04) so a later
+        // call with concrete arguments type-checks and defers to rustc.
+        let erased_params: Vec<Type> = func
+            .params
+            .iter()
+            .map(|p| self.erase_generics_with(&p.ty, &func.generic_params))
+            .collect();
+        let erased_return: Type = func
+            .return_type
+            .as_ref()
+            .map(|rt| self.erase_generics_with(rt, &func.generic_params))
+            .unwrap_or(Type::Primitive(crate::ast::PrimitiveType::Void));
+        let func_type = Type::Function {
+            params: erased_params,
+            return_type: Box::new(erased_return),
         };
 
         let symbol = Symbol::new(
@@ -659,13 +824,20 @@ impl SemanticAnalyzer {
             return;
         }
 
-        // Set expected return type for this function
+        // Bring this function's generic parameters into scope (ADR-0011,
+        // SEM-04) so types naming them erase to `Auto` while the body is
+        // analyzed. Restored on exit.
+        let old_generic_scope = self.generic_scope.clone();
+        for name in Self::generic_param_names(&func.generic_params) {
+            self.generic_scope.insert(name);
+        }
+
+        // Set expected return type for this function (generic params erased).
         let old_return_type = self.expected_return_type.clone();
-        self.expected_return_type = if let Some(ref return_type) = func.return_type {
-            Some(return_type.clone())
-        } else {
-            Some(Type::Primitive(crate::ast::PrimitiveType::Void))
-        };
+        self.expected_return_type = Some(match func.return_type {
+            Some(ref return_type) => self.erase_generics(return_type),
+            None => Type::Primitive(crate::ast::PrimitiveType::Void),
+        });
 
         // Enter function scope
         self.symbol_table.enter_scope();
@@ -674,7 +846,7 @@ impl SemanticAnalyzer {
         for param in &func.params {
             let param_symbol = Symbol::new(
                 param.name.name.clone(),
-                param.ty.clone(),
+                self.erase_generics(&param.ty),
                 SymbolKind::Variable,
                 false,
             );
@@ -703,8 +875,9 @@ impl SemanticAnalyzer {
         // Exit function scope
         self.symbol_table.exit_scope();
 
-        // Restore previous return type
+        // Restore previous return type and generic scope
         self.expected_return_type = old_return_type;
+        self.generic_scope = old_generic_scope;
     }
 
     /// Analyze a struct definition
@@ -713,7 +886,12 @@ impl SemanticAnalyzer {
         let fields: Vec<(String, Type)> = struct_def
             .fields
             .iter()
-            .map(|f| (f.name.name.clone(), f.ty.clone()))
+            .map(|f| {
+                (
+                    f.name.name.clone(),
+                    self.erase_generics_with(&f.ty, &struct_def.generic_params),
+                )
+            })
             .collect();
 
         // SEM-00 (ADR-0010): record each method's signature keyed by this type.
@@ -740,6 +918,7 @@ impl SemanticAnalyzer {
                     params,
                     return_type: m.return_type.clone().unwrap_or(Type::Auto),
                     is_instance,
+                    generic_params: m.generic_params.clone(),
                 }
             })
             .collect();
@@ -774,10 +953,18 @@ impl SemanticAnalyzer {
             ));
         }
 
-        // Analyze struct methods
+        // Analyze struct methods with the struct's own generic parameters in
+        // scope (ADR-0011, SEM-04): a method that mentions the struct's type
+        // params (e.g. `A first(&self)`) treats them as `Auto`. Each method's
+        // own params are added on top inside analyze_function.
+        let old_generic_scope = self.generic_scope.clone();
+        for name in Self::generic_param_names(&struct_def.generic_params) {
+            self.generic_scope.insert(name);
+        }
         for method in &struct_def.methods {
             self.analyze_function(method);
         }
+        self.generic_scope = old_generic_scope;
     }
 
     /// Analyze an enum definition
@@ -2371,8 +2558,8 @@ impl SemanticAnalyzer {
 
             Expression::ExplicitGenericCall {
                 ty,
-                generics: _,
-                method: _,
+                generics,
+                method,
                 args,
             } => {
                 // Analyze arguments
@@ -2380,8 +2567,10 @@ impl SemanticAnalyzer {
                     self.analyze_expression(arg);
                 }
 
-                // Explicit generic call returns the type (simplified)
-                ty.clone()
+                // SEM-03 (ADR-0011): if the named method returns one of its own
+                // generic parameters, substitute the correspondingly-positioned
+                // supplied type argument. Anything else is deferred to rustc.
+                self.generic_call_return_type(ty, method, generics)
             }
 
             Expression::TypeScopedPath { ty: _, member: _ } => {
@@ -2393,16 +2582,18 @@ impl SemanticAnalyzer {
 
             Expression::TurbofishCall {
                 ty,
-                method: _,
-                generics: _,
+                method,
+                generics,
                 args,
             } => {
-                // Analyze arguments; the real return type needs method-signature
-                // typing (SEM-00), so echo the scope type like TypeScopedCall.
+                // Analyze arguments.
                 for arg in args {
                     self.analyze_expression(arg);
                 }
-                ty.clone()
+                // SEM-03 (ADR-0011): same substitution as ExplicitGenericCall —
+                // the type arguments bind to the method here, which is exactly
+                // what generic_call_return_type resolves.
+                self.generic_call_return_type(ty, method, generics)
             }
 
             Expression::Comma { left, right } => {
