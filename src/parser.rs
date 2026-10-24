@@ -850,6 +850,24 @@ peg::parser! {
             // Level 3: Primary types (highest precedence)
             // Generic type: Base<T1, T2, ...>
             // Must come before ident_type to avoid consuming the base identifier
+            // Function-pointer type (PS-07, ADR-0013): `fn(T1, T2) -> R`, and
+            // the return-less `fn(T1, T2)` which defaults to unit. Lowers to
+            // the existing Type::Function, which codegen emits verbatim as a
+            // Rust `fn(...) -> ...` pointer. Matched before the generic/ident
+            // arms so `fn` is not read as a user type name; `!ident_char()`
+            // keeps a type literally named `fnord` an identifier type.
+            "fn" !ident_char() _ "(" _ params:type_list()? _ ")" _ "->" _ ret:type_expr() {
+                Type::Function {
+                    params: params.unwrap_or_default(),
+                    return_type: Box::new(ret),
+                }
+            }
+            "fn" !ident_char() _ "(" _ params:type_list()? _ ")" {
+                Type::Function {
+                    params: params.unwrap_or_default(),
+                    return_type: Box::new(Type::Tuple { types: vec![] }),
+                }
+            }
             base:type_base() _ "<" _ args:type_list() _ ">" {
                 Type::Generic { base: Box::new(base), args }
             }
@@ -7006,6 +7024,59 @@ mod primitive_type_tests {
         assert_eq!(
             crusty_peg_parser::type_expr("longitude"),
             Ok(Type::Ident(Ident::new("longitude")))
+        );
+    }
+
+    // --- PS-07 Workstream A: function-pointer types (ADR-0013, DRIFT-3) ---
+
+    #[test]
+    fn test_fn_pointer_type_with_return() {
+        // `fn(int) -> int` → Type::Function { [int], int }
+        let result = crusty_peg_parser::type_expr("fn(int) -> int");
+        assert_eq!(
+            result,
+            Ok(Type::Function {
+                params: vec![Type::Primitive(PrimitiveType::Int)],
+                return_type: Box::new(Type::Primitive(PrimitiveType::Int)),
+            })
+        );
+    }
+
+    #[test]
+    fn test_fn_pointer_type_multi_param() {
+        let result = crusty_peg_parser::type_expr("fn(int, bool) -> int");
+        assert_eq!(
+            result,
+            Ok(Type::Function {
+                params: vec![
+                    Type::Primitive(PrimitiveType::Int),
+                    Type::Primitive(PrimitiveType::Bool),
+                ],
+                return_type: Box::new(Type::Primitive(PrimitiveType::Int)),
+            })
+        );
+    }
+
+    #[test]
+    fn test_fn_pointer_type_no_return_defaults_unit() {
+        // Return-less `fn(int)` defaults to a unit return.
+        let result = crusty_peg_parser::type_expr("fn(int)");
+        assert_eq!(
+            result,
+            Ok(Type::Function {
+                params: vec![Type::Primitive(PrimitiveType::Int)],
+                return_type: Box::new(Type::Tuple { types: vec![] }),
+            })
+        );
+    }
+
+    #[test]
+    fn test_fn_is_not_hijacked_as_ident_type() {
+        // A type literally named `fnord` stays an identifier type — the `fn`
+        // arm requires a non-ident char after `fn`.
+        assert_eq!(
+            crusty_peg_parser::type_expr("fnord"),
+            Ok(Type::Ident(Ident::new("fnord")))
         );
     }
 

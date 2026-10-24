@@ -102,8 +102,9 @@ ADR'd) before implementation.
 - **DRIFT-4** `control-flow.md` `for_stmt` EBNF marks the condition optional;
   the grammar requires it — fix the EBNF.
 - **DRIFT-2 / DRIFT-3** fallible-type and function-pointer-type docs — DRIFT-2
-  is resolved by PS-02 (done); DRIFT-3 resolves when PS-07 lands (ADR-0013,
-  Workstream A).
+  is resolved by PS-02 (done); DRIFT-3 is resolved — the `fn(T) -> R` type
+  surface landed (ADR-0013 Workstream A), so function-pointer types are
+  spellable in Crusty source.
 
 ## Consequences
 - **Easier:** the ranking stays lowest-risk-first and shippable at each step,
