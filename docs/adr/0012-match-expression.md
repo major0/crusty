@@ -1,7 +1,7 @@
 # ADR-0012: `match` expression and statement (PS-06)
 
 ## Status
-proposed
+accepted
 
 ## Context
 ADR-0009's Tier 4 lists **PS-06** — a first-class `match` surface — as a
@@ -145,27 +145,27 @@ Carried in four ordered, independently-committable phases.
   trivial matches to rustc and lose the binding-scope analysis of Phase 3.
 
 ## Verification
-- [ ] `src/ast.rs` has `Expression::Match { scrutinee, arms }`, `MatchArm`, and
+- [x] `src/ast.rs` has `Expression::Match { scrutinee, arms }`, `MatchArm`, and
       a `Pattern` enum with `Wildcard`, `Literal`, `Binding`, `Range`, `Or`,
       `Path`, `Raw`.
-- [ ] A `match` over an integer with literal arms + a wildcard parses into a
+- [x] A `match` over an integer with literal arms + a wildcard parses into a
       `Match` node with the expected arms (parser unit test).
-- [ ] A `match` scrutinee of the form `match p { … }` where `p` is a plain
+- [x] A `match` scrutinee of the form `match p { … }` where `p` is a plain
       identifier parses without being read as a struct literal (no-struct
       context test).
-- [ ] An arm guard (`n if n > 0 => …`) and an inclusive range arm
+- [x] An arm guard (`n if n > 0 => …`) and an inclusive range arm
       (`'a'..='z' => …`) parse into `guard: Some(_)` and `Pattern::Range`.
-- [ ] A structural destructuring pattern (`Some(x) => …`) parses into
+- [x] A structural destructuring pattern (`Some(x) => …`) parses into
       `Pattern::Raw("Some(x)")` (passthrough), not a parse error.
-- [ ] Codegen emits `match <s> { <pat> [if <guard>] => <body>, … }`; a
+- [x] Codegen emits `match <s> { <pat> [if <guard>] => <body>, … }`; a
       non-generic/non-match program's output is byte-unchanged.
-- [ ] End-to-end: a `let r = match … { … };` expression-position program with
+- [x] End-to-end: a `let r = match … { … };` expression-position program with
       a range arm, a guard, and a wildcard transpiles, compiles under
       `rustc -D unused_parens` (RC=0), and runs with the expected output.
-- [ ] A pattern binding is in scope in its arm body (a binding-scope semantic
+- [x] A pattern binding is in scope in its arm body (a binding-scope semantic
       test); an unknown identifier in the arm body still errors.
-- [ ] `switch` behavior and tests are unchanged (the existing `switch` suite
+- [x] `switch` behavior and tests are unchanged (the existing `switch` suite
       still passes).
-- [ ] `cargo test` green and `clippy` clean after each phase.
-- [ ] The control-flow docs describe `match`, the `Pattern::Raw` escape, and
+- [x] `cargo test` green and `clippy` clean after each phase.
+- [x] The control-flow docs describe `match`, the `Pattern::Raw` escape, and
       the no-payload-enum boundary.

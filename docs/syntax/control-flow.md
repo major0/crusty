@@ -110,6 +110,88 @@ The dot is what distinguishes a label from a value: an undotted name after
 a labeled break cannot be written by accident. `continue` carries no value, so
 an undotted name after it is a parse error.
 
+## Match Expression
+
+`match` tests a value against a series of patterns and takes the first arm that
+matches. Unlike the C-style `switch` statement (which matches value
+expressions), `match` matches **patterns** and is an **expression**, so it
+yields a value and can appear in value position such as a `let` initializer.
+
+```c
+let grade = match score {
+    0 => 100,
+    1..=5 => 50,
+    n if n > 6 => 10,
+    _ => 0,
+};
+```
+
+Lowers to the equivalent Rust `match` unchanged:
+```rust
+let grade = match score {
+    0 => 100,
+    1..=5 => 50,
+    n if n > 6 => 10,
+    _ => 0,
+};
+```
+
+### Patterns
+
+The arm patterns Crusty understands structurally:
+
+| Pattern | Example | Meaning |
+|---|---|---|
+| Wildcard | `_` | matches anything, binds nothing |
+| Literal | `0`, `'a'`, `"x"`, `true` | matches that exact value |
+| Binding | `n` | matches anything and binds it to `n` |
+| Range | `1..=5`, `'a'..='z'`, `0..10` | matches a value in the range |
+| Alternation | `1 \| 2 \| 3` | matches any of the listed patterns |
+| Path | `Color::Red` | matches a unit enum variant or a constant |
+
+A **guard** (`if <cond>`) after the pattern adds a boolean condition the arm
+must also satisfy. A pattern binding is in scope in both the guard and the arm
+body, and does not leak past the arm:
+```c
+let doubled = match n {
+    x if x > 6 => x + x,
+    y => y,
+};
+```
+
+### Raw pass-through patterns
+
+Any pattern Crusty does not model structurally — payload destructuring
+(`Some(v)`), tuples (`(a, b)`), struct patterns (`Point { x, y }`) — is carried
+**verbatim** to Rust and left to the Rust compiler, the same way generic bounds
+and `where` clauses pass through. Crusty does not analyse such an arm's body
+(the names a raw pattern binds live in text Crusty did not parse), so those
+arms rely on `rustc` for their diagnostics.
+
+```c
+let v = match opt {
+    Some(x) => x,   // `Some(x)` is passed through verbatim
+    None => 0,
+};
+```
+
+### Boundaries
+
+- **Enum-payload patterns need a Rust-defined enum.** A Crusty `enum` variant
+  is a name and an optional integer value (C-style) — it carries no payload — so
+  a destructuring pattern like `Some(x)` has nothing to bind against for a
+  Crusty-declared enum. Such a value must be defined in a `__rust__ { … }` block,
+  and the destructuring arm is a raw pass-through pattern.
+- **Arm bodies are expressions.** `pat => expr` is the arm shape; a
+  block-bodied arm (`pat => { … }`) is not yet supported, because Crusty has no
+  general block-expression form. Use an expression body, or a `__rust__ { … }`
+  block in expression position.
+- **No exhaustiveness checking in Crusty.** Whether the arms cover every case,
+  and whether any arm is unreachable, are decided by `rustc`.
+
+`match` and the C-style `switch` coexist: `switch` stays the value-matching
+statement; `match` is the pattern-matching expression.
+
 ## Formal Grammar
 
 ```ebnf
@@ -120,4 +202,18 @@ for_in_stmt   = "for" IDENT "in" expr block ;
 loop_stmt     = ["." IDENT ":"] "loop" block ;
 break_stmt    = "break" ["." IDENT] [expr] ";" ;
 continue_stmt = "continue" ["." IDENT] ";" ;
+match_expr    = "match" expr_no_struct "{" {match_arm ","} [match_arm [","]] "}" ;
+match_arm     = pattern ["if" expr_no_struct] "=>" expr_no_comma ;
+pattern       = pattern_no_or {"|" pattern_no_or} ;
+pattern_no_or = "_" | literal | IDENT
+              | literal range_op literal          (* range pattern *)
+              | IDENT {"::" IDENT}                 (* path pattern, 2+ segments *)
+              | raw_pattern ;                      (* verbatim pass-through *)
+range_op      = ".." | "..=" | "..." ;
 ```
+
+Note: the `match` scrutinee and a guard are parsed in the struct-literal-free
+context (`expr_no_struct`), so `match p { … }` reads `p` as the scrutinee and
+`{` as the arm list; a struct-literal scrutinee must be parenthesised. An arm
+body is parsed without the top-level comma operator (`expr_no_comma`) so a `,`
+ends the arm rather than forming a comma expression.
