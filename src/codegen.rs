@@ -4,7 +4,7 @@
 //! Code generation module for emitting Rust or Crusty source code.
 
 use crate::ast::*;
-use crate::semantic::{Capture, CaptureKind};
+use crate::semantic::Capture;
 use std::collections::HashMap;
 
 /// Target language for code generation
@@ -1228,24 +1228,15 @@ impl CodeGenerator {
                 return_type,
                 body,
             } => {
-                // Generate closure with appropriate capture semantics
+                // PS-07 (ADR-0014): a named nested function lowers to a Rust
+                // `fn` ITEM inside the enclosing body — hoisted (callable before
+                // its definition), recursive, and NON-capturing. (Capture lives
+                // on `__func__` anonymous functions, which lower to closures.)
                 self.write_indent();
-                self.write("let ");
-
-                // Determine if we need mut based on captures
-                let captures = self.nested_function_captures.get(&name.name);
-                let has_mutable_captures = captures
-                    .map(|caps| caps.iter().any(|c| matches!(c.kind, CaptureKind::Mutable)))
-                    .unwrap_or(false);
-
-                if has_mutable_captures {
-                    self.write("mut ");
-                }
-
+                self.write("fn ");
                 self.write(&name.name);
-                self.write(" = |");
+                self.write("(");
 
-                // Generate parameters
                 for (i, param) in params.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
@@ -1256,9 +1247,8 @@ impl CodeGenerator {
                     self.write(&param_type);
                 }
 
-                self.write("|");
+                self.write(")");
 
-                // Generate return type if present
                 if let Some(ref ret_ty) = return_type {
                     self.write(" -> ");
                     let return_type_str = self.generate_type_string(ret_ty);
@@ -1267,7 +1257,7 @@ impl CodeGenerator {
 
                 self.write(" ");
                 self.generate_block(body);
-                self.write(";\n");
+                self.write("\n");
             }
             Statement::Attributed { attributes, stmt } => {
                 // Emit each attribute on its own indented line, then the inner

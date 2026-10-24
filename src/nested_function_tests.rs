@@ -380,9 +380,10 @@ void outer() {
 
         let mut analyzer = SemanticAnalyzer::new();
         let result = analyzer.analyze(&file);
-        // Note: This will fail because factorial is used before it's declared
-        // This is expected behavior - nested functions must be declared before use
-        assert!(result.is_err(), "Nested function used before declaration");
+        // ADR-0014: a named nested function lowers to a hoisted Rust `fn` item,
+        // so it is callable BEFORE its textual definition and may recurse.
+        // (Pre-ADR-0014 this was a use-before-declaration error.)
+        assert!(result.is_ok(), "hoisted nested fn: forward ref + recursion should check: {:?}", result);
     }
 
     #[test]
@@ -568,7 +569,7 @@ void outer() {
         codegen.set_captures(analyzer.get_all_captures().clone());
         let rust_code = codegen.generate(&file);
 
-        assert!(rust_code.contains("let inner = ||"));
+        assert!(rust_code.contains("fn inner()"));
         assert!(rust_code.contains("return;"));
     }
 
@@ -592,7 +593,7 @@ void outer() {
         codegen.set_captures(analyzer.get_all_captures().clone());
         let rust_code = codegen.generate(&file);
 
-        assert!(rust_code.contains("let add = |x: i32, y: i32| -> i32"));
+        assert!(rust_code.contains("fn add(x: i32, y: i32) -> i32"));
         assert!(rust_code.contains("return x + y;"));
     }
 
@@ -616,7 +617,7 @@ void outer() {
         codegen.set_captures(analyzer.get_all_captures().clone());
         let rust_code = codegen.generate(&file);
 
-        assert!(rust_code.contains("let get_value = || -> i32"));
+        assert!(rust_code.contains("fn get_value() -> i32"));
         assert!(rust_code.contains("return 42;"));
     }
 
@@ -640,18 +641,18 @@ void outer() {
         codegen.set_captures(analyzer.get_all_captures().clone());
         let rust_code = codegen.generate(&file);
 
-        // Void return type should not generate -> annotation
-        assert!(rust_code.contains("let do_something = ||"));
+        // ADR-0014: nested fn -> Rust fn item; void return emits no `-> ()`.
+        assert!(rust_code.contains("fn do_something()"));
         assert!(!rust_code.contains("-> ()"));
     }
 
     #[test]
-    fn test_codegen_nested_function_with_capture() {
+    fn test_codegen_nested_function_takes_value_as_parameter() {
+        // ADR-0014: a nested fn item cannot capture, so a value it needs is
+        // passed as a parameter (the C-style fix). This lowers cleanly.
         let source = r#"
 void outer() {
-    let x = 42;
-    
-    int get_x() {
+    int get_x(int x) {
         return x;
     }
 }
@@ -659,7 +660,6 @@ void outer() {
         let mut parser = Parser::new(source).unwrap();
         let file = parser.parse_file().unwrap();
 
-        // Run semantic analysis to get captures
         let mut analyzer = SemanticAnalyzer::new();
         let _ = analyzer.analyze(&file);
 
@@ -667,26 +667,26 @@ void outer() {
         codegen.set_captures(analyzer.get_all_captures().clone());
         let rust_code = codegen.generate(&file);
 
-        // Should generate a closure that captures x (immutable)
-        assert!(rust_code.contains("let get_x = || -> i32"));
+        // A hoisted, non-capturing Rust fn item.
+        assert!(rust_code.contains("fn get_x(x: i32) -> i32"));
         assert!(rust_code.contains("return x;"));
+        assert!(!rust_code.contains("let get_x ="), "must not be a closure: {rust_code}");
     }
 
     #[test]
-    fn test_codegen_nested_function_with_mutable_capture() {
+    fn test_codegen_nested_function_is_fn_item_not_closure() {
+        // ADR-0014 regression: a nested function must lower to a Rust `fn`
+        // item, never a `let name = |…|` closure.
         let source = r#"
 void outer() {
-    var counter = 0;
-    
-    void increment() {
-        counter = counter + 1;
+    int bump(int n) {
+        return n + 1;
     }
 }
 "#;
         let mut parser = Parser::new(source).unwrap();
         let file = parser.parse_file().unwrap();
 
-        // Run semantic analysis to get captures
         let mut analyzer = SemanticAnalyzer::new();
         let _ = analyzer.analyze(&file);
 
@@ -694,10 +694,9 @@ void outer() {
         codegen.set_captures(analyzer.get_all_captures().clone());
         let rust_code = codegen.generate(&file);
 
-        // Should generate a closure with mut because it has mutable captures
-        assert!(rust_code.contains("let mut increment = ||"));
-        // The assignment should be there (exact format may vary)
-        assert!(rust_code.contains("counter ="));
+        assert!(rust_code.contains("fn bump(n: i32) -> i32"), "fn item: {rust_code}");
+        assert!(!rust_code.contains("let bump ="), "not a closure: {rust_code}");
+        assert!(!rust_code.contains("|n:"), "not a closure: {rust_code}");
     }
 
     #[test]
@@ -724,8 +723,8 @@ void outer() {
         codegen.set_captures(analyzer.get_all_captures().clone());
         let rust_code = codegen.generate(&file);
 
-        assert!(rust_code.contains("let first = ||"));
-        assert!(rust_code.contains("let second = ||"));
+        assert!(rust_code.contains("fn first()"));
+        assert!(rust_code.contains("fn second()"));
     }
 
     // ============================================================================
@@ -800,13 +799,11 @@ void outer() {
     fn test_integration_nested_function_full_pipeline() {
         let source = r#"
 void outer() {
-    let x = 42;
-    
-    int add_x(int y) {
+    int add_x(int x, int y) {
         return x + y;
     }
-    
-    let result = add_x(10);
+
+    let result = add_x(42, 10);
 }
 "#;
         // Parse
@@ -822,30 +819,24 @@ void outer() {
         let mut codegen = CodeGenerator::new(TargetLanguage::Rust);
         let rust_code = codegen.generate(&file);
 
-        // Verify generated code
-        assert!(rust_code.contains("let x = 42;"));
-        assert!(rust_code.contains("let add_x = |y: i32| -> i32"));
-        assert!(rust_code.contains("let result = add_x(10);"));
+        // ADR-0014: a nested fn is a hoisted Rust fn item; values it needs are
+        // passed as parameters (it cannot capture).
+        assert!(rust_code.contains("fn add_x(x: i32, y: i32) -> i32"));
+        assert!(rust_code.contains("let result = add_x(42, 10);"));
     }
 
     #[test]
     fn test_integration_complex_nested_function() {
+        // ADR-0014: nested functions are hoisted, non-capturing fn items, so a
+        // value they need is passed in. This also exercises a nested function
+        // CALLED BEFORE its definition (hoisting).
         let source = r#"
 void outer() {
-    var counter = 0;
-    let multiplier = 2;
-    
-    void increment() {
-        counter = counter + 1;
-    }
-    
-    int get_value() {
+    let total = compute(3, 2);
+
+    int compute(int counter, int multiplier) {
         return counter * multiplier;
     }
-    
-    increment();
-    increment();
-    let value = get_value();
 }
 "#;
         // Parse
@@ -856,28 +847,16 @@ void outer() {
         let mut analyzer = SemanticAnalyzer::new();
         let result = analyzer.analyze(&file);
         assert!(result.is_ok(), "Semantic analysis should succeed");
-
-        // Verify captures
-        let inc_captures = analyzer.get_captures("increment").unwrap();
-        assert_eq!(inc_captures.len(), 1);
-        assert!(matches!(
-            inc_captures[0].kind,
-            crate::semantic::CaptureKind::Mutable
-        ));
-
-        let get_captures = analyzer.get_captures("get_value").unwrap();
-        assert_eq!(get_captures.len(), 2);
 
         // Code generation
         let mut codegen = CodeGenerator::new(TargetLanguage::Rust);
         codegen.set_captures(analyzer.get_all_captures().clone());
         let rust_code = codegen.generate(&file);
 
-        // Verify generated code structure
-        assert!(rust_code.contains("let mut counter = 0;"));
-        assert!(rust_code.contains("let multiplier = 2;"));
-        assert!(rust_code.contains("let mut increment = ||")); // mut because of mutable capture
-        assert!(rust_code.contains("let get_value = || -> i32"));
+        // A hoisted Rust fn item, usable before its textual definition.
+        assert!(rust_code.contains("fn compute(counter: i32, multiplier: i32) -> i32"));
+        assert!(rust_code.contains("let total = compute(3, 2);"));
+        assert!(!rust_code.contains("let compute ="), "must not be a closure: {rust_code}");
     }
 
     // ============================================================================

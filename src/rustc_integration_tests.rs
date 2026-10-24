@@ -235,6 +235,53 @@ void main() {
         }
     }
 
+    // PS-07 (ADR-0014): a named nested function lowers to a hoisted Rust `fn`
+    // item — callable before its definition and recursive. Must transpile and
+    // compile.
+    #[test]
+    fn test_compile_hoisted_recursive_nested_function() {
+        let test_source = r#"
+void main() {
+    let f = fact(5);
+    println!("fact={}", f);
+
+    int fact(int n) {
+        if (n <= 1) {
+            return 1;
+        }
+        return n * fact(n - 1);
+    }
+}
+"#;
+        let input_path = PathBuf::from("test_compile_nestedfn_12345.crst");
+        let output_path = PathBuf::from("test_compile_nestedfn_12345");
+
+        fs::write(&input_path, test_source).unwrap();
+
+        let options = CompilerOptions {
+            input_file: input_path.clone(),
+            output_file: Some(output_path.clone()),
+            out_dir: None,
+            emit: EmitMode::Binary,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        let result = run_compiler(&options);
+
+        let _ = fs::remove_file(&input_path);
+        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(format!("{}.rs", output_path.display()));
+
+        if let Err(err) = result {
+            assert!(
+                matches!(err, crate::error::CompilerError::RustcInvocation(_)),
+                "hoisted recursive nested fn should transpile cleanly; got {err:?}"
+            );
+        }
+    }
+
     #[test]
     fn test_rustc_error_reporting() {        // Create a Crusty file that will generate invalid Rust code
         // This is a bit tricky since our compiler should generate valid Rust

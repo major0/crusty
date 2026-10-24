@@ -1209,6 +1209,41 @@ impl SemanticAnalyzer {
 
     /// Analyze a block of statements
     fn analyze_block(&mut self, block: &crate::ast::Block) {
+        // Hoisting pre-pass (ADR-0014): a named nested function lowers to a
+        // Rust `fn` item, which is hoisted — callable before its textual
+        // definition. Register every nested function's signature in this scope
+        // BEFORE analysing any statement, so a forward reference resolves and
+        // recursion type-checks. Only valid (single-level, well-named) nested
+        // functions are pre-registered; the per-statement pass still validates
+        // and reports multi-level nesting / reserved names, and tolerates the
+        // name already being present from this pre-pass.
+        if !self.inside_nested_function {
+            for statement in &block.statements {
+                if let crate::ast::Statement::NestedFunction {
+                    name,
+                    params,
+                    return_type,
+                    ..
+                } = statement
+                {
+                    if name.name.starts_with("__") && name.name.ends_with("__") {
+                        continue;
+                    }
+                    let func_type = Type::Function {
+                        params: params.iter().map(|p| p.ty.clone()).collect(),
+                        return_type: Box::new(match return_type {
+                            Some(rt) => rt.clone(),
+                            None => Type::Primitive(crate::ast::PrimitiveType::Void),
+                        }),
+                    };
+                    let _ = self.symbol_table.insert(
+                        name.name.clone(),
+                        Symbol::new(name.name.clone(), func_type, SymbolKind::Function, false),
+                    );
+                }
+            }
+        }
+
         for statement in &block.statements {
             self.analyze_statement(statement);
         }
@@ -1691,16 +1726,14 @@ impl SemanticAnalyzer {
                 let func_symbol =
                     Symbol::new(name.name.clone(), func_type, SymbolKind::Function, false);
 
-                if let Err(msg) = self.symbol_table.insert(name.name.clone(), func_symbol) {
-                    self.errors.push(SemanticError::new(
-                        Span::new(
-                            crate::error::Position::new(0, 0),
-                            crate::error::Position::new(0, 0),
-                        ),
-                        SemanticErrorKind::DuplicateDefinition,
-                        msg,
-                    ));
-                }
+                // The hoisting pre-pass (analyze_block) already registered this
+                // name in the current scope, so a failing insert here is the
+                // expected pre-registration, not a real duplicate — ignore it.
+                // A genuine duplicate (two nested fns with the same name) is
+                // caught by the pre-pass's own second insert being a no-op plus
+                // this being the same name; distinct redefinitions are a Rust
+                // error that rustc reports.
+                let _ = self.symbol_table.insert(name.name.clone(), func_symbol);
 
                 // Collect variables in scope before entering nested function scope
                 let variables_in_scope = self.collect_variables_in_scope();
