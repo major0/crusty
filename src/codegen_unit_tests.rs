@@ -2657,4 +2657,64 @@ mod struct_init_tests {
         let result = codegen.generate_expression_string(&repeat);
         assert_eq!(result, "[0; 16]");
     }
+
+    // --- PS-09 Unit 2: typedef … @Type impl-block codegen (ADR-0015) ---
+
+    fn impl_method(name: &str, vis: Visibility) -> Function {
+        Function {
+            generic_params: vec![],
+            where_clause: None,
+            visibility: vis,
+            name: Ident::new(name),
+            params: vec![],
+            return_type: Some(Type::Ident(Ident::new("Point"))),
+            body: Some(Block::empty()),
+            is_variadic: false,
+            doc_comments: vec![],
+            attributes: vec![],
+        }
+    }
+
+    #[test]
+    fn test_generate_inherent_impl_block() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let file = File {
+            items: vec![Item::ImplBlock(ImplBlock {
+                visibility: Visibility::Public,
+                target: Ident::new("Point"),
+                trait_name: None,
+                name: None,
+                methods: vec![impl_method("make", Visibility::Public)],
+                doc_comments: vec![],
+                attributes: vec![],
+            })],
+            doc_comments: vec![],
+        };
+        let out = gen.generate(&file);
+        assert!(out.contains("impl Point {"), "inherent impl header: {out}");
+        assert!(!out.contains("for Point"), "inherent must not be a trait impl: {out}");
+    }
+
+    #[test]
+    fn test_generate_default_trait_impl_block_has_no_pub_method() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let file = File {
+            items: vec![Item::ImplBlock(ImplBlock {
+                visibility: Visibility::Public,
+                target: Ident::new("Point"),
+                trait_name: Some(Ident::new("Default")),
+                name: None,
+                // Public visibility must be suppressed on a trait-impl method
+                // (rustc E0449).
+                methods: vec![impl_method("default", Visibility::Public)],
+                doc_comments: vec![],
+                attributes: vec![],
+            })],
+            doc_comments: vec![],
+        };
+        let out = gen.generate(&file);
+        assert!(out.contains("impl Default for Point {"), "trait impl header: {out}");
+        assert!(out.contains("fn default()"), "method: {out}");
+        assert!(!out.contains("pub fn default"), "trait method must not be pub: {out}");
+    }
 }

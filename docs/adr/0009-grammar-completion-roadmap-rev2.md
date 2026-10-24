@@ -98,9 +98,9 @@ ADR'd) before implementation.
   records `__thread__` as a future direction).
 
 ### Tier 5 — Documentation reconciliation (do alongside the relevant tier)
-- **DRIFT-1** `typedef.md` impl-block family — documented but no grammar and no
-  AST. RESOLUTION: implement it (ADR-0015 Unit 2) rather than cut it — the
-  `typedef … @Type` impl surface is wanted. Resolved when that unit lands.
+- **DRIFT-1** `typedef.md` impl-block family — RESOLVED: the `typedef … @Type`
+  impl surface is implemented (ADR-0015 Unit 2, `Item::ImplBlock`) rather than
+  cut, and `typedef.md` marks it implemented.
 - **DRIFT-5** `expressions.md` multi-segment / `->` / no-paren `@Type` calls —
   demote to "Planned".
 - **DRIFT-4** `control-flow.md` `for_stmt` EBNF marks the condition optional;

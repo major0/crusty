@@ -1,7 +1,7 @@
 # ADR-0015: trait / impl / unsafe / async (PS-09)
 
 ## Status
-proposed
+accepted
 
 ## Context
 ADR-0009's Tier 4 lists **PS-09** as "`trait`/`impl` items; `unsafe`; `async`"
@@ -183,16 +183,17 @@ the idea and the spelling.
       `__rust__`) transpiles, compiles under `rustc -D unused_parens`, and runs.
 
 ### Unit 2 — `typedef … @Type` impl blocks (resolves DRIFT-1)
-- [ ] `Item::ImplBlock { target, trait_name, name, methods }` exists.
-- [ ] `typedef struct { int get_x(self) { … } } @Point;` parses into an
+- [x] `Item::ImplBlock { target, trait_name, name, methods }` exists.
+- [x] `typedef struct { int get_x(self) { … } } @Point;` parses into an
       `ImplBlock` with `target=Point`, `trait_name=None`; `@Point.name` sets
       `name`; `typedef default { … } @Point;` sets `trait_name=Some(Default)`.
       No `impl` keyword is introduced (`impl` stays a valid identifier).
-- [ ] Codegen emits `impl Point { fn get_x(&self) -> i32 { … } }` (reusing the
-      method emitter) and `impl Default for Point { … }` for the `default` form;
-      a method defined in a `typedef … @Point;` block is callable end-to-end
-      under rustc, and `typedef default` yields a working `Default` impl.
-- [ ] `docs/syntax/typedef.md` is updated to mark the impl-block surface
+- [x] Codegen emits `impl Point { fn get_x(&self) -> i32 { … } }` (reusing the
+      method emitter) and `impl Default for Point { … }` for the `default` form
+      (with no `pub` on the trait method); a method defined in a
+      `typedef … @Point;` block is callable end-to-end under rustc, and
+      `typedef default` yields a working `Default` impl.
+- [x] `docs/syntax/typedef.md` is updated to mark the impl-block surface
       implemented; DRIFT-1 is resolved in the roadmap.
 
 ### Both committed units

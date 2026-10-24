@@ -659,6 +659,15 @@ impl SemanticAnalyzer {
                 // raw body Crusty does not tokenise (ADR-0001); rustc expands
                 // and validates it, so there is nothing to analyze here.
             }
+            Item::ImplBlock(impl_block) => {
+                // PS-09 Unit 2 (ADR-0015): analyse each method so its own body
+                // errors surface. Whether the target type exists and whether
+                // `Default` is correctly implemented are rustc's to decide
+                // (ADR-0001), consistent with how struct methods are handled.
+                for method in &impl_block.methods {
+                    self.analyze_function(method);
+                }
+            }
         }
     }
 

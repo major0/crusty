@@ -356,6 +356,16 @@ peg::parser! {
             = i:ident() { i }
             / n:$(type_keyword()) { Ident::new(n) }
 
+        /// A method DECLARATION name. Like `ident()` but additionally admits
+        /// `default`, because the `Default` trait's method is literally named
+        /// `default` (PS-09 Unit 2 `typedef default { Point default() … }`),
+        /// and a method-name position (`<ret> name (`) has no switch-case
+        /// ambiguity for the `default` keyword. Does NOT admit control-flow
+        /// keywords — only the one reserved word a real Rust method needs.
+        rule method_name() -> Ident
+            = i:ident() { i }
+            / "default" !ident_char() { Ident::new("default") }
+
         // ====================================================================
         // LITERALS
         // ====================================================================
@@ -3185,7 +3195,7 @@ peg::parser! {
         /// - static Point new(int x, int y) { ... }
         rule struct_method() -> Function
             // Static method with void return type
-            = _ attrs:attributes() _ kw_static() __ kw_void() __ name:ident() _ "(" _ params:function_params()? _ ")" _ body:block() _ {
+            = _ attrs:attributes() _ kw_static() __ kw_void() __ name:method_name() _ "(" _ params:function_params()? _ ")" _ body:block() _ {
                 Function {
                     visibility: Visibility::Private,
                     name,
@@ -3200,7 +3210,7 @@ peg::parser! {
                 }
             }
             // Static method with explicit return type
-            / _ attrs:attributes() _ kw_static() __ return_type:type_expr() __ name:ident() _ "(" _ params:function_params()? _ ")" _ body:block() _ {
+            / _ attrs:attributes() _ kw_static() __ return_type:type_expr() __ name:method_name() _ "(" _ params:function_params()? _ ")" _ body:block() _ {
                 Function {
                     visibility: Visibility::Private,
                     name,
@@ -3215,7 +3225,7 @@ peg::parser! {
                 }
             }
             // Instance method with void return type
-            / _ attrs:attributes() _ kw_void() __ name:ident() _ "(" _ params:function_params()? _ ")" _ body:block() _ {
+            / _ attrs:attributes() _ kw_void() __ name:method_name() _ "(" _ params:function_params()? _ ")" _ body:block() _ {
                 Function {
                     visibility: Visibility::Public,
                     name,
@@ -3230,7 +3240,7 @@ peg::parser! {
                 }
             }
             // Instance method with explicit return type
-            / _ attrs:attributes() _ return_type:type_expr() __ name:ident() _ "(" _ params:function_params()? _ ")" _ body:block() _ {
+            / _ attrs:attributes() _ return_type:type_expr() __ name:method_name() _ "(" _ params:function_params()? _ ")" _ body:block() _ {
                 Function {
                     visibility: Visibility::Public,
                     name,
@@ -3351,6 +3361,44 @@ peg::parser! {
         /// Typedef item: type alias declaration
         /// Syntax: [static] typedef TargetType AliasName;
         /// Returns Item::Typedef
+        ///
+        /// Examples:
+        /// - typedef int MyInt;
+        /// `typedef … @Type` implementation block (PS-09 Unit 2, ADR-0015).
+        /// Forms (optionally `static` for private visibility):
+        /// - `typedef struct { methods } @Point;`      → `impl Point { … }`
+        /// - `typedef struct { methods } @Point.name;` → named organisational
+        ///   block (merged into one `impl Point` at codegen)
+        /// - `typedef default { methods } @Point;`     → `impl Default for Point`
+        /// Members are methods only (reusing `struct_method`); the `@Type`
+        /// target distinguishes an impl block from a `typedef struct { } Name;`
+        /// type definition.
+        pub rule impl_block_def() -> Item
+            = _ vis:impl_block_vis() kw:impl_block_kind() _ "{" _ methods:struct_method()* _ "}" _ "@" _ target:ident() name:("." _ n:ident() { n })? _ ";" _ {
+                Item::ImplBlock(ImplBlock {
+                    visibility: vis,
+                    target,
+                    trait_name: kw,
+                    name,
+                    methods,
+                    doc_comments: Vec::new(),
+                    attributes: Vec::new(),
+                })
+            }
+
+        /// Helper: the optional `static` prefix on an impl block → visibility.
+        rule impl_block_vis() -> Visibility
+            = kw_static() __ kw_typedef() __ { Visibility::Private }
+            / kw_typedef() __ { Visibility::Public }
+
+        /// Helper: the impl-block kind keyword. `struct` → inherent impl
+        /// (`trait_name` None); `default` → `impl Default for` (`trait_name`
+        /// Some(Default)).
+        rule impl_block_kind() -> Option<Ident>
+            = kw_struct() { None }
+            / kw_default() { Some(Ident::new("Default")) }
+
+        /// Type alias / typedef item.
         ///
         /// Examples:
         /// - typedef int MyInt;
@@ -3751,6 +3799,7 @@ peg::parser! {
             / extern_block()
             / struct_def()
             / enum_def()
+            / impl_block_def()
             / typedef_def()
             / item_macro_invocation()
             / static_item()
@@ -3772,6 +3821,7 @@ peg::parser! {
         rule pub_inner_item() -> Item
             = struct_def()
             / enum_def()
+            / impl_block_def()
             / typedef_def()
             / static_item()
             / function()
@@ -5685,6 +5735,66 @@ mod item_tests {
         let a = crusty_peg_parser::statement("let a = int __func__(int x) { return x + 1; };");
         let b = crusty_peg_parser::statement("let b = int __func__(int x) { return x + 2; };");
         assert!(a.is_ok() && b.is_ok(), "both should parse: {:?} {:?}", a, b);
+    }
+
+    // --- PS-09 Unit 2: typedef … @Type impl blocks (ADR-0015, DRIFT-1) ---
+
+    #[test]
+    fn test_impl_block_inherent_parses() {
+        let result =
+            crusty_peg_parser::item("typedef struct { int sum(self) { return self.x; } } @Point;");
+        assert!(result.is_ok(), "inherent impl block should parse: {:?}", result);
+        if let Ok(Item::ImplBlock(ib)) = result {
+            assert_eq!(ib.target.name, "Point");
+            assert!(ib.trait_name.is_none());
+            assert!(ib.name.is_none());
+            assert_eq!(ib.methods.len(), 1);
+            assert_eq!(ib.methods[0].name.name, "sum");
+        } else {
+            panic!("expected Item::ImplBlock, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_impl_block_default_trait_parses() {
+        let result = crusty_peg_parser::item(
+            "typedef default { Point default() { return Point { x: 0 }; } } @Point;",
+        );
+        assert!(result.is_ok(), "default impl block should parse: {:?}", result);
+        if let Ok(Item::ImplBlock(ib)) = result {
+            assert_eq!(ib.target.name, "Point");
+            assert_eq!(ib.trait_name.as_ref().map(|t| t.name.as_str()), Some("Default"));
+            assert_eq!(ib.methods[0].name.name, "default");
+        } else {
+            panic!("expected Item::ImplBlock, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_impl_block_named_parses() {
+        let result = crusty_peg_parser::item(
+            "typedef struct { void show(self) { } } @Point.display;",
+        );
+        assert!(result.is_ok(), "named impl block should parse: {:?}", result);
+        if let Ok(Item::ImplBlock(ib)) = result {
+            assert_eq!(ib.target.name, "Point");
+            assert_eq!(ib.name.as_ref().map(|n| n.name.as_str()), Some("display"));
+        } else {
+            panic!("expected Item::ImplBlock, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_impl_block_static_is_private() {
+        let result = crusty_peg_parser::item(
+            "static typedef struct { int sum(self) { return self.x; } } @Point;",
+        );
+        assert!(result.is_ok(), "static impl block should parse: {:?}", result);
+        if let Ok(Item::ImplBlock(ib)) = result {
+            assert_eq!(ib.visibility, Visibility::Private);
+        } else {
+            panic!("expected Item::ImplBlock, got {:?}", result);
+        }
     }
 
     #[test]

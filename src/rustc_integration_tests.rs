@@ -329,6 +329,68 @@ void main() {
         }
     }
 
+    // PS-09 Unit 2 (ADR-0015, DRIFT-1): the typedef … @Type impl surface —
+    // inherent and the `default` trait form — transpiles and compiles.
+    #[test]
+    fn test_compile_typedef_impl_block() {
+        let test_source = r#"
+struct Point {
+    int x;
+    int y;
+}
+
+typedef struct {
+    static Point origin() {
+        return Point { x: 0, y: 0 };
+    }
+
+    int sum(self) {
+        return self.x + self.y;
+    }
+} @Point;
+
+typedef default {
+    Point default() {
+        return Point { x: 7, y: 7 };
+    }
+} @Point;
+
+void main() {
+    let p = Point { x: 3, y: 4 };
+    println!("sum={}", p.sum());
+    let o = @Point.origin();
+    println!("osum={}", o.sum());
+}
+"#;
+        let input_path = PathBuf::from("test_compile_implblock_12345.crst");
+        let output_path = PathBuf::from("test_compile_implblock_12345");
+
+        fs::write(&input_path, test_source).unwrap();
+
+        let options = CompilerOptions {
+            input_file: input_path.clone(),
+            output_file: Some(output_path.clone()),
+            out_dir: None,
+            emit: EmitMode::Binary,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        let result = run_compiler(&options);
+
+        let _ = fs::remove_file(&input_path);
+        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(format!("{}.rs", output_path.display()));
+
+        if let Err(err) = result {
+            assert!(
+                matches!(err, crate::error::CompilerError::RustcInvocation(_)),
+                "typedef impl block should transpile cleanly; got {err:?}"
+            );
+        }
+    }
+
     #[test]
     fn test_rustc_error_reporting() {        // Create a Crusty file that will generate invalid Rust code
         // This is a bit tricky since our compiler should generate valid Rust

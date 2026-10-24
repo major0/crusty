@@ -198,6 +198,7 @@ impl CodeGenerator {
                 delimiter,
             } => self.generate_macro_invocation(name, args, delimiter),
             Item::RawRust { code } => self.generate_raw_rust(code),
+            Item::ImplBlock(impl_block) => self.generate_impl_block(impl_block),
         }
     }
 
@@ -465,6 +466,69 @@ impl CodeGenerator {
 
             self.dedent();
             self.write_line("}");
+        }
+    }
+
+    /// Generate a `typedef … @Type` implementation block (PS-09 Unit 2,
+    /// ADR-0015). Rust: `impl [Trait for] Target { <methods> }`. Crusty:
+    /// round-trips to `typedef struct|default { <methods> } @Target[.name];`.
+    fn generate_impl_block(&mut self, impl_block: &ImplBlock) {
+        for attr in &impl_block.attributes {
+            self.write_indent();
+            self.write("#[");
+            self.write(&attr.name.name);
+            self.write("]\n");
+        }
+        self.write_indent();
+        match self.target {
+            TargetLanguage::Rust => {
+                self.write("impl ");
+                if let Some(ref trait_name) = impl_block.trait_name {
+                    self.write(&trait_name.name);
+                    self.write(" for ");
+                }
+                self.write(&impl_block.target.name);
+                self.write(" {\n");
+                self.indent();
+                for (i, method) in impl_block.methods.iter().enumerate() {
+                    if i > 0 {
+                        self.write_line("");
+                    }
+                    if impl_block.trait_name.is_some() {
+                        // Trait-impl methods inherit the trait's visibility —
+                        // a `pub` qualifier is rejected by rustc (E0449). Emit
+                        // them private so no `pub` is written.
+                        let mut m = method.clone();
+                        m.visibility = Visibility::Private;
+                        self.generate_function(&m);
+                    } else {
+                        self.generate_function(method);
+                    }
+                }
+                self.dedent();
+                self.write_line("}");
+            }
+            TargetLanguage::Crusty => {
+                self.write("typedef ");
+                self.write(match impl_block.trait_name {
+                    Some(_) => "default",
+                    None => "struct",
+                });
+                self.write(" {\n");
+                self.indent();
+                for method in &impl_block.methods {
+                    self.generate_function(method);
+                }
+                self.dedent();
+                self.write_indent();
+                self.write("} @");
+                self.write(&impl_block.target.name);
+                if let Some(ref name) = impl_block.name {
+                    self.write(".");
+                    self.write(&name.name);
+                }
+                self.write(";\n");
+            }
         }
     }
 

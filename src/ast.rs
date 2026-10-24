@@ -42,6 +42,30 @@ pub enum Item {
     /// passed through to the generated Rust untouched. Used for signatures
     /// Crusty cannot express, e.g. inside an `extern` block.
     RawRust { code: String },
+    /// A `typedef … @Type` implementation block (PS-09 Unit 2, ADR-0015).
+    /// `typedef struct { methods } @Point;` → `impl Point { … }`;
+    /// `typedef default { methods } @Point;` → `impl Default for Point`;
+    /// `typedef struct { methods } @Point.name;` → a named organisational block
+    /// merged into one `impl Point` at codegen. A dedicated item because the
+    /// `@Type` target and the trait form do not fit the struct-definition shape.
+    ImplBlock(ImplBlock),
+}
+
+/// A `typedef … @Type` implementation block (PS-09 Unit 2, ADR-0015).
+#[derive(Debug, Clone, PartialEq)]
+pub struct ImplBlock {
+    pub visibility: Visibility,
+    /// The type the methods are implemented on (the `@Type` target).
+    pub target: Ident,
+    /// `Some("Default")` for the `typedef default { … } @Type;` form, which
+    /// lowers to `impl Default for Type`; `None` for an inherent `impl Type`.
+    pub trait_name: Option<Ident>,
+    /// The optional `.name` on `@Type.name` — purely organisational; named
+    /// blocks for one type merge into a single `impl` in codegen.
+    pub name: Option<Ident>,
+    pub methods: Vec<Function>,
+    pub doc_comments: Vec<String>,
+    pub attributes: Vec<Attribute>,
 }
 
 impl Item {
@@ -75,6 +99,10 @@ impl Item {
             Item::Static(mut s) => {
                 s.visibility = Visibility::Public;
                 Item::Static(s)
+            }
+            Item::ImplBlock(mut i) => {
+                i.visibility = Visibility::Public;
+                Item::ImplBlock(i)
             }
             other => other,
         }

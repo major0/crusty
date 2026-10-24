@@ -50,6 +50,13 @@ struct Point {
 ```
 
 ### Implementation Block
+
+> **Status: implemented** (PS-09 Unit 2, ADR-0015) — the `typedef … @Type`
+> impl-block forms below parse, lower, and compile, modelled as a dedicated
+> `Item::ImplBlock`. This resolves ADR-0009's DRIFT-1 for the impl-block family.
+> (The separate C-style `typedef struct { … } Name;` type-*definition* form is
+> not covered here; define a struct with `struct Name { … }`.)
+
 ```c
 typedef struct {
     Point new(int x, int y) {
