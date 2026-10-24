@@ -102,9 +102,12 @@ ADR'd) before implementation.
   impl surface is implemented (ADR-0015 Unit 2, `Item::ImplBlock`) rather than
   cut, and `typedef.md` marks it implemented.
 - **DRIFT-5** `expressions.md` multi-segment / `->` / no-paren `@Type` calls —
-  demote to "Planned".
+  RESOLVED: multi-segment and arrow forms demoted to "Planned"; the single-
+  segment call and the no-parens `@Type.MEMBER` form (PS-15, implemented) are
+  documented as working, and the stale note is corrected.
 - **DRIFT-4** `control-flow.md` `for_stmt` EBNF marks the condition optional;
-  the grammar requires it — fix the EBNF.
+  the grammar requires it — RESOLVED: the EBNF now shows init and condition
+  required and only the increment optional, matching the grammar.
 - **DRIFT-2 / DRIFT-3** fallible-type and function-pointer-type docs — DRIFT-2
   is resolved by PS-02 (done); DRIFT-3 is resolved — the `fn(T) -> R` type
   surface landed (ADR-0013 Workstream A), so function-pointer types are

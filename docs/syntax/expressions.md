@@ -88,11 +88,23 @@ let none = Option::None;
 let s = String::from("hello");
 ```
 
-The `@` prefix distinguishes type-scoped (static) calls from instance method calls. Dot notation after `@Type` replaces Rust's `::`:
+The `@` prefix distinguishes type-scoped (static) calls from instance method
+calls. A single-segment `@Type.method(args)` call and the no-parens
+associated-access `@Type.MEMBER` form (for a unit enum variant or an associated
+constant) are supported:
 ```c
-@std.collections.HashMap.new()   // std::collections::HashMap::new()
-@Foo.Bar.boo()                   // Foo::Bar.boo()
-@Foo.BAR->boo()                  // Foo::BAR.boo() (method call on constant value)
+@Vector.new()       // Vector::new()
+@Option.None        // Option::None  (no-parens associated access)
+@String.from("hi")  // String::from("hi")
+```
+
+**Planned (not yet implemented):** multi-segment paths and the arrow form are
+documented for direction but do not parse today — use a `__rust__ { … }` block
+for these until they land:
+```c
+@std.collections.HashMap.new()   // PLANNED → std::collections::HashMap::new()
+@Foo.Bar.boo()                   // PLANNED → Foo::Bar::boo()
+@Foo.BAR->boo()                  // PLANNED → Foo::BAR.boo() (method on a constant)
 ```
 
 Instance methods use dot notation as usual: `v.len()`, `v.get(0)`.
@@ -146,7 +158,7 @@ type_scoped_call = "@" IDENT "." IDENT "(" [args] ")" ;
 macro_call = IDENT "!" ("(" args ")" | "[" args "]" | "{" args "}") ;
 ```
 
-> Note: `type_scoped_call` currently accepts only the single-segment
-> `@Type.method(args)` form. Multi-segment paths (`@a.b.c.m()`), the arrow form
-> (`@Type.CONST->method()`), and the no-parens form (`@Type.None`) are not yet
-> implemented.
+> Note: `type_scoped_call` accepts the single-segment `@Type.method(args)` form,
+> and `@Type.MEMBER` (no-parens associated access) is supported separately
+> (PS-15). Multi-segment paths (`@a.b.c.m()`) and the arrow form
+> (`@Type.CONST->method()`) are **Planned** and do not parse yet.

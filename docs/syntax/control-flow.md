@@ -197,7 +197,7 @@ statement; `match` is the pattern-matching expression.
 ```ebnf
 if_stmt       = "if" "(" expr ")" block ["else" (if_stmt | block)] ;
 while_stmt    = "while" "(" expr ")" block ;
-for_stmt      = "for" "(" [var_decl | expr_stmt] ";" [expr] ";" [expr] ")" block ;
+for_stmt      = "for" "(" (var_decl | expr_stmt) ";" expr ";" [expr] ")" block ;
 for_in_stmt   = "for" IDENT "in" expr block ;
 loop_stmt     = ["." IDENT ":"] "loop" block ;
 break_stmt    = "break" ["." IDENT] [expr] ";" ;
