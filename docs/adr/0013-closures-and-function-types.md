@@ -1,4 +1,4 @@
-# ADR-0013: Closures and function-pointer types (PS-07, DRIFT-3)
+# ADR-0013: Anonymous functions and function-pointer types (PS-07, DRIFT-3)
 
 ## Status
 proposed
@@ -27,22 +27,24 @@ What the code holds today (read in `src/ast.rs`, `src/parser.rs`,
   codegen layer already knows how to emit a closure and reason about captures —
   but only for the nested-function form, not for a closure *expression*.
 - Crusty's own surface has no `fn` keyword (ADR philosophy) — functions are
-  `int add(int a, int b)`. So a Crusty function *type* and closure *parameter*
-  syntax must be chosen; they cannot simply mirror Rust's `fn`/`|…|` names
-  without a decision.
+  `int add(int a, int b)`. So a Crusty function *type* and anonymous-function
+  syntax must be chosen; the anonymous form reuses Crusty's own function
+  declaration grammar rather than importing Rust's `|…|`.
 
 So PS-07 is two separable pieces of very different size:
 1. **Function-pointer types** — small: the type machinery exists; only a
    `type_expr` arm and a surface spelling are missing. Resolves DRIFT-3.
-2. **Closure expressions** — larger: a new expression node, grammar, capture
-   handling at the expression level, and typing.
+2. **Anonymous functions** — larger: a new expression node and grammar, reusing
+   the existing typed-param list, statement body, and nested-function closure
+   lowering.
 
 ## Decision
 We will add both, as **two independent workstreams** (a function type is useful
-on its own — e.g. a callback parameter — without closure *expressions*, and
-closures can be typed `Auto` without a written function type). Each is phased
-and independently committable. Closures are a surface and capture-semantics
-decision; function types are a near-complete feature needing only a surface.
+on its own — a callback parameter, or a struct field assigned a named function —
+without anonymous functions, and an anonymous function can be typed `Auto`
+without a written function type). Each is phased and independently committable.
+Anonymous functions are a surface-and-capture decision; function types are a
+near-complete feature needing only a surface.
 
 ### Workstream A — function-pointer types (resolves DRIFT-3)
 - **Surface:** adopt Rust's own `fn(T1, T2) -> R` spelling as the Crusty
@@ -57,75 +59,115 @@ decision; function types are a near-complete feature needing only a surface.
 - **Phase A2 — docs:** document the function-type surface in the types/function
   docs and resolve DRIFT-3.
 
-### Workstream B — closure expressions
-- **Surface:** adopt Rust's `|params| body` spelling. The body is an
-  expression (`|x| x + 1`); a block body (`|x| { … }`) depends on the general
-  block-expression Crusty still lacks (see Non-goals), so Phase B1 accepts the
-  expression-body form only. Parameter types are optional (`|x|` or
-  `|int x|`); a written return type is deferred (Non-goals).
+### Workstream B — anonymous functions (`__func__`)
+- **Surface:** an anonymous function is written as a **normal Crusty function
+  declaration with the `__func__` keyword in the name slot**, in expression
+  position: `[ret] __func__(typed-params) { body }`. It reuses the existing
+  function syntax wholesale — the same typed parameter list
+  (`function_params`), the same statement-block body, and the optional C-style
+  return type before `__func__` (omitted ⇒ `void`/`()`). Examples:
+  `int __func__(int x) { return x + 1; }`, `void __func__(int fd) { … }`.
+  It produces a **callable value**, assigned or passed at its declaration site:
+  `fops.read = int __func__(int fd, int n) { return fd + n; };`, called later
+  as `fops.read(fd, n)`.
+- **Why this spelling (not `|x| …`):** it introduces **no new parameter or
+  body syntax** — `__func__` is literally a function minus its name — so it
+  needs no block-expression (the body is already a statement block, unlike a
+  `|x| expr` closure), has a natural slot for the return type, reads as native
+  Crusty (`__rust__`/`__func__` share the double-underscore convention), and
+  lowers through the **existing nested-function → closure path** (a Crusty
+  nested function already emits `let name = |params| -> ret { body }`).
 - **Phase B1 — AST + grammar:** add
-  `Expression::Closure { params: Vec<ClosureParam>, body: Box<Expression> }`
-  with `ClosureParam { name: Ident, ty: Option<Type> }`, and a `closure_expr()`
-  grammar rule in the expression atom tier. Parse-and-store only.
-- **Phase B2 — codegen:** emit `|<params>| <body>`, reusing the type emitter
-  for any written parameter type. The existing nested-function capture
-  machinery is the reference; a closure expression captures by the same
-  inference Rust applies, so **no explicit `move`/capture annotation is
-  emitted** in B2 (rustc infers the capture) — this keeps B2 a passthrough.
-- **Phase B3 — semantics:** a closure introduces its parameters (typed from
-  their annotation, else `Auto`) into the body scope; the closure expression
-  itself types as `Auto` (rustc infers the concrete `Fn`/`FnMut`/`Fnonce`),
-  consistent with ADR-0001. The body is analysed so its own errors surface.
-- **Phase B4 — docs:** document the closure surface and its capture/typing
-  boundary.
+  `Expression::AnonFunction { params: Vec<Param>, return_type: Option<Type>,
+  body: Block }` — it reuses `Param` (typed, same as every function) and
+  `Block`, not a new closure-param type. Add a `anon_function()` grammar rule
+  in the expression atom tier, built from the existing `function_params` and
+  `block` rules with `__func__` in the name position. Parse-and-store only.
+- **Phase B2 — codegen:** emit `|<typed params>| -> <ret> { <body> }`, the same
+  shape nested functions already emit. Captures are inferred by rustc, so **no
+  explicit `move`/capture annotation is emitted** — a passthrough. Reuses the
+  param-type and block emitters.
+- **Phase B3 — semantics:** introduce the (typed) parameters into the body
+  scope and analyse the body so its own errors surface; the anonymous function
+  itself types as `Auto` (rustc infers the concrete `fn` pointer or `Fn*`
+  trait), consistent with ADR-0001. This mirrors the existing nested-function
+  capture analysis.
+- **Phase B4 — docs:** document the `__func__` surface, that it is callable
+  (not a run-once block), the non-capturing-into-`fn`-pointer rule, and the
+  nested-function companion.
+
+### Nested functions (companion, already implemented)
+A named function declared inside another function body
+(`Statement::NestedFunction`) already parses, lowers to a `let name = |…| { … }`
+closure binding, and has capture analysis. PS-07 **ratifies** this as the
+scoped-helper form and adds documentation + any missing regression tests; it
+is not new implementation. Its two rules hold by construction of the lowering:
+(1) a nested function is not visible outside its enclosing function (inner
+scope), and (2) it is not usable before its own declaration (a `let` binding is
+not in scope above itself — Rust does hoist a nested `fn`, but the closure
+lowering deliberately does not).
 
 ### Non-goals (explicit)
-- **No `move` closures, no explicit capture lists, no closure return-type
-  syntax** in this ADR. rustc infers captures and the `Fn*` trait; a closure
-  needing `move` or a written return type uses a `__rust__ { … }` expression.
-- **No block-bodied closures** (`|x| { … }`) until Crusty has a general
-  block-expression — the same limit ADR-0012 recorded for `match` arms. A
-  closure that needs statements uses `__rust__ { … }` as its body.
-- **No `Fn`/`FnMut`/`FnOnce` trait-bound reasoning.** The closure types `Auto`;
-  rustc arbitrates which trait it satisfies. A written function *type*
-  (Workstream A) is a concrete `fn` pointer, not a boxed `dyn Fn`; a closure
-  passed where a `fn` pointer is expected is rustc's call to accept or reject.
+- **No `move`, no explicit capture lists, no capturing anonymous function
+  stored in a struct field.** A non-capturing `__func__` is a bare
+  `fn(args) -> ret` pointer and can be stored in a function-pointer field
+  (the `file_operations` case). A *capturing* `__func__` is not a bare `fn`
+  pointer — storing one in a field needs `Box<dyn Fn…>`, a heavier allocation
+  and trait-object decision deferred to a later ADR. A capturing function that
+  needs `move` uses a `__rust__ { … }` expression today.
+- **No untyped parameters.** `__func__` parameters are typed exactly like any
+  Crusty function parameter (`int __func__(int x)`), so the grammar is the
+  existing `function_params` rule unchanged — no inference path at the surface.
+- **No `Fn`/`FnMut`/`FnOnce` trait-bound reasoning.** The anonymous function
+  types `Auto`; rustc arbitrates the concrete `fn` pointer or `Fn*` trait. A
+  written function *type* (Workstream A) is a concrete `fn` pointer, not a
+  boxed `dyn Fn`; whether a given `__func__` satisfies it is rustc's call.
 - **No higher-ranked lifetimes / `for<'a>` function types.** Out of scope.
 
 ## Consequences
 - **Easier:** Crusty gains callbacks and inline functions — a function-type
-  parameter and a `|x| x + 1` argument — which many real C and Rust APIs need.
-  Workstream A is nearly free (the type machinery already exists). Closure
-  lowering reuses the nested-function capture precedent.
-- **Harder / accepted cost:** `Expression::Closure` is a new, additive
+  field/parameter (Workstream A) plus an `int __func__(int x) { … }` value
+  (Workstream B) — covering the C `file_operations`-style pattern directly.
+  Workstream A is nearly free (the type machinery already exists). The
+  `__func__` form reuses the existing function grammar AND the nested-function
+  closure lowering, so it is far smaller than a fresh closure feature.
+- **Harder / accepted cost:** `Expression::AnonFunction` is a new, additive
   `Expression` variant (a `Match`-sized change: the exhaustive expression
   matches in codegen/semantic/pretty each gain one arm, no struct-field
-  reshape, so the construction-site churn is small). The capture/trait
-  inference is pushed to rustc, so a closure that captures incorrectly surfaces
-  as a rustc error, not a Crusty one — the deliberate syntax-layer tradeoff.
+  reshape, so the construction-site churn is small). Capture/trait inference is
+  pushed to rustc, so a `__func__` that captures where a bare `fn` pointer is
+  required surfaces as a rustc error, not a Crusty one — the deliberate
+  syntax-layer tradeoff. A capturing `__func__` in a struct field is simply not
+  expressible until the deferred `Box<dyn Fn>` decision.
 - **Reversible-cost:** both workstreams are additive. Workstream A is a single
-  grammar arm over an existing type. The one commitment awkward to revisit is
-  the **surface spelling** — once `fn(T) -> R` and `|x| …` are documented and
-  used, changing them breaks source; they are chosen to match Rust precisely so
-  that is unlikely to be wanted.
+  grammar arm over an existing type. The surface spellings are the awkward-to-
+  revisit commitments: `fn(T) -> R` for the type (chosen to match what the
+  compiler already emits) and `[ret] __func__(params) { body }` for the value
+  (chosen to reuse Crusty's own function syntax rather than import `|x|`).
 
 ### Alternatives considered
-- **Invent a C-flavoured function-type spelling** (e.g. `R (*)(T1, T2)` as in
-  C, or `R fn(T1, T2)`). Rejected: `Type::Function` already lowers to Rust's
-  `fn(T) -> R`; matching that spelling at the surface means one syntax, no
-  translation table, and no ambiguity in type position. The C pointer-to-
+- **Rust's `|params| body` closure spelling (the first draft of this ADR).**
+  Rejected in favour of `__func__`: `|x| expr` is new syntax with no return-type
+  slot and an expression-only body (blocked by Crusty's missing
+  block-expression), whereas `__func__` reuses the existing typed-param list and
+  statement-block body, has a natural return-type slot, and needs no new body
+  form.
+- **Invent a C-flavoured function-type spelling** (`R (*)(T1, T2)`). Rejected:
+  `Type::Function` already lowers to Rust's `fn(T) -> R`; matching that spelling
+  means one syntax, no translation table, no ambiguity. The C pointer-to-
   function spelling is notoriously hard to read and parse.
 - **One combined workstream.** Rejected: a function *type* is independently
-  useful (callback parameters) and nearly complete, while closure *expressions*
-  are a larger capture-semantics decision. Coupling them delays the cheap,
+  useful (callback parameters, named-fn assignment) and nearly complete, while
+  anonymous functions are a larger decision. Coupling them delays the cheap,
   drift-closing half behind the expensive half.
-- **A structured capture list / `move` support now.** Rejected for this ADR:
-  rustc infers captures, so the structured form has no reachable use until
-  Crusty wants to diverge from Rust's inference — a separate decision. The
-  `__rust__` escape covers `move` today.
-- **Boxing closures as `Box<dyn Fn…>` for a uniform value type.** Rejected:
-  it imposes allocation and a trait-object choice the syntax layer has no basis
-  to make; `Auto` + rustc inference is the ADR-0001-consistent path.
+- **Untyped `__func__` parameters inferred by rustc.** Rejected: it would make
+  `__func__` diverge from normal Crusty function syntax (which requires typed
+  params) for marginal ergonomic gain; typed params keep the grammar a direct
+  reuse of `function_params`.
+- **Capturing `__func__` as `Box<dyn Fn…>` for struct fields now.** Rejected
+  for this ADR: it imposes allocation and a trait-object choice the syntax
+  layer has no basis to make; the non-capturing → `fn`-pointer path covers the
+  kernel case, and the boxed form is a separate decision.
 
 ## Verification
 
@@ -140,20 +182,27 @@ decision; function types are a near-complete feature needing only a surface.
 - [ ] The types/function docs describe the `fn(T) -> R` surface; DRIFT-3 is
       marked resolved in the roadmap.
 
-### Workstream B — closure expressions
-- [ ] `src/ast.rs` has `Expression::Closure { params, body }` and
-      `ClosureParam { name, ty }`.
-- [ ] `|x| x + 1` and `|int x| x + 1` parse into a `Closure` with the expected
-      params (optional type), proven by a parser unit test.
-- [ ] Codegen emits `|x| x + 1` (and `|x: i32| x + 1` when the type is
-      written); a non-closure program's output is byte-unchanged.
-- [ ] End-to-end: a program binding a closure and calling it (or passing it to
-      a function-type parameter from Workstream A) transpiles, compiles under
-      `rustc -D unused_parens` (RC=0), and runs with the expected output.
-- [ ] A closure parameter is in scope in the closure body (a binding-scope
-      semantic test); an unknown identifier in the body still errors.
-- [ ] The docs describe the closure surface, the expression-body-only limit,
-      and the capture/typing boundary (rustc infers captures and `Fn*`).
+### Workstream B — anonymous functions (`__func__`)
+- [ ] `src/ast.rs` has `Expression::AnonFunction { params, return_type, body }`
+      reusing `Param` and `Block`.
+- [ ] `int __func__(int x) { return x + 1; }` and a return-less
+      `void __func__(int fd) { … }` parse into an `AnonFunction` with the
+      expected typed params and body, proven by a parser unit test; an untyped
+      param (`__func__(x)`) is a parse error.
+- [ ] Codegen emits `|x: i32| -> i32 { return x + 1; }` (and the unit-return
+      form); a program with no anonymous function is byte-unchanged.
+- [ ] End-to-end: a `file_operations`-style struct with a `fn(int,int) -> int`
+      field (Workstream A), a `__func__` assigned to it, and a call through the
+      field transpiles, compiles under `rustc -D unused_parens` (RC=0), and runs
+      with the expected output.
+- [ ] A `__func__` parameter is in scope in its body (a binding-scope semantic
+      test); an unknown identifier in the body still errors.
+- [ ] Nested functions: a regression test proves a named nested function lowers
+      to a `let`-closure, is not in scope outside its enclosing function, and is
+      not usable before its own declaration.
+- [ ] The docs describe the `__func__` surface (callable, not a run-once
+      block), the non-capturing-into-`fn`-pointer rule, and the nested-function
+      companion.
 
 ### Both
 - [ ] `cargo test` green and `clippy` clean after each phase.
