@@ -126,6 +126,8 @@ mod tests {
             body: Block::empty(),
         };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -153,6 +155,8 @@ mod tests {
             body: Block::empty(),
         };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],

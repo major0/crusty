@@ -106,6 +106,8 @@ fn arb_simple_function() -> impl Strategy<Value = Function> {
         prop::collection::vec(arb_simple_statement(), 0..5),
     )
         .prop_map(|(is_public, name, statements)| Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: if is_public {
                 Visibility::Public
             } else {

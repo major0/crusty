@@ -22,6 +22,8 @@ mod tests {
             body: Block::empty(),
         };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -49,6 +51,8 @@ mod tests {
             body: Block::empty(),
         };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -84,6 +88,8 @@ mod tests {
             default: None,
         };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -117,6 +123,8 @@ mod tests {
             ))])),
         };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -152,6 +160,8 @@ mod tests {
             default: None,
         };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -175,6 +185,8 @@ mod tests {
         let mut gen = CodeGenerator::new(TargetLanguage::Crusty);
         let stmt = Statement::Break { label: Some(Ident::new("outer")), value: None };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -197,6 +209,8 @@ mod tests {
         let mut gen = CodeGenerator::new(TargetLanguage::Crusty);
         let stmt = Statement::Continue(Some(Ident::new("outer")));
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -237,6 +251,8 @@ mod tests {
             body: Block::empty(),
         };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -288,6 +304,8 @@ mod tests {
             else_block: Some(Block::empty()),
         };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -310,6 +328,8 @@ mod tests {
     fn test_crusty_function_with_params() {
         let mut gen = CodeGenerator::new(TargetLanguage::Crusty);
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("add"),
             params: vec![
@@ -341,6 +361,8 @@ mod tests {
         let mut gen = CodeGenerator::new(TargetLanguage::Crusty);
         let stmt = Statement::Return(Some(Expression::Literal(Literal::Int(42))));
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -368,6 +390,8 @@ mod tests {
             mutable: false,
         };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -394,6 +418,8 @@ mod tests {
             init: Some(Expression::Literal(Literal::Int(42))),
         };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],

@@ -93,10 +93,26 @@ pub struct ConditionalCompilation {
 }
 
 /// Function declaration
+/// A generic parameter on a function / struct / enum definition (PS-08,
+/// ADR-0011). Bounds and const-generic types are carried; trait bounds are
+/// RAW strings passed verbatim to rustc (Crusty does not model them).
+#[derive(Debug, Clone, PartialEq)]
+pub enum GenericParam {
+    /// A type parameter, e.g. `T` or `T: Clone + Debug`. `bounds` holds each
+    /// bound as a raw string (`"Clone"`, `"Debug"`); empty when unbounded.
+    Type { name: Ident, bounds: Vec<String> },
+    /// A lifetime parameter, e.g. `'a`. `name` excludes the leading `'`.
+    Lifetime { name: Ident },
+    /// A const generic, e.g. `const N: usize`.
+    Const { name: Ident, ty: Type },
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Function {
     pub visibility: Visibility,
     pub name: Ident,
+    /// Generic parameter list (PS-08). Empty for a non-generic function.
+    pub generic_params: Vec<GenericParam>,
     pub params: Vec<Param>,
     pub return_type: Option<Type>,
     /// `Some(block)` for a definition, `None` for a body-less declaration
@@ -108,6 +124,9 @@ pub struct Function {
     /// on a defined or safe function — so it is `false` for every ordinary
     /// function. Codegen emits a trailing `, ...` after the named parameters.
     pub is_variadic: bool,
+    /// Raw `where` clause span (PS-08), e.g. `"T: Clone, U: Debug"`, carried
+    /// verbatim to rustc. `None` when absent.
+    pub where_clause: Option<String>,
     pub doc_comments: Vec<String>,
     pub attributes: Vec<Attribute>,
 }
@@ -117,8 +136,12 @@ pub struct Function {
 pub struct Struct {
     pub visibility: Visibility,
     pub name: Ident,
+    /// Generic parameter list (PS-08). Empty for a non-generic struct.
+    pub generic_params: Vec<GenericParam>,
     pub fields: Vec<Field>,
     pub methods: Vec<Function>,
+    /// Raw `where` clause span (PS-08), carried verbatim to rustc.
+    pub where_clause: Option<String>,
     pub doc_comments: Vec<String>,
     pub attributes: Vec<Attribute>,
 }
@@ -128,7 +151,11 @@ pub struct Struct {
 pub struct Enum {
     pub visibility: Visibility,
     pub name: Ident,
+    /// Generic parameter list (PS-08). Empty for a non-generic enum.
+    pub generic_params: Vec<GenericParam>,
     pub variants: Vec<EnumVariant>,
+    /// Raw `where` clause span (PS-08), carried verbatim to rustc.
+    pub where_clause: Option<String>,
     pub doc_comments: Vec<String>,
     pub attributes: Vec<Attribute>,
 }
@@ -727,6 +754,8 @@ mod tests {
     #[test]
     fn test_create_function() {
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("main"),
             params: vec![],
@@ -745,6 +774,8 @@ mod tests {
     #[test]
     fn test_create_function_with_params() {
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("add"),
             params: vec![
@@ -773,6 +804,8 @@ mod tests {
     #[test]
     fn test_create_struct() {
         let struct_def = Struct {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Point"),
             fields: vec![
@@ -805,6 +838,8 @@ mod tests {
     #[test]
     fn test_create_enum() {
         let enum_def = Enum {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Color"),
             variants: vec![
@@ -1091,6 +1126,8 @@ mod tests {
     #[test]
     fn test_ast_node_cloning() {
         let original = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],

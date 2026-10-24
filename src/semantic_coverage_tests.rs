@@ -107,6 +107,8 @@ mod tests {
         let mut analyzer = SemanticAnalyzer::new();
 
         let func = Item::Function(Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test_func"),
             params: vec![],
@@ -148,6 +150,8 @@ mod tests {
         let mut analyzer = SemanticAnalyzer::new();
 
         let func = Item::Function(Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test_func"),
             params: vec![],
@@ -174,6 +178,8 @@ mod tests {
         let mut analyzer = SemanticAnalyzer::new();
 
         let func = Item::Function(Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test_func"),
             params: vec![],
@@ -200,6 +206,8 @@ mod tests {
         let mut analyzer = SemanticAnalyzer::new();
 
         let func = Item::Function(Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test_func"),
             params: vec![],
@@ -229,6 +237,8 @@ mod tests {
         let mut analyzer = SemanticAnalyzer::new();
 
         let func = Item::Function(Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test_func"),
             params: vec![],
@@ -272,6 +282,8 @@ mod tests {
         let mut analyzer = SemanticAnalyzer::new();
 
         let func = Item::Function(Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test_func"),
             params: vec![],
@@ -320,6 +332,8 @@ mod tests {
         let mut analyzer = SemanticAnalyzer::new();
 
         let func = Item::Function(Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test_func"),
             params: vec![],
@@ -353,6 +367,8 @@ mod tests {
         let mut analyzer = SemanticAnalyzer::new();
 
         let func = Item::Function(Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test_func"),
             params: vec![],
@@ -401,6 +417,8 @@ mod tests {
         let mut analyzer = SemanticAnalyzer::new();
 
         let func = Item::Function(Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test_func"),
             params: vec![],
@@ -432,6 +450,8 @@ mod tests {
         let mut analyzer = SemanticAnalyzer::new();
 
         let func = Item::Function(Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test_func"),
             params: vec![],
@@ -457,6 +477,8 @@ mod tests {
         let mut analyzer = SemanticAnalyzer::new();
 
         let func = Item::Function(Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test_func"),
             params: vec![],
@@ -481,6 +503,8 @@ mod tests {
         let mut analyzer = SemanticAnalyzer::new();
 
         let func = Item::Function(Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test_func"),
             params: vec![],
@@ -507,6 +531,8 @@ mod tests {
         let mut analyzer = SemanticAnalyzer::new();
 
         let func = Item::Function(Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test_func"),
             params: vec![],
@@ -533,6 +559,8 @@ mod tests {
         let mut analyzer = SemanticAnalyzer::new();
 
         let func = Item::Function(Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test_func"),
             params: vec![],
@@ -560,6 +588,8 @@ mod tests {
         let mut analyzer = SemanticAnalyzer::new();
 
         let struct_item = Item::Struct(Struct {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Point"),
             fields: vec![Field {
@@ -570,6 +600,8 @@ mod tests {
                 attributes: vec![],
             }],
             methods: vec![Function {
+                generic_params: vec![],
+                where_clause: None,
                 visibility: Visibility::Public,
                 name: Ident::new("new"),
                 params: vec![],
@@ -595,6 +627,8 @@ mod tests {
         let mut analyzer = SemanticAnalyzer::new();
 
         let enum_item = Item::Enum(Enum {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Status"),
             variants: vec![
@@ -797,6 +831,8 @@ mod tests {
     // initializer is analysed.
     fn point_program(init_fields: Vec<(Ident, Expression)>) -> File {
         let point = Item::Struct(Struct {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Point"),
             fields: vec![
@@ -821,6 +857,8 @@ mod tests {
         });
 
         let main = Item::Function(Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("main"),
             params: vec![],
@@ -998,6 +1036,8 @@ mod tests {
     fn test_enum_to_int_cast_ok() {
         let mut analyzer = SemanticAnalyzer::new();
         let enum_item = Item::Enum(Enum {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Color"),
             variants: vec![
@@ -1009,6 +1049,8 @@ mod tests {
         });
         // void main() { let n = (Color as i32); }  — Color is a known enum.
         let main = Item::Function(Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("main"),
             params: vec![],
@@ -1048,6 +1090,8 @@ mod tests {
     /// and an associated method `make() -> Point`.
     fn point_with_methods() -> Item {
         Item::Struct(Struct {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Point"),
             fields: vec![Field {
@@ -1059,6 +1103,8 @@ mod tests {
             }],
             methods: vec![
                 Function {
+                    generic_params: vec![],
+                    where_clause: None,
                     visibility: Visibility::Public,
                     name: Ident::new("scaled"),
                     params: vec![
@@ -1078,6 +1124,8 @@ mod tests {
                     attributes: vec![],
                 },
                 Function {
+                    generic_params: vec![],
+                    where_clause: None,
                     visibility: Visibility::Public,
                     name: Ident::new("make"),
                     params: vec![],
@@ -1088,6 +1136,8 @@ mod tests {
                     attributes: vec![],
                 },
                 Function {
+                    generic_params: vec![],
+                    where_clause: None,
                     visibility: Visibility::Public,
                     name: Ident::new("origin_x"),
                     params: vec![],

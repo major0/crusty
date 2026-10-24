@@ -18,6 +18,8 @@ mod tests {
 
     fn create_test_function(body: Vec<Statement>) -> Function {
         Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -239,6 +241,8 @@ mod tests {
         let mut analyzer = SemanticAnalyzer::new();
 
         let add_func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("add"),
             params: vec![
@@ -282,6 +286,8 @@ mod tests {
         let mut analyzer = SemanticAnalyzer::new();
 
         let add_func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("add"),
             params: vec![
@@ -319,6 +325,8 @@ mod tests {
         let mut analyzer = SemanticAnalyzer::new();
 
         let add_func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("add"),
             params: vec![
@@ -383,6 +391,8 @@ mod tests {
         let mut analyzer = SemanticAnalyzer::new();
 
         let point_struct = Struct {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Point"),
             fields: vec![
@@ -442,6 +452,8 @@ mod tests {
         let mut analyzer = SemanticAnalyzer::new();
 
         let point_struct = Struct {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Point"),
             fields: vec![Field {

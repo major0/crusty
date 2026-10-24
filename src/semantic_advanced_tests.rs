@@ -339,6 +339,8 @@ mod tests {
         let file = File {
             items: vec![
                 Item::Struct(Struct {
+                    generic_params: vec![],
+                    where_clause: None,
                     visibility: Visibility::Public,
                     name: Ident::new("MyStruct"),
                     fields: vec![Field {
@@ -353,6 +355,8 @@ mod tests {
                     attributes: vec![],
                 }),
                 Item::Function(Function {
+                    generic_params: vec![],
+                    where_clause: None,
                     visibility: Visibility::Public,
                     name: Ident::new("test_func"),
                     params: vec![],

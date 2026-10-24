@@ -130,6 +130,8 @@ return a+b;
     fn test_format_ast_as_rust() {
         let printer = PrettyPrinter::new(TargetLanguage::Rust);
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],

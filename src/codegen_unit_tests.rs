@@ -67,6 +67,8 @@ mod tests {
     fn test_generate_simple_function() {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("main"),
             params: vec![],
@@ -90,6 +92,8 @@ mod tests {
     fn test_generate_function_with_void_return() {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("foo"),
             params: vec![],
@@ -113,6 +117,8 @@ mod tests {
     fn test_generate_function_with_return_type() {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("add"),
             params: vec![
@@ -143,6 +149,8 @@ mod tests {
     fn test_generate_static_function() {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Private,
             name: Ident::new("helper"),
             params: vec![],
@@ -171,6 +179,8 @@ mod tests {
             mutable: false,
         };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -205,6 +215,8 @@ mod tests {
             stmt: Box::new(inner),
         };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -232,6 +244,8 @@ mod tests {
             init: Some(Expression::Literal(Literal::Int(42))),
         };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -258,6 +272,8 @@ mod tests {
             else_block: None,
         };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -284,6 +300,8 @@ mod tests {
             body: Block::empty(),
         };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -310,6 +328,8 @@ mod tests {
             body: Block::empty(),
         };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -335,6 +355,8 @@ mod tests {
             body: Block::new(vec![Statement::Break { label: None, value: None }]),
         };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -361,6 +383,8 @@ mod tests {
             body: Block::empty(),
         };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -397,6 +421,8 @@ mod tests {
             mutable: false,
         };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -420,6 +446,8 @@ mod tests {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let stmt = Statement::Break { label: Some(Ident::new("outer")), value: None };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -446,6 +474,8 @@ mod tests {
             value: Some(Expression::Literal(Literal::Int(42))),
         };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -472,6 +502,8 @@ mod tests {
             value: Some(Expression::Literal(Literal::Int(42))),
         };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -494,6 +526,8 @@ mod tests {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let stmt = Statement::Continue(Some(Ident::new("outer")));
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -639,6 +673,8 @@ mod tests {
     fn test_generate_struct() {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let struct_def = Struct {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Point"),
             fields: vec![
@@ -675,6 +711,8 @@ mod tests {
     fn test_generate_struct_with_methods() {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let method = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("new"),
             params: vec![],
@@ -685,6 +723,8 @@ mod tests {
             attributes: vec![],
         };
         let struct_def = Struct {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Point"),
             fields: vec![],
@@ -706,6 +746,8 @@ mod tests {
     fn test_generate_struct_with_self_parameter() {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let method = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("get_x"),
             params: vec![Param {
@@ -722,6 +764,8 @@ mod tests {
             attributes: vec![],
         };
         let struct_def = Struct {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Point"),
             fields: vec![],
@@ -743,6 +787,8 @@ mod tests {
     fn test_generate_struct_with_mut_self_parameter() {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let method = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("set_x"),
             params: vec![
@@ -765,6 +811,8 @@ mod tests {
             attributes: vec![],
         };
         let struct_def = Struct {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Point"),
             fields: vec![],
@@ -786,6 +834,8 @@ mod tests {
     fn test_generate_struct_with_static_method() {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let method = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Private,
             name: Ident::new("origin"),
             params: vec![],
@@ -796,6 +846,8 @@ mod tests {
             attributes: vec![],
         };
         let struct_def = Struct {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Point"),
             fields: vec![],
@@ -818,6 +870,8 @@ mod tests {
     fn test_generate_enum() {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let enum_def = Enum {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Color"),
             variants: vec![
@@ -940,6 +994,8 @@ mod tests {
         // (ADR-0003). Exercised through a full file so user_type_names is set.
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("f"),
             params: vec![
@@ -1261,6 +1317,8 @@ mod tests {
         // #ifdef FEATURE … #endif emits #[cfg(FEATURE)] on each item.
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Private,
             name: Ident::new("f".to_string()),
             params: vec![],
@@ -1289,6 +1347,8 @@ mod tests {
     fn test_generate_conditional_compilation_negated() {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Private,
             name: Ident::new("f".to_string()),
             params: vec![],
@@ -1318,6 +1378,8 @@ mod tests {
         // namespace Name { fn } → pub mod Name { pub fn }
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("add".to_string()),
             params: vec![],
@@ -1370,6 +1432,8 @@ mod tests {
         // A static (private) member inside a namespace emits no `pub`.
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Private,
             name: Ident::new("helper".to_string()),
             params: vec![],
@@ -1430,6 +1494,8 @@ mod tests {
         // extern "C" { int puts(char* s); } → extern "C" { pub fn puts(...) -> i32; }
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let decl = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("puts".to_string()),
             params: vec![Param {
@@ -1466,6 +1532,8 @@ mod tests {
         // A bare extern (no ABI) emits `extern {`.
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let decl = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("rust_fn".to_string()),
             params: vec![],
@@ -1494,6 +1562,8 @@ mod tests {
         //   → extern "C" { pub fn printf(format: *const char, ...) -> i32; }
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let decl = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("printf".to_string()),
             params: vec![Param {
@@ -1531,6 +1601,8 @@ mod tests {
         // A variadic with no named params emits `(...)` — no leading comma.
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let decl = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("log_event".to_string()),
             params: vec![],
@@ -1562,6 +1634,8 @@ mod tests {
         // indented alongside the ordinary declarations.
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let decl = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("simple".to_string()),
             params: vec![],
@@ -1873,6 +1947,8 @@ mod tests {
             mutable: false,
         };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -1937,6 +2013,8 @@ mod tests {
             default: None,
         };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -1971,6 +2049,8 @@ mod tests {
             ))])),
         };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -2007,6 +2087,8 @@ mod tests {
             default: None,
         };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -2041,6 +2123,8 @@ mod tests {
             default: None,
         };
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test"),
             params: vec![],
@@ -2088,6 +2172,8 @@ mod tests {
     fn test_generate_fallible_function_return() {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("read_config"),
             params: vec![],

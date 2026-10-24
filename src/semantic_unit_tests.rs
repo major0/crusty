@@ -564,6 +564,8 @@ mod tests {
     fn test_semantic_analyzer_function_registration() {
         let mut analyzer = SemanticAnalyzer::new();
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("test_func"),
             params: vec![],
@@ -586,6 +588,8 @@ mod tests {
     fn test_semantic_analyzer_struct_registration() {
         let mut analyzer = SemanticAnalyzer::new();
         let struct_def = Struct {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Point"),
             fields: vec![
@@ -626,6 +630,8 @@ mod tests {
     fn test_semantic_analyzer_enum_registration() {
         let mut analyzer = SemanticAnalyzer::new();
         let enum_def = Enum {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Color"),
             variants: vec![
@@ -654,6 +660,8 @@ mod tests {
     fn test_semantic_analyzer_duplicate_function() {
         let mut analyzer = SemanticAnalyzer::new();
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("duplicate"),
             params: vec![],
@@ -981,6 +989,8 @@ mod tests {
     fn test_semantic_analyzer_function_with_double_underscore_name() {
         let mut analyzer = SemanticAnalyzer::new();
         let func = Function {
+            generic_params: vec![],
+            where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("__my_function__".to_string()),
             params: vec![],

@@ -2711,6 +2711,59 @@ peg::parser! {
             = attrs:attribute()* { attrs }
 
         // ====================================================================
+        // GENERIC PARAMETERS (PS-08, ADR-0011)
+        // ====================================================================
+
+        /// Generic parameter list on a definition: `<T, 'a, const N: usize>`.
+        /// Trait bounds and const-generic types are carried; bounds are raw
+        /// strings passed verbatim to rustc. Returns the parsed params.
+        pub rule generic_params() -> Vec<crate::ast::GenericParam>
+            = _ "<" _ first:generic_param() rest:(_ "," _ p:generic_param() { p })* (_ ",")? _ ">" {
+                let mut params = vec![first];
+                params.extend(rest);
+                params
+            }
+
+        /// A single generic parameter: lifetime, const generic, or type (with
+        /// optional raw bounds). Ordered so `'a` and `const N` win before the
+        /// bare type-parameter form.
+        rule generic_param() -> crate::ast::GenericParam
+            = "'" name:ident() {
+                crate::ast::GenericParam::Lifetime { name }
+            }
+            / kw_const() __ name:ident() _ ":" _ ty:type_expr() {
+                crate::ast::GenericParam::Const { name, ty }
+            }
+            / name:ident() _ bounds:generic_bounds()? {
+                crate::ast::GenericParam::Type {
+                    name,
+                    bounds: bounds.unwrap_or_default(),
+                }
+            }
+
+        /// Trait bounds on a type parameter: `: Clone + Debug`. Each bound is
+        /// captured as a raw string (Crusty does not model traits — ADR-0001).
+        rule generic_bounds() -> Vec<String>
+            = ":" _ first:generic_bound() rest:(_ "+" _ b:generic_bound() { b })* {
+                let mut bounds = vec![first];
+                bounds.extend(rest);
+                bounds
+            }
+
+        /// A single raw trait bound token span, e.g. `Clone` or `std::fmt::Debug`.
+        /// Stops at `+`, `,`, `>`, or `{` so it does not swallow the list.
+        rule generic_bound() -> String
+            = s:$((!['+' | ',' | '>' | '{' | '\n'] [_])+) { s.trim().to_string() }
+
+        /// Raw `where` clause: `where <raw span>` up to the body's `{`.
+        /// Carried verbatim to rustc (ADR-0001). Returns the span without the
+        /// `where` keyword, trimmed.
+        pub rule where_clause() -> String
+            = _ "where" __ s:$((!['{'] [_])+) {
+                s.trim().to_string()
+            }
+
+        // ====================================================================
         // FUNCTION ITEM (Task 6.2)
         // ====================================================================
         // Function declarations are top-level items that define callable code.
@@ -2741,53 +2794,61 @@ peg::parser! {
         /// - #[test] void test_something() { }
         pub rule function() -> Item
             // With attributes, static, and void return type
-            = _ attrs:attributes() _ kw_static() __ kw_void() __ name:ident() _ "(" _ params:function_params()? _ ")" _ body:block() _ {
+            = _ attrs:attributes() _ kw_static() __ kw_void() __ name:ident() _ gp:generic_params()? _ "(" _ params:function_params()? _ ")" _ wc:where_clause()? _ body:block() _ {
                 Item::Function(Function {
                     visibility: Visibility::Private,
                     name,
+                    generic_params: gp.unwrap_or_default(),
                     params: params.unwrap_or_default(),
                     return_type: None,
                     body: Some(body),
                     is_variadic: false,
+                    where_clause: wc,
                     doc_comments: Vec::new(),
                     attributes: attrs,
                 })
             }
             // With attributes, static, and explicit return type
-            / _ attrs:attributes() _ kw_static() __ return_type:type_expr() __ name:ident() _ "(" _ params:function_params()? _ ")" _ body:block() _ {
+            / _ attrs:attributes() _ kw_static() __ return_type:type_expr() __ name:ident() _ gp:generic_params()? _ "(" _ params:function_params()? _ ")" _ wc:where_clause()? _ body:block() _ {
                 Item::Function(Function {
                     visibility: Visibility::Private,
                     name,
+                    generic_params: gp.unwrap_or_default(),
                     params: params.unwrap_or_default(),
                     return_type: Some(return_type),
                     body: Some(body),
                     is_variadic: false,
+                    where_clause: wc,
                     doc_comments: Vec::new(),
                     attributes: attrs,
                 })
             }
             // With attributes and void return type (public)
-            / _ attrs:attributes() _ kw_void() __ name:ident() _ "(" _ params:function_params()? _ ")" _ body:block() _ {
+            / _ attrs:attributes() _ kw_void() __ name:ident() _ gp:generic_params()? _ "(" _ params:function_params()? _ ")" _ wc:where_clause()? _ body:block() _ {
                 Item::Function(Function {
                     visibility: Visibility::Public,
                     name,
+                    generic_params: gp.unwrap_or_default(),
                     params: params.unwrap_or_default(),
                     return_type: None,
                     body: Some(body),
                     is_variadic: false,
+                    where_clause: wc,
                     doc_comments: Vec::new(),
                     attributes: attrs,
                 })
             }
             // With attributes and explicit return type (public)
-            / _ attrs:attributes() _ return_type:type_expr() __ name:ident() _ "(" _ params:function_params()? _ ")" _ body:block() _ {
+            / _ attrs:attributes() _ return_type:type_expr() __ name:ident() _ gp:generic_params()? _ "(" _ params:function_params()? _ ")" _ wc:where_clause()? _ body:block() _ {
                 Item::Function(Function {
                     visibility: Visibility::Public,
                     name,
+                    generic_params: gp.unwrap_or_default(),
                     params: params.unwrap_or_default(),
                     return_type: Some(return_type),
                     body: Some(body),
                     is_variadic: false,
+                    where_clause: wc,
                     doc_comments: Vec::new(),
                     attributes: attrs,
                 })
@@ -2887,7 +2948,7 @@ peg::parser! {
         /// - struct Counter { int value; void increment(var &self) { self.value += 1; } }
         /// - #[derive(Debug)] struct Data { int id; }
         pub rule struct_def() -> Item
-            = _ attrs:attributes() _ kw_struct() __ name:ident() _ "{" _ members:struct_member()* _ "}" _ {
+            = _ attrs:attributes() _ kw_struct() __ name:ident() _ gp:generic_params()? _ wc:where_clause()? _ "{" _ members:struct_member()* _ "}" _ {
                 let mut fields = Vec::new();
                 let mut methods = Vec::new();
 
@@ -2901,8 +2962,10 @@ peg::parser! {
                 Item::Struct(Struct {
                     visibility: Visibility::Public,
                     name,
+                    generic_params: gp.unwrap_or_default(),
                     fields,
                     methods,
+                    where_clause: wc,
                     doc_comments: Vec::new(),
                     attributes: attrs,
                 })
@@ -2950,10 +3013,12 @@ peg::parser! {
                 Function {
                     visibility: Visibility::Private,
                     name,
+                    generic_params: Vec::new(),
                     params: params.unwrap_or_default(),
                     return_type: None,
                     body: Some(body),
                     is_variadic: false,
+                    where_clause: None,
                     doc_comments: Vec::new(),
                     attributes: attrs,
                 }
@@ -2963,10 +3028,12 @@ peg::parser! {
                 Function {
                     visibility: Visibility::Private,
                     name,
+                    generic_params: Vec::new(),
                     params: params.unwrap_or_default(),
                     return_type: Some(return_type),
                     body: Some(body),
                     is_variadic: false,
+                    where_clause: None,
                     doc_comments: Vec::new(),
                     attributes: attrs,
                 }
@@ -2976,10 +3043,12 @@ peg::parser! {
                 Function {
                     visibility: Visibility::Public,
                     name,
+                    generic_params: Vec::new(),
                     params: params.unwrap_or_default(),
                     return_type: None,
                     body: Some(body),
                     is_variadic: false,
+                    where_clause: None,
                     doc_comments: Vec::new(),
                     attributes: attrs,
                 }
@@ -2989,10 +3058,12 @@ peg::parser! {
                 Function {
                     visibility: Visibility::Public,
                     name,
+                    generic_params: Vec::new(),
                     params: params.unwrap_or_default(),
                     return_type: Some(return_type),
                     body: Some(body),
                     is_variadic: false,
+                    where_clause: None,
                     doc_comments: Vec::new(),
                     attributes: attrs,
                 }
@@ -3025,11 +3096,13 @@ peg::parser! {
         /// - enum Status { Ok = 0, Error = 1, Pending = 5 }
         /// - #[derive(Debug)] enum Direction { North, South, East, West }
         pub rule enum_def() -> Item
-            = _ attrs:attributes() _ kw_enum() __ name:ident() _ "{" _ variants:enum_variants() _ "}" _ {
+            = _ attrs:attributes() _ kw_enum() __ name:ident() _ gp:generic_params()? _ wc:where_clause()? _ "{" _ variants:enum_variants() _ "}" _ {
                 Item::Enum(Enum {
                     visibility: Visibility::Public,
                     name,
+                    generic_params: gp.unwrap_or_default(),
                     variants,
+                    where_clause: wc,
                     doc_comments: Vec::new(),
                     attributes: attrs,
                 })
@@ -3337,10 +3410,12 @@ peg::parser! {
                 Item::Function(Function {
                     visibility: Visibility::Public,
                     name,
+                    generic_params: Vec::new(),
                     params: pv.0,
                     return_type: None,
                     body: None,
                     is_variadic: pv.1,
+                    where_clause: None,
                     doc_comments: Vec::new(),
                     attributes: Vec::new(),
                 })
@@ -3349,10 +3424,12 @@ peg::parser! {
                 Item::Function(Function {
                     visibility: Visibility::Public,
                     name,
+                    generic_params: Vec::new(),
                     params: pv.0,
                     return_type: Some(return_type),
                     body: None,
                     is_variadic: pv.1,
+                    where_clause: None,
                     doc_comments: Vec::new(),
                     attributes: Vec::new(),
                 })
@@ -5200,6 +5277,82 @@ mod item_tests {
         // `pub static` is a contradiction (static = private); reject it.
         let result = crusty_peg_parser::item("pub static void helper() { }");
         assert!(result.is_err(), "pub static should be rejected");
+    }
+
+    // --- PS-08 Phase 1: generic parameters on definitions (ADR-0011) ---
+
+    #[test]
+    fn test_generic_struct_parses_type_param() {
+        let result = crusty_peg_parser::item("struct Stack<T> { int len; }");
+        assert!(result.is_ok(), "generic struct should parse: {:?}", result);
+        if let Ok(Item::Struct(s)) = result {
+            assert_eq!(s.generic_params.len(), 1);
+            assert!(matches!(
+                &s.generic_params[0],
+                GenericParam::Type { name, bounds } if name.name == "T" && bounds.is_empty()
+            ));
+            assert!(s.where_clause.is_none());
+        } else {
+            panic!("expected Item::Struct, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_generic_function_with_bound_and_where() {
+        let result =
+            crusty_peg_parser::item("T max<T: Clone>(T a, T b) where T: PartialOrd { return a; }");
+        assert!(result.is_ok(), "generic fn should parse: {:?}", result);
+        if let Ok(Item::Function(f)) = result {
+            assert_eq!(f.generic_params.len(), 1);
+            assert!(matches!(
+                &f.generic_params[0],
+                GenericParam::Type { name, bounds }
+                    if name.name == "T" && bounds == &vec!["Clone".to_string()]
+            ));
+            assert_eq!(f.where_clause.as_deref(), Some("T: PartialOrd"));
+        } else {
+            panic!("expected Item::Function, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_generic_params_lifetime_and_const() {
+        // A lifetime and a const generic alongside a type parameter.
+        let result = crusty_peg_parser::generic_params("<'a, T, const N: usize>");
+        assert!(result.is_ok(), "mixed generics should parse: {:?}", result);
+        let params = result.unwrap();
+        assert_eq!(params.len(), 3);
+        assert!(matches!(&params[0], GenericParam::Lifetime { name } if name.name == "a"));
+        assert!(matches!(&params[1], GenericParam::Type { name, .. } if name.name == "T"));
+        assert!(matches!(
+            &params[2],
+            GenericParam::Const { name, ty }
+                if name.name == "N" && matches!(ty, Type::Primitive(PrimitiveType::Usize))
+        ));
+    }
+
+    #[test]
+    fn test_generic_enum_parses() {
+        let result = crusty_peg_parser::item("enum Opt<T> { None, Some }");
+        assert!(result.is_ok(), "generic enum should parse: {:?}", result);
+        if let Ok(Item::Enum(e)) = result {
+            assert_eq!(e.generic_params.len(), 1);
+            assert!(matches!(&e.generic_params[0], GenericParam::Type { name, .. } if name.name == "T"));
+        } else {
+            panic!("expected Item::Enum, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_non_generic_definition_has_empty_generics() {
+        // A plain struct keeps an empty generic list and no where clause.
+        let result = crusty_peg_parser::item("struct Point { int x; }");
+        if let Ok(Item::Struct(s)) = result {
+            assert!(s.generic_params.is_empty());
+            assert!(s.where_clause.is_none());
+        } else {
+            panic!("expected Item::Struct, got {:?}", result);
+        }
     }
 
     #[test]

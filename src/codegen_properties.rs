@@ -130,6 +130,8 @@ mod tests {
     fn arb_simple_function() -> impl Strategy<Value = Function> {
         (arb_visibility(), arb_ident(), arb_primitive_type()).prop_map(|(vis, name, ret_type)| {
             Function {
+                generic_params: vec![],
+                where_clause: None,
                 visibility: vis,
                 name,
                 params: vec![],
@@ -144,6 +146,8 @@ mod tests {
 
     fn arb_simple_struct() -> impl Strategy<Value = Struct> {
         (arb_visibility(), arb_ident()).prop_map(|(vis, name)| Struct {
+            generic_params: vec![],
+            where_clause: None,
             visibility: vis,
             name,
             fields: vec![],
@@ -155,6 +159,8 @@ mod tests {
 
     fn arb_simple_enum() -> impl Strategy<Value = Enum> {
         (arb_visibility(), arb_ident()).prop_map(|(vis, name)| Enum {
+            generic_params: vec![],
+            where_clause: None,
             visibility: vis,
             name,
             variants: vec![
@@ -229,6 +235,8 @@ mod tests {
                 mutable,
             };
             let func = Function {
+                generic_params: vec![],
+                where_clause: None,
                 visibility: Visibility::Public,
                 name: Ident::new("test"),
                 params: vec![],
@@ -263,6 +271,8 @@ mod tests {
                 init: Some(Expression::Literal(Literal::Int(42))),
             };
             let func = Function {
+                generic_params: vec![],
+                where_clause: None,
                 visibility: Visibility::Public,
                 name: Ident::new("test"),
                 params: vec![],
@@ -317,6 +327,8 @@ mod tests {
             let mut gen = CodeGenerator::new(TargetLanguage::Rust);
             let stmt = Statement::Break { label: Some(label.clone()), value: None };
             let func = Function {
+                generic_params: vec![],
+                where_clause: None,
                 visibility: Visibility::Public,
                 name: Ident::new("test"),
                 params: vec![],
@@ -342,6 +354,8 @@ mod tests {
             let mut gen = CodeGenerator::new(TargetLanguage::Rust);
             let stmt = Statement::Continue(Some(label.clone()));
             let func = Function {
+                generic_params: vec![],
+                where_clause: None,
                 visibility: Visibility::Public,
                 name: Ident::new("test"),
                 params: vec![],
@@ -371,6 +385,8 @@ mod tests {
                 body: Block::empty(),
             };
             let func = Function {
+                generic_params: vec![],
+                where_clause: None,
                 visibility: Visibility::Public,
                 name: Ident::new("test"),
                 params: vec![],
@@ -664,6 +680,8 @@ mod tests {
         fn prop_struct_methods_translate_to_impl(struct_name in arb_ident(), method_name in arb_ident()) {
             let mut gen = CodeGenerator::new(TargetLanguage::Rust);
             let method = Function {
+                generic_params: vec![],
+                where_clause: None,
                 visibility: Visibility::Public,
                 name: method_name.clone(),
                 params: vec![Param {
@@ -680,6 +698,8 @@ mod tests {
                 attributes: vec![],
             };
             let struct_def = Struct {
+                generic_params: vec![],
+                where_clause: None,
                 visibility: Visibility::Public,
                 name: struct_name.clone(),
                 fields: vec![],
@@ -721,6 +741,8 @@ mod tests {
                 body: Block::empty(),
             };
             let func = Function {
+                generic_params: vec![],
+                where_clause: None,
                 visibility: Visibility::Public,
                 name: Ident::new("test"),
                 params: vec![],
@@ -772,6 +794,8 @@ mod tests {
                 body: Block::empty(),
             };
             let func = Function {
+                generic_params: vec![],
+                where_clause: None,
                 visibility: Visibility::Public,
                 name: Ident::new("test"),
                 params: vec![],
@@ -815,6 +839,8 @@ mod tests {
                 default: Some(Block::empty()),
             };
             let func = Function {
+                generic_params: vec![],
+                where_clause: None,
                 visibility: Visibility::Public,
                 name: Ident::new("test"),
                 params: vec![],
@@ -934,6 +960,8 @@ mod tests {
 
             // Create an outer function containing the nested function
             let outer_func = Function {
+                generic_params: vec![],
+                where_clause: None,
                 visibility: Visibility::Public,
                 name: Ident::new("outer"),
                 params: vec![],
@@ -994,6 +1022,8 @@ mod tests {
 
             // Create an outer function with a variable and nested function
             let outer_func = Function {
+                generic_params: vec![],
+                where_clause: None,
                 visibility: Visibility::Public,
                 name: Ident::new("outer"),
                 params: vec![],
@@ -1066,6 +1096,8 @@ mod tests {
 
             // Create an outer function with a mutable variable and nested function
             let outer_func = Function {
+                generic_params: vec![],
+                where_clause: None,
                 visibility: Visibility::Public,
                 name: Ident::new("outer"),
                 params: vec![],
