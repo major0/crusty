@@ -88,7 +88,8 @@ ADR'd) before implementation.
   generic calls discard type args) and **SEM-04** (generic-argument inference;
   array-literal ↔ `Vec<T>`). One cohesive workstream. Specified in ADR-0011.
 - **PS-07** closures/lambdas (`|x| expr`) and function-pointer *types*
-  (`Type::Function`, DRIFT-3). Specified in ADR-0013.
+  (`Type::Function`, DRIFT-3). Specified in ADR-0013, nested-function lowering
+  revised by ADR-0014.
 - **PS-06** `match` expression/statement (keyword already reserved). Specified
   in ADR-0012.
 - **PS-09** `trait`/`impl` items; `unsafe`; `async`.

@@ -1,7 +1,12 @@
 # ADR-0013: Anonymous functions and function-pointer types (PS-07, DRIFT-3)
 
 ## Status
-accepted
+superseded by ADR-0014
+
+> Workstream A (`fn(T) -> R` types) and the `__func__` anonymous-function design
+> below stand; ADR-0014 changes only the **nested-function lowering** (to a
+> hoisted Rust `fn` item) and the resulting capture-ownership split. Read
+> ADR-0014 for the current nested-function decision.
 
 ## Context
 ADR-0009's Tier 4 lists **PS-07** — closures/lambdas (`|x| expr`) and
