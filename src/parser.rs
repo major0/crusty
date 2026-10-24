@@ -1346,6 +1346,7 @@ peg::parser! {
         rule atom_inner(allow_struct: bool) -> Expression
             = rust_block_expr()
             / loop_expr()
+            / match_expr()
             / sizeof_expr()
             / macro_call()
             / cast_expr()
@@ -1368,6 +1369,121 @@ peg::parser! {
             / _ kw_loop() _ body:block() _ {
                 Expression::Loop { label: None, body: Box::new(body) }
             }
+
+        /// Match expression (PS-06, ADR-0012): `match <scrutinee> { arm,* }`.
+        /// The scrutinee is parsed through the struct-literal-free atom tier
+        /// (`expr_inner(false)`, as for the for-in iterable), so `match p { … }`
+        /// reads `p` as the scrutinee and `{` as the arm block rather than
+        /// `p {}` as an empty struct literal. A struct-literal scrutinee must be
+        /// parenthesised. Lowered verbatim to a Rust `match`.
+        rule match_expr() -> Expression
+            = _ kw_match() __ scrutinee:expr_inner(false, false) _ "{" _ arms:match_arms() _ "}" _ {
+                Expression::Match {
+                    scrutinee: Box::new(scrutinee),
+                    arms,
+                }
+            }
+
+        /// Helper: comma-separated match arms, trailing comma optional.
+        rule match_arms() -> Vec<MatchArm>
+            = arms:(match_arm() ** (_ "," _)) _ ","? { arms }
+
+        /// Helper: one match arm `pattern [if guard] => body`. The body is an
+        /// expression (a `{ … }` block is an expression), so both
+        /// `p => expr` and `p => { … }` parse through one rule.
+        rule match_arm() -> MatchArm
+            = _ pattern:pattern() _ guard:match_guard()? _ "=>" _ body:expr_inner(true, false) {
+                MatchArm {
+                    pattern,
+                    guard,
+                    body: Box::new(body),
+                }
+            }
+
+        /// Helper: an arm guard `if <cond>`. The condition is parsed
+        /// struct-literal-free so the arm body's `{` is not swallowed.
+        rule match_guard() -> Expression
+            = kw_if() __ cond:expr_inner(false, false) { cond }
+
+        /// A match-arm pattern. Structural forms are parsed into typed
+        /// `Pattern` variants; anything else (payload/tuple/struct
+        /// destructuring) falls through to `raw_pattern()` and is carried
+        /// verbatim to rustc (ADR-0001). Order matters: alternation wraps the
+        /// others; range before literal (a range starts with a literal
+        /// endpoint); wildcard before binding (`_` is not a binding).
+        rule pattern() -> Pattern
+            = first:pattern_no_or() rest:(_ "|" _ p:pattern_no_or() { p })+ {
+                let mut alts = vec![first];
+                alts.extend(rest);
+                Pattern::Or(alts)
+            }
+            / pattern_no_or()
+
+        /// Helper: a single pattern with no top-level `|` alternation.
+        rule pattern_no_or() -> Pattern
+            = lo:pattern_range_endpoint() _ inclusive:range_op() _ hi:pattern_range_endpoint() {
+                Pattern::Range { lo: Box::new(lo), hi: Box::new(hi), inclusive }
+            }
+            / raw_pattern_lookahead() r:raw_pattern() { r }
+            / "_" !ident_char() { Pattern::Wildcard }
+            / lit:literal() { Pattern::Literal(lit) }
+            / segs:path_pattern() {?
+                if segs.len() >= 2 { Ok(Pattern::Path(segs)) }
+                else { Err("not a path pattern") }
+            }
+            / name:ident() { Pattern::Binding(name) }
+
+        /// Helper: a range-pattern endpoint — a literal only (`1`, `'a'`),
+        /// matching Rust's range-pattern bound forms.
+        rule pattern_range_endpoint() -> Expression
+            = lit:literal() { Expression::Literal(lit) }
+
+        /// Helper: the range operator, returning whether it is inclusive.
+        rule range_op() -> bool
+            = "..=" { true }
+            / "..." { true }
+            / ".." { false }
+
+        /// Helper: a `::`-separated path (`Color::Red`, `Opt::Some`).
+        rule path_pattern() -> Vec<Ident>
+            = first:ident() rest:(_ "::" _ seg:ident() { seg })* {
+                let mut segs = vec![first];
+                segs.extend(rest);
+                segs
+            }
+
+        /// Helper: positive lookahead — the upcoming tokens are a structural
+        /// form we do NOT model (an identifier/path immediately followed by
+        /// `(` or `{`, i.e. a tuple/struct destructuring), so route to
+        /// `raw_pattern()`. A bare path or binding is NOT captured here.
+        rule raw_pattern_lookahead()
+            = &(ident() (_ "::" _ ident())* _ ['(' | '{'])
+            / &("&" / "(" / "[")
+
+        /// Helper: a raw passthrough pattern — any Rust pattern Crusty does not
+        /// model structurally, captured verbatim up to the arm's `if`/`=>`,
+        /// balancing nested delimiters so a `=>` inside the pattern is not
+        /// mistaken for the arm separator. Emitted unchanged.
+        rule raw_pattern() -> Pattern
+            = s:$(raw_pattern_token()+) { Pattern::Raw(s.trim().to_string()) }
+
+        /// Helper: one token of a raw pattern. Stops at a top-level `=>` or the
+        /// ` if ` guard; balances parens / brackets / braces so delimited
+        /// sub-patterns pass through whole.
+        rule raw_pattern_token() -> ()
+            = "(" raw_pattern_inner()* ")" {}
+            / "[" raw_pattern_inner()* "]" {}
+            / "{" raw_pattern_inner()* "}" {}
+            / !"=>" !(__ kw_if() __) [^ '=' | '(' | ')' | '[' | ']' | '{' | '}'] {}
+            / !"=>" "=" {}
+
+        /// Helper: raw-pattern content inside a balanced delimiter (any char,
+        /// recursing on nested delimiters).
+        rule raw_pattern_inner() -> ()
+            = "(" raw_pattern_inner()* ")" {}
+            / "[" raw_pattern_inner()* "]" {}
+            / "{" raw_pattern_inner()* "}" {}
+            / [^ '(' | ')' | '[' | ']' | '{' | '}'] {}
 
         /// Primary expression: the atomic building blocks of expressions
         /// Order matters for PEG ordered choice:
@@ -1415,7 +1531,15 @@ peg::parser! {
         /// Handles all operators with correct precedence and associativity
         ///
         /// Requirements validated: 1.6, 6.8, 6.16
-        pub rule expr() -> Expression = e:expr_inner(true) { e }
+        pub rule expr() -> Expression = e:expr_inner(true, true) { e }
+
+        /// Helper: the comma-operator separator, matched only when
+        /// `allow_comma` is true. Lives in a normal rule (not a precedence
+        /// level) so it can use a fallible `{? }` action — a match-arm body
+        /// passes `allow_comma=false` so a top-level `,` ends the arm instead
+        /// of forming a comma expression (ADR-0012).
+        rule comma_guard(allow_comma: bool) -> ()
+            = _ "," _ {? if allow_comma { Ok(()) } else { Err("comma not allowed") } }
 
         /// The full expression precedence table, parameterised by whether a bare
         /// struct literal is allowed in the base atom. `allow_struct=true` is the
@@ -1424,10 +1548,14 @@ peg::parser! {
         /// is threaded to the single `primary_inner` base case, so the whole
         /// binary/comparison/logical/range tree is shared (no duplicated table)
         /// and `for x in a + b { }` parses with no parens.
-        rule expr_inner(allow_struct: bool) -> Expression = precedence!{
-            // Level 1: Comma operator (lowest precedence, left-associative)
-            // Used in for-loop increments: i++, j--
-            l:(@) _ "," _ r:@ {
+        rule expr_inner(allow_struct: bool, allow_comma: bool) -> Expression = precedence!{
+            // Level 1: Comma operator (lowest precedence, left-associative).
+            // Used in for-loop increments: i++, j--. `allow_comma=false` makes
+            // a match-arm body (ADR-0012) stop before a top-level comma, which
+            // there separates arms rather than forming a comma expression; the
+            // guard lives in the base atom via `comma_guard` so the precedence
+            // level itself stays a plain infallible action.
+            l:(@) _ comma_guard(allow_comma) r:@ {
                 Expression::Comma {
                     left: Box::new(l),
                     right: Box::new(r),
@@ -2392,7 +2520,7 @@ peg::parser! {
         /// `{` begins the loop body". A struct literal must be parenthesised:
         /// `for p in (Point { x: 1 }) { }`, reached because `(` is unambiguous.
         rule for_in_iter() -> Expression
-            = e:expr_inner(false) { e }
+            = e:expr_inner(false, true) { e }
 
         /// Switch statement: multi-way branch
         /// Syntax: switch (expr) { case value: { body } ... [default: { body }] }
@@ -5352,6 +5480,107 @@ mod item_tests {
             assert!(s.where_clause.is_none());
         } else {
             panic!("expected Item::Struct, got {:?}", result);
+        }
+    }
+
+    // --- PS-06 Phase 1: match expression + patterns (ADR-0012) ---
+
+    #[test]
+    fn test_match_literal_arms_and_wildcard() {
+        let result = crusty_peg_parser::expr("match n { 1 => 10, 2 => 20, _ => 0 }");
+        assert!(result.is_ok(), "match should parse: {:?}", result);
+        if let Ok(Expression::Match { scrutinee, arms }) = result {
+            assert!(matches!(&*scrutinee, Expression::Ident(i) if i.name == "n"));
+            assert_eq!(arms.len(), 3);
+            assert!(matches!(&arms[0].pattern, Pattern::Literal(_)));
+            assert!(arms[0].guard.is_none());
+            assert!(matches!(&arms[2].pattern, Pattern::Wildcard));
+        } else {
+            panic!("expected Expression::Match, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_match_scrutinee_ident_not_read_as_struct_literal() {
+        // `match p { … }` must read `p` as the scrutinee and `{` as the arm
+        // block, never `p {}` as an empty struct literal (the for-in rule).
+        let result = crusty_peg_parser::expr("match p { _ => 1 }");
+        assert!(result.is_ok(), "bare-ident scrutinee should parse: {:?}", result);
+        if let Ok(Expression::Match { scrutinee, arms }) = result {
+            assert!(matches!(&*scrutinee, Expression::Ident(i) if i.name == "p"));
+            assert_eq!(arms.len(), 1);
+        } else {
+            panic!("expected Expression::Match, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_match_guard_and_inclusive_range() {
+        let result =
+            crusty_peg_parser::expr("match c { 'a'..='z' => 1, n if n > 0 => 2, _ => 3 }");
+        assert!(result.is_ok(), "guard + range should parse: {:?}", result);
+        if let Ok(Expression::Match { arms, .. }) = result {
+            assert_eq!(arms.len(), 3);
+            assert!(matches!(
+                &arms[0].pattern,
+                Pattern::Range { inclusive: true, .. }
+            ));
+            // Second arm: a binding with a guard.
+            assert!(matches!(&arms[1].pattern, Pattern::Binding(b) if b.name == "n"));
+            assert!(arms[1].guard.is_some());
+        } else {
+            panic!("expected Expression::Match, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_match_or_and_path_patterns() {
+        let result = crusty_peg_parser::expr("match x { 1 | 2 | 3 => 10, Color::Red => 20, _ => 0 }");
+        assert!(result.is_ok(), "or + path patterns should parse: {:?}", result);
+        if let Ok(Expression::Match { arms, .. }) = result {
+            assert_eq!(arms.len(), 3);
+            if let Pattern::Or(alts) = &arms[0].pattern {
+                assert_eq!(alts.len(), 3);
+            } else {
+                panic!("expected Pattern::Or, got {:?}", arms[0].pattern);
+            }
+            if let Pattern::Path(segs) = &arms[1].pattern {
+                assert_eq!(segs.len(), 2);
+                assert_eq!(segs[0].name, "Color");
+                assert_eq!(segs[1].name, "Red");
+            } else {
+                panic!("expected Pattern::Path, got {:?}", arms[1].pattern);
+            }
+        } else {
+            panic!("expected Expression::Match, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_match_destructuring_pattern_is_raw_passthrough() {
+        // A payload-destructuring pattern Crusty does not model is captured
+        // verbatim as Pattern::Raw, not a parse error (ADR-0012 escape hatch).
+        let result = crusty_peg_parser::expr("match o { Some(v) => v, None => 0 }");
+        assert!(result.is_ok(), "destructuring arm should parse as raw: {:?}", result);
+        if let Ok(Expression::Match { arms, .. }) = result {
+            assert_eq!(arms.len(), 2);
+            assert!(matches!(&arms[0].pattern, Pattern::Raw(s) if s == "Some(v)"));
+            // `None` is a bare path segment → a single-ident binding, not raw.
+            assert!(matches!(&arms[1].pattern, Pattern::Binding(b) if b.name == "None"));
+        } else {
+            panic!("expected Expression::Match, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_match_in_let_initializer_expression_position() {
+        // The whole point of PS-06 over `switch`: match yields a value.
+        let result = crusty_peg_parser::statement("let r = match n { 0 => 1, _ => 2 };");
+        assert!(result.is_ok(), "match in let initializer should parse: {:?}", result);
+        if let Ok(Statement::Let { init: Some(Expression::Match { arms, .. }), .. }) = result {
+            assert_eq!(arms.len(), 2);
+        } else {
+            panic!("expected a let with a Match initializer, got {:?}", result);
         }
     }
 

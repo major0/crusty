@@ -1607,6 +1607,12 @@ impl CodeGenerator {
                 result.push_str(" }");
                 result
             }
+            Expression::Match { .. } => {
+                // PS-06 Phase 1 is parse-and-store only; code generation for
+                // `match` lands in Phase 2 (ADR-0012). No Phase-1 path emits a
+                // match, so this marker is never reached by a passing build.
+                unimplemented!("match-expression codegen is ADR-0012 Phase 2")
+            }
         }
     }
 

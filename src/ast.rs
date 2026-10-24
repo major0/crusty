@@ -454,6 +454,53 @@ pub enum Expression {
         left: Box<Expression>,
         right: Box<Expression>,
     },
+    /// `match` expression (PS-06, ADR-0012). Yields the value of the matched
+    /// arm's body, so it is legal in expression position
+    /// (`let x = match e { … };`); in statement position it is a
+    /// `Statement::Expr` wrapping this. Distinct from the C-style
+    /// `Statement::Switch`, which matches value expressions, not patterns.
+    Match {
+        scrutinee: Box<Expression>,
+        arms: Vec<MatchArm>,
+    },
+}
+
+/// One arm of a `match` expression (PS-06). The body is an expression; a
+/// `{ … }` block is itself an expression, so both `p => expr` and `p => { … }`
+/// use this one shape. `guard` is the optional `if <cond>` after the pattern.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MatchArm {
+    pub pattern: Pattern,
+    pub guard: Option<Expression>,
+    pub body: Box<Expression>,
+}
+
+/// A `match`-arm pattern (PS-06, ADR-0012). Covers the decidable, portable
+/// subset structurally; anything Crusty does not model (payload/tuple/struct
+/// destructuring) rides `Pattern::Raw` verbatim and is left to rustc, the same
+/// escape-hatch move PS-08 uses for generic bounds and `where` clauses.
+#[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
+pub enum Pattern {
+    /// `_`
+    Wildcard,
+    /// A literal pattern: `0`, `"x"`, `'a'`, `true`, a radix/suffix `Raw`.
+    Literal(Literal),
+    /// A bare name that binds the scrutinee, e.g. `n`.
+    Binding(Ident),
+    /// A range pattern: `1..=5` (inclusive) or `1..5` (exclusive).
+    Range {
+        lo: Box<Expression>,
+        hi: Box<Expression>,
+        inclusive: bool,
+    },
+    /// Alternation: `a | b | c`.
+    Or(Vec<Pattern>),
+    /// A path pattern naming a unit variant or const, e.g. `Color::Red`.
+    Path(Vec<Ident>),
+    /// Any Rust pattern Crusty does not model structurally, captured verbatim
+    /// and emitted unchanged (e.g. `Some(x)`, `(a, b)`, `Point { x, y }`).
+    Raw(String),
 }
 
 /// Type expressions

@@ -2616,6 +2616,14 @@ impl SemanticAnalyzer {
                     None => Type::Primitive(PrimitiveType::Void),
                 }
             }
+            Expression::Match { scrutinee, .. } => {
+                // PS-06 Phase 1 (ADR-0012): analyse the scrutinee so its own
+                // errors surface, and type the match as `Auto` — pattern
+                // binding scope and arm-type unification are Phase 3. Arm
+                // bodies are intentionally not analysed yet.
+                self.analyze_expression(scrutinee);
+                Type::Auto
+            }
         }
     }
 
@@ -2908,6 +2916,18 @@ impl SemanticAnalyzer {
             }
             Expression::Loop { body, .. } => {
                 self.collect_used_variables_in_block(body, used);
+            }
+            Expression::Match { scrutinee, arms } => {
+                // A variable referenced in the scrutinee, a guard, or any arm
+                // body is used — walk all three so Phase-1 match expressions do
+                // not trip false "unused variable" diagnostics (ADR-0012).
+                self.collect_used_variables(scrutinee, used);
+                for arm in arms {
+                    if let Some(guard) = &arm.guard {
+                        self.collect_used_variables(guard, used);
+                    }
+                    self.collect_used_variables(&arm.body, used);
+                }
             }
             Expression::Literal(_) => {
                 // Literals don't use variables
