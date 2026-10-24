@@ -88,7 +88,7 @@ ADR'd) before implementation.
   generic calls discard type args) and **SEM-04** (generic-argument inference;
   array-literal ↔ `Vec<T>`). One cohesive workstream. Specified in ADR-0011.
 - **PS-07** closures/lambdas (`|x| expr`) and function-pointer *types*
-  (`Type::Function`, DRIFT-3).
+  (`Type::Function`, DRIFT-3). Specified in ADR-0013.
 - **PS-06** `match` expression/statement (keyword already reserved). Specified
   in ADR-0012.
 - **PS-09** `trait`/`impl` items; `unsafe`; `async`.
@@ -101,7 +101,8 @@ ADR'd) before implementation.
 - **DRIFT-4** `control-flow.md` `for_stmt` EBNF marks the condition optional;
   the grammar requires it — fix the EBNF.
 - **DRIFT-2 / DRIFT-3** fallible-type and function-pointer-type docs — DRIFT-2
-  is resolved by PS-02 (done); DRIFT-3 resolves when PS-07 lands.
+  is resolved by PS-02 (done); DRIFT-3 resolves when PS-07 lands (ADR-0013,
+  Workstream A).
 
 ## Consequences
 - **Easier:** the ranking stays lowest-risk-first and shippable at each step,
