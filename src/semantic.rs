@@ -2616,18 +2616,102 @@ impl SemanticAnalyzer {
                     None => Type::Primitive(PrimitiveType::Void),
                 }
             }
-            Expression::Match { scrutinee, .. } => {
-                // PS-06 Phase 1 (ADR-0012): analyse the scrutinee so its own
-                // errors surface, and type the match as `Auto` — pattern
-                // binding scope and arm-type unification are Phase 3. Arm
-                // bodies are intentionally not analysed yet.
+            Expression::Match { scrutinee, arms } => {
+                // PS-06 Phase 3 (ADR-0012). Analyse the scrutinee, then each
+                // arm in its own scope: a `Pattern::Binding` introduces its
+                // name typed `Auto` (rustc narrows), a guard must be
+                // bool-compatible, and the match's type is the arms' common
+                // body type — or `Auto` when they disagree or an arm body
+                // cannot be typed. Exhaustiveness/reachability are rustc's.
                 self.analyze_expression(scrutinee);
-                Type::Auto
+
+                let mut arm_types: Vec<Type> = Vec::new();
+                for arm in arms {
+                    self.symbol_table.enter_scope();
+                    self.bind_pattern(&arm.pattern);
+
+                    if let Some(ref guard) = arm.guard {
+                        let guard_type = self.analyze_expression(guard);
+                        if !self.type_env.is_compatible(
+                            &Type::Primitive(PrimitiveType::Bool),
+                            &guard_type,
+                        ) {
+                            self.errors.push(SemanticError::new(
+                                Span::new(
+                                    crate::error::Position::new(0, 0),
+                                    crate::error::Position::new(0, 0),
+                                ),
+                                SemanticErrorKind::TypeMismatch,
+                                format!(
+                                    "match guard must be boolean, found {:?}",
+                                    guard_type
+                                ),
+                            ));
+                        }
+                    }
+
+                    // A `Raw` pattern may bind names Crusty cannot see
+                    // (e.g. `Some(x)`), so analysing its body strictly would
+                    // raise false "undefined variable" errors. For a structural
+                    // pattern we analyse the body and record its type; for a
+                    // raw pattern we defer entirely to rustc (`Auto`).
+                    if matches!(arm.pattern, crate::ast::Pattern::Raw(_)) {
+                        arm_types.push(Type::Auto);
+                    } else {
+                        arm_types.push(self.analyze_expression(&arm.body));
+                    }
+
+                    self.symbol_table.exit_scope();
+                }
+
+                // The match yields the arms' common concrete type, or `Auto`
+                // when they disagree, an arm is `Auto`, or there are no arms.
+                match arm_types.split_first() {
+                    Some((first, rest))
+                        if *first != Type::Auto
+                            && rest.iter().all(|t| t == first) =>
+                    {
+                        first.clone()
+                    }
+                    _ => Type::Auto,
+                }
             }
         }
     }
 
     /// Find the first `break <value>` directly within a loop body (not
+    /// Introduce a pattern's bindings into the current scope (PS-06, ADR-0012).
+    /// A `Binding` binds its name typed `Auto` (rustc narrows); an `Or`
+    /// recurses into each alternative (Rust requires the alternatives to bind
+    /// the same names, which rustc enforces — a duplicate insert here is
+    /// harmless and ignored). Wildcard, literal, range, and path bind nothing.
+    /// `Raw` is opaque: any names it binds live in text Crusty did not parse,
+    /// so nothing is bound and the arm body is not analysed strictly (see the
+    /// `Match` arm), leaving rustc to arbitrate.
+    fn bind_pattern(&mut self, pattern: &crate::ast::Pattern) {
+        use crate::ast::Pattern;
+        match pattern {
+            Pattern::Binding(name) => {
+                // Ignore a duplicate-in-scope error: an `Or` arm may repeat a
+                // name across alternatives, which is correct, not a redefine.
+                let _ = self.symbol_table.insert(
+                    name.name.clone(),
+                    Symbol::new(name.name.clone(), Type::Auto, SymbolKind::Variable, false),
+                );
+            }
+            Pattern::Or(alts) => {
+                for alt in alts {
+                    self.bind_pattern(alt);
+                }
+            }
+            Pattern::Wildcard
+            | Pattern::Literal(_)
+            | Pattern::Range { .. }
+            | Pattern::Path(_)
+            | Pattern::Raw(_) => {}
+        }
+    }
+
     /// descending into nested loops, whose breaks bind to the inner loop).
     /// Returns the break's value expression, if any.
     fn first_break_value(block: &crate::ast::Block) -> Option<&crate::ast::Expression> {

@@ -1413,4 +1413,46 @@ mod tests {
         };
         assert!(!env.is_compatible(&vec_i32, &arr_bool));
     }
+
+    // ------------------------------------------------------------------
+    // PS-06 Phase 3 (ADR-0012): match binding scope and arm typing.
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn test_match_binding_in_scope_in_arm_body() {
+        // A `Pattern::Binding` is visible in its arm body and guard.
+        let (_, result) = analyze_source(
+            "void main() { let n = 7; let d = match n { 0 => 0, x if x > 1 => x + x, y => y }; }",
+        );
+        assert!(result.is_ok(), "binding should be in scope: {:?}", result);
+    }
+
+    #[test]
+    fn test_match_arm_body_undefined_variable_errors() {
+        // A non-raw arm body referencing an unbound name still errors — the
+        // binding scope does not suppress real diagnostics.
+        let (_, result) = analyze_source(
+            "void main() { let n = 7; let d = match n { _ => bogus }; }",
+        );
+        assert!(result.is_err(), "undefined var in arm body should error");
+    }
+
+    #[test]
+    fn test_match_binding_does_not_leak_out_of_arm() {
+        // A name bound in one arm is not visible after the match.
+        let (_, result) = analyze_source(
+            "void main() { let n = 7; let d = match n { z => z }; let e = z; }",
+        );
+        assert!(result.is_err(), "arm binding must not leak to outer scope");
+    }
+
+    #[test]
+    fn test_match_raw_pattern_body_not_strictly_analysed() {
+        // A `Raw` pattern may bind names Crusty cannot parse (`Some(v)`), so
+        // its arm body is deferred to rustc rather than false-flagged.
+        let (_, result) = analyze_source(
+            "void main() { let n = 7; let d = match n { Some(v) => v, _ => 0 }; }",
+        );
+        assert!(result.is_ok(), "raw-pattern arm body must not error: {:?}", result);
+    }
 }
