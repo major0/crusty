@@ -15,6 +15,7 @@ The complete macro surface is four directives:
 | `#define __NAME__ value`      | `const NAME: T = value;`   | Named constant (no parameters) |
 | `#macro __NAME__(a, b) body`  | `macro_rules! name { … }`  | Parameterised macro           |
 | `#ifdef FOO` … `#endif`       | `#[cfg(FOO)]`              | Conditional compilation       |
+| `#ifdef FOO` … `#else` … `#endif` | `#[cfg(FOO)]` / `#[cfg(not(FOO))]` | Conditional with else branch |
 | `name!(args)`                 | `name!(args)`              | Macro invocation (bang form)  |
 
 Anything else — raw `macro_rules!`, `#[derive(...)]`, attribute macros,
@@ -109,6 +110,35 @@ Only bare cfg flags are shimmed. `#[cfg(feature = "…")]`, target predicates, a
 other cfg forms are out of scope — write a raw attribute or use `__rust__` for
 those.
 
+### `#else`
+
+An optional `#else` branch selects an alternative set of items. Because Rust has
+no block-level preprocessor, `#else` does not become a Rust `else` — it lowers to
+a **second cfg-gated group under the inverted predicate**. The `#else` of an
+`#ifdef FOO` is gated `#[cfg(not(FOO))]`; the `#else` of an `#ifndef FOO` is gated
+`#[cfg(FOO)]`.
+
+```c
+#ifdef FOO
+void greet() { println!("FOO is set"); }
+#else
+void greet() { println!("FOO is not set"); }
+#endif
+```
+Translates to:
+```rust
+#[cfg(FOO)]
+fn greet() { println!("FOO is set"); }
+#[cfg(not(FOO))]
+fn greet() { println!("FOO is not set"); }
+```
+
+Both branches may define the same name — they are mutually exclusive at compile
+time, so exactly one is active and there is no real duplicate. The condition is
+written once; the `#else` predicate is always its inverse. `#elif` / condition
+chains are not supported — nest a second `#ifdef` inside the `#else` branch, or
+write separate blocks.
+
 ## Invocation and delimiter preservation
 
 A macro is invoked with Rust's native `name!(...)` form — the trailing `!` is
@@ -145,7 +175,7 @@ const_value   = [ "-" ] literal ;
 macro_item    = "#macro" "__" IDENT "__" "(" [ param_list ] ")" macro_body ;
 macro_body    = raw_span ;
 
-conditional   = ( "#ifdef" | "#ifndef" ) IDENT item* "#endif" ;
+conditional   = ( "#ifdef" | "#ifndef" ) IDENT item* ( "#else" item* )? "#endif" ;
 
 macro_invoke  = IDENT "!" ( "(" args ")" | "[" args "]" | "{" args "}" ) ;
 ```

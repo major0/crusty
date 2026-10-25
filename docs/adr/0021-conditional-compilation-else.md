@@ -1,7 +1,7 @@
 # ADR-0021: `#else` for conditional-compilation directives
 
 ## Status
-proposed
+accepted
 
 ## Context
 
@@ -80,13 +80,13 @@ We will add an optional `#else` branch to the conditional-compilation directive.
 
 ## Verification
 
-- [ ] `ConditionalCompilation` has `else_items: Vec<Item>`; `#ifdef`/`#ifndef` without `#else` parse with `else_items` empty (existing behaviour unchanged).
-- [ ] `#ifdef FOO <a> #else <b> #endif` parses: `items` = [a], `else_items` = [b].
-- [ ] Codegen emits `#[cfg(FOO)]` on the `#ifdef` branch items and `#[cfg(not(FOO))]` on the `#else` items; the `#ifndef` form inverts both.
-- [ ] End-to-end under `rustc -D unused_parens`: a file selecting between two function definitions by a `--cfg` flag compiles and runs the correct branch with and without the flag.
-- [ ] A stray `#else` with no open `#if*`, and an `#if*` with two `#else` branches, are parse errors.
-- [ ] Full suite green (`cargo test`), clippy clean.
-- [ ] `docs/syntax/` documents the `#else` form and the two-cfg-group lowering.
+- [x] `ConditionalCompilation` has `else_items: Vec<Item>`; `#ifdef`/`#ifndef` without `#else` parse with `else_items` empty (existing behaviour unchanged).
+- [x] `#ifdef FOO <a> #else <b> #endif` parses: `items` = [a], `else_items` = [b].
+- [x] Codegen emits `#[cfg(FOO)]` on the `#ifdef` branch items and `#[cfg(not(FOO))]` on the `#else` items; the `#ifndef` form inverts both.
+- [x] End-to-end under `rustc -D unused_parens`: a file selecting between two function definitions by a `--cfg` flag compiles and runs the correct branch with and without the flag.
+- [x] A stray `#else` with no open `#if*`, and an `#if*` with two `#else` branches, are parse errors.
+- [x] Full suite green (`cargo test`), clippy clean.
+- [x] `docs/syntax/` documents the `#else` form and the two-cfg-group lowering.
 
 ## Alternatives considered
 
