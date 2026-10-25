@@ -795,14 +795,26 @@ impl CodeGenerator {
 
     fn generate_conditional_compilation(&mut self, cc: &ConditionalCompilation) {
         // `#ifdef FOO` / `#ifndef FOO` lowers to `#[cfg(FOO)]` /
-        // `#[cfg(not(FOO))]` on each contained item (ADR-0001).
+        // `#[cfg(not(FOO))]` on each contained item (ADR-0001). An optional
+        // `#else` branch (ADR-0021) emits its items under the INVERTED
+        // predicate — Rust has no block preprocessor, so the else is a second
+        // cfg-gated group, not a Rust `else`.
         let predicate = if cc.negated {
             format!("not({})", cc.cfg.name)
         } else {
             cc.cfg.name.clone()
         };
+        let else_predicate = if cc.negated {
+            cc.cfg.name.clone()
+        } else {
+            format!("not({})", cc.cfg.name)
+        };
         for item in &cc.items {
             self.write_line(&format!("#[cfg({})]", predicate));
+            self.generate_item(item);
+        }
+        for item in &cc.else_items {
+            self.write_line(&format!("#[cfg({})]", else_predicate));
             self.generate_item(item);
         }
     }

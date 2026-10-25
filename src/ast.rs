@@ -151,6 +151,12 @@ pub struct ConditionalCompilation {
     pub cfg: Ident,
     pub negated: bool,
     pub items: Vec<Item>,
+    /// Items in the optional `#else` branch (ADR-0021), empty when there is no
+    /// `#else`. These emit under the INVERTED predicate of `items`: an `#ifdef`
+    /// else-branch is gated `#[cfg(not(NAME))]`, an `#ifndef` else-branch
+    /// `#[cfg(NAME)]`. One condition drives both branches, so an inconsistent
+    /// else predicate is unrepresentable.
+    pub else_items: Vec<Item>,
 }
 
 /// Function declaration

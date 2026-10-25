@@ -1744,6 +1744,7 @@ mod tests {
             cfg: Ident::new("FEATURE".to_string()),
             negated: false,
             items: vec![Item::Function(func)],
+            else_items: vec![],
         };
 
         let file = File {
@@ -1775,6 +1776,7 @@ mod tests {
             cfg: Ident::new("FEATURE".to_string()),
             negated: true,
             items: vec![Item::Function(func)],
+            else_items: vec![],
         };
 
         let file = File {
@@ -1784,6 +1786,43 @@ mod tests {
 
         let output = gen.generate(&file);
         assert!(output.contains("#[cfg(not(FEATURE))]"), "got: {}", output);
+    }
+
+    #[test]
+    fn test_generate_conditional_compilation_else_inverts_predicate() {
+        // ADR-0021: `#ifdef FEATURE a #else b #endif` emits #[cfg(FEATURE)] on
+        // a and the INVERTED #[cfg(not(FEATURE))] on the else item b.
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let mk = |name: &str| Function {
+            generic_params: vec![],
+            where_clause: None,
+            visibility: Visibility::Private,
+            name: Ident::new(name.to_string()),
+            params: vec![],
+            return_type: None,
+            body: Some(Block::new(vec![])),
+            is_variadic: false,
+            is_unsafe: false,
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let cc = ConditionalCompilation {
+            cfg: Ident::new("FEATURE".to_string()),
+            negated: false,
+            items: vec![Item::Function(mk("a"))],
+            else_items: vec![Item::Function(mk("b"))],
+        };
+        let file = File {
+            items: vec![Item::ConditionalCompilation(cc)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("#[cfg(FEATURE)]"), "got: {}", output);
+        assert!(output.contains("#[cfg(not(FEATURE))]"), "got: {}", output);
+        // The else item must carry the negated predicate, not the plain one.
+        let a_pos = output.find("fn a").unwrap();
+        let b_pos = output.find("fn b").unwrap();
+        assert!(a_pos < b_pos, "primary branch emits before else branch");
     }
 
     #[test]

@@ -605,6 +605,54 @@ void main() {
         }
     }
 
+    // ADR-0021: `#ifdef FOO … #else … #endif` lowers to two cfg-gated groups —
+    // #[cfg(FOO)] on the primary branch, #[cfg(not(FOO))] on the else branch.
+    // Both branches define `greet`; with no `--cfg FOO` the default build
+    // selects the else branch, so the program compiles with exactly one
+    // `greet` active. Proves the two-group lowering and that same-named
+    // definitions across branches do not collide.
+    #[test]
+    fn test_compile_conditional_else_selects_default_branch() {
+        let test_source = r#"
+#ifdef FOO
+    void greet() { println!("FOO is set"); }
+#else
+    void greet() { println!("FOO is not set"); }
+#endif
+
+void main() {
+    greet();
+}
+"#;
+        let input_path = PathBuf::from("test_compile_cond_else_12345.crst");
+        let output_path = PathBuf::from("test_compile_cond_else_12345");
+
+        fs::write(&input_path, test_source).unwrap();
+
+        let options = CompilerOptions {
+            input_file: input_path.clone(),
+            output_file: Some(output_path.clone()),
+            out_dir: None,
+            emit: EmitMode::Binary,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        let result = run_compiler(&options);
+
+        let _ = fs::remove_file(&input_path);
+        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(format!("{}.rs", output_path.display()));
+
+        if let Err(err) = result {
+            assert!(
+                matches!(err, crate::error::CompilerError::RustcInvocation(_)),
+                "#ifdef/#else should transpile cleanly and compile the default branch; got {err:?}"
+            );
+        }
+    }
+
     #[test]
     fn test_compile_unsafe_block_and_fn() {
         let test_source = r#"

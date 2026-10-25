@@ -1553,6 +1553,22 @@ mod tests {
         assert!(result.is_err(), "undefined ident as a value should still error");
     }
 
+    #[test]
+    fn test_conditional_else_same_name_not_duplicate() {
+        // ADR-0021: the #ifdef and #else branches are mutually exclusive at
+        // compile time, so defining the SAME name in both (the common `#else`
+        // case) is not a DuplicateDefinition — the else branch is analyzed in
+        // a throwaway child scope.
+        let (_, result) = analyze_source(
+            "#ifdef FOO void greet() { } #else void greet() { } #endif void main() { greet(); }",
+        );
+        assert!(
+            result.is_ok(),
+            "same name in both conditional branches must not collide, got {:?}",
+            result.err()
+        );
+    }
+
     // --- PS-09 Unit 1: unsafe + deref relaxation (ADR-0015) ---
 
     #[test]

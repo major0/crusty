@@ -3606,12 +3606,17 @@ peg::parser! {
         /// `#ifdef FOO` / `#ifndef FOO` … `#endif` — conditional compilation.
         /// Lowers each contained item to `#[cfg(FOO)]` / `#[cfg(not(FOO))]`.
         pub rule conditional_def() -> Item
-            = _ "#" _ kw_ifdef() __ cfg:ident() _ items:item()* _ "#" _ kw_endif() _ {
-                Item::ConditionalCompilation(ConditionalCompilation { cfg, negated: false, items })
+            = _ "#" _ kw_ifdef() __ cfg:ident() _ items:item()* else_items:cond_else_branch()? _ "#" _ kw_endif() _ {
+                Item::ConditionalCompilation(ConditionalCompilation { cfg, negated: false, items, else_items: else_items.unwrap_or_default() })
             }
-            / _ "#" _ kw_ifndef() __ cfg:ident() _ items:item()* _ "#" _ kw_endif() _ {
-                Item::ConditionalCompilation(ConditionalCompilation { cfg, negated: true, items })
+            / _ "#" _ kw_ifndef() __ cfg:ident() _ items:item()* else_items:cond_else_branch()? _ "#" _ kw_endif() _ {
+                Item::ConditionalCompilation(ConditionalCompilation { cfg, negated: true, items, else_items: else_items.unwrap_or_default() })
             }
+
+        /// Optional `#else` branch of a conditional-compilation block
+        /// (ADR-0021): the items after `#else`, up to the closing `#endif`.
+        rule cond_else_branch() -> Vec<Item>
+            = _ "#" _ kw_else() _ else_items:item()* { else_items }
 
         /// Module directives (modules.md):
         ///   #import a.b.c   -> use a::b::c;
@@ -5550,6 +5555,62 @@ mod macro_def_tests {
         } else {
             panic!("Expected Item::ConditionalCompilation, got {:?}", result);
         }
+    }
+
+    #[test]
+    fn test_ifdef_without_else_has_empty_else_items() {
+        // ADR-0021: the no-`#else` form is unchanged — else_items stays empty.
+        let result = crusty_peg_parser::conditional_def("#ifdef FEATURE void f() { } #endif");
+        if let Ok(Item::ConditionalCompilation(cc)) = result {
+            assert_eq!(cc.items.len(), 1);
+            assert!(cc.else_items.is_empty());
+        } else {
+            panic!("Expected Item::ConditionalCompilation, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_ifdef_else_populates_both_branches() {
+        // ADR-0021: `#ifdef … #else … #endif` fills items and else_items.
+        let result = crusty_peg_parser::conditional_def(
+            "#ifdef FEATURE void a() { } #else void b() { } #endif",
+        );
+        assert!(result.is_ok(), "Failed to parse #ifdef/#else: {:?}", result);
+        if let Ok(Item::ConditionalCompilation(cc)) = result {
+            assert_eq!(cc.cfg.name, "FEATURE");
+            assert!(!cc.negated);
+            assert_eq!(cc.items.len(), 1);
+            assert_eq!(cc.else_items.len(), 1);
+        } else {
+            panic!("Expected Item::ConditionalCompilation, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_ifndef_else_populates_both_branches() {
+        let result = crusty_peg_parser::conditional_def(
+            "#ifndef FEATURE void a() { } #else void b() { } #endif",
+        );
+        assert!(result.is_ok(), "Failed to parse #ifndef/#else: {:?}", result);
+        if let Ok(Item::ConditionalCompilation(cc)) = result {
+            assert!(cc.negated);
+            assert_eq!(cc.items.len(), 1);
+            assert_eq!(cc.else_items.len(), 1);
+        } else {
+            panic!("Expected Item::ConditionalCompilation, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_conditional_rejects_stray_else_and_double_else() {
+        // A stray `#else` with no open `#if*` is not a conditional block.
+        assert!(crusty_peg_parser::conditional_def("#else void f() { } #endif").is_err());
+        // Two `#else` branches in one block are rejected — the second `#else`
+        // is not a valid item, so the block cannot reach its `#endif`.
+        assert!(crusty_peg_parser::conditional_def(
+            "#ifdef FOO void a() { } #else void b() { } #else void c() { } #endif"
+        )
+        .is_err());
     }
 }
 

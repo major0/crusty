@@ -641,10 +641,24 @@ impl SemanticAnalyzer {
             Item::Static(static_def) => self.analyze_static(static_def),
             Item::MacroDefinition(macro_def) => self.analyze_macro_definition(macro_def),
             Item::ConditionalCompilation(cc) => {
-                // Analyze the conditionally-compiled items; the cfg predicate
-                // itself is passed through to rustc (ADR-0001).
+                // Analyze both branches; the cfg predicate is passed through to
+                // rustc (ADR-0001). The branches are mutually exclusive at
+                // compile time, so a name defined in BOTH (the common `#else`
+                // case — same item under each condition) is not a real
+                // duplicate. The primary branch registers into the current
+                // scope (the default visible set); the `#else` branch is
+                // analyzed in a throwaway child scope so its same-named
+                // definitions do not collide with the primary branch's — the
+                // same device as per-method impl scopes (SEM-00).
                 for inner in &cc.items {
                     self.analyze_item(inner);
+                }
+                if !cc.else_items.is_empty() {
+                    self.symbol_table.enter_scope();
+                    for inner in &cc.else_items {
+                        self.analyze_item(inner);
+                    }
+                    self.symbol_table.exit_scope();
                 }
             }
             Item::Namespace(_) | Item::Import(_) | Item::Export(_) | Item::Extern(_) => {
