@@ -171,6 +171,16 @@ impl CodeGenerator {
         }
     }
 
+    /// Emit a list of outer attributes verbatim (ADR-0020), each on its own
+    /// indented line. The attribute text already includes `#[ … ]`.
+    fn write_attributes(&mut self, attributes: &[crate::ast::Attribute]) {
+        for attr in attributes {
+            self.write_indent();
+            self.write(&attr.text);
+            self.write("\n");
+        }
+    }
+
     /// Increase indentation level
     fn indent(&mut self) {
         self.indent_level += 1;
@@ -204,6 +214,13 @@ impl CodeGenerator {
                 delimiter,
             } => self.generate_macro_invocation(name, args, delimiter),
             Item::RawRust { code } => self.generate_raw_rust(code),
+            Item::InnerAttribute { text } => {
+                // Verbatim crate-level inner attribute (ADR-0020). Emitted as-is
+                // at top level; rustc requires inner attributes before any item,
+                // which source ordering preserves.
+                self.write(text);
+                self.write("\n");
+            }
             Item::ImplBlock(impl_block) => self.generate_impl_block(impl_block),
             Item::Trait(trait_def) => self.generate_trait(trait_def),
         }
@@ -211,37 +228,7 @@ impl CodeGenerator {
 
     fn generate_function(&mut self, func: &Function) {
         // Generate attributes
-        for attr in &func.attributes {
-            self.write_indent();
-            self.write("#[");
-            self.write(&attr.name.name);
-
-            // Generate attribute arguments if present
-            if !attr.args.is_empty() {
-                self.write("(");
-                for (i, arg) in attr.args.iter().enumerate() {
-                    if i > 0 {
-                        self.write(", ");
-                    }
-                    match arg {
-                        AttributeArg::Ident(ident) => {
-                            self.write(&ident.name);
-                        }
-                        AttributeArg::Literal(lit) => {
-                            self.write(&self.generate_literal_string(lit));
-                        }
-                        AttributeArg::NameValue { name, value } => {
-                            self.write(&name.name);
-                            self.write(" = ");
-                            self.write(&self.generate_literal_string(value));
-                        }
-                    }
-                }
-                self.write(")");
-            }
-
-            self.write("]\n");
-        }
+        self.write_attributes(&func.attributes);
 
         // Generate doc comments
         for comment in &func.doc_comments {
@@ -385,36 +372,7 @@ impl CodeGenerator {
 
     fn generate_struct(&mut self, struct_def: &Struct) {
         // Generate attributes
-        for attr in &struct_def.attributes {
-            self.write_indent();
-            self.write("#[");
-            self.write(&attr.name.name);
-
-            if !attr.args.is_empty() {
-                self.write("(");
-                for (i, arg) in attr.args.iter().enumerate() {
-                    if i > 0 {
-                        self.write(", ");
-                    }
-                    match arg {
-                        AttributeArg::Ident(ident) => {
-                            self.write(&ident.name);
-                        }
-                        AttributeArg::Literal(lit) => {
-                            self.write(&self.generate_literal_string(lit));
-                        }
-                        AttributeArg::NameValue { name, value } => {
-                            self.write(&name.name);
-                            self.write(" = ");
-                            self.write(&self.generate_literal_string(value));
-                        }
-                    }
-                }
-                self.write(")");
-            }
-
-            self.write("]\n");
-        }
+        self.write_attributes(&struct_def.attributes);
 
         // Generate doc comments
         for comment in &struct_def.doc_comments {
@@ -488,12 +446,7 @@ impl CodeGenerator {
     /// ADR-0015). Rust: `impl [Trait for] Target { <methods> }`. Crusty:
     /// round-trips to `typedef struct|default { <methods> } @Target[.name];`.
     fn generate_impl_block(&mut self, impl_block: &ImplBlock) {
-        for attr in &impl_block.attributes {
-            self.write_indent();
-            self.write("#[");
-            self.write(&attr.name.name);
-            self.write("]\n");
-        }
+        self.write_attributes(&impl_block.attributes);
         self.write_indent();
         match self.target {
             TargetLanguage::Rust => {
@@ -552,12 +505,7 @@ impl CodeGenerator {
     /// emits its body. Trait items inherit the trait's visibility, so no `pub`
     /// is written on them (rustc E0449) — methods are emitted private.
     fn generate_trait(&mut self, trait_def: &Trait) {
-        for attr in &trait_def.attributes {
-            self.write_indent();
-            self.write("#[");
-            self.write(&attr.name.name);
-            self.write("]\n");
-        }
+        self.write_attributes(&trait_def.attributes);
         self.write_indent();
         match self.target {
             TargetLanguage::Rust => {
@@ -604,36 +552,7 @@ impl CodeGenerator {
 
     fn generate_enum(&mut self, enum_def: &Enum) {
         // Generate attributes
-        for attr in &enum_def.attributes {
-            self.write_indent();
-            self.write("#[");
-            self.write(&attr.name.name);
-
-            if !attr.args.is_empty() {
-                self.write("(");
-                for (i, arg) in attr.args.iter().enumerate() {
-                    if i > 0 {
-                        self.write(", ");
-                    }
-                    match arg {
-                        AttributeArg::Ident(ident) => {
-                            self.write(&ident.name);
-                        }
-                        AttributeArg::Literal(lit) => {
-                            self.write(&self.generate_literal_string(lit));
-                        }
-                        AttributeArg::NameValue { name, value } => {
-                            self.write(&name.name);
-                            self.write(" = ");
-                            self.write(&self.generate_literal_string(value));
-                        }
-                    }
-                }
-                self.write(")");
-            }
-
-            self.write("]\n");
-        }
+        self.write_attributes(&enum_def.attributes);
 
         // Generate doc comments
         for comment in &enum_def.doc_comments {
@@ -1394,34 +1313,10 @@ impl CodeGenerator {
                 self.write("\n");
             }
             Statement::Attributed { attributes, stmt } => {
-                // Emit each attribute on its own indented line, then the inner
-                // statement (which writes its own indentation and newline).
-                for attr in attributes {
-                    self.write_indent();
-                    self.write("#[");
-                    self.write(&attr.name.name);
-                    if !attr.args.is_empty() {
-                        self.write("(");
-                        for (i, arg) in attr.args.iter().enumerate() {
-                            if i > 0 {
-                                self.write(", ");
-                            }
-                            match arg {
-                                AttributeArg::Ident(ident) => self.write(&ident.name),
-                                AttributeArg::Literal(lit) => {
-                                    self.write(&self.generate_literal_string(lit))
-                                }
-                                AttributeArg::NameValue { name, value } => {
-                                    self.write(&name.name);
-                                    self.write(" = ");
-                                    self.write(&self.generate_literal_string(value));
-                                }
-                            }
-                        }
-                        self.write(")");
-                    }
-                    self.write("]\n");
-                }
+                // Emit each attribute verbatim (ADR-0020) on its own indented
+                // line, then the inner statement (which writes its own
+                // indentation and newline).
+                self.write_attributes(attributes);
                 self.generate_statement(stmt);
             }
             Statement::Unsafe(block) => {

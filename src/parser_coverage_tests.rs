@@ -148,12 +148,7 @@ mod tests {
         match &file.items[0] {
             Item::Function(func) => {
                 assert_eq!(func.attributes.len(), 1);
-                assert_eq!(func.attributes[0].name.name, "doc");
-                assert_eq!(func.attributes[0].args.len(), 1);
-                match &func.attributes[0].args[0] {
-                    AttributeArg::Literal(Literal::String(_)) => {}
-                    _ => panic!("Expected string literal argument"),
-                }
+                assert_eq!(func.attributes[0].text, "#[doc(\"This is a test\")]");
             }
             _ => panic!("Expected function"),
         }
@@ -171,11 +166,7 @@ mod tests {
         match &file.items[0] {
             Item::Struct(s) => {
                 assert_eq!(s.attributes.len(), 1);
-                assert_eq!(s.attributes[0].args.len(), 1);
-                match &s.attributes[0].args[0] {
-                    AttributeArg::Literal(Literal::Int(_)) => {}
-                    _ => panic!("Expected int literal argument"),
-                }
+                assert_eq!(s.attributes[0].text, "#[align(8)]");
             }
             _ => panic!("Expected struct"),
         }
@@ -193,13 +184,7 @@ mod tests {
         match &file.items[0] {
             Item::Function(func) => {
                 assert_eq!(func.attributes.len(), 1);
-                assert_eq!(func.attributes[0].args.len(), 1);
-                match &func.attributes[0].args[0] {
-                    AttributeArg::NameValue { name, .. } => {
-                        assert_eq!(name.name, "target");
-                    }
-                    _ => panic!("Expected name-value argument"),
-                }
+                assert_eq!(func.attributes[0].text, "#[cfg(target = \"linux\")]");
             }
             _ => panic!("Expected function"),
         }

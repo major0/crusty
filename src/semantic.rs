@@ -654,6 +654,10 @@ impl SemanticAnalyzer {
                 // Raw Rust passthrough (`__rust__{ … }`) is opaque to Crusty's
                 // analyzer — rustc validates it.
             }
+            Item::InnerAttribute { .. } => {
+                // Verbatim crate-level inner attribute (`#![ … ]`, ADR-0020) is
+                // opaque to Crusty's analyzer — rustc validates it.
+            }
             Item::MacroInvocation { .. } => {
                 // An item-position macro invocation (`bitflags! { … }`) has a
                 // raw body Crusty does not tokenise (ADR-0001); rustc expands

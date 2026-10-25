@@ -88,12 +88,28 @@ mod tests {
 
     #[test]
     fn test_parse_error_missing_attribute_name() {
-        let source = "#[] int func() { return 0; }";
-        let result = Parser::new(source);
-        assert!(result.is_ok());
-        if let Ok(mut parser) = result {
-            let file = parser.parse_file();
-            assert!(file.is_err());
+        // ADR-0020: attributes are carried VERBATIM; Crusty no longer validates
+        // their contents, so an empty `#[]` parses and rustc is the arbiter
+        // (the `Literal::Raw` trade). What Crusty STILL rejects is a malformed
+        // span whose brackets do not balance — `#[` with no closing `]`.
+        let empty = "#[] int func() { return 0; }";
+        let parser = Parser::new(empty);
+        assert!(parser.is_ok());
+        if let Ok(mut parser) = parser {
+            assert!(
+                parser.parse_file().is_ok(),
+                "an empty `#[]` is now carried verbatim, not a Crusty error"
+            );
+        }
+
+        let unbalanced = "#[derive(Debug) int func() { return 0; }";
+        let parser = Parser::new(unbalanced);
+        assert!(parser.is_ok());
+        if let Ok(mut parser) = parser {
+            assert!(
+                parser.parse_file().is_err(),
+                "an unbalanced `#[` with no closing `]` is still a parse error"
+            );
         }
     }
 

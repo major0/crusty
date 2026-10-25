@@ -42,6 +42,12 @@ pub enum Item {
     /// passed through to the generated Rust untouched. Used for signatures
     /// Crusty cannot express, e.g. inside an `extern` block.
     RawRust { code: String },
+    /// A crate-level inner attribute `#![ … ]` (ADR-0020), carried VERBATIM.
+    /// `text` is the exact source span including the leading `#![` and the
+    /// matching `]`. Emitted unchanged ahead of other items — closes the one
+    /// hard gap (`#![no_std]`, `#![feature(…)]`) that `__rust__` cannot reach,
+    /// because inner attributes must be the crate's first tokens.
+    InnerAttribute { text: String },
     /// A `typedef … @Type` implementation block (PS-09 Unit 2, ADR-0015).
     /// `typedef struct { methods } @Point;` → `impl Point { … }`;
     /// `typedef default { methods } @Point;` → `impl Default for Point`;
@@ -218,19 +224,14 @@ pub struct Enum {
     pub attributes: Vec<Attribute>,
 }
 
-/// Attribute (e.g., #[derive(Debug)], #[test])
+/// An outer attribute (e.g. `#[derive(Debug)]`, `#[cfg(all(unix, feature = "x"))]`),
+/// carried VERBATIM per ADR-0020. `text` is the exact source span including the
+/// leading `#[` and the matching `]`; codegen emits it unchanged and rustc owns
+/// its semantics (ADR-0001). Crusty does not interpret attribute arguments, so no
+/// structured argument model is kept — the same trade as `Literal::Raw`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Attribute {
-    pub name: Ident,
-    pub args: Vec<AttributeArg>,
-}
-
-/// Attribute argument
-#[derive(Debug, Clone, PartialEq)]
-pub enum AttributeArg {
-    Ident(Ident),
-    Literal(Literal),
-    NameValue { name: Ident, value: Literal },
+    pub text: String,
 }
 
 /// Type alias (typedef)

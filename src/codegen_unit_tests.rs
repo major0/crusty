@@ -214,8 +214,7 @@ mod tests {
         };
         let stmt = Statement::Attributed {
             attributes: vec![Attribute {
-                name: Ident::new("allow"),
-                args: vec![AttributeArg::Ident(Ident::new("unused"))],
+                text: "#[allow(unused)]".to_string(),
             }],
             stmt: Box::new(inner),
         };

@@ -147,8 +147,7 @@ mod tests {
         match &file.items[0] {
             Item::Struct(s) => {
                 assert_eq!(s.attributes.len(), 1);
-                assert_eq!(s.attributes[0].name.name, "derive");
-                assert_eq!(s.attributes[0].args.len(), 1);
+                assert_eq!(s.attributes[0].text, "#[derive(Debug)]");
             }
             _ => panic!("Expected struct"),
         }
@@ -167,8 +166,8 @@ mod tests {
         match &file.items[0] {
             Item::Function(func) => {
                 assert_eq!(func.attributes.len(), 2);
-                assert_eq!(func.attributes[0].name.name, "derive");
-                assert_eq!(func.attributes[1].name.name, "test");
+                assert_eq!(func.attributes[0].text, "#[derive(Debug)]");
+                assert_eq!(func.attributes[1].text, "#[test]");
             }
             _ => panic!("Expected function"),
         }
