@@ -30,6 +30,10 @@ const int MAX_SIZE = 1024;   // Explicit type
 const MAX_SIZE = 1024;       // Type inference
 ```
 
+`const` is a **statement-level** declaration (inside a function body). For a
+module-level (top-level) constant, use `static` instead (see
+[statics.md](statics.md)) — a top-level `const` does not parse.
+
 ## Formal Grammar
 
 ```ebnf

@@ -47,7 +47,7 @@ by convention for constants). Type inference follows the literal:
 | `true`/`false` | `bool`             |
 
 A leading `-` on a numeric literal is accepted (`#define __MIN__ -5` →
-`const MIN: i32 = -5;`).
+`const MIN: i32 = -(5);`).
 
 ### `#define` with parameters is an error
 
@@ -75,9 +75,9 @@ passed through for rustc to parse.
 Translates to:
 ```rust
 macro_rules! max {
-    ($a:expr, $b:expr) => {
+    ($a:expr, $b:expr) => {{
         $a > $b ? $a : $b
-    };
+    }};
 }
 ```
 

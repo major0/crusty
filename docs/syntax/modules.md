@@ -56,9 +56,8 @@ pub use mymodule::method;
 #export mylib.Config
 #export mylib.run
 
-int main() {
-    var map = HashMap.new();
-    return 0;
+void main() {
+    let map = @HashMap.new();
 }
 ```
 

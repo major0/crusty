@@ -28,7 +28,7 @@ int max = (a > b) ? a : b;
 ```
 Translates to:
 ```rust
-let max = if a > b { a } else { b };
+let max: i32 = if a > b { a } else { b };
 ```
 
 ### Prefix Increment/Decrement

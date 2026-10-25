@@ -325,17 +325,21 @@ Current progress:
 - Basic language features
 - Build system integration
 
-### Phase 2 (Planned)
-- Enhanced macro system
-- Generic function definitions
-- Trait definitions with ergonomic syntax
-- Pattern matching syntax
-- Async/await support
+### Phase 2 — Landed
+- Generic definitions (functions, structs, enums) with bounds and `where`
+- Trait definitions and `impl`/trait-impl via the `typedef … @Type` surface
+- Pattern matching (`match` expressions)
+- `unsafe` blocks / `unsafe fn`
+- Concurrency primitives (`__thread__`, `__scope__`)
 
-### Phase 3 (Future)
+### Phase 3 (Planned)
+- Enhanced macro system
+- `async`/`await` support (currently available via the `__rust__` escape hatch)
+- Procedural macros
+
+### Phase 4 (Future)
 - IDE integration (LSP support)
 - Debugger integration
-- Procedural macros
 - Advanced optimization passes
 
 ## Community

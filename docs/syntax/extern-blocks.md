@@ -23,8 +23,8 @@ Translates to:
 ```rust
 extern "C" {
     pub fn puts(s: *const char) -> i32;
-    pub fn malloc(size: usize) -> *mut ();
-    pub fn free(ptr: *mut ());
+    pub fn malloc(size: usize) -> *const ();
+    pub fn free(ptr: *const ());
 }
 ```
 

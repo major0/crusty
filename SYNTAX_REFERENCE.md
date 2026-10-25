@@ -33,7 +33,7 @@ int add(int a, int b) {
 
 // Void return type
 void print_sum(int x, int y) {
-    __println__("Sum: {}", add(x, y));
+    println!("Sum: {}", add(x, y));
 }
 
 // Static functions (private in Rust)
@@ -92,7 +92,7 @@ pub fn example() {
 }
 ```
 
-**Note:** C-style variable declarations with explicit types (e.g., `MyInt x = 42;`) are planned but not yet implemented. Currently, use type inference with `let` or `var`.
+**Note:** C-style variable declarations with explicit types (e.g., `MyInt x = 42;`) are supported and lower to a typed `let` (`let x: MyInt = 42;`). Type inference with `let` or `var` also works.
 
 ### Pointer and Reference Type Aliases
 
@@ -120,7 +120,7 @@ void pointer_example() {
 **Translates to Rust:**
 ```rust
 pub type IntPtr = *mut i32;
-pub type CharPtr = *mut i8;
+pub type CharPtr = *mut char;
 pub type IntRef = &i32;
 pub type MutIntRef = &mut i32;
 
@@ -231,9 +231,9 @@ pub fn generic_example() {
 
 **Current Implementation Note:**
 - Type aliases are fully supported with `typedef`
-- Variable declarations currently use type inference: `let x = 42;`
-- C-style declarations with explicit types (e.g., `MyInt x = 42;`) are planned but not yet implemented
-- Use type inference for now: `let x = 42;` instead of casting
+- Variable declarations may use type inference (`let x = 42;`) or an explicit C-style type (`int x = 42;` → `let x: i32 = 42;`)
+- C-style declarations with explicit types (e.g., `MyInt x = 42;`) are supported
+- Both forms are available; pick inference or an explicit type as you prefer
 
 ---
 
@@ -243,10 +243,10 @@ pub fn generic_example() {
 
 ```c
 // Define a struct type
-typedef struct {
+struct Point {
     int x;
     int y;
-} Point;
+}
 ```
 
 **Translates to Rust:**
@@ -319,7 +319,7 @@ void main() {
     let origin = @Point.default();
     
     // Instance method call (no @ prefix)
-    __println__("Distance²: {}", p1.distance_squared());
+    println!("Distance²: {}", p1.distance_squared());
     
     // Nested type paths: dot replaces :: for type-scoped access
     // @std.collections.HashMap.new()
@@ -351,7 +351,7 @@ int fibonacci(int n) {
 ```c
 void count_to_ten() {
     for (int i = 0; i < 10; ++i) {
-        __println__("{}", i);
+        println!("{}", i);
     }
 }
 ```
@@ -370,7 +370,7 @@ pub fn count_to_ten() {
 ```c
 void countdown(int n) {
     while (n > 0) {
-        __println__("{}", n);
+        println!("{}", n);
         n = n - 1;
     }
 }
@@ -381,7 +381,7 @@ void countdown(int n) {
 ```c
 void infinite_loop() {
     loop {
-        __println__("Forever!");
+        println!("Forever!");
         break;
     }
 }
@@ -418,12 +418,12 @@ void main() {
     
     // Use Rust's Result API directly (method names NOT transformed)
     if (result.is_err()) {              // NOT .is_error()
-        __println__("Parse failed");
+        println!("Parse failed");
         return;
     }
     
     let value = result.unwrap();        // Pass through unchanged
-    __println__("Parsed: {}", value);
+    println!("Parsed: {}", value);
 }
 ```
 
@@ -446,12 +446,12 @@ NULL is the **ONLY semantic transformation** in Crusty. It's a C keyword with no
 void process_optional(int* ptr) {
     // NULL → Option::None
     if (ptr == NULL) {              // → if ptr.is_none()
-        __println__("No value");
+        println!("No value");
         return;
     }
     
     if (ptr != NULL) {              // → if ptr.is_some()
-        __println__("Has value");
+        println!("Has value");
     }
 }
 
@@ -488,8 +488,8 @@ pub fn main() {
 
 ```c
 void main() {
-    // Macros use double-underscore naming (no ! suffix in Crusty)
-    __println__("Creating a vector...");
+    // Macro invocations use Rust's bang form: `name!(...)`
+    println!("Creating a vector...");
     
     // Type-scoped calls use @ prefix with dot notation
     let v = @Vec.new();
@@ -498,7 +498,7 @@ void main() {
     v.push(3);
     
     // Macro with formatting
-    __println__("Vector: {:?}", v);
+    println!("Vector: {:?}", v);
 }
 ```
 
@@ -517,8 +517,8 @@ pub fn main() {
 ```
 
 **Syntax Rules:**
-- Macros use double-underscore naming: `__macro_name__()`
-- No `!` suffix in Crusty (added during transpilation)
+- Macro invocations use Rust's bang form: `name!(...)` (e.g. `println!("{}", x)`) — passed through unchanged
+- Double-underscore naming (`__NAME__`) applies only to `#define`/`#macro` *definitions*, not to invocations
 - Type-scoped calls use `@` prefix: `@Type.method()`
 - Dot notation replaces `::` for type-scoped access
 
@@ -601,45 +601,73 @@ pub fn main() {
 
 ## Defining Macros
 
-### Macro Definitions
+Crusty has two definition directives, both requiring a double-underscore `__NAME__` name:
+
+- `#define __NAME__ <literal>` — a **constant** (a single literal value); lowers to a Rust `const`.
+- `#macro __NAME__(params) body` — a **parameterised macro**; lowers to `macro_rules!`.
+
+`#define` does **not** take a parameter list — use `#macro` for anything with parameters.
+
+### Constant Definitions (`#define`)
 
 ```c
-// Define macros with double-underscore naming
-#define __MAX__(a, b) ((a) > (b) ? (a) : (b))
-#define __SQUARE__(x) ((x) * (x))
+#define __PI__ 3
+#define __GREETING__ "hello"
 
 void main() {
-    let max_val = __MAX__(10, 20);
-    let squared = __SQUARE__(5);
-    __println__("Max: {}, Squared: {}", max_val, squared);
+    println!("{} {}", __PI__, __GREETING__);
 }
 ```
 
 **Translates to Rust:**
 ```rust
-macro_rules! MAX {
-    ($a:expr, $b:expr) => {
+const PI: i32 = 3;
+const GREETING: &str = "hello";
+
+pub fn main() {
+    println!("{} {}", PI, GREETING);
+}
+```
+
+### Parameterised Macros (`#macro`)
+
+```c
+// Parameterised macros use #macro with double-underscore naming
+#macro __MAX__(a, b) ((a) > (b) ? (a) : (b))
+#macro __SQUARE__(x) ((x) * (x))
+
+void main() {
+    let max_val = max!(10, 20);
+    let squared = square!(5);
+    println!("Max: {}, Squared: {}", max_val, squared);
+}
+```
+
+**Translates to Rust:**
+```rust
+macro_rules! max {
+    ($a:expr, $b:expr) => {{
         if $a > $b { $a } else { $b }
-    };
+    }};
 }
 
-macro_rules! SQUARE {
-    ($x:expr) => {
+macro_rules! square {
+    ($x:expr) => {{
         $x * $x
-    };
+    }};
 }
 
 pub fn main() {
-    let max_val = MAX!(10, 20);
-    let squared = SQUARE!(5);
+    let max_val = max!(10, 20);
+    let squared = square!(5);
     println!("Max: {}, Squared: {}", max_val, squared);
 }
 ```
 
 **Syntax Rules:**
-- Macro names must start and end with double underscores: `__NAME__`
-- Translates to Rust's `macro_rules!` declarative macros
-- Invocations use double-underscore syntax without `!`
+- Definition names must start and end with double underscores: `__NAME__`; the generated Rust name is lower-cased with the underscores dropped (`__MAX__` → `max`)
+- `#define` defines a literal constant; `#macro` defines a parameterised `macro_rules!` macro
+- Invocations use Rust's bang form with the generated (lower-cased) name (`max!(10, 20)`), not the double-underscore form
 
 ---
 
@@ -653,9 +681,9 @@ void main() {
     .outer: loop {
         .inner: loop {
             if (condition) {
-                break outer;  // Break to outer loop (no dot in break)
+                break .outer;  // Break to outer loop (dot prefixes the label)
             }
-            continue inner;  // Continue inner loop (no dot in continue)
+            continue .inner;  // Continue inner loop (dot prefixes the label)
         }
     }
 }
@@ -677,7 +705,7 @@ pub fn main() {
 
 **Syntax Rules:**
 - Labels use dot prefix: `.label:`
-- Break/continue reference labels without dot: `break label;`
+- Break/continue reference labels WITH the dot prefix: `break .label;` / `continue .label;`
 - Translates to Rust's lifetime-style labels: `'label:`
 
 ---
@@ -726,29 +754,59 @@ void main() {
 
 ## Closures with Nested Functions
 
-Crusty supports nested functions as closures, providing a familiar C-style syntax.
+Crusty has two nested-callable forms, split by Rust's own rule that hoisting and capture are mutually exclusive (see [docs/syntax/nested-functions.md](docs/syntax/nested-functions.md) for the full treatment):
 
-### Basic Nested Functions
+- A **named nested function** lowers to a Rust **`fn` item** — hoisted (callable before its definition), recursive, and **non-capturing** (it cannot read enclosing locals; pass them as parameters, C-style).
+- A **`__func__` anonymous function** lowers to a Rust **closure** — it **captures** enclosing locals but is not hoisted and cannot recurse.
+
+### Named Nested Functions (hoisted `fn` items)
 
 ```c
 void main() {
-    // Crusty supports nested functions as closures
-    // Functions defined within functions can capture variables from outer scope
-    
-    int outer_value = 42;
-    
-    // Define a nested function that captures outer scope
-    // Can only capture variables defined BEFORE the nested function
-    int add_to_outer(int x) {
-        return x + outer_value;  // Captures outer_value (defined above)
+    // A named nested function is a hoisted `fn` item: recursive and
+    // forward-referenceable, but it does NOT capture outer locals.
+    let f = fact(5);          // callable before its definition (hoisted)
+    println!("fact(5)={}", f);
+
+    int fact(int n) {
+        if (n <= 1) { return 1; }
+        return n * fact(n - 1);   // recursion is fine
     }
-    
-    // Use the nested function
-    let result = add_to_outer(10);  // Returns 52
-    __println__("Result: {}", result);
-    
-    // Variables defined after the nested function are NOT accessible
-    int later_value = 100;  // add_to_outer cannot access this
+}
+```
+
+**Translates to Rust:**
+```rust
+pub fn main() {
+    let f = fact(5);
+    println!("fact(5)={}", f);
+    fn fact(n: i32) -> i32 {
+        if n <= 1 { return 1; }
+        return n * fact(n - 1);
+    }
+}
+```
+
+An outer value a nested function needs is passed as a parameter (a `fn` item cannot capture):
+
+```c
+void main() {
+    int base = 10;
+    int add_base(int x, int base) { return x + base; }   // base is a parameter
+    let r = add_base(5, base);   // 15
+    println!("{}", r);
+}
+```
+
+### Capturing: `__func__` (closures)
+
+When you need to capture an enclosing local, use a `__func__` anonymous function — it lowers to a Rust closure:
+
+```c
+void main() {
+    int outer_value = 42;
+    let add_to_outer = int __func__(int x) { return x + outer_value; };  // captures
+    println!("{}", add_to_outer(10));   // 52
 }
 ```
 
@@ -756,106 +814,41 @@ void main() {
 ```rust
 pub fn main() {
     let outer_value = 42;
-    
-    // Becomes a closure
-    let add_to_outer = |x: i32| -> i32 {
-        x + outer_value
-    };
-    
-    let result = add_to_outer(10);
-    println!("Result: {}", result);
+    let add_to_outer = |x: i32| -> i32 { return x + outer_value; };
+    println!("{}", add_to_outer(10));
 }
 ```
 
-### Passing Nested Functions as Parameters
+### Passing a function by pointer
+
+A named function can be passed by a `fn(T) -> R` function-pointer parameter:
 
 ```c
+int apply_twice(fn(int) -> int func, int value) {
+    return func(func(value));
+}
+int double_it(int x) { return x * 2; }
+
 void main() {
-    // Nested functions can be passed as function parameters
-    void apply_twice(int (*func)(int), int value) {
-        return func(func(value));
-    }
-    
-    int double_it(int x) {
-        return x * 2;
-    }
-    
-    let doubled = apply_twice(double_it, 5);  // Returns 20
+    let doubled = apply_twice(double_it, 5);   // 20
+    println!("{}", doubled);
 }
 ```
-
-### Mutable Captures
-
-```c
-void main() {
-    // Mutable captures work too
-    int counter = 0;
-    
-    void increment() {
-        counter = counter + 1;  // Mutably captures counter
-    }
-    
-    increment();
-    increment();
-    __println__("Counter: {}", counter);  // Prints 2
-    
-    // Multiple nested functions can capture the same variables
-    void reset() {
-        counter = 0;
-    }
-    
-    reset();
-    __println__("Counter after reset: {}", counter);  // Prints 0
-}
-```
-
-### Scoping Rules
-
-**Important:**
-- Nested functions can only capture variables defined **before** the nested function declaration
-- Variables defined **after** a nested function are not accessible to that function
-- Multiple nested functions can capture and share the same outer variables
-- Captures can be immutable (read-only) or mutable (read-write)
-
-**Translation:**
-- Nested functions are translated to Rust closures
-- Closure type depends on usage: `Fn`, `FnMut`, or `FnOnce`
 
 ### Validation Rules
 
-Crusty enforces the following restrictions on nested functions:
-
-1. **No Multi-Level Nesting**: Nested functions cannot contain other nested functions. Only one level of nesting is supported.
+1. **No Multi-Level Nesting**: a nested function cannot contain another nested function (one level only).
    ```c
    void outer() {
        void middle() {
-           void inner() {  // ❌ ERROR: multi-level nesting not supported
-               return;
-           }
+           void inner() { return; }  // ❌ ERROR: multi-level nesting not supported
        }
    }
    ```
 
-2. **No Static Nested Functions**: Nested functions cannot be declared `static`. This is enforced by the AST design - the `NestedFunction` node does not support a `static` modifier.
-   ```c
-   void outer() {
-       static void helper() {  // ❌ ERROR: static not allowed for nested functions
-           return;
-       }
-   }
-   ```
+2. **No Static Nested Functions**: a nested function cannot be `static` (the `NestedFunction` AST node has no `static` modifier).
 
-3. **Type Compatibility**: When assigning nested functions to variables or passing them as parameters, proper type compatibility is enforced based on the function signature (parameter types and return type).
-   ```c
-   void outer() {
-       int add(int x, int y) {
-           return x + y;
-       }
-       
-       let func = add;  // ✅ OK: type inferred as function pointer
-       let result = func(1, 2);  // ✅ OK: compatible call
-   }
-   ```
+3. **Type Compatibility**: assigning or passing a nested function enforces function-signature compatibility (parameter types + return type).
 
 **Reference:** GNU C supports nested functions as an extension: https://gcc.gnu.org/onlinedocs/gcc/Nested-Functions.html
 
@@ -867,10 +860,10 @@ Crusty enforces the following restrictions on nested functions:
 
 ```c
 // Define a struct type
-typedef struct {
+struct Rectangle {
     int width;
     int height;
-} Rectangle;
+}
 
 // Add implementation block
 typedef struct {
@@ -893,14 +886,14 @@ typedef default {
 // Named implementation block (for organization)
 typedef struct {
     void print(&self) {
-        __println__("Rectangle: {}x{}", self.width, self.height);
+        println!("Rectangle: {}x{}", self.width, self.height);
     }
 } @Rectangle.display;
 
 void main() {
     // Type-scoped call with @ prefix and dot notation
     let rect = @Rectangle.new(10, 20);
-    __println__("Area: {}", rect.area());
+    println!("Area: {}", rect.area());
     rect.print();
 }
 ```
@@ -953,7 +946,8 @@ pub fn main() {
 | `expr?` | `expr?` | Error propagation (pass through) |
 | `@Type.method()` | `Type::method()` | Type-scoped calls |
 | `.label:` | `'label:` | Loop labels |
-| `__macro__()` | `macro!()` | Macro invocations |
+| `name!(...)` | `name!(...)` | Macro invocations (bang form, pass through) |
+| `Type name = v;` | `let name: Type = v;` | C-style typed declaration |
 | `#import module;` | `use module;` | Module imports |
 | `#export module;` | `pub use module;` | Public re-exports |
 
@@ -966,7 +960,8 @@ pub fn main() {
 | `ptr != NULL` | `ptr.is_some()` | Non-NULL comparison |
 | `for(int i=0; i<n; ++i)` | `for i in 0..n` | C-style for loops |
 | `switch/case` | `match` | Switch statements |
-| `#define __M__()` | `macro_rules! M` | Macro definitions |
+| `#define __C__ lit` | `const C = lit;` | Constant definitions |
+| `#macro __M__(a) body` | `macro_rules! M` | Parameterised macro definitions |
 
 ### Pass Through (Unchanged)
 

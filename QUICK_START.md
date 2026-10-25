@@ -45,7 +45,7 @@ Create a file named `hello.crst`:
 
 ```c
 void main() {
-    __println__("Hello, Crusty!");
+    println!("Hello, Crusty!");
 }
 ```
 
@@ -191,7 +191,7 @@ See the [example/](example/) directory for:
 - Function declarations and control flow
 - Struct definitions with methods
 - Type-scoped static method calls (`@Type.method()`)
-- Macro usage with double-underscore naming (`__println__`, `__vec__`)
+- Macro invocations in Rust's bang form (`println!`, `vec!`)
 - Build system integration with Cargo
 
 ### Running the Example

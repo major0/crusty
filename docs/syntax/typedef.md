@@ -22,7 +22,7 @@ Translates to:
 ```rust
 pub type MyInt = i32;
 pub type Coordinate = f64;
-pub type IntPtr = *mut i32;
+pub type IntPtr = *const i32;
 ```
 
 Type aliases are fully resolved during semantic analysis — `MyInt` is interchangeable with `int` in all contexts. Circular aliases (e.g., `typedef A B; typedef B A;`) are detected and rejected at compile time.
@@ -36,10 +36,10 @@ static typedef int InternalId;
 
 ### Basic Struct Definition
 ```c
-typedef struct {
+struct Point {
     int x;
     int y;
-} Point;
+}
 ```
 Translates to:
 ```rust
