@@ -2717,6 +2717,20 @@ impl SemanticAnalyzer {
                 self.expected_return_type = old_return_type;
                 Type::Auto
             }
+            Expression::Scope { body } => {
+                // ADR-0019: `__scope__ { … }` establishes a thread scope. Like
+                // `__thread__`, analyse the body with the return context cleared
+                // (a `return` inside returns from the scope closure, not the
+                // enclosing fn), and type the expression `Auto` (the scope's
+                // returned value; rustc infers it). Scoped `__thread__`s inside
+                // are decided at codegen; no borrow/Send check here (ADR-0001).
+                let old_return_type = self.expected_return_type.take();
+                self.symbol_table.enter_scope();
+                self.analyze_block(body);
+                self.symbol_table.exit_scope();
+                self.expected_return_type = old_return_type;
+                Type::Auto
+            }
             Expression::Match { scrutinee, arms } => {
                 // PS-06 Phase 3 (ADR-0012). Analyse the scrutinee, then each
                 // arm in its own scope: a `Pattern::Binding` introduces its
@@ -3135,6 +3149,9 @@ impl SemanticAnalyzer {
                 self.collect_used_variables_in_block(body, used);
             }
             Expression::Thread { body } => {
+                self.collect_used_variables_in_block(body, used);
+            }
+            Expression::Scope { body } => {
                 self.collect_used_variables_in_block(body, used);
             }
             Expression::Match { scrutinee, arms } => {

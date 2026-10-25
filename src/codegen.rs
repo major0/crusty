@@ -48,6 +48,11 @@ pub struct CodeGenerator {
     /// applied only when the name is NOT here, so a user typedef of the same
     /// name wins.
     user_type_names: std::collections::HashSet<String>,
+    /// When inside a `__scope__` body (ADR-0019), the name of the enclosing
+    /// scope handle, so a `__thread__` emits a scoped borrowing spawn
+    /// (`<handle>.spawn(|| …)`) instead of the top-level `std::thread::spawn(
+    /// move || …)`. `None` at top level.
+    scope_handle: Option<String>,
 }
 
 impl CodeGenerator {
@@ -59,6 +64,7 @@ impl CodeGenerator {
             output: String::new(),
             nested_function_captures: HashMap::new(),
             user_type_names: std::collections::HashSet::new(),
+            scope_handle: None,
         }
     }
 
@@ -1618,23 +1624,50 @@ impl CodeGenerator {
                 result
             }
             Expression::Thread { body } => {
-                // PS-09 Unit 4 (ADR-0018): `__thread__ { body }` →
-                // `std::thread::spawn(move || { body })`. `move` is mandatory
-                // (ADR-0017 validation: a borrow-capturing spawn closure is
-                // E0373); the body's tail expression is the thread's return
-                // value, so spawn infers T from it. Body rendered with a
-                // sub-generator, same idiom as Loop / anon_function.
+                // PS-09 Unit 4 (ADR-0018 / ADR-0019): `__thread__ { body }`.
+                // Top-level → `std::thread::spawn(move || { body })` (`move`
+                // mandatory, ADR-0017 E0373). Inside a `__scope__` → a scoped
+                // borrowing spawn `<handle>.spawn(|| { body })` (NO `move`, so
+                // it borrows; the scope auto-joins). A `__thread__` nested
+                // inside this one's body is top-level again, so the body
+                // sub-generator resets `scope_handle` to None.
                 let mut sub = CodeGenerator::new(self.target);
                 sub.indent_level = self.indent_level;
                 sub.nested_function_captures = self.nested_function_captures.clone();
                 sub.generate_block(body);
                 let body_str = sub.output;
                 match self.target {
-                    TargetLanguage::Rust => {
-                        format!("std::thread::spawn(move || {})", body_str)
-                    }
+                    TargetLanguage::Rust => match &self.scope_handle {
+                        Some(handle) => format!("{}.spawn(|| {})", handle, body_str),
+                        None => format!("std::thread::spawn(move || {})", body_str),
+                    },
                     TargetLanguage::Crusty => {
                         format!("__thread__ {}", body_str)
+                    }
+                }
+            }
+            Expression::Scope { body } => {
+                // ADR-0019: `__scope__ { body }` → `std::thread::scope(
+                // |__crusty_scope| { body })`. The body sub-generator carries
+                // the scope-handle name so a `__thread__` inside it emits a
+                // scoped borrowing spawn. The handle name is generated and
+                // reserved by convention, never written by the user.
+                match self.target {
+                    TargetLanguage::Rust => {
+                        let handle = "__crusty_scope";
+                        let mut sub = CodeGenerator::new(self.target);
+                        sub.indent_level = self.indent_level;
+                        sub.nested_function_captures = self.nested_function_captures.clone();
+                        sub.scope_handle = Some(handle.to_string());
+                        sub.generate_block(body);
+                        format!("std::thread::scope(|{}| {})", handle, sub.output)
+                    }
+                    TargetLanguage::Crusty => {
+                        let mut sub = CodeGenerator::new(self.target);
+                        sub.indent_level = self.indent_level;
+                        sub.nested_function_captures = self.nested_function_captures.clone();
+                        sub.generate_block(body);
+                        format!("__scope__ {}", sub.output)
                     }
                 }
             }

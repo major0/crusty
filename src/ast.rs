@@ -419,6 +419,14 @@ pub enum Expression {
     Thread {
         body: Box<Block>,
     },
+    /// `__scope__ { … }` (ADR-0019): establishes a thread scope. A value-
+    /// producing expression whose value is the scope closure's returned value.
+    /// Lowers to `std::thread::scope(|__crusty_scope| { … })`. A `__thread__`
+    /// lexically inside the body becomes a SCOPED, borrowing spawn
+    /// (`__crusty_scope.spawn(|| { … })`) instead of the top-level moving one.
+    Scope {
+        body: Box<Block>,
+    },
     Binary {
         op: BinaryOp,
         left: Box<Expression>,

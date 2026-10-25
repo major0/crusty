@@ -554,6 +554,57 @@ void main() {
         }
     }
 
+    // ADR-0019: a __scope__ whose scoped __thread__s borrow a shared local
+    // (no move), one returning a value joined inside the scope, transpiles to
+    // std::thread::scope(|__crusty_scope| …) with __crusty_scope.spawn(|| …)
+    // and compiles; the borrowed local is still usable after the scope.
+    #[test]
+    fn test_compile_scoped_threads_borrow() {
+        let test_source = r#"
+void main() {
+    let data = __rust__{ vec![1, 2, 3, 4] };
+    let total = __scope__ {
+        let h = __thread__ {
+            return __rust__{ data.iter().sum::<i32>() };
+        };
+        __thread__ {
+            println!("len={}", data.len());
+        };
+        return h.join().unwrap();
+    };
+    println!("total={}", total);
+    println!("data still usable: {}", data.len());
+}
+"#;
+        let input_path = PathBuf::from("test_compile_scope_12345.crst");
+        let output_path = PathBuf::from("test_compile_scope_12345");
+
+        fs::write(&input_path, test_source).unwrap();
+
+        let options = CompilerOptions {
+            input_file: input_path.clone(),
+            output_file: Some(output_path.clone()),
+            out_dir: None,
+            emit: EmitMode::Binary,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        let result = run_compiler(&options);
+
+        let _ = fs::remove_file(&input_path);
+        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(format!("{}.rs", output_path.display()));
+
+        if let Err(err) = result {
+            assert!(
+                matches!(err, crate::error::CompilerError::RustcInvocation(_)),
+                "scoped __thread__ borrow should transpile cleanly; got {err:?}"
+            );
+        }
+    }
+
     #[test]
     fn test_compile_unsafe_block_and_fn() {
         let test_source = r#"

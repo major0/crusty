@@ -98,9 +98,37 @@ into the transpiler. `__thread__` is the native primitive for the common
 "run this concurrently" need; reach for async only when you specifically need
 it, through `__rust__`.
 
-## Not yet: scoped threads
+## Scoped threads: `__scope__`
 
-`std::thread::scope` (which lets a thread *borrow* locals with a structured,
-automatic join) is a recognised future addition, not yet surfaced — it needs a
-scope context wrapping the spawns. Until then, use the `move` form above, or
-`std::thread::scope` directly inside a `__rust__` block.
+`__thread__` moves data in; when you want several threads to **borrow** a shared
+local and all finish before it is released, use `__scope__` (ADR-0019):
+
+```c
+let data = __rust__{ vec![1, 2, 3, 4] };
+let total = __scope__ {
+    // Scoped threads BORROW `data` (no move), auto-joined at scope end.
+    let h = __thread__ { return __rust__{ data.iter().sum::<i32>() }; };
+    __thread__ { println!("len={}", data.len()); };
+    return h.join().unwrap();
+};
+println!("total={}", total);
+println!("data still usable: {}", data.len());   // borrow ended — `data` is fine
+```
+
+- `__scope__ { … }` is a value-producing expression; its value is the scope
+  body's returned value.
+- A `__thread__` **inside** a `__scope__` is a **scoped** spawn: it **borrows**
+  (no `move`) and is **auto-joined** when the scope ends. A `__thread__`
+  **outside** any `__scope__` keeps its top-level `move` behaviour.
+- The scope guarantees every thread finishes before the borrowed data is
+  released, which is why `rustc` accepts the borrow — no `Arc`, no clone.
+
+Lowering:
+```
+__scope__ { body }                       →  std::thread::scope(|__crusty_scope| { body })
+__thread__ { body }   (inside __scope__)  →  __crusty_scope.spawn(|| { body })
+```
+
+The scope handle `__crusty_scope` is generated and implicit — you never write
+it. A `__thread__` binds to the nearest enclosing `__scope__`.
+

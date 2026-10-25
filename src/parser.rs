@@ -1376,6 +1376,7 @@ peg::parser! {
             / anon_function()
             / loop_expr()
             / thread_expr()
+            / scope_expr()
             / match_expr()
             / sizeof_expr()
             / macro_call()
@@ -1410,6 +1411,18 @@ peg::parser! {
         rule thread_expr() -> Expression
             = _ "__thread__" !ident_char() _ body:block() _ {
                 Expression::Thread { body: Box::new(body) }
+            }
+
+        /// Scope expression (ADR-0019): `__scope__ { body }` establishes a
+        /// thread scope. A value-producing expression (its value is the scope
+        /// closure's returned value). A `__thread__` lexically inside the body
+        /// becomes a scoped, borrowing spawn (decided at codegen). `__scope__`
+        /// is a double-underscore keyword-form, guarded by `!ident_char()` so
+        /// `__scope__x` stays an identifier. Lowers to
+        /// `std::thread::scope(|__crusty_scope| { … })`.
+        rule scope_expr() -> Expression
+            = _ "__scope__" !ident_char() _ body:block() _ {
+                Expression::Scope { body: Box::new(body) }
             }
 
         /// Anonymous function (PS-07, ADR-0013/0014): a normal Crusty function
@@ -13055,6 +13068,37 @@ mod control_flow_tests {
         // plain identifier, not the thread form — proves the !ident_char guard.
         let result = crusty_peg_parser::statement("let __thread__x = 1;");
         assert!(result.is_ok(), "`__thread__x` must parse as an identifier: {:?}", result);
+    }
+
+    // --- Scoped threads: __scope__ (ADR-0019) ---
+
+    #[test]
+    fn test_scope_expression_handle_form() {
+        // `__scope__ { … }` in expression position is an Expression::Scope.
+        let result = crusty_peg_parser::statement("let t = __scope__ { return 1; };");
+        assert!(result.is_ok(), "scope expression should parse: {:?}", result);
+        match result.unwrap() {
+            Statement::Let { init: Some(Expression::Scope { body }), .. } => {
+                assert_eq!(body.statements.len(), 1);
+            }
+            other => panic!("Expected let with a scope-expression init, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_scope_with_inner_thread_parses() {
+        // A __thread__ nested in a __scope__ body parses (scoped vs top-level is
+        // a codegen decision, not a parse-time one).
+        let result = crusty_peg_parser::statement(
+            "let t = __scope__ { let h = __thread__ { return 1; }; return h; };",
+        );
+        assert!(result.is_ok(), "scope with inner thread should parse: {:?}", result);
+    }
+
+    #[test]
+    fn test_scope_double_underscore_not_an_identifier_hijack() {
+        let result = crusty_peg_parser::statement("let __scope__x = 1;");
+        assert!(result.is_ok(), "`__scope__x` must parse as an identifier: {:?}", result);
     }
 
     #[test]

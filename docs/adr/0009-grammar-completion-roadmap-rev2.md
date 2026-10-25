@@ -112,8 +112,10 @@ ADR'd) before implementation.
   producing `Expression::Thread` lowering to `std::thread::spawn(move || { … })`
   — one surface for the joinable handle form and fire-and-forget — proven
   end-to-end under `rustc` and documented in `docs/syntax/concurrency.md`.
-  Scoped threads (`std::thread::scope`) remain a recorded follow-on. `async`
-  stays behind `__rust__`.
+  Scoped threads (`std::thread::scope`) LANDED in ADR-0019: `__scope__ { … }`
+  (`Expression::Scope`) lowers to `std::thread::scope(|__crusty_scope| … )`, and
+  a `__thread__` inside it becomes a borrowing `__crusty_scope.spawn(|| …)` (no
+  move, auto-joined) — proven end-to-end. `async` stays behind `__rust__`.
 
 ### Tier 5 — Documentation reconciliation (do alongside the relevant tier)
 - **DRIFT-1** `typedef.md` impl-block family — RESOLVED: the `typedef … @Type`

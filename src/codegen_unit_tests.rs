@@ -493,6 +493,49 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_scope_with_scoped_thread_borrows() {
+        // `__scope__ { __thread__ { … }; }` -> the scope emits
+        // `std::thread::scope(|__crusty_scope| …)` and the inner thread emits
+        // a scoped borrowing spawn `__crusty_scope.spawn(|| …)` (no `move`),
+        // while a top-level thread would still emit `spawn(move || …)`.
+        let inner_thread = Expression::Thread {
+            body: Box::new(Block::new(vec![Statement::Expr(
+                Expression::Literal(Literal::Int(1)),
+            )])),
+        };
+        let scope_expr = Expression::Scope {
+            body: Box::new(Block::new(vec![Statement::Expr(inner_thread)])),
+        };
+        let func = Function {
+            generic_params: vec![],
+            where_clause: None,
+            visibility: Visibility::Public,
+            name: Ident::new("test"),
+            params: vec![],
+            return_type: None,
+            body: Some(Block::new(vec![Statement::Let {
+                name: Ident::new("t"),
+                ty: None,
+                init: Some(scope_expr),
+                mutable: false,
+            }])),
+            is_variadic: false,
+            is_unsafe: false,
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let file = File {
+            items: vec![Item::Function(func)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("std::thread::scope(|__crusty_scope|"), "got: {}", output);
+        assert!(output.contains("__crusty_scope.spawn(|| {"), "scoped spawn borrows: {}", output);
+        assert!(!output.contains("spawn(move ||"), "scoped thread must NOT move: {}", output);
+    }
+
+    #[test]
     fn test_generate_break_with_label() {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let stmt = Statement::Break { label: Some(Ident::new("outer")), value: None };
