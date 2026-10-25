@@ -49,6 +49,29 @@ pub enum Item {
     /// merged into one `impl Point` at codegen. A dedicated item because the
     /// `@Type` target and the trait form do not fit the struct-definition shape.
     ImplBlock(ImplBlock),
+    /// A `typedef trait { … } Name;` trait definition (PS-09 Unit 3 Part B,
+    /// ADR-0016). Lowers to `pub trait Name<…> { … }`. A method with
+    /// `body: None` is a required signature; `body: Some(_)` is a default
+    /// method. Additive variant: the `@Type` impl form (`ImplBlock`) carries
+    /// a trait NAME; this item DEFINES one.
+    Trait(Trait),
+}
+
+/// A `typedef trait { … } Name;` trait definition (PS-09 Unit 3 Part B,
+/// ADR-0016).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Trait {
+    pub visibility: Visibility,
+    /// The trait's name (the `Name` in `typedef trait { … } Name;`).
+    pub name: Ident,
+    /// Generic parameters, e.g. `typedef trait Container<T> { … }`. Empty for
+    /// a non-generic trait.
+    pub generic_params: Vec<GenericParam>,
+    /// Trait methods. A method with `body: None` is a required signature;
+    /// `body: Some(_)` is a default method.
+    pub methods: Vec<Function>,
+    pub doc_comments: Vec<String>,
+    pub attributes: Vec<Attribute>,
 }
 
 /// A `typedef … @Type` implementation block (PS-09 Unit 2, ADR-0015).
@@ -103,6 +126,10 @@ impl Item {
             Item::ImplBlock(mut i) => {
                 i.visibility = Visibility::Public;
                 Item::ImplBlock(i)
+            }
+            Item::Trait(mut t) => {
+                t.visibility = Visibility::Public;
+                Item::Trait(t)
             }
             other => other,
         }

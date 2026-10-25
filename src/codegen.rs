@@ -199,6 +199,7 @@ impl CodeGenerator {
             } => self.generate_macro_invocation(name, args, delimiter),
             Item::RawRust { code } => self.generate_raw_rust(code),
             Item::ImplBlock(impl_block) => self.generate_impl_block(impl_block),
+            Item::Trait(trait_def) => self.generate_trait(trait_def),
         }
     }
 
@@ -535,6 +536,61 @@ impl CodeGenerator {
                     self.write(".");
                     self.write(&name.name);
                 }
+                self.write(";\n");
+            }
+        }
+    }
+
+    /// Emit a trait definition (PS-09 Unit 3 Part B, ADR-0016). A method with
+    /// `body: None` emits a signature (`fn f(&self) -> R;`); a default method
+    /// emits its body. Trait items inherit the trait's visibility, so no `pub`
+    /// is written on them (rustc E0449) — methods are emitted private.
+    fn generate_trait(&mut self, trait_def: &Trait) {
+        for attr in &trait_def.attributes {
+            self.write_indent();
+            self.write("#[");
+            self.write(&attr.name.name);
+            self.write("]\n");
+        }
+        self.write_indent();
+        match self.target {
+            TargetLanguage::Rust => {
+                match trait_def.visibility {
+                    Visibility::Public => self.write("pub "),
+                    Visibility::Private => {}
+                }
+                self.write("trait ");
+                self.write(&trait_def.name.name);
+                self.write(&self.generate_generic_params_string(&trait_def.generic_params));
+                self.write(" {\n");
+                self.indent();
+                for (i, method) in trait_def.methods.iter().enumerate() {
+                    if i > 0 {
+                        self.write_line("");
+                    }
+                    // Trait items share the trait's visibility — a `pub`
+                    // qualifier is rejected by rustc (E0449).
+                    let mut m = method.clone();
+                    m.visibility = Visibility::Private;
+                    self.generate_function(&m);
+                }
+                self.dedent();
+                self.write_line("}");
+            }
+            TargetLanguage::Crusty => {
+                if matches!(trait_def.visibility, Visibility::Private) {
+                    self.write("static ");
+                }
+                self.write("typedef trait {\n");
+                self.indent();
+                for method in &trait_def.methods {
+                    self.generate_function(method);
+                }
+                self.dedent();
+                self.write_indent();
+                self.write("} ");
+                self.write(&trait_def.name.name);
+                self.write(&self.generate_generic_params_string(&trait_def.generic_params));
                 self.write(";\n");
             }
         }

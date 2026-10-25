@@ -2758,6 +2758,33 @@ mod struct_init_tests {
         assert!(!out.contains("pub fn default"), "trait method must not be pub: {out}");
     }
 
+    #[test]
+    fn test_generate_trait_definition() {
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        // One required method (body None) and one default (body Some), both
+        // Public to prove `pub` is stripped on trait items (E0449).
+        let mut required = impl_method("base", Visibility::Public);
+        required.body = None;
+        let default = impl_method("doubled", Visibility::Public);
+        let file = File {
+            items: vec![Item::Trait(Trait {
+                visibility: Visibility::Public,
+                name: Ident::new("Measured"),
+                generic_params: vec![],
+                methods: vec![required, default],
+                doc_comments: vec![],
+                attributes: vec![],
+            })],
+            doc_comments: vec![],
+        };
+        let out = gen.generate(&file);
+        assert!(out.contains("pub trait Measured {"), "trait header: {out}");
+        assert!(out.contains("fn base() -> Point;"), "required signature ends in ;: {out}");
+        assert!(out.contains("fn doubled() -> Point {"), "default method has a body: {out}");
+        assert!(!out.contains("pub fn base"), "trait item must not be pub: {out}");
+        assert!(!out.contains("pub fn doubled"), "trait item must not be pub: {out}");
+    }
+
     // --- PS-09 Unit 1: unsafe codegen (ADR-0015) ---
 
     #[test]

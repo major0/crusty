@@ -191,22 +191,22 @@ family consistent with Unit 2 — **no new `impl` or `trait` keyword is reserved
       and a method is called through the trait at runtime.
 
 ### Part B — defining a `trait`
-- [ ] `Item::Trait(Trait { visibility, name, generic_params, methods })` exists
+- [x] `Item::Trait(Trait { visibility, name, generic_params, methods })` exists
       in `src/ast.rs`; a method's `body: None` means required, `Some` means
       default.
-- [ ] `[static] typedef trait { <sig>; <default-method> } Name;` parses into
+- [x] `[static] typedef trait { <sig>; <default-method> } Name;` parses into
       `Item::Trait`; `trait` is NOT added to `keyword()` (it stays a valid
       identifier outside the `typedef trait` position — a guard test proves a
       variable named `trait` still parses).
-- [ ] Codegen emits `pub trait Name { fn req(&self); fn def(&self) -> R { … } }`
+- [x] Codegen emits `pub trait Name { fn req(&self); fn def(&self) -> R { … } }`
       (private `trait` for `static`); no `pub` on trait items.
-- [ ] End-to-end: a Crusty-defined trait (one required + one default method),
+- [x] End-to-end: a Crusty-defined trait (one required + one default method),
       implemented via Part A on a Crusty struct, compiles under
       `rustc -D unused_parens` and runs, exercising both the overridden required
       method and the inherited default.
 
 ### Both parts
-- [ ] `cargo test` green and `clippy` clean after each part.
+- [x] `cargo test` green and `clippy` clean after each part.
 - [ ] `docs/syntax/typedef.md` documents the general `typedef <Trait> @Type;`
       impl form and the `typedef trait { } Name;` definition form; the roadmap
       marks PS-09 Unit 3 landed.

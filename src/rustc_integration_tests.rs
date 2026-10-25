@@ -446,6 +446,60 @@ void main() {
             );
         }
     }
+
+    // PS-09 Unit 3 Part B (ADR-0016): a wholly-Crusty trait (one required +
+    // one default method) implemented on a Crusty struct via Part A, exercising
+    // both the overridden required method and the inherited default.
+    #[test]
+    fn test_compile_trait_definition_and_impl() {
+        let test_source = r#"
+typedef trait {
+    int base(&self);
+    int doubled(&self) { return self.base() * 2; }
+} Measured;
+
+struct Boxed {
+    int w;
+}
+
+typedef Measured {
+    int base(&self) { return self.w; }
+} @Boxed;
+
+void main() {
+    let b = Boxed { w: 21 };
+    println!("base={} doubled={}", b.base(), b.doubled());
+}
+"#;
+        let input_path = PathBuf::from("test_compile_traitdef_12345.crst");
+        let output_path = PathBuf::from("test_compile_traitdef_12345");
+
+        fs::write(&input_path, test_source).unwrap();
+
+        let options = CompilerOptions {
+            input_file: input_path.clone(),
+            output_file: Some(output_path.clone()),
+            out_dir: None,
+            emit: EmitMode::Binary,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        let result = run_compiler(&options);
+
+        let _ = fs::remove_file(&input_path);
+        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(format!("{}.rs", output_path.display()));
+
+        if let Err(err) = result {
+            assert!(
+                matches!(err, crate::error::CompilerError::RustcInvocation(_)),
+                "trait definition + impl should transpile cleanly; got {err:?}"
+            );
+        }
+    }
+
     #[test]
     fn test_compile_unsafe_block_and_fn() {
         let test_source = r#"

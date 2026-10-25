@@ -3432,6 +3432,67 @@ peg::parser! {
             / kw_default() { Some(Ident::new("Default")) }
             / name:ident() { Some(name) }
 
+        /// Trait definition (PS-09 Unit 3 Part B, ADR-0016).
+        /// Form (optionally `static` for a private/crate-local trait):
+        /// - `typedef trait { <members> } Name;`          → `pub trait Name { … }`
+        /// - `typedef trait { <members> } Container<T>;`   → generic trait
+        /// A member is either a required signature (`ret name(params);`,
+        /// `body: None`) or a default method (`ret name(params) { … }`, reusing
+        /// `struct_method`). `trait` is matched contextually right after
+        /// `typedef` (via `impl_block_vis` + the literal), so it is NOT a
+        /// reserved keyword and stays usable as an identifier elsewhere.
+        pub rule trait_def() -> Item
+            = _ vis:impl_block_vis() "trait" !ident_char() _ "{" _ methods:trait_member()* _ "}" _ name:ident() generics:generic_params()? _ ";" _ {
+                Item::Trait(Trait {
+                    visibility: vis,
+                    name,
+                    generic_params: generics.unwrap_or_default(),
+                    methods,
+                    doc_comments: Vec::new(),
+                    attributes: Vec::new(),
+                })
+            }
+
+        /// One trait member: a required signature (ends in `;`, `body: None`)
+        /// or a default method (has a block body — reuse `struct_method`). The
+        /// signature form is tried first so a `;`-terminated declaration is not
+        /// mis-parsed, and a default body wins via `struct_method`.
+        rule trait_member() -> Function
+            // Required instance method with void return type: `void f(self);`
+            = _ attrs:attributes() _ kw_void() __ name:method_name() _ "(" _ params:function_params()? _ ")" _ ";" _ {
+                Function {
+                    visibility: Visibility::Public,
+                    name,
+                    generic_params: Vec::new(),
+                    params: params.unwrap_or_default(),
+                    return_type: None,
+                    body: None,
+                    is_variadic: false,
+                    is_unsafe: false,
+                    where_clause: None,
+                    doc_comments: Vec::new(),
+                    attributes: attrs,
+                }
+            }
+            // Required instance method with explicit return type: `int f(self);`
+            / _ attrs:attributes() _ return_type:type_expr() __ name:method_name() _ "(" _ params:function_params()? _ ")" _ ";" _ {
+                Function {
+                    visibility: Visibility::Public,
+                    name,
+                    generic_params: Vec::new(),
+                    params: params.unwrap_or_default(),
+                    return_type: Some(return_type),
+                    body: None,
+                    is_variadic: false,
+                    is_unsafe: false,
+                    where_clause: None,
+                    doc_comments: Vec::new(),
+                    attributes: attrs,
+                }
+            }
+            // Default method (has a body) — reuse the struct-method grammar.
+            / m:struct_method() { m }
+
         /// Type alias / typedef item.
         ///
         /// Examples:
@@ -3835,6 +3896,7 @@ peg::parser! {
             / extern_block()
             / struct_def()
             / enum_def()
+            / trait_def()
             / impl_block_def()
             / typedef_def()
             / item_macro_invocation()
@@ -3858,6 +3920,7 @@ peg::parser! {
         rule pub_inner_item() -> Item
             = struct_def()
             / enum_def()
+            / trait_def()
             / impl_block_def()
             / typedef_def()
             / static_item()
@@ -5865,6 +5928,47 @@ mod item_tests {
             matches!(&d, Ok(Item::ImplBlock(ib))
                 if ib.trait_name.as_ref().map(|t| t.name.as_str()) == Some("Default")),
             "default must map to Default, got {:?}", d);
+    }
+
+    // --- PS-09 Unit 3 Part B: defining a trait (ADR-0016) ---
+
+    #[test]
+    fn test_trait_def_required_and_default_methods() {
+        let result = crusty_peg_parser::item(
+            "typedef trait { int base(&self); int doubled(&self) { return self.base() * 2; } } Measured;",
+        );
+        assert!(result.is_ok(), "trait definition should parse: {:?}", result);
+        if let Ok(Item::Trait(t)) = result {
+            assert_eq!(t.name.name, "Measured");
+            assert_eq!(t.visibility, Visibility::Public);
+            assert_eq!(t.methods.len(), 2);
+            // Required: body None. Default: body Some.
+            assert_eq!(t.methods[0].name.name, "base");
+            assert!(t.methods[0].body.is_none(), "base must be a required signature");
+            assert_eq!(t.methods[1].name.name, "doubled");
+            assert!(t.methods[1].body.is_some(), "doubled must be a default method");
+        } else {
+            panic!("expected Item::Trait, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_trait_def_static_is_private() {
+        let result = crusty_peg_parser::item("static typedef trait { void f(&self); } Hidden;");
+        assert!(result.is_ok(), "static trait should parse: {:?}", result);
+        if let Ok(Item::Trait(t)) = result {
+            assert_eq!(t.visibility, Visibility::Private);
+        } else {
+            panic!("expected Item::Trait, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_trait_is_not_a_reserved_keyword() {
+        // `trait` is contextual (only after `typedef`), so it stays usable as
+        // an ordinary identifier elsewhere — a let binding named `trait` parses.
+        let result = crusty_peg_parser::statement("int trait = 5;");
+        assert!(result.is_ok(), "`trait` must remain a valid identifier: {:?}", result);
     }
 
     // --- PS-09 Unit 1: unsafe blocks and unsafe fn (ADR-0015) ---

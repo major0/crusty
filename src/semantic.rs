@@ -664,8 +664,28 @@ impl SemanticAnalyzer {
                 // errors surface. Whether the target type exists and whether
                 // `Default` is correctly implemented are rustc's to decide
                 // (ADR-0001), consistent with how struct methods are handled.
+                // Each method is analysed in a throwaway child scope so its
+                // bare name (SEM-00: methods are not keyed by owning type) does
+                // not collide with a sibling impl's or a trait's method of the
+                // same name.
                 for method in &impl_block.methods {
+                    self.symbol_table.enter_scope();
                     self.analyze_function(method);
+                    self.symbol_table.exit_scope();
+                }
+            }
+            Item::Trait(trait_def) => {
+                // PS-09 Unit 3 Part B (ADR-0016): analyse each method so a
+                // default-method body's own errors surface. A required method
+                // (`body: None`) is recorded but not body-analysed —
+                // `analyze_function` guards on `Some(body)`. Whether an impl
+                // satisfies the trait and trait-object safety are rustc's
+                // (ADR-0001). Each method is analysed in a throwaway child
+                // scope (same reason as the impl-block case).
+                for method in &trait_def.methods {
+                    self.symbol_table.enter_scope();
+                    self.analyze_function(method);
+                    self.symbol_table.exit_scope();
                 }
             }
         }
