@@ -56,7 +56,8 @@ a feature earns its surface):
 4. **`async` / `await`** — large and orthogonal: `async fn`, `.await`, and the
    fact that async is viral through signatures and needs a runtime to run. The
    syntax layer can lower `async`/`await` verbatim, but it buys little without
-   runtime integration, and it is the least C-like of the four.
+   runtime integration, and it is the least C-like of the four. (Decided in
+   ADR-0017: async stays in `__rust__`; `__thread__` is the native primitive.)
 
 ## Decision
 Treat PS-09 as **four independent decisions**, sequenced simplest-first, each
@@ -125,7 +126,8 @@ DIRECTION signal, not a solution to the missing Rust keywords, and it needs a
 threading/runtime decision (which runtime, join/handle semantics, data-sharing
 rules) before it can be specified — the same runtime gap that defers async
 (Unit 4). It gets its own ADR if and when it is pursued; this note only reserves
-the idea and the spelling.
+the idea and the spelling. (Now decided in ADR-0017: direction adopted,
+implementation deferred with the open join/sharing questions recorded.)
 
 ### Non-goals (explicit)
 - **No unsafety, trait-coherence, or send/sync reasoning.** rustc owns all of

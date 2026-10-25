@@ -102,6 +102,12 @@ ADR'd) before implementation.
   and `typedef trait { } Name;` definitions (ADR-0016 Parts A & B), each proven
   end-to-end under `rustc` and documented. Only Unit 4 (`async`) remains
   deferred to its own ADR.
+  **Unit 4 direction decided in ADR-0017**: async stays behind the `__rust__`
+  escape hatch (no first-class surface, no runtime picked); `__thread__` is
+  adopted as Crusty's native concurrency primitive (lowering to
+  `std::thread::spawn`, no runtime dependency), implementation deferred to its
+  own ADR with the join/handle and data-sharing questions recorded. PS-09 is
+  now fully dispositioned.
 
 ### Tier 5 — Documentation reconciliation (do alongside the relevant tier)
 - **DRIFT-1** `typedef.md` impl-block family — RESOLVED: the `typedef … @Type`
