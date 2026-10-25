@@ -500,6 +500,60 @@ void main() {
         }
     }
 
+    // PS-09 Unit 4 (ADR-0018): __thread__ spawns a thread. The handle form
+    // (joined for a computed value) and a fire-and-forget statement both
+    // transpile to std::thread::spawn(move || …) and compile.
+    #[test]
+    fn test_compile_thread_handle_and_fire_and_forget() {
+        let test_source = r#"
+void main() {
+    let h = __thread__ {
+        var s = 0;
+        var i = 1;
+        while (i <= 10) {
+            s = s + i;
+            i = i + 1;
+        }
+        return s;
+    };
+    let r = h.join().unwrap();
+    println!("sum={}", r);
+
+    let g = __thread__ {
+        println!("worker ran");
+    };
+    g.join().unwrap();
+}
+"#;
+        let input_path = PathBuf::from("test_compile_thread_12345.crst");
+        let output_path = PathBuf::from("test_compile_thread_12345");
+
+        fs::write(&input_path, test_source).unwrap();
+
+        let options = CompilerOptions {
+            input_file: input_path.clone(),
+            output_file: Some(output_path.clone()),
+            out_dir: None,
+            emit: EmitMode::Binary,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        let result = run_compiler(&options);
+
+        let _ = fs::remove_file(&input_path);
+        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(format!("{}.rs", output_path.display()));
+
+        if let Err(err) = result {
+            assert!(
+                matches!(err, crate::error::CompilerError::RustcInvocation(_)),
+                "__thread__ handle + fire-and-forget should transpile cleanly; got {err:?}"
+            );
+        }
+    }
+
     #[test]
     fn test_compile_unsafe_block_and_fn() {
         let test_source = r#"

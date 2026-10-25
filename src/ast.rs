@@ -411,6 +411,14 @@ pub enum Expression {
         label: Option<Ident>,
         body: Box<Block>,
     },
+    /// `__thread__ { … }` (PS-09 Unit 4, ADR-0018): spawns the body on a new
+    /// OS thread. A value-producing expression whose value is the spawn's
+    /// `JoinHandle<T>` — binding it (`let h = __thread__ { … };`) gives the
+    /// handle form, dropping it as an expression statement gives
+    /// fire-and-forget. Lowers to `std::thread::spawn(move || { body })`.
+    Thread {
+        body: Box<Block>,
+    },
     Binary {
         op: BinaryOp,
         left: Box<Expression>,

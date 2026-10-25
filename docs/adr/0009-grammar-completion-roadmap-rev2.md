@@ -108,6 +108,12 @@ ADR'd) before implementation.
   `std::thread::spawn`, no runtime dependency), implementation deferred to its
   own ADR with the join/handle and data-sharing questions recorded. PS-09 is
   now fully dispositioned.
+  **`__thread__` IMPLEMENTED (ADR-0018)**: `__thread__ { … }` is a value-
+  producing `Expression::Thread` lowering to `std::thread::spawn(move || { … })`
+  — one surface for the joinable handle form and fire-and-forget — proven
+  end-to-end under `rustc` and documented in `docs/syntax/concurrency.md`.
+  Scoped threads (`std::thread::scope`) remain a recorded follow-on. `async`
+  stays behind `__rust__`.
 
 ### Tier 5 — Documentation reconciliation (do alongside the relevant tier)
 - **DRIFT-1** `typedef.md` impl-block family — RESOLVED: the `typedef … @Type`

@@ -2699,6 +2699,24 @@ impl SemanticAnalyzer {
                     None => Type::Primitive(PrimitiveType::Void),
                 }
             }
+            Expression::Thread { body } => {
+                // PS-09 Unit 4 (ADR-0018): `__thread__ { … }` spawns the body
+                // on a new thread. Analyse the body so its own errors surface;
+                // the expression's type is the spawn's `JoinHandle<T>`, opaque
+                // to Crusty (Auto) — a later `.join()` defers to rustc, as does
+                // whether the moved captures are Send + 'static (ADR-0001).
+                // The body lowers to a `move ||` closure, so a `return` inside
+                // it returns from THAT closure with an inferred type — clear
+                // `expected_return_type` around the body so it is not checked
+                // against the enclosing function (same reason as AnonFunction).
+                // Captures stay visible (a nested scope, not a reset).
+                let old_return_type = self.expected_return_type.take();
+                self.symbol_table.enter_scope();
+                self.analyze_block(body);
+                self.symbol_table.exit_scope();
+                self.expected_return_type = old_return_type;
+                Type::Auto
+            }
             Expression::Match { scrutinee, arms } => {
                 // PS-06 Phase 3 (ADR-0012). Analyse the scrutinee, then each
                 // arm in its own scope: a `Pattern::Binding` introduces its
@@ -3114,6 +3132,9 @@ impl SemanticAnalyzer {
                 self.collect_used_variables(right, used);
             }
             Expression::Loop { body, .. } => {
+                self.collect_used_variables_in_block(body, used);
+            }
+            Expression::Thread { body } => {
                 self.collect_used_variables_in_block(body, used);
             }
             Expression::Match { scrutinee, arms } => {

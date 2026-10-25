@@ -1617,6 +1617,27 @@ impl CodeGenerator {
                 result.push_str(&body_str);
                 result
             }
+            Expression::Thread { body } => {
+                // PS-09 Unit 4 (ADR-0018): `__thread__ { body }` →
+                // `std::thread::spawn(move || { body })`. `move` is mandatory
+                // (ADR-0017 validation: a borrow-capturing spawn closure is
+                // E0373); the body's tail expression is the thread's return
+                // value, so spawn infers T from it. Body rendered with a
+                // sub-generator, same idiom as Loop / anon_function.
+                let mut sub = CodeGenerator::new(self.target);
+                sub.indent_level = self.indent_level;
+                sub.nested_function_captures = self.nested_function_captures.clone();
+                sub.generate_block(body);
+                let body_str = sub.output;
+                match self.target {
+                    TargetLanguage::Rust => {
+                        format!("std::thread::spawn(move || {})", body_str)
+                    }
+                    TargetLanguage::Crusty => {
+                        format!("__thread__ {}", body_str)
+                    }
+                }
+            }
             Expression::RustBlock { tokens } => {
                 let mut result = String::from("{ ");
                 for token in tokens {

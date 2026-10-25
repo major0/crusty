@@ -455,6 +455,44 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_thread_expression_move_spawn() {
+        // `let h = __thread__ { return 7; };` -> the thread renders as
+        // `std::thread::spawn(move || { return 7; })` on the let initializer.
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let thread_expr = Expression::Thread {
+            body: Box::new(Block::new(vec![Statement::Return(Some(
+                Expression::Literal(Literal::Int(7)),
+            ))])),
+        };
+        let let_stmt = Statement::Let {
+            name: Ident::new("h"),
+            ty: None,
+            init: Some(thread_expr),
+            mutable: false,
+        };
+        let func = Function {
+            generic_params: vec![],
+            where_clause: None,
+            visibility: Visibility::Public,
+            name: Ident::new("test"),
+            params: vec![],
+            return_type: None,
+            body: Some(Block::new(vec![let_stmt])),
+            is_variadic: false,
+            is_unsafe: false,
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let file = File {
+            items: vec![Item::Function(func)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("std::thread::spawn(move ||"), "got: {}", output);
+        assert!(output.contains("return 7;"), "got: {}", output);
+    }
+
+    #[test]
     fn test_generate_break_with_label() {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let stmt = Statement::Break { label: Some(Ident::new("outer")), value: None };

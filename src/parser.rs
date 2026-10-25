@@ -1375,6 +1375,7 @@ peg::parser! {
             = rust_block_expr()
             / anon_function()
             / loop_expr()
+            / thread_expr()
             / match_expr()
             / sizeof_expr()
             / macro_call()
@@ -1397,6 +1398,18 @@ peg::parser! {
             }
             / _ kw_loop() _ body:block() _ {
                 Expression::Loop { label: None, body: Box::new(body) }
+            }
+
+        /// Thread expression (PS-09 Unit 4, ADR-0018): `__thread__ { body }`
+        /// spawns the body on a new OS thread. A value-producing expression —
+        /// its value is the spawn's `JoinHandle<T>` — so `let h = __thread__
+        /// { … };` is the handle form and a bare `__thread__ { … };` statement
+        /// is fire-and-forget. `__thread__` is a double-underscore keyword-form
+        /// (guarded by `!ident_char()` so `__thread__x` stays an identifier),
+        /// never a reserved word. Lowers to `std::thread::spawn(move || { … })`.
+        rule thread_expr() -> Expression
+            = _ "__thread__" !ident_char() _ body:block() _ {
+                Expression::Thread { body: Box::new(body) }
             }
 
         /// Anonymous function (PS-07, ADR-0013/0014): a normal Crusty function
@@ -13011,6 +13024,37 @@ mod control_flow_tests {
             }
             other => panic!("Expected let with a loop-expression init, got {:?}", other),
         }
+    }
+
+    // --- PS-09 Unit 4: __thread__ concurrency primitive (ADR-0018) ---
+
+    #[test]
+    fn test_thread_expression_handle_form() {
+        // `__thread__ { … }` in expression position (a let initializer) is an
+        // Expression::Thread whose value is the spawn handle.
+        let result = crusty_peg_parser::statement("let h = __thread__ { return 42; };");
+        assert!(result.is_ok(), "thread expression should parse: {:?}", result);
+        match result.unwrap() {
+            Statement::Let { init: Some(Expression::Thread { body }), .. } => {
+                assert_eq!(body.statements.len(), 1);
+            }
+            other => panic!("Expected let with a thread-expression init, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_thread_fire_and_forget_statement() {
+        // A bare `__thread__ { … };` is an expression statement (handle dropped).
+        let result = crusty_peg_parser::statement("__thread__ { work(); };");
+        assert!(result.is_ok(), "fire-and-forget thread should parse: {:?}", result);
+    }
+
+    #[test]
+    fn test_thread_double_underscore_not_an_identifier_hijack() {
+        // `__thread__` is a keyword-form; `__thread__x` (ident-char after) is a
+        // plain identifier, not the thread form — proves the !ident_char guard.
+        let result = crusty_peg_parser::statement("let __thread__x = 1;");
+        assert!(result.is_ok(), "`__thread__x` must parse as an identifier: {:?}", result);
     }
 
     #[test]

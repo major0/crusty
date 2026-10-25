@@ -1,7 +1,7 @@
 # ADR-0018: __thread__ concurrency primitive — implementation
 
 ## Status
-proposed
+accepted
 
 ## Context
 
@@ -131,24 +131,24 @@ you don't borrow across the boundary"):
 
 ## Verification
 
-- [ ] `Expression::Thread { body }` exists in `src/ast.rs`; additive (no
+- [x] `Expression::Thread { body }` exists in `src/ast.rs`; additive (no
       construction-site churn beyond exhaustive matches).
-- [ ] Grammar: `__thread__ { <block> }` parses in expression position;
+- [x] Grammar: `__thread__ { <block> }` parses in expression position;
       `__thread__` is a keyword-form (double underscore), and a guard test
       proves `thread` is still a valid ordinary identifier.
-- [ ] Codegen emits `std::thread::spawn(move || { <body> })` — the **`move`**
+- [x] Codegen emits `std::thread::spawn(move || { <body> })` — the **`move`**
       form (not the bare `__func__` closure); the body's tail expression is the
       thread's return value.
-- [ ] Semantics analyse the body; no `Send`/`'static` pre-check is added.
-- [ ] End-to-end under `rustc -D unused_parens`: a handle-form `__thread__`
+- [x] Semantics analyse the body; no `Send`/`'static` pre-check is added.
+- [x] End-to-end under `rustc -D unused_parens`: a handle-form `__thread__`
       computing a value, `join()`ed back, runs and prints the value (mirrors
       ADR-0017 probe 1); and a fire-and-forget `__thread__ { … };` statement
       compiles and runs.
-- [ ] A negative proof documents the move boundary: a `__thread__` body touching
+- [x] A negative proof documents the move boundary: a `__thread__` body touching
       an owned local compiles (moved), and the docs note that borrowing a local
       or capturing a non-`Send` value is a rustc error (ADR-0017 probes 2/4b),
       not a Crusty one.
-- [ ] `docs/syntax/` documents the `__thread__` block, the handle vs
+- [x] `docs/syntax/` documents the `__thread__` block, the handle vs
       fire-and-forget uses, the `move`-capture model, and the explicit `Arc`/
       channel sharing-back path; the roadmap notes `__thread__` implemented.
 
