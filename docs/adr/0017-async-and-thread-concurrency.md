@@ -156,3 +156,61 @@ runtime/threading-semantics choice) is a real design fork the user should drive,
 not one to settle implicitly by shipping a passthrough. That is the honest
 application of "simplest first" and "surface the irreversible decision with the
 reasoning in hand" rather than expanding scope into a runtime commitment.
+
+## Validation against Rust's concurrency primitives
+
+The `__thread__` direction was checked against real `rustc` (stable, edition
+2021), one probe per claim. All five behaved as the design assumed, and the
+exercise surfaced one refinement the sketch had glossed.
+
+| # | Probe | Result | Confirms |
+|---|---|---|---|
+| 1 | `let h = spawn(\|\| { … s })`, `h.join()` | compiles, `sum=55` | the **handle form** — `spawn` returns `JoinHandle<T>`, `join()` yields `T`. The `let h = __thread__ { … };` → `JoinHandle<T>` lowering is sound. |
+| 2 | `spawn(\|\| …)` **borrowing** a local | **E0373** ("closure may outlive the current function… borrows `data`") | a non-`move` `spawn` closure that touches a local is rejected; rustc's own fix note is literally "use the `move` keyword". |
+| 3 | `thread::scope(\|s\| s.spawn(\|\| …))` borrowing a local | compiles, `len=3`, local still usable after | **scoped threads** do allow borrowing locals with a structured auto-join — the richer alternative is real. |
+| 4a | `spawn(move \|\| data.len())` | compiles, `len=3` | a `move` closure capturing an **owned** local works. |
+| 4b | `spawn(move \|\| …)` capturing an **`Rc`** | **E0277** (`Rc<…>` "cannot be sent between threads safely") | the bound is `Send + 'static`, not just `'static` — a non-`Send` capture is rejected even when moved. |
+
+### The refinement these force: `__thread__` must emit `move`
+
+The ADR said `__thread__` reuses "the `__func__`-style closure lowering".
+`__func__` emits a **bare, non-`move`** closure (`|…| { … }`, confirmed in
+`codegen.rs`). Probe 2 shows that a bare `spawn` closure that references *any*
+enclosing local is an E0373 hard error — which is almost every useful thread
+body. So a literal reuse of the `__func__` lowering would make `__thread__`
+reject nearly all real code.
+
+**Conclusion — compatible, with one mandatory adjustment:** `__thread__` lowers
+to `std::thread::spawn(move || { … })` — the **`move`** form, *not* the bare
+`__func__` closure. That is the single compatibility fix the implementation ADR
+must carry. With `move`:
+
+- An owned local is **moved** into the thread (probe 4a) — the honest, C-like
+  "you hand the work its data" model, consistent with ADR-0014's nested-fn
+  capture story (take outer values, don't borrow them).
+- A borrow of a local still can't cross the boundary, and a non-`Send` capture
+  (`Rc`, raw pointer) is rejected by rustc (probes 2, 4b) — these remain rustc's
+  to diagnose (ADR-0001). Crusty does not pre-check `Send`/`'static`.
+
+### Bearing on the open questions
+
+- **Join/handle:** probe 1 confirms both forms are expressible — `let h =
+  __thread__ { … };` → `JoinHandle<T>` (joinable, result-carrying) and a bare
+  `__thread__ { … };` statement → fire-and-forget. Still a design choice, now
+  with both targets verified to compile.
+- **Data-sharing:** the `move`-capture model is the answer for the simple
+  `spawn` form; sharing *back* needs `Arc`/channels the user writes explicitly
+  (or `__rust__`), which the implementation ADR should document rather than
+  hide.
+- **Scoped threads:** probe 3 confirms `thread::scope` is a real, strictly more
+  capable target (borrow locals, structured join) but needs a scope *context*
+  around one-or-more `__thread__` blocks — a second surface, not the single
+  block. Recommend the implementation ADR ship the `move`+`spawn` form first and
+  treat `scope` as a follow-on, per simplest-first.
+
+**Net:** the `__thread__` architecture is compatible with Rust's existing
+options. The `std::thread::spawn` target holds (no runtime dependency), the
+handle and fire-and-forget forms both compile, and the only correction to the
+sketch is that the emitted closure must be `move`, not the bare `__func__`
+closure. No change to this ADR's *decision* is needed; the refinement is
+recorded for the implementation ADR.
