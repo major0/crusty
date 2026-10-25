@@ -3424,10 +3424,13 @@ peg::parser! {
 
         /// Helper: the impl-block kind keyword. `struct` → inherent impl
         /// (`trait_name` None); `default` → `impl Default for` (`trait_name`
-        /// Some(Default)).
+        /// Some(Default)); any other identifier → `impl <Trait> for`
+        /// (`trait_name` Some(name)). `struct`/`default` are matched first so
+        /// they are never captured as a trait name.
         rule impl_block_kind() -> Option<Ident>
             = kw_struct() { None }
             / kw_default() { Some(Ident::new("Default")) }
+            / name:ident() { Some(name) }
 
         /// Type alias / typedef item.
         ///
@@ -5830,6 +5833,38 @@ mod item_tests {
         } else {
             panic!("expected Item::ImplBlock, got {:?}", result);
         }
+    }
+
+    // --- PS-09 Unit 3 Part A: general `impl Trait for` (ADR-0016) ---
+
+    #[test]
+    fn test_impl_block_named_trait_parses() {
+        let result = crusty_peg_parser::item(
+            "typedef Describe { int describe(&self) { return self.r; } } @Circle;",
+        );
+        assert!(result.is_ok(), "named-trait impl block should parse: {:?}", result);
+        if let Ok(Item::ImplBlock(ib)) = result {
+            assert_eq!(ib.target.name, "Circle");
+            assert_eq!(ib.trait_name.as_ref().map(|t| t.name.as_str()), Some("Describe"));
+            assert!(ib.name.is_none());
+            assert_eq!(ib.methods[0].name.name, "describe");
+        } else {
+            panic!("expected Item::ImplBlock, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_impl_block_kind_ordering_struct_default_not_captured_as_trait() {
+        // `struct` must yield an inherent impl (None), not a trait named "struct".
+        let s = crusty_peg_parser::item("typedef struct { void f(self) { } } @Point;");
+        assert!(matches!(&s, Ok(Item::ImplBlock(ib)) if ib.trait_name.is_none()),
+            "struct must stay inherent, got {:?}", s);
+        // `default` must yield `impl Default for`, not a trait named "default".
+        let d = crusty_peg_parser::item("typedef default { Point default() { return Point { x: 0 }; } } @Point;");
+        assert!(
+            matches!(&d, Ok(Item::ImplBlock(ib))
+                if ib.trait_name.as_ref().map(|t| t.name.as_str()) == Some("Default")),
+            "default must map to Default, got {:?}", d);
     }
 
     // --- PS-09 Unit 1: unsafe blocks and unsafe fn (ADR-0015) ---

@@ -1,7 +1,7 @@
 # ADR-0016: defining `trait`s and general `impl Trait for Type` (PS-09 Unit 3)
 
 ## Status
-proposed
+accepted
 
 ## Context
 ADR-0015 scoped PS-09 into four units and **deferred Unit 3** — defining new
@@ -177,16 +177,16 @@ family consistent with Unit 2 — **no new `impl` or `trait` keyword is reserved
 ## Verification
 
 ### Part A — general `impl Trait for Type`
-- [ ] `impl_block_kind()` accepts an arbitrary trait-name identifier (after
+- [x] `impl_block_kind()` accepts an arbitrary trait-name identifier (after
       `struct`/`default`), producing `ImplBlock.trait_name = Some(<name>)`; no
       AST or codegen change is required for emission.
-- [ ] `typedef Drawable { … } @Circle;` parses to an `ImplBlock` with
+- [x] `typedef Drawable { … } @Circle;` parses to an `ImplBlock` with
       `target = Circle`, `trait_name = Some(Drawable)`, and lowers to
       `impl Drawable for Circle { … }` with no `pub` on the methods.
-- [ ] `typedef struct { } @T;` (inherent) and `typedef default { } @T;`
+- [x] `typedef struct { } @T;` (inherent) and `typedef default { } @T;`
       (`impl Default for T`) still parse unchanged — a guard test proves
       `struct`/`default` are not captured as trait names.
-- [ ] End-to-end: a trait declared in `__rust__ { … }`, implemented via
+- [x] End-to-end: a trait declared in `__rust__ { … }`, implemented via
       `typedef <Trait> { … } @Type;`, compiles under `rustc -D unused_parens`
       and a method is called through the trait at runtime.
 

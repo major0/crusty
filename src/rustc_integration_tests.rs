@@ -391,8 +391,61 @@ void main() {
         }
     }
 
-    // PS-09 Unit 1 (ADR-0015): an unsafe fn and an unsafe block (raw-pointer
-    // deref from a __rust__ value) transpile and compile.
+    // PS-09 Unit 3 Part A (ADR-0016): a user-named trait (defined in __rust__)
+    // implemented for a Crusty struct via `typedef <Trait> { } @Type;` and
+    // called through the trait method.
+    #[test]
+    fn test_compile_general_impl_trait_for() {
+        let test_source = r#"
+__rust__ {
+    pub trait Describe {
+        fn describe(&self) -> i32;
+    }
+}
+
+struct Circle {
+    int r;
+}
+
+typedef Describe {
+    int describe(&self) {
+        return self.r * 2;
+    }
+} @Circle;
+
+void main() {
+    let c = Circle { r: 21 };
+    println!("describe={}", c.describe());
+}
+"#;
+        let input_path = PathBuf::from("test_compile_impltrait_12345.crst");
+        let output_path = PathBuf::from("test_compile_impltrait_12345");
+
+        fs::write(&input_path, test_source).unwrap();
+
+        let options = CompilerOptions {
+            input_file: input_path.clone(),
+            output_file: Some(output_path.clone()),
+            out_dir: None,
+            emit: EmitMode::Binary,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        let result = run_compiler(&options);
+
+        let _ = fs::remove_file(&input_path);
+        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(format!("{}.rs", output_path.display()));
+
+        if let Err(err) = result {
+            assert!(
+                matches!(err, crate::error::CompilerError::RustcInvocation(_)),
+                "general impl Trait for should transpile cleanly; got {err:?}"
+            );
+        }
+    }
     #[test]
     fn test_compile_unsafe_block_and_fn() {
         let test_source = r#"
