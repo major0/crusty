@@ -97,6 +97,11 @@ ADR'd) before implementation.
   resolves DRIFT-1; defers defining new `trait`s and `async` to their own ADRs;
   records `__thread__` as a future direction). Unit 3 (defining new `trait`s +
   general `impl Trait for Type`) is specified in ADR-0016.
+  **Status: Units 1–3 LANDED** — `unsafe` blocks/`unsafe fn` (ADR-0015 Unit 1),
+  the `typedef … @Type` impl surface (ADR-0015 Unit 2), general `impl Trait for`
+  and `typedef trait { } Name;` definitions (ADR-0016 Parts A & B), each proven
+  end-to-end under `rustc` and documented. Only Unit 4 (`async`) remains
+  deferred to its own ADR.
 
 ### Tier 5 — Documentation reconciliation (do alongside the relevant tier)
 - **DRIFT-1** `typedef.md` impl-block family — RESOLVED: the `typedef … @Type`

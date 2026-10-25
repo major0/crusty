@@ -207,6 +207,6 @@ family consistent with Unit 2 — **no new `impl` or `trait` keyword is reserved
 
 ### Both parts
 - [x] `cargo test` green and `clippy` clean after each part.
-- [ ] `docs/syntax/typedef.md` documents the general `typedef <Trait> @Type;`
+- [x] `docs/syntax/typedef.md` documents the general `typedef <Trait> @Type;`
       impl form and the `typedef trait { } Name;` definition form; the roadmap
       marks PS-09 Unit 3 landed.
