@@ -1530,6 +1530,29 @@ mod tests {
         assert!(result.is_err(), "calling an int should still error");
     }
 
+    #[test]
+    fn test_unknown_call_callee_defers_to_rustc() {
+        // An unknown bare-identifier CALLEE (a Rust free fn / enum variant /
+        // constructor Crusty never declared — Ok/Err/Some/...) must NOT raise
+        // an undefined-variable error; the call defers to rustc (ADR-0001).
+        let (_, ok) = analyze_source(
+            "int? f() { return Ok(42); }",
+        );
+        assert!(ok.is_ok(), "Ok(..) callee must pass, got {:?}", ok.err());
+        let (_, err) = analyze_source(
+            "int? g() { return Err(__rust__{ \"x\".into() }); }",
+        );
+        assert!(err.is_ok(), "Err(..) callee must pass, got {:?}", err.err());
+    }
+
+    #[test]
+    fn test_undefined_ident_in_value_position_still_errors() {
+        // The call-callee relaxation must NOT leak to value position: a bare
+        // undefined identifier used as a VALUE still errors.
+        let (_, result) = analyze_source("void main() { let x = totally_undefined_thing; }");
+        assert!(result.is_err(), "undefined ident as a value should still error");
+    }
+
     // --- PS-09 Unit 1: unsafe + deref relaxation (ADR-0015) ---
 
     #[test]

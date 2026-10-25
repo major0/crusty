@@ -2045,7 +2045,21 @@ impl SemanticAnalyzer {
             }
 
             Expression::Call { func, args } => {
-                let func_type = self.analyze_expression(func);
+                // Resolve the callee. A bare-identifier callee that is NOT in
+                // the symbol table is an unknown FUNCTION name — a Rust free
+                // function, enum variant, or constructor Crusty never declared
+                // (e.g. `Ok(..)`, `Err(..)`, `Some(..)`). Per ADR-0001 the call
+                // defers to rustc, so type it `Auto` WITHOUT an undefined-
+                // variable error. (A bare identifier in VALUE position still
+                // errors via the `Ident` arm — only the call-callee case is
+                // relaxed, same spirit as the Auto-callee relaxation below.)
+                let func_type = match func.as_ref() {
+                    Expression::Ident(ident) => match self.symbol_table.lookup(&ident.name) {
+                        Some(symbol) => symbol.ty.clone(),
+                        None => Type::Auto,
+                    },
+                    other => self.analyze_expression(other),
+                };
 
                 // Analyze argument types
                 let arg_types: Vec<Type> = args
