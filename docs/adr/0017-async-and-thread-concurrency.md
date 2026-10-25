@@ -1,7 +1,7 @@
 # ADR-0017: async / await and the __thread__ concurrency direction (PS-09 Unit 4)
 
 ## Status
-proposed
+accepted
 
 ## Context
 
@@ -147,6 +147,9 @@ direction here.** Specifically:
       implementation deferred", closing PS-09.
 - [ ] When `__thread__` is implemented, it is specified in its own ADR that
       resolves the join/handle, data-sharing, and scoped-thread questions above.
+      (Specified in ADR-0018: `Expression::Thread` lowering to
+      `std::thread::spawn(move || { … })`, the handle form carrying both uses,
+      move-capture sharing, scoped threads deferred.)
 
 ## Notes
 
