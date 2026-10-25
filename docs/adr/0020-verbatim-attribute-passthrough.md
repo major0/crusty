@@ -1,7 +1,7 @@
 # ADR-0020: Verbatim pass-through for `#[…]` and `#![…]` attributes
 
 ## Status
-proposed
+accepted
 
 ## Context
 
@@ -99,14 +99,14 @@ whole rather than terminating at the first `]`.
 
 ## Verification
 
-- [ ] `Attribute` in `src/ast.rs` is `{ text: String }`; `AttributeArg` is removed; `grep -rn AttributeArg src/` returns nothing.
-- [ ] `#[derive(Debug, Clone)]`, `#[cfg(all(unix, feature = "x"))]`, and `#[serde(rename_all = "camelCase", default)]` all parse and round-trip to byte-identical Rust.
-- [ ] A new inner-attribute item parses `#![no_std]` / `#![feature(foo)]` / `#![allow(dead_code)]` and emits them verbatim at crate top level.
-- [ ] Directive disambiguation unaffected: `#define`, `#macro`, `#ifdef…#endif`, `#import`, `#export` still parse; `#include`/`#use` still rejected with their hints.
-- [ ] An unbalanced `#[` (no closing `]`) is still a Crusty parse error.
-- [ ] End-to-end under `rustc -D unused_parens`: a file with a crate-level `#![allow(dead_code)]` plus a `#[derive(Debug)]` struct with a nested-`cfg` field attribute compiles.
-- [ ] Full suite green (`cargo test`), clippy clean.
-- [ ] `docs/syntax/` documents both attribute forms as verbatim pass-through and the directive-vs-attribute disambiguation.
+- [x] `Attribute` in `src/ast.rs` is `{ text: String }`; `AttributeArg` is removed; `grep -rn AttributeArg src/` returns nothing.
+- [x] `#[derive(Debug, Clone)]`, `#[cfg(all(unix, feature = "x"))]`, and `#[serde(rename_all = "camelCase", default)]` all parse and round-trip to byte-identical Rust.
+- [x] A new inner-attribute item parses `#![no_std]` / `#![feature(foo)]` / `#![allow(dead_code)]` and emits them verbatim at crate top level.
+- [x] Directive disambiguation unaffected: `#define`, `#macro`, `#ifdef…#endif`, `#import`, `#export` still parse; `#include`/`#use` still rejected with their hints.
+- [x] An unbalanced `#[` (no closing `]`) is still a Crusty parse error.
+- [x] End-to-end under `rustc -D unused_parens`: a file with a crate-level `#![allow(dead_code)]` plus a `#[derive(Debug)]` struct with a nested-`cfg` field attribute compiles.
+- [x] Full suite green (`cargo test`), clippy clean.
+- [x] `docs/syntax/` documents both attribute forms as verbatim pass-through and the directive-vs-attribute disambiguation.
 
 ## Alternatives considered
 

@@ -16,6 +16,7 @@ Crusty provides a C-like syntax that transpiles to Rust, giving developers famil
 - [Error Handling](error-handling.md) - Fallible types, error propagation, and Result mapping
 - [Concurrency](concurrency.md) - The `__thread__` spawn primitive; async via the `__rust__` escape hatch
 - [Macros](macros.md) - #define macros, delimiter types, and double-underscore naming
+- [Attributes](attributes.md) - Verbatim pass-through of `#[ … ]` outer and `#![ … ]` inner attributes
 - [Modules](modules.md) - #import and #export directives for module management
 - [Namespaces](namespaces.md) - Grouping items into named modules
 - [Static Variables](statics.md) - Top-level static globals and mutability
