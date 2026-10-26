@@ -30,6 +30,38 @@ while (i < 10) {
 }
 ```
 
+### Conditional binding — `if` / `while (decl; cond)`
+
+`if` and `while` accept an **optional** C99-`for`-header-style declaration before
+the condition, separated by `;`. The binding is scoped to the whole statement
+(the condition and the branch(es)) and dropped after — the same scope-tightening
+C99 introduced for `for (int i = 0; …)`. No `let` keyword is required: the init
+clause is any declaration (`int i = e`, `let i = e`, `var i = e`).
+
+```c
+if (int i = compute(); i > 10) {
+    use(i);            // i is in scope here
+} else {
+    recover(i);        // and here
+}                      // i is gone after the statement
+
+while (var i = seed(); i > 0) {   // bind once, then loop; var i is mutable
+    i = i - 1;
+}
+```
+
+lowers to a block wrapping the binding and a plain conditional:
+
+```rust
+{ let i = compute(); if i > 10 { use(i); } else { recover(i); } }
+{ let mut i = seed(); while i > 0 { i = i - 1; } }
+```
+
+The prefix is optional sugar — a bare `if (cond)` / `while (cond)` is unchanged.
+The header is exactly two clauses: a single declaration (no declarator list) and a
+single boolean (no comma operator). It is bind-then-test, not pattern matching —
+use `match` to destructure.
+
 ### C-Style For Loop
 ```c
 for (var i = 0; i < 10; i++) {

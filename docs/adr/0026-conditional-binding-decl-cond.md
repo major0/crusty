@@ -1,7 +1,7 @@
 # ADR-0026: C99-style `if` / `while` conditional binding — `(<decl>; <cond>)`
 
 ## Status
-proposed
+accepted
 
 ## Context
 
@@ -167,17 +167,17 @@ new reserved keyword. The labeled-loop `.label:` prefix composes with
 
 ## Verification
 
-- [ ] `if (int i = f(); i < 10) { … }` parses to `Statement::IfBind` with a `Let` init, the `i < 10` condition, and the then-block.
-- [ ] `let`/`var`/C-typed init clauses all parse; `var i = …` lowers to `let mut i = …`.
-- [ ] `if (decl; cond) { … } else { … }` populates `else_block`; an `else if` chains.
-- [ ] `while (let x = seed(); x < n) { … }` parses to `Statement::WhileBind`; a `.label:` prefix sets its `label`.
-- [ ] A bare `if (x > 0) { … }` / `while (c) { … }` still parses to `Statement::If` / `Statement::While` (no regression) — the `(decl; cond)` prefix is optional sugar, not the default.
-- [ ] The condition slot does not admit a declarator list (`int i = 0, j = 0; …` in the header is rejected) nor a comma-operator condition — the header is exactly `<decl>? ";" <bool>` with a single boolean.
-- [ ] Codegen wraps the statement in a block: `{ <init>; if <cond> { … } [else …] }` / `{ <init>; while <cond> { … } }`, with the binding scoped to that block.
-- [ ] End-to-end under `rustc -D unused_parens`: an `if (int i = …; i < k)` using `i` in both branches, and a `while (var i = …; i < n)` mutating and testing `i`, compile and run; `i` is not visible after the statement.
-- [ ] Semantic analysis: the init binding is in scope in the condition and the branch(es), and not after the statement.
-- [ ] Full suite green (`cargo test`), clippy clean.
-- [ ] `docs/syntax/` documents the `(decl; cond)` conditional with its scoping and lowering.
+- [x] `if (int i = f(); i < 10) { … }` parses to `Statement::IfBind` with a `Let` init, the `i < 10` condition, and the then-block.
+- [x] `let`/`var`/C-typed init clauses all parse; `var i = …` lowers to `let mut i = …`.
+- [x] `if (decl; cond) { … } else { … }` populates `else_block`; an `else if` chains.
+- [x] `while (let x = seed(); x < n) { … }` parses to `Statement::WhileBind`; a `.label:` prefix sets its `label`.
+- [x] A bare `if (x > 0) { … }` / `while (c) { … }` still parses to `Statement::If` / `Statement::While` (no regression) — the `(decl; cond)` prefix is optional sugar, not the default.
+- [x] The condition slot does not admit a declarator list (`int i = 0, j = 0; …` in the header is rejected) nor a comma-operator condition — the header is exactly `<decl>? ";" <bool>` with a single boolean.
+- [x] Codegen wraps the statement in a block: `{ <init>; if <cond> { … } [else …] }` / `{ <init>; while <cond> { … } }`, with the binding scoped to that block.
+- [x] End-to-end under `rustc -D unused_parens`: an `if (int i = …; i < k)` using `i` in both branches, and a `while (var i = …; i < n)` mutating and testing `i`, compile and run; `i` is not visible after the statement.
+- [x] Semantic analysis: the init binding is in scope in the condition and the branch(es), and not after the statement.
+- [x] Full suite green (`cargo test`), clippy clean.
+- [x] `docs/syntax/` documents the `(decl; cond)` conditional with its scoping and lowering.
 
 ## Alternatives considered
 
