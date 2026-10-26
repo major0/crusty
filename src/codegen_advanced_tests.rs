@@ -217,6 +217,30 @@ void main() {
     }
 
     #[test]
+    fn test_generate_whole_valued_float_keeps_decimal() {
+        // Regression: a whole-valued float literal (2.0) must emit as `2.0`,
+        // not `2` — otherwise rustc infers an integer in a float context and
+        // rejects it (e.g. `f64 * {integer}`).
+        let source = r#"
+void main() {
+    float x = 2.0;
+    float y = 0.0;
+}
+"#;
+        let mut parser = Parser::new(source).unwrap();
+        let file = parser.parse_file().unwrap();
+
+        let mut codegen = CodeGenerator::new(TargetLanguage::Rust);
+        let rust_code = codegen.generate(&file);
+
+        assert!(rust_code.contains("2.0"), "got: {rust_code}");
+        assert!(rust_code.contains("0.0"), "got: {rust_code}");
+        // Must NOT emit the bare integer form that trips integer inference.
+        assert!(!rust_code.contains("= 2;"), "got: {rust_code}");
+        assert!(!rust_code.contains("= 0;"), "got: {rust_code}");
+    }
+
+    #[test]
     fn test_generate_tuple_literal() {
         let source = r#"
 void main() {

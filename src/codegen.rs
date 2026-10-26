@@ -1865,7 +1865,19 @@ impl CodeGenerator {
     fn generate_literal_string(&self, lit: &Literal) -> String {
         match lit {
             Literal::Int(n) => n.to_string(),
-            Literal::Float(f) => f.to_string(),
+            Literal::Float(f) => {
+                // Rust's f64::to_string() drops the fraction for a whole-valued
+                // float ("2.0" -> "2"), which rustc would then infer as an
+                // integer in a float context. Keep it a float literal: when the
+                // rendered form carries no decimal point or exponent (and is a
+                // finite number), append ".0".
+                let s = f.to_string();
+                if s.contains('.') || s.contains('e') || s.contains('E') || !f.is_finite() {
+                    s
+                } else {
+                    format!("{s}.0")
+                }
+            }
             Literal::String(s) => format!("\"{}\"", s.escape_default()),
             Literal::Char(c) => format!("'{}'", c.escape_default()),
             Literal::Bool(b) => b.to_string(),
