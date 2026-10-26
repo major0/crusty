@@ -1,7 +1,16 @@
 # ADR-0025: `if let` and `while let` pattern-binding conditionals
 
 ## Status
-proposed
+superseded by ADR-0026
+
+> Superseded before implementation. The `if (let PAT = expr)` pattern-match form
+> (lowering to Rust `if let`) was replaced by the C99-style `if (<decl>; <cond>)`
+> bind-then-test conditional (ADR-0026), which needs no `let` keyword, scopes the
+> binding to the statement (C99 `for`-header semantics), and is more C-native.
+> The two are different capabilities — pattern destructuring vs. bind-and-test —
+> and ADR-0026 adopts the bind-and-test form as Crusty's conditional-binding
+> surface; `match` remains the destructuring path. A dedicated `if let`
+> destructuring ADR may follow if a real need appears.
 
 ## Context
 
