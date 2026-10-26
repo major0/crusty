@@ -317,4 +317,49 @@ mod tests {
         assert!(result.contains("let"));
         assert!(result.contains("x"));
     }
+
+    #[test]
+    fn test_generate_rust_block_single_expr_no_braces() {
+        // A single-expression __rust__ body emits bare (no block braces), so a
+        // `return __rust__{ e }` does not trip rustc's unused_braces.
+        let gen = CodeGenerator::new(TargetLanguage::Rust);
+        let expr = Expression::RustBlock {
+            tokens: vec![Token {
+                kind: TokenKind::Ident,
+                text: "Box::new(42)".to_string(),
+            }],
+        };
+        let result = gen.generate_expression_string(&expr);
+        assert_eq!(result, "Box::new(42)", "single expr must be braceless");
+        assert!(!result.contains('{'), "no block braces: {result}");
+    }
+
+    #[test]
+    fn test_generate_rust_block_statements_keep_braces() {
+        // A statement sequence (top-level `;`) keeps its block braces.
+        let gen = CodeGenerator::new(TargetLanguage::Rust);
+        let expr = Expression::RustBlock {
+            tokens: vec![Token {
+                kind: TokenKind::Ident,
+                text: "let x = 1; x + 2".to_string(),
+            }],
+        };
+        let result = gen.generate_expression_string(&expr);
+        assert_eq!(result, "{ let x = 1; x + 2 }", "block must keep braces");
+    }
+
+    #[test]
+    fn test_generate_rust_block_semicolon_in_string_is_not_top_level() {
+        // A `;` inside a string literal is not a top-level statement separator,
+        // so a single expression containing one stays braceless.
+        let gen = CodeGenerator::new(TargetLanguage::Rust);
+        let expr = Expression::RustBlock {
+            tokens: vec![Token {
+                kind: TokenKind::Ident,
+                text: "format!(\"a;b\")".to_string(),
+            }],
+        };
+        let result = gen.generate_expression_string(&expr);
+        assert_eq!(result, "format!(\"a;b\")", "string `;` is not top-level: {result}");
+    }
 }

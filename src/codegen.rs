@@ -1732,13 +1732,22 @@ impl CodeGenerator {
                 }
             }
             Expression::RustBlock { tokens } => {
-                let mut result = String::from("{ ");
-                for token in tokens {
-                    result.push_str(&token.text);
-                    result.push(' ');
+                let body: String = tokens
+                    .iter()
+                    .map(|t| t.text.as_str())
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                let body = body.trim();
+                // A `__rust__{ … }` holding a single expression (no top-level
+                // `;`) needs no block braces — wrapping it in `{ … }` trips
+                // rustc's `unused_braces` in `return`/`let`/arg positions. Emit
+                // the expression bare; keep the block braces only when the body
+                // is a statement sequence (has a top-level `;`).
+                if rust_body_has_top_level_semicolon(body) {
+                    format!("{{ {body} }}")
+                } else {
+                    body.to_string()
                 }
-                result.push('}');
-                result
             }
             Expression::ErrorProp { expr } => {
                 format!("{}?", self.generate_expression_string(expr))
@@ -2262,6 +2271,37 @@ impl CodeGenerator {
 /// form for `macro_rules!`. The body is raw source text (ADR-0001), so this is
 /// a word-boundary textual substitution — no tokenisation. A character is part
 /// of an identifier when it is alphanumeric or `_`; a `name` occurrence
+/// True when a raw `__rust__{ … }` body contains a `;` at the TOP level — i.e.
+/// it is a statement sequence (a block), not a single expression. Semicolons
+/// inside `()`/`[]`/`{}` groups and string/char literals do not count. Used to
+/// decide whether a `__rust__` expression needs block braces (ADR-0001): a
+/// single-expression body is emitted bare to avoid rustc's `unused_braces`.
+fn rust_body_has_top_level_semicolon(body: &str) -> bool {
+    let mut depth: i32 = 0;
+    let mut chars = body.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth -= 1,
+            ';' if depth == 0 => return true,
+            '"' | '\'' => {
+                // Skip a string/char literal, honouring backslash escapes.
+                let quote = c;
+                while let Some(&n) = chars.peek() {
+                    chars.next();
+                    if n == '\\' {
+                        chars.next(); // skip the escaped char
+                    } else if n == quote {
+                        break;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
 /// flanked by non-identifier characters (or string ends) is a reference.
 fn substitute_macro_params(body: &str, params: &[Ident]) -> String {
     if params.is_empty() {
