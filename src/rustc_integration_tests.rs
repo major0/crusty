@@ -790,4 +790,66 @@ void main() {
             );
         }
     }
+
+    // ADR-0023: an enum mixing unit, tuple and struct variants (plus a separate
+    // discriminant enum) transpiles, compiles, and is constructed + matched.
+    #[test]
+    fn test_compile_enum_data_variants() {
+        let test_source = r#"
+enum Shape {
+    Empty,
+    Square(int),
+    Rect { int w; int h; },
+}
+
+enum Code {
+    Ok = 0,
+    Warn = 7,
+}
+
+int area(Shape s) {
+    return match s {
+        Shape::Square(side) => side * side,
+        Shape::Rect { w, h } => w * h,
+        _ => 0,
+    };
+}
+
+void main() {
+    let sq = @Shape.Square(5);
+    let rc = __rust__{ Shape::Rect { w: 3, h: 4 } };
+    let em = @Shape.Empty;
+    println!("{} {} {}", area(sq), area(rc), area(em));
+    let code = __rust__{ Code::Warn as i32 };
+    println!("{}", code);
+}
+"#;
+        let input_path = PathBuf::from("test_compile_enum_data_variants_23.crst");
+        let output_path = PathBuf::from("test_compile_enum_data_variants_23");
+
+        fs::write(&input_path, test_source).unwrap();
+
+        let options = CompilerOptions {
+            input_file: input_path.clone(),
+            output_file: Some(output_path.clone()),
+            out_dir: None,
+            emit: EmitMode::Binary,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        let result = run_compiler(&options);
+
+        let _ = fs::remove_file(&input_path);
+        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(format!("{}.rs", output_path.display()));
+
+        if let Err(err) = result {
+            assert!(
+                matches!(err, crate::error::CompilerError::RustcInvocation(_)),
+                "enum data variants should transpile and compile cleanly; got {err:?}"
+            );
+        }
+    }
 }

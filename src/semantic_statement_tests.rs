@@ -411,7 +411,7 @@ mod tests {
             name: Ident::new("Status"),
             variants: vec![EnumVariant {
                 name: Ident::new("Ok"),
-                value: None,
+                body: VariantBody::Unit,
             }],
             doc_comments: vec![],
             attributes: vec![],
@@ -424,7 +424,7 @@ mod tests {
             name: Ident::new("Status"),
             variants: vec![EnumVariant {
                 name: Ident::new("Error"),
-                value: None,
+                body: VariantBody::Unit,
             }],
             doc_comments: vec![],
             attributes: vec![],

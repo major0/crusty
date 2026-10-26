@@ -421,9 +421,9 @@ mod tests {
         match &file.items[0] {
             Item::Enum(e) => {
                 assert_eq!(e.variants.len(), 3);
-                assert_eq!(e.variants[0].value, Some(0));
-                assert_eq!(e.variants[1].value, Some(1));
-                assert_eq!(e.variants[2].value, Some(2));
+                assert_eq!(e.variants[0].discriminant(), None); // bare -> Unit
+                assert_eq!(e.variants[1].discriminant(), None);
+                assert_eq!(e.variants[2].discriminant(), None);
             }
             _ => panic!("Expected enum"),
         }

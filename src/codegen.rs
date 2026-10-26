@@ -599,12 +599,31 @@ impl CodeGenerator {
         self.write(" {\n");
         self.indent();
 
-        // Generate variants with discriminants
+        // Generate variants (ADR-0023): unit / discriminant / tuple / struct.
         for variant in &enum_def.variants {
             self.write_indent();
             self.write(&variant.name.name);
-            if let Some(value) = variant.value {
-                self.write(&format!(" = {}", value));
+            match &variant.body {
+                crate::ast::VariantBody::Unit => {}
+                crate::ast::VariantBody::Discriminant(value) => {
+                    self.write(&format!(" = {}", value));
+                }
+                crate::ast::VariantBody::Tuple(types) => {
+                    self.write("(");
+                    let rendered: Vec<String> =
+                        types.iter().map(|t| self.generate_type_string(t)).collect();
+                    self.write(&rendered.join(", "));
+                    self.write(")");
+                }
+                crate::ast::VariantBody::Struct(fields) => {
+                    self.write(" { ");
+                    let rendered: Vec<String> = fields
+                        .iter()
+                        .map(|f| format!("{}: {}", f.name.name, self.generate_type_string(&f.ty)))
+                        .collect();
+                    self.write(&rendered.join(", "));
+                    self.write(" }");
+                }
             }
             self.write(",\n");
         }

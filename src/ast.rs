@@ -745,7 +745,38 @@ pub struct Field {
 #[derive(Debug, Clone, PartialEq)]
 pub struct EnumVariant {
     pub name: Ident,
-    pub value: Option<i64>,
+    /// The variant's shape (ADR-0023): unit, discriminant, tuple payload, or
+    /// struct payload. A discriminant and a payload are mutually exclusive by
+    /// construction (Rust forbids combining them without `#[repr]` machinery
+    /// Crusty does not model).
+    pub body: VariantBody,
+}
+
+/// The shape of an enum variant (ADR-0023), mirroring `StructBody`. A single
+/// body enum makes the four shapes mutually exclusive by construction.
+#[derive(Debug, Clone, PartialEq)]
+pub enum VariantBody {
+    /// `A` — a field-less variant.
+    Unit,
+    /// `A = 7` — an explicit (or auto-numbered) integer discriminant.
+    Discriminant(i64),
+    /// `A(T, …)` — a tuple payload with positional, unnamed fields.
+    Tuple(Vec<Type>),
+    /// `A { T name; … }` — a struct payload (reuses the struct-field grammar).
+    Struct(Vec<Field>),
+}
+
+impl EnumVariant {
+    /// This variant's integer discriminant, if it has one (`A` auto-numbered or
+    /// `A = n`), else `None` for a payload variant (ADR-0023). Test-only today;
+    /// codegen matches `VariantBody` directly.
+    #[cfg(test)]
+    pub fn discriminant(&self) -> Option<i64> {
+        match self.body {
+            VariantBody::Discriminant(v) => Some(v),
+            _ => None,
+        }
+    }
 }
 
 /// Switch case
@@ -1039,15 +1070,15 @@ mod tests {
             variants: vec![
                 EnumVariant {
                     name: Ident::new("Red"),
-                    value: Some(0),
+                    body: VariantBody::Discriminant(0),
                 },
                 EnumVariant {
                     name: Ident::new("Green"),
-                    value: Some(1),
+                    body: VariantBody::Discriminant(1),
                 },
                 EnumVariant {
                     name: Ident::new("Blue"),
-                    value: Some(2),
+                    body: VariantBody::Discriminant(2),
                 },
             ],
             doc_comments: vec![],
@@ -1057,7 +1088,7 @@ mod tests {
         assert_eq!(enum_def.name.name, "Color");
         assert_eq!(enum_def.variants.len(), 3);
         assert_eq!(enum_def.variants[0].name.name, "Red");
-        assert_eq!(enum_def.variants[0].value, Some(0));
+        assert_eq!(enum_def.variants[0].discriminant(), Some(0));
     }
 
     #[test]

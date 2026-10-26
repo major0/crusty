@@ -638,11 +638,11 @@ mod tests {
             variants: vec![
                 EnumVariant {
                     name: Ident::new("Red"),
-                    value: Some(0),
+                    body: VariantBody::Discriminant(0),
                 },
                 EnumVariant {
                     name: Ident::new("Green"),
-                    value: Some(1),
+                    body: VariantBody::Discriminant(1),
                 },
             ],
             doc_comments: vec![],

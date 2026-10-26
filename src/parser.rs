@@ -96,6 +96,18 @@ enum StructMember {
     Method(Function),
 }
 
+/// Helper enum for an enum variant's raw parsed shape (ADR-0023), before
+/// auto-numbering is applied. A `Unit` becomes the next sequential
+/// discriminant; a `Discriminant` resets the counter; a payload is never
+/// numbered. Mapped to `ast::VariantBody` in `enum_variants`.
+#[derive(Debug, Clone)]
+enum RawVariantBody {
+    Unit,
+    Discriminant(i64),
+    Tuple(Vec<crate::ast::Type>),
+    Struct(Vec<crate::ast::Field>),
+}
+
 peg::parser! {
     pub grammar crusty_peg_parser() for str {
         // ====================================================================
@@ -3375,45 +3387,56 @@ peg::parser! {
                 })
             }
 
-        /// Enum variants: comma-separated list of variants with auto-numbering
-        /// Returns Vec<EnumVariant> with values assigned
+        /// Enum variants: comma-separated list of variants (ADR-0023).
+        ///
+        /// A bare variant (`A`) is a UNIT variant — it emits as a bare Rust
+        /// variant, and Rust auto-assigns it the next sequential discriminant,
+        /// preserving C `as int` semantics. Crucially it is NOT forced to
+        /// `A = n`: an explicit discriminant on a bare variant would make the
+        /// enum illegal the moment it also carries a payload variant (Rust
+        /// E0732). Only an explicit `A = n` becomes a `Discriminant`. A payload
+        /// variant (tuple `A(T, …)` or struct `A { T x; }`) is never numbered.
         rule enum_variants() -> Vec<EnumVariant>
             = variants:enum_variant_list()? {
                 let mut result = Vec::new();
-                let mut next_value: i64 = 0;
 
-                for (name, explicit_value) in variants.unwrap_or_default() {
-                    let value = match explicit_value {
-                        Some(v) => {
-                            next_value = v + 1;
-                            Some(v)
-                        }
-                        None => {
-                            let v = next_value;
-                            next_value += 1;
-                            Some(v)
-                        }
+                for (name, raw) in variants.unwrap_or_default() {
+                    let body = match raw {
+                        RawVariantBody::Unit => VariantBody::Unit,
+                        RawVariantBody::Discriminant(v) => VariantBody::Discriminant(v),
+                        RawVariantBody::Tuple(tys) => VariantBody::Tuple(tys),
+                        RawVariantBody::Struct(fields) => VariantBody::Struct(fields),
                     };
-                    result.push(EnumVariant { name, value });
+                    result.push(EnumVariant { name, body });
                 }
 
                 result
             }
 
-        /// Enum variant list: comma-separated variants
-        /// Returns Vec<(Ident, Option<i64>)> - name and optional explicit value
-        rule enum_variant_list() -> Vec<(Ident, Option<i64>)>
+        /// Enum variant list: comma-separated variants, optional trailing comma.
+        rule enum_variant_list() -> Vec<(Ident, RawVariantBody)>
             = first:enum_variant_item() rest:(_ "," _ v:enum_variant_item() { v })* (_ ",")? {
                 let mut variants = vec![first];
                 variants.extend(rest);
                 variants
             }
 
-        /// Single enum variant: Name or Name = value
-        /// Returns (Ident, Option<i64>)
-        rule enum_variant_item() -> (Ident, Option<i64>)
-            = name:ident() _ "=" _ value:int_literal_value() { (name, Some(value)) }
-            / name:ident() { (name, None) }
+        /// Single enum variant (ADR-0023). Four shapes, tried most-specific
+        /// first so a payload wins over the bare-name form:
+        /// - `A(T, …)`        tuple payload
+        /// - `A { T x; … }`   struct payload (reuses struct_field)
+        /// - `A = n`          explicit discriminant
+        /// - `A`              unit / auto-numbered
+        rule enum_variant_item() -> (Ident, RawVariantBody)
+            = name:ident() _ "(" _ tys:tuple_struct_field_list() _ ")" { (name, RawVariantBody::Tuple(tys)) }
+            / name:ident() _ "{" _ fields:struct_variant_field_list() _ "}" { (name, RawVariantBody::Struct(fields)) }
+            / name:ident() _ "=" _ value:int_literal_value() { (name, RawVariantBody::Discriminant(value)) }
+            / name:ident() { (name, RawVariantBody::Unit) }
+
+        /// Field list for a struct-payload variant: `T name; …`, reusing the
+        /// same `struct_field` rule as a named struct body.
+        rule struct_variant_field_list() -> Vec<Field>
+            = fields:struct_field()* { fields }
 
         /// Integer literal value for enum variants
         /// Returns i64
@@ -5158,11 +5181,11 @@ mod enum_tests {
             assert_eq!(e.name.name, "Color");
             assert_eq!(e.variants.len(), 3);
             assert_eq!(e.variants[0].name.name, "Red");
-            assert_eq!(e.variants[0].value, Some(0));
+            assert_eq!(e.variants[0].discriminant(), None); // bare -> Unit
             assert_eq!(e.variants[1].name.name, "Green");
-            assert_eq!(e.variants[1].value, Some(1));
+            assert_eq!(e.variants[1].discriminant(), None);
             assert_eq!(e.variants[2].name.name, "Blue");
-            assert_eq!(e.variants[2].value, Some(2));
+            assert_eq!(e.variants[2].discriminant(), None);
         } else {
             panic!("Expected Item::Enum");
         }
@@ -5196,11 +5219,11 @@ mod enum_tests {
             assert_eq!(e.name.name, "Status");
             assert_eq!(e.variants.len(), 3);
             assert_eq!(e.variants[0].name.name, "Ok");
-            assert_eq!(e.variants[0].value, Some(0));
+            assert_eq!(e.variants[0].discriminant(), Some(0));
             assert_eq!(e.variants[1].name.name, "Error");
-            assert_eq!(e.variants[1].value, Some(1));
+            assert_eq!(e.variants[1].discriminant(), Some(1));
             assert_eq!(e.variants[2].name.name, "Pending");
-            assert_eq!(e.variants[2].value, Some(5));
+            assert_eq!(e.variants[2].discriminant(), Some(5));
         } else {
             panic!("Expected Item::Enum");
         }
@@ -5220,15 +5243,15 @@ mod enum_tests {
             assert_eq!(e.name.name, "Mixed");
             assert_eq!(e.variants.len(), 5);
             assert_eq!(e.variants[0].name.name, "A");
-            assert_eq!(e.variants[0].value, Some(0)); // Auto: 0
+            assert_eq!(e.variants[0].discriminant(), None); // bare -> Unit
             assert_eq!(e.variants[1].name.name, "B");
-            assert_eq!(e.variants[1].value, Some(10)); // Explicit: 10
+            assert_eq!(e.variants[1].discriminant(), Some(10)); // Explicit: 10
             assert_eq!(e.variants[2].name.name, "C");
-            assert_eq!(e.variants[2].value, Some(11)); // Auto: 10 + 1 = 11
+            assert_eq!(e.variants[2].discriminant(), None); // bare -> Unit
             assert_eq!(e.variants[3].name.name, "D");
-            assert_eq!(e.variants[3].value, Some(20)); // Explicit: 20
+            assert_eq!(e.variants[3].discriminant(), Some(20)); // Explicit: 20
             assert_eq!(e.variants[4].name.name, "E");
-            assert_eq!(e.variants[4].value, Some(21)); // Auto: 20 + 1 = 21
+            assert_eq!(e.variants[4].discriminant(), None); // bare -> Unit
         } else {
             panic!("Expected Item::Enum");
         }
@@ -5288,7 +5311,7 @@ mod enum_tests {
             assert_eq!(e.name.name, "Single");
             assert_eq!(e.variants.len(), 1);
             assert_eq!(e.variants[0].name.name, "Only");
-            assert_eq!(e.variants[0].value, Some(0));
+            assert_eq!(e.variants[0].discriminant(), None); // bare -> Unit
         } else {
             panic!("Expected Item::Enum");
         }
@@ -5307,7 +5330,76 @@ mod enum_tests {
         if let Ok(Item::Enum(e)) = result {
             assert_eq!(e.name.name, "Spaced");
             assert_eq!(e.variants.len(), 3);
-            assert_eq!(e.variants[1].value, Some(5));
+            assert_eq!(e.variants[1].discriminant(), Some(5));
+        } else {
+            panic!("Expected Item::Enum");
+        }
+    }
+
+    #[test]
+    fn test_peg_enum_tuple_variant() {
+        // ADR-0023: `A(T, …)` is a tuple-payload variant.
+        let result = crusty_peg_parser::enum_def("enum E { Circle(f64), Pair(int, int) }");
+        assert!(result.is_ok(), "Failed to parse tuple variant: {:?}", result);
+        if let Ok(Item::Enum(e)) = result {
+            match &e.variants[0].body {
+                VariantBody::Tuple(tys) => assert_eq!(tys.len(), 1),
+                other => panic!("expected tuple variant, got {:?}", other),
+            }
+            match &e.variants[1].body {
+                VariantBody::Tuple(tys) => assert_eq!(tys.len(), 2),
+                other => panic!("expected tuple variant, got {:?}", other),
+            }
+        } else {
+            panic!("Expected Item::Enum");
+        }
+    }
+
+    #[test]
+    fn test_peg_enum_struct_variant() {
+        // ADR-0023: `A { T x; … }` is a struct-payload variant.
+        let result = crusty_peg_parser::enum_def("enum E { Rect { int w; int h; } }");
+        assert!(result.is_ok(), "Failed to parse struct variant: {:?}", result);
+        if let Ok(Item::Enum(e)) = result {
+            match &e.variants[0].body {
+                VariantBody::Struct(fields) => {
+                    assert_eq!(fields.len(), 2);
+                    assert_eq!(fields[0].name.name, "w");
+                    assert_eq!(fields[1].name.name, "h");
+                }
+                other => panic!("expected struct variant, got {:?}", other),
+            }
+        } else {
+            panic!("Expected Item::Enum");
+        }
+    }
+
+    #[test]
+    fn test_peg_enum_mixed_shapes() {
+        // All four shapes in one enum: unit, discriminant, tuple, struct.
+        let result = crusty_peg_parser::enum_def(
+            "enum Shape { Unit, Code = 7, Circle(f64), Rect { int w; int h; } }",
+        );
+        assert!(result.is_ok(), "Failed to parse mixed enum: {:?}", result);
+        if let Ok(Item::Enum(e)) = result {
+            assert!(matches!(e.variants[0].body, VariantBody::Unit));
+            assert!(matches!(e.variants[1].body, VariantBody::Discriminant(7)));
+            assert!(matches!(e.variants[2].body, VariantBody::Tuple(_)));
+            assert!(matches!(e.variants[3].body, VariantBody::Struct(_)));
+        } else {
+            panic!("Expected Item::Enum");
+        }
+    }
+
+    #[test]
+    fn test_peg_enum_bare_variant_is_unit_not_discriminant() {
+        // Regression: a bare variant must be Unit (emits bare), NOT forced to a
+        // `= N` discriminant — a forced discriminant makes a data enum illegal
+        // in Rust (E0732). Rust auto-assigns the sequential value anyway.
+        let result = crusty_peg_parser::enum_def("enum E { A, B(int) }");
+        if let Ok(Item::Enum(e)) = result {
+            assert!(matches!(e.variants[0].body, VariantBody::Unit));
+            assert_eq!(e.variants[0].discriminant(), None);
         } else {
             panic!("Expected Item::Enum");
         }

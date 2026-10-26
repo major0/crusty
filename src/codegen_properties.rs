@@ -167,11 +167,11 @@ mod tests {
             variants: vec![
                 EnumVariant {
                     name: Ident::new("Variant1"),
-                    value: Some(0),
+                    body: VariantBody::Discriminant(0),
                 },
                 EnumVariant {
                     name: Ident::new("Variant2"),
-                    value: Some(1),
+                    body: VariantBody::Discriminant(1),
                 },
             ],
             doc_comments: vec![],
@@ -627,8 +627,8 @@ mod tests {
                 prop_assert!(output.contains(&variant.name.name),
                     "Generated code should contain variant '{}': {}", variant.name.name, output);
 
-                // If variant has explicit value, should contain = value
-                if let Some(value) = variant.value {
+                // If variant has a discriminant, output should contain = value
+                if let Some(value) = variant.discriminant() {
                     let discriminant = format!("= {}", value);
                     prop_assert!(output.contains(&discriminant),
                         "Generated code should contain discriminant '{}': {}", discriminant, output);

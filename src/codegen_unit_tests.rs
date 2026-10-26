@@ -1156,15 +1156,15 @@ mod tests {
             variants: vec![
                 EnumVariant {
                     name: Ident::new("Red"),
-                    value: Some(0),
+                    body: VariantBody::Discriminant(0),
                 },
                 EnumVariant {
                     name: Ident::new("Green"),
-                    value: Some(1),
+                    body: VariantBody::Discriminant(1),
                 },
                 EnumVariant {
                     name: Ident::new("Blue"),
-                    value: Some(2),
+                    body: VariantBody::Discriminant(2),
                 },
             ],
             doc_comments: vec![],
@@ -1179,6 +1179,66 @@ mod tests {
         assert!(output.contains("Red = 0,"));
         assert!(output.contains("Green = 1,"));
         assert!(output.contains("Blue = 2,"));
+    }
+
+    #[test]
+    fn test_generate_enum_data_variants() {
+        // ADR-0023: unit emits bare, tuple emits `Name(T, …)`, struct emits
+        // `Name { n: T, … }`, discriminant emits `Name = n`.
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let enum_def = Enum {
+            generic_params: vec![],
+            where_clause: None,
+            visibility: Visibility::Public,
+            name: Ident::new("Shape"),
+            variants: vec![
+                EnumVariant {
+                    name: Ident::new("Unit"),
+                    body: VariantBody::Unit,
+                },
+                EnumVariant {
+                    name: Ident::new("Code"),
+                    body: VariantBody::Discriminant(7),
+                },
+                EnumVariant {
+                    name: Ident::new("Circle"),
+                    body: VariantBody::Tuple(vec![Type::Primitive(PrimitiveType::F64)]),
+                },
+                EnumVariant {
+                    name: Ident::new("Rect"),
+                    body: VariantBody::Struct(vec![
+                        Field {
+                            visibility: Visibility::Public,
+                            name: Ident::new("w"),
+                            ty: Type::Primitive(PrimitiveType::F64),
+                            doc_comments: vec![],
+                            attributes: vec![],
+                        },
+                        Field {
+                            visibility: Visibility::Public,
+                            name: Ident::new("h"),
+                            ty: Type::Primitive(PrimitiveType::F64),
+                            doc_comments: vec![],
+                            attributes: vec![],
+                        },
+                    ]),
+                },
+            ],
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let file = File {
+            items: vec![Item::Enum(enum_def)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        // Unit variant emits bare — crucially NOT `Unit = 0` (would trip E0732
+        // in a data enum).
+        assert!(output.contains("Unit,"), "got: {output}");
+        assert!(!output.contains("Unit = 0"), "got: {output}");
+        assert!(output.contains("Code = 7,"), "got: {output}");
+        assert!(output.contains("Circle(f64),"), "got: {output}");
+        assert!(output.contains("Rect { w: f64, h: f64 },"), "got: {output}");
     }
 
     // --- ADR-0011 Phase 2: generic parameters lower to Rust ---
@@ -1323,11 +1383,11 @@ mod tests {
             variants: vec![
                 EnumVariant {
                     name: Ident::new("None"),
-                    value: Some(0),
+                    body: VariantBody::Discriminant(0),
                 },
                 EnumVariant {
                     name: Ident::new("Some"),
-                    value: Some(1),
+                    body: VariantBody::Discriminant(1),
                 },
             ],
             doc_comments: vec![],

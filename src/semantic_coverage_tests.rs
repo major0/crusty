@@ -649,11 +649,11 @@ mod tests {
             variants: vec![
                 EnumVariant {
                     name: Ident::new("Success"),
-                    value: Some(0),
+                    body: VariantBody::Discriminant(0),
                 },
                 EnumVariant {
                     name: Ident::new("Error"),
-                    value: Some(1),
+                    body: VariantBody::Discriminant(1),
                 },
             ],
             doc_comments: vec![],
@@ -1057,8 +1057,8 @@ mod tests {
             visibility: Visibility::Public,
             name: Ident::new("Color"),
             variants: vec![
-                EnumVariant { name: Ident::new("Red"), value: Some(0) },
-                EnumVariant { name: Ident::new("Green"), value: Some(1) },
+                EnumVariant { name: Ident::new("Red"), body: VariantBody::Discriminant(0) },
+                EnumVariant { name: Ident::new("Green"), body: VariantBody::Discriminant(1) },
             ],
             doc_comments: vec![],
             attributes: vec![],
