@@ -150,7 +150,7 @@ expressions), `match` matches **patterns** and is an **expression**, so it
 yields a value and can appear in value position such as a `let` initializer.
 
 ```c
-let grade = match score {
+let grade = match (score) {
     0 => 100,
     1..=5 => 50,
     n if n > 6 => 10,
@@ -158,7 +158,8 @@ let grade = match score {
 };
 ```
 
-Lowers to the equivalent Rust `match` unchanged:
+Lowers to the equivalent Rust `match` unchanged (Rust's scrutinee is bare; the
+Crusty parens are a surface wrapper and are not re-emitted):
 ```rust
 let grade = match score {
     0 => 100,
@@ -185,7 +186,7 @@ A **guard** (`if <cond>`) after the pattern adds a boolean condition the arm
 must also satisfy. A pattern binding is in scope in both the guard and the arm
 body, and does not leak past the arm:
 ```c
-let doubled = match n {
+let doubled = match (n) {
     x if x > 6 => x + x,
     y => y,
 };
@@ -201,7 +202,7 @@ and `where` clauses pass through. Crusty does not analyse such an arm's body
 arms rely on `rustc` for their diagnostics.
 
 ```c
-let v = match opt {
+let v = match (opt) {
     Some(x) => x,   // `Some(x)` is passed through verbatim
     None => 0,
 };
@@ -234,7 +235,7 @@ for_in_stmt   = "for" IDENT "in" expr block ;
 loop_stmt     = ["." IDENT ":"] "loop" block ;
 break_stmt    = "break" ["." IDENT] [expr] ";" ;
 continue_stmt = "continue" ["." IDENT] ";" ;
-match_expr    = "match" expr_no_struct "{" {match_arm ","} [match_arm [","]] "}" ;
+match_expr    = "match" "(" expr ")" "{" {match_arm ","} [match_arm [","]] "}" ;
 match_arm     = pattern ["if" expr_no_struct] "=>" expr_no_comma ;
 pattern       = pattern_no_or {"|" pattern_no_or} ;
 pattern_no_or = "_" | literal | IDENT
@@ -244,8 +245,8 @@ pattern_no_or = "_" | literal | IDENT
 range_op      = ".." | "..=" | "..." ;
 ```
 
-Note: the `match` scrutinee and a guard are parsed in the struct-literal-free
-context (`expr_no_struct`), so `match p { … }` reads `p` as the scrutinee and
-`{` as the arm list; a struct-literal scrutinee must be parenthesised. An arm
-body is parsed without the top-level comma operator (`expr_no_comma`) so a `,`
-ends the arm rather than forming a comma expression.
+Note: the `match` scrutinee is parenthesised — `match (p) { … }`, like
+`switch (expr)` and `if (cond)` (ADR-0028) — so the full expression grammar is
+available inside the parens (a struct-literal scrutinee `match (Point { x: 1 })`
+works). An arm body is parsed without the top-level comma operator
+(`expr_no_comma`) so a `,` ends the arm rather than forming a comma expression.
