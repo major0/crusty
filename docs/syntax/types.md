@@ -66,12 +66,26 @@ Caveats:
 - `long double` is not supported (Rust has no equivalent wide float).
 
 ### Structs
+
+A struct has one of three shapes (ADR-0024), distinguished by what follows the
+name. A braced body is the named-field form; `( … )` is a tuple struct with
+positional, unnamed fields; and a bare `;` is a unit struct with no fields.
+
 ```c
-struct Point {
+struct Point {          // named-field struct
     int x;
     int y;
 }
+
+struct Pair(int, int);  // tuple struct      -> struct Pair(i32, i32);
+struct Meters(f64);     // newtype           -> struct Meters(f64);
+struct Marker;          // unit struct       -> struct Marker;
 ```
+
+A tuple struct's fields are accessed positionally (`p.0`, `p.1`) and constructed
+by calling the type name (`Point(3, 4)`); a unit struct is constructed by its
+bare name (`Marker`). Both lower to the exact Rust form and inherit its
+semantics (ADR-0001).
 
 ### Enums
 ```c
