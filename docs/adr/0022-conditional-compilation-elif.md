@@ -1,4 +1,4 @@
-# ADR-0022: `#elif` condition chains for conditional-compilation directives
+# ADR-0022: the C `#ifdef` directive family — `#elif` / `#elifdef` / `#elifndef` condition chains
 
 ## Status
 proposed
@@ -39,6 +39,17 @@ ADR-0021 explicitly deferred it, naming the exact reason: a chain "needs a
 different AST — a list of (predicate, items) arms, not one condition +
 inversion." This ADR makes that reshape.
 
+Beyond the chain, Crusty should adopt the **standard C `#ifdef` directive
+family** so a C programmer's conditional blocks transpile unchanged: the
+`defined`-shorthand directives `#ifdef` / `#ifndef` / `#elif` / `#elifdef` /
+`#elifndef` / `#else` / `#endif`. We deliberately do NOT adopt `#if <expr>` /
+`#elif <expr>` general constant-expression conditions: C evaluates those at
+preprocessing time, whereas Crusty never evaluates a condition — it passes a
+single `defined`-style NAME through to rustc's `cfg` (ADR-0001). Arithmetic and
+version tests have no `cfg` equivalent and stay in `__rust__`. The family we
+adopt is exactly the subset that keys off whether a NAME is defined, which maps
+one-to-one onto `cfg(NAME)` / `cfg(not(NAME))`.
+
 The design question is again lowering. Rust has no block preprocessor and no
 `cfg`-level `else if`: `cfg` is an attribute on an individual item. `#elif` is
 **else-if** — an arm is selected only when its own condition holds AND every
@@ -47,8 +58,8 @@ conjunction of its own predicate with the negation of all predicates before it:
 
 ```c
 #ifdef A        a()
-#elif B         b()
-#elif C         c()
+#elif B         b()      // #elif NAME ≡ #elifdef NAME (positive defined test)
+#elifndef C     c()      // negated arm: selected when C is NOT defined
 #else           d()
 #endif
 ```
@@ -56,10 +67,10 @@ conjunction of its own predicate with the negation of all predicates before it:
 ->
 
 ```rust
-#[cfg(A)]                        fn a() { … }
-#[cfg(all(not(A), B))]           fn b() { … }
-#[cfg(all(not(A), not(B), C))]   fn c() { … }
-#[cfg(all(not(A), not(B), not(C)))] fn d() { … }
+#[cfg(A)]                           fn a() { … }
+#[cfg(all(not(A), B))]              fn b() { … }
+#[cfg(all(not(A), not(B), not(C)))] fn c() { … }
+#[cfg(all(not(A), not(B), C))]      fn d() { … }
 ```
 
 This cascade of negations is what makes a *sequential* chain correct as a set of
@@ -71,17 +82,23 @@ conditions (ADR-0001).
 
 ## Decision
 
-We will add `#elif NAME` condition chains to the conditional-compilation
-directive and reshape `ConditionalCompilation` from a two-branch record into an
-ordered list of condition arms plus an optional final `#else`.
+We will adopt the standard C `#ifdef` directive family — `#ifdef` / `#ifndef`
+openers, `#elif` / `#elifdef` / `#elifndef` chain arms, `#else`, `#endif` — and
+reshape `ConditionalCompilation` from a two-branch record into an ordered list of
+condition arms plus an optional final `#else`.
 
-1. **Surface**: `#if*` (`#ifdef`/`#ifndef`) opens the chain, zero or more
-   `#elif NAME` arms follow, an optional `#else` closes with an unconditional
-   arm, and `#endif` terminates. Each `#elif` keys off a single `defined`-style
-   NAME, matching `#ifdef`. (A `defined`-style negation stays spelled with the
-   leading directive: the opener may be `#ifndef`; `#elif` arms are positive
-   `defined(NAME)` — a negated `#elif` is `#elif` on a name the user defines
-   inversely, not new syntax. See *Not in scope* for `#elifndef`.)
+1. **Surface**: `#ifdef NAME` / `#ifndef NAME` opens the chain; zero or more
+   chain arms follow, each spelled `#elif NAME`, `#elifdef NAME`, or
+   `#elifndef NAME`; an optional `#else` closes with an unconditional arm; and
+   `#endif` terminates. Every arm keys off a single `defined`-style NAME:
+   - `#elif NAME` and `#elifdef NAME` are equivalent positive defined-tests
+     (`#elif` is accepted as a C-programmer-friendly shorthand even though
+     standard C spells the defined-shorthand `#elifdef`; Crusty has no
+     `#elif <expr>` form to collide with).
+   - `#elifndef NAME` is the negated arm (selected when NAME is not defined).
+
+   `#if <expr>` / `#elif <expr>` general constant-expression conditions are not
+   part of the surface (see *Not in scope*).
 
 2. **AST**: replace the `{ cfg, negated, items, else_items }` record with
 
@@ -92,14 +109,15 @@ ordered list of condition arms plus an optional final `#else`.
    }
    pub struct CondArm {
        pub cfg: Ident,               // the NAME this arm tests
-       pub negated: bool,            // true for the #ifndef opener
+       pub negated: bool,            // #ifndef opener / #elifndef arm
        pub items: Vec<Item>,
    }
    ```
 
-   The two-branch form is the special case `arms.len() == 1`. `negated` survives
-   only on `arms[0]` (the `#ifdef`/`#ifndef` distinction); `#elif` arms are
-   always `negated: false`.
+   The two-branch form is the special case `arms.len() == 1`. `negated` records
+   each arm's polarity: the `#ifdef`/`#ifndef` distinction on `arms[0]`, and the
+   `#elif`/`#elifdef` (positive) vs `#elifndef` (negated) distinction on each
+   chain arm.
 
 3. **Lowering**: arm *k* emits each of its items under
    `cfg(all(not(c_0), …, not(c_{k-1}), c_k))`, where `c_i` is arm *i*'s predicate
@@ -109,11 +127,15 @@ ordered list of condition arms plus an optional final `#else`.
    `all(c_0)` of one term is simplified to `c_0`), so existing output is
    byte-identical.
 
-4. **Not in scope**: `#if <expr>` general-expression conditions (the chain still
-   keys off single NAMEs); `#elifdef`/`#elifndef` (C23's explicit-negation elif
-   spellings) — a negated `#elif` is deferred until a real need appears, since
-   the common chain is positive `defined` tests. `cfg` feature-flag values
-   (`#elif feature = "x"`) are likewise out of scope.
+4. **Not in scope**: `#if <expr>` / `#elif <expr>` general constant-expression
+   conditions. C evaluates those at preprocessing time; Crusty never evaluates a
+   condition (ADR-0001) — it keys off a single `defined`-style NAME and passes it
+   to `cfg`. Arithmetic/version tests (`#if VERSION > 2`) have no `cfg` form and
+   stay in `__rust__`. `defined`-expression combinators (`#if defined(A) &&
+   !defined(B)` → `cfg(all(A, not(B)))`) are a plausible future extension — a
+   richer per-arm predicate over the same cascade — but a single NAME per arm is
+   the committed surface here. `cfg` feature-flag values (`feature = "x"`) are
+   out of scope.
 
 This supersedes ADR-0021's AST shape (the two-branch record); ADR-0021's
 *decision* about `#else` lowering stands and is subsumed here as the
@@ -145,8 +167,9 @@ This supersedes ADR-0021's AST shape (the two-branch record); ADR-0021's
 
 **Neutral.**
 - No change to `#ifdef`/`#ifndef`/`#endif`/`#else` surface syntax or to any other
-  `#` directive. `#elif` is only recognised between a matching `#if*` and its
-  `#endif`, before any `#else`.
+  `#` directive. The chain arms (`#elif`/`#elifdef`/`#elifndef`) are only
+  recognised between a matching `#if*` opener and its `#endif`, before any
+  `#else`.
 - Single-arm and `#else`-only blocks emit byte-identical Rust to today.
 
 ## Verification
@@ -154,13 +177,14 @@ This supersedes ADR-0021's AST shape (the two-branch record); ADR-0021's
 - [ ] `ConditionalCompilation` is `{ arms: Vec<CondArm>, else_items: Vec<Item> }`; `CondArm` is `{ cfg, negated, items }`.
 - [ ] `#ifdef A <a> #elif B <b> #elif C <c> #else <d> #endif` parses to 3 arms + else_items; `arms[0].negated == false`, elif arms `negated == false`.
 - [ ] `#ifndef A <a> #elif B <b> #endif` parses: `arms[0].negated == true`, `arms[1].negated == false`, `else_items` empty.
+- [ ] `#elif NAME` and `#elifdef NAME` parse to the same arm (`negated == false`); `#elifndef NAME` parses to a negated arm (`negated == true`).
 - [ ] A single `#ifdef A <a> #endif` still emits exactly `#[cfg(A)]` on each item (no `all(…)` wrapper) — byte-identical to pre-ADR output.
-- [ ] Codegen emits the cascade: arm k under `#[cfg(all(not(c_0), …, c_k))]`, `#else` under `#[cfg(all(not(c_0), …, not(c_{n-1})))]`.
-- [ ] End-to-end under `rustc -D unused_parens`: a 3-way chain compiles and runs the correct single arm under each of `--cfg A`, `--cfg B`, and neither (falls to `#else`), with no `--cfg` combination activating two arms.
+- [ ] Codegen emits the cascade: arm k under `#[cfg(all(not(c_0), …, c_k))]`, `#else` under `#[cfg(all(not(c_0), …, not(c_{n-1})))]`, where a `#elifndef` arm contributes `not(NAME)` as its own term `c_k` and `NAME` to later arms' negations.
+- [ ] End-to-end under `rustc -D unused_parens`: a chain mixing `#elif`/`#elifndef` compiles and runs the correct single arm under each relevant `--cfg` combination, with no combination activating two arms.
 - [ ] Same NAME-defining item in multiple arms is not a `DuplicateDefinition`.
-- [ ] `#elif` with no open `#if*`, `#elif` after `#else`, and `#else` after `#else` are parse errors.
+- [ ] A stray chain arm (`#elif`/`#elifdef`/`#elifndef`) with no open `#if*`, any chain arm after `#else`, and `#else` after `#else` are parse errors.
 - [ ] Full suite green (`cargo test`), clippy clean.
-- [ ] `docs/syntax/` documents the `#elif` chain and the cascade-negation lowering; ADR-0021's status reflects the superseded AST shape.
+- [ ] `docs/syntax/` documents the full `#ifdef` family (`#elif`/`#elifdef`/`#elifndef` chain + cascade-negation lowering); ADR-0021's status reflects the superseded AST shape.
 
 ## Alternatives considered
 
@@ -177,7 +201,16 @@ This supersedes ADR-0021's AST shape (the two-branch record); ADR-0021's
   that bakes codegen output into the AST (smart-data violated) and duplicates
   state the arm list already determines. The arm list is the single source of
   truth; the negation cascade is a pure function of it, computed at emission.
-- **Add `#elifdef` / `#elifndef` (C23) now for negated elif arms.** Rejected for
-  this ADR: the common chain is positive `defined` tests, and a negated arm is
-  expressible by ordering (`#ifndef A` opener) or a later ADR. Keeping `#elif`
-  positive-only now avoids four spellings for the opener/elif cross-product.
+- **Adopt `#if <expr>` / `#elif <expr>` general constant-expression conditions
+  (full C semantics).** Rejected: C evaluates these at preprocessing time, which
+  would make Crusty a condition evaluator with opinions about which code exists —
+  directly against ADR-0001, where rustc owns that decision via `cfg`. Arithmetic
+  (`#if VERSION > 2`) has no `cfg` equivalent at all. The `#ifdef` family keys off
+  a single `defined`-style NAME, which maps exactly onto `cfg`; `__rust__` covers
+  the rest.
+- **Require the C23 `#elifdef` spelling and drop the bare `#elif NAME`
+  shorthand.** Rejected: standard C spells the positive defined-shorthand
+  `#elifdef`, but Crusty has no `#elif <expr>` form for `#elif NAME` to collide
+  with, so accepting `#elif NAME` ≡ `#elifdef NAME` is strictly more forgiving to
+  a C programmer at zero ambiguity cost. Both spellings produce the same positive
+  arm.
