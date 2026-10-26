@@ -1,7 +1,7 @@
 # ADR-0027: `dyn Trait` and `impl Trait` type positions
 
 ## Status
-proposed
+accepted
 
 ## Context
 
@@ -54,8 +54,11 @@ Type::Raw(String),   // verbatim type text, e.g. "dyn Error", "impl Iterator<Ite
 ```
 
 The stored string is the full type form including the `dyn` / `impl` keyword,
-with C type-alias spelling already normalised to Rust inside the spec where it
-matters (e.g. `int` -> `i32`), so codegen emits it verbatim.
+The stored string is the full type form including the `dyn` / `impl` keyword,
+captured **verbatim** from source. The spec is NOT C-alias-normalised — it is
+opaque passthrough text — so a primitive inside a spec must be written in Rust
+spelling (`impl Iterator<Item = i32>`, not `int`), consistent with the `__rust__`
+verbatim philosophy. Codegen emits the stored string unchanged.
 
 ### Lowering
 
@@ -97,16 +100,16 @@ only at a type head, guarded by `!ident_char()`.
 
 ## Verification
 
-- [ ] `Type::Raw(String)` exists; `dyn Error` and `impl Iterator<Item = int>` parse to it with the verbatim spec.
-- [ ] `Box<dyn Error>` parses (generic arg is a `Type::Raw`); `&dyn Write` parses (reference to a `Type::Raw`).
-- [ ] `impl Trait` in a function return type parses and emits in return position.
-- [ ] A trait spec with its own generics / `Fn(...)` / `+ Bound` is captured whole (`impl Iterator<Item = int>`, `dyn Fn(int) -> int`, `impl A + B`).
-- [ ] Codegen emits `Type::Raw(s)` verbatim; `Box<dyn Error>` -> `Box<dyn Error>`, `impl Iterator<Item = i32>` -> itself.
-- [ ] A user type/identifier named `dynamic` / `implements` is still an ident type (the `!ident_char()` guard).
-- [ ] End-to-end under `rustc -D unused_parens`: a function returning `Box<dyn Error>` (or `impl Iterator`) and one taking `&dyn Trait` compile and run.
-- [ ] Semantic analysis treats a `Type::Raw` as opaque/`Auto`-compatible (no false type-mismatch), deferring to rustc.
-- [ ] Full suite green (`cargo test`), clippy clean.
-- [ ] `docs/syntax/` documents `dyn` / `impl Trait` type positions with their lowerings.
+- [x] `Type::Raw(String)` exists; `dyn Error` and `impl Iterator<Item = i32>` parse to it with the verbatim spec.
+- [x] `Box<dyn Error>` parses (generic arg is a `Type::Raw`); `&dyn Write` parses (reference to a `Type::Raw`).
+- [x] `impl Trait` in a function return type parses and emits in return position.
+- [x] A trait spec with its own generics / `Fn(...)` / `+ Bound` is captured whole (`impl Iterator<Item = i32>`, `dyn Fn(i32) -> i32`, `impl A + B`).
+- [x] Codegen emits `Type::Raw(s)` verbatim; `Box<dyn Error>` -> `Box<dyn Error>`, `impl Iterator<Item = i32>` -> itself.
+- [x] A user type/identifier named `dynamic` / `implements` is still an ident type (the `!ident_char()` guard).
+- [x] End-to-end under `rustc -D unused_parens`: a function returning `Box<dyn Display>` (and `impl Iterator`) and one taking `&dyn Display` compile and run (`sum=10` / `10` / `boxed=42`).
+- [x] Semantic analysis treats a `Type::Raw` as opaque/`Auto`-compatible (no false type-mismatch), deferring to rustc.
+- [x] Full suite green (`cargo test`), clippy clean.
+- [x] `docs/syntax/` documents `dyn` / `impl Trait` type positions with their lowerings.
 
 ## Alternatives considered
 

@@ -124,6 +124,24 @@ ADR-0001).
 var &int x;   // mutable reference
 ```
 
+### Trait Objects and `impl Trait`
+
+`dyn <Trait>` (a trait object) and `impl <Trait>` (an opaque type) are valid in
+any type position and compose with the other type operators (ADR-0027):
+
+```c
+Box<dyn Error> boxed();            // trait object in a generic argument
+void log(&dyn Display sink);       // trait object behind a reference
+impl Iterator<Item = i32> seq();   // impl Trait return
+```
+
+Crusty does not model traits as types — the trait spec after `dyn` / `impl` is
+carried **verbatim** to rustc (the same escape-hatch as generic bounds and
+`where` clauses). Write the spec in Rust spelling (`i32`, not `int`), because it
+is passed through unchanged; `dyn Fn(i32) -> i32` and `impl A + B` are supported.
+`dyn` / `impl` are keywords only at the head of a type, so identifiers like
+`dynamic` are unaffected.
+
 ### Arrays and Tuples
 ```c
 int[10] arr;           // array of 10 ints
