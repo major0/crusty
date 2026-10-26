@@ -1,7 +1,7 @@
 # ADR-0023: enum data variants
 
 ## Status
-proposed
+accepted
 
 ## Context
 
@@ -97,20 +97,31 @@ codegen test modules). Bounded and mechanical; a one-way door. The
 `enum_variant_list` / `enum_variant_item` grammar returns richer tuples. Builds on
 ADR-0024's already-landed `StructBody`, so the `Field`-body emitter is shared.
 
-**Neutral.** Bare / `= value` variants emit byte-identical Rust. No new keywords —
-the shape is distinguished by what follows the variant name (`(` → tuple, `{` →
+A **behavior change the rustc proof surfaced**: a bare variant (`A`) no longer
+emits an auto-numbered `A = 0` discriminant — it emits the bare Rust variant `A`.
+The old C-enum auto-numbering was invalid Rust (E0732) the moment the enum also
+carried a payload variant, and Rust assigns the same sequential discriminant to a
+bare variant anyway, so `as int` semantics are preserved. Only an explicit `A = n`
+emits `= n`. This changes the emitted output of pure C-style enums (`Red = 0,` →
+`Red,`), a cosmetic, semantically-identical change; the affected codegen/parser
+tests were updated. A separate, unrelated defect was also observed (not fixed
+here): a float literal `2.0` lowers to `2`, dropping the fractional part.
+
+**Neutral.** A variant with an explicit `= value` emits byte-identical Rust (bare
+variants changed — see the behavior-change note above). No new keywords — the
+shape is distinguished by what follows the variant name (`(` → tuple, `{` →
 struct, `=`/nothing → today).
 
 ## Verification
 
-- [ ] `EnumVariant` is `{ name, body: VariantBody }`; `VariantBody` is `Unit | Discriminant(i64) | Tuple(Vec<Type>) | Struct(Vec<Field>)`.
-- [ ] `enum E { A(int), B { int x; }, C, D = 4 }` parses to a Tuple, Struct, Unit and Discriminant variant.
-- [ ] Codegen: tuple variant emits `Name(T, …)`; struct variant emits `Name { n: T, … }`; unit/discriminant unchanged.
-- [ ] A bare / `= value` variant emits byte-identical Rust to pre-ADR output.
-- [ ] End-to-end under `rustc -D unused_parens`: an enum mixing all four shapes compiles, and a value of a tuple and a struct variant is constructed and matched.
-- [ ] A variant cannot carry both a discriminant and a payload (unrepresentable; grammar rejects `A(int) = 3`).
-- [ ] Full suite green, clippy clean.
-- [ ] `docs/syntax/` documents enum data variants with their lowerings.
+- [x] `EnumVariant` is `{ name, body: VariantBody }`; `VariantBody` is `Unit | Discriminant(i64) | Tuple(Vec<Type>) | Struct(Vec<Field>)`.
+- [x] `enum E { A(int), B { int x; }, C, D = 4 }` parses to a Tuple, Struct, Unit and Discriminant variant.
+- [x] Codegen: tuple variant emits `Name(T, …)`; struct variant emits `Name { n: T, … }`; unit/discriminant unchanged.
+- [x] An explicit `= value` variant emits byte-identical Rust; a bare variant now emits bare (`Red,` not `Red = 0,`) — valid in data enums, same `as int` semantics.
+- [x] End-to-end under `rustc -D unused_parens`: an enum mixing all four shapes compiles, and a value of a tuple and a struct variant is constructed and matched (output `25 12 0` / `7`).
+- [x] A variant cannot carry both a discriminant and a payload (unrepresentable; the grammar's variant-item alternatives never combine `= n` with a payload).
+- [x] Full suite green, clippy clean.
+- [x] `docs/syntax/` documents enum data variants with their lowerings.
 
 ## Alternatives considered
 

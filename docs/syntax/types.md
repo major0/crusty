@@ -88,13 +88,33 @@ bare name (`Marker`). Both lower to the exact Rust form and inherit its
 semantics (ADR-0001).
 
 ### Enums
+
+A variant may be a plain name, a C-style discriminant (`= n`), a tuple payload
+`(T, …)`, or a struct payload `{ T name; … }` (ADR-0023). A single variant
+carries exactly one of these — a discriminant and a payload are mutually
+exclusive (Rust forbids combining them).
+
 ```c
-enum Color {
+enum Color {            // C-style discriminant enum
     Red = 0,
     Green = 1,
     Blue = 2,
 }
+
+enum Shape {            // data-carrying enum
+    Unit,                   // unit variant      -> Unit,
+    Code = 7,               // discriminant      -> Code = 7,
+    Circle(f64),            // tuple variant     -> Circle(f64),
+    Rect { f64 w; f64 h; }, // struct variant    -> Rect { w: f64, h: f64 },
+}
 ```
+
+A bare variant (`Unit`) emits as a bare Rust variant — Rust auto-assigns it the
+next sequential discriminant, so `as int` casts keep C semantics, and it stays
+valid in an enum that also has payload variants. Only an explicit `= n` emits a
+discriminant. Variants are matched with `match` and constructed with the
+`@Type.Variant` form (tuple: `@Shape.Circle(2.0)`, unit: `@Shape.Unit`); all
+lower to the exact Rust form (ADR-0001).
 
 ### Pointers and References
 ```c
