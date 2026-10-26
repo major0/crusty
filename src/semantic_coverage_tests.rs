@@ -1601,6 +1601,33 @@ mod tests {
         );
     }
 
+    #[test]
+    fn test_conditional_binding_in_scope_in_branches() {
+        // ADR-0026: the (decl; cond) binding is visible in the condition and
+        // both branches.
+        let (_, ok) = analyze_source(
+            "void main() { if (int i = 5; i > 0) { let a = i; } else { let b = i; } }",
+        );
+        assert!(ok.is_ok(), "binding must be in scope in branches, got {:?}", ok.err());
+
+        let (_, wok) = analyze_source(
+            "void main() { while (var i = 5; i > 0) { i = i - 1; } }",
+        );
+        assert!(wok.is_ok(), "while binding must be in scope in body, got {:?}", wok.err());
+    }
+
+    #[test]
+    fn test_conditional_binding_not_in_scope_after_statement() {
+        // The binding is scoped to the statement — using it afterward errors.
+        let (_, result) = analyze_source(
+            "void main() { if (int i = 5; i > 0) { } let leak = i; }",
+        );
+        assert!(
+            result.is_err(),
+            "the conditional binding must not leak past the statement"
+        );
+    }
+
     // --- PS-09 Unit 1: unsafe + deref relaxation (ADR-0015) ---
 
     #[test]

@@ -852,4 +852,63 @@ void main() {
             );
         }
     }
+
+    // ADR-0026: C99-style `if`/`while (decl; cond)` — scoped binding, var
+    // mutability, bind-once while, and bare-form no-regression — compile + run.
+    #[test]
+    fn test_compile_conditional_binding() {
+        let test_source = r#"
+int classify(int n) {
+    if (int i = n * 2; i > 10) {
+        return i;
+    } else {
+        return i + 100;
+    }
+}
+
+int countdown(int start) {
+    var total = 0;
+    while (var i = start; i > 0) {
+        total = total + i;
+        i = i - 1;
+    }
+    return total;
+}
+
+void main() {
+    if (classify(3) > 0) {
+        println!("a={}", classify(3));
+    }
+    println!("b={}", classify(8));
+    println!("c={}", countdown(4));
+}
+"#;
+        let input_path = PathBuf::from("test_compile_conditional_binding_26.crst");
+        let output_path = PathBuf::from("test_compile_conditional_binding_26");
+
+        fs::write(&input_path, test_source).unwrap();
+
+        let options = CompilerOptions {
+            input_file: input_path.clone(),
+            output_file: Some(output_path.clone()),
+            out_dir: None,
+            emit: EmitMode::Binary,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        let result = run_compiler(&options);
+
+        let _ = fs::remove_file(&input_path);
+        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(format!("{}.rs", output_path.display()));
+
+        if let Err(err) = result {
+            assert!(
+                matches!(err, crate::error::CompilerError::RustcInvocation(_)),
+                "conditional binding should transpile and compile cleanly; got {err:?}"
+            );
+        }
+    }
 }

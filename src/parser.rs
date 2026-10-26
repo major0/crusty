@@ -2442,13 +2442,33 @@ peg::parser! {
         /// - if (x > 0) { return x; } else { return -x; }
         /// - if (x > 0) { return 1; } else if (x < 0) { return -1; } else { return 0; }
         pub rule if_stmt() -> Statement
-            = _ kw_if() _ "(" _ condition:expr() _ ")" _ then_block:block() _ else_block:else_clause()? _ {
+            // C99-style conditional binding (ADR-0026): `if (<decl>; <cond>) …`.
+            // Tried first; the decl rule consumes its own `;`, so the boolean
+            // condition follows directly. Optional sugar — the bare form below
+            // is unchanged.
+            = _ kw_if() _ "(" _ init:conditional_init() _ condition:expr() _ ")" _ then_block:block() _ else_block:else_clause()? _ {
+                Statement::IfBind {
+                    init: Box::new(init),
+                    condition,
+                    then_block,
+                    else_block,
+                }
+            }
+            / _ kw_if() _ "(" _ condition:expr() _ ")" _ then_block:block() _ else_block:else_clause()? _ {
                 Statement::If {
                     condition,
                     then_block,
                     else_block,
                 }
             }
+
+        /// Helper: the optional `<decl>;` init clause of a C99-style conditional
+        /// (ADR-0026). One declaration only (no declarator list); each decl rule
+        /// consumes its own trailing `;`. `var` yields a mutable binding.
+        rule conditional_init() -> Statement
+            = s:c_style_decl_stmt() { s }
+            / s:let_stmt() { s }
+            / s:var_stmt() { s }
 
         /// Helper: else clause (else block or else-if chain)
         rule else_clause() -> Block
@@ -2468,6 +2488,9 @@ peg::parser! {
                 match loop_stmt {
                     Statement::While { condition, body, .. } => Statement::While {
                         label: Some(label), condition, body,
+                    },
+                    Statement::WhileBind { init, condition, body, .. } => Statement::WhileBind {
+                        label: Some(label), init, condition, body,
                     },
                     Statement::Loop { body, .. } => Statement::Loop {
                         label: Some(label), body,
@@ -2490,7 +2513,17 @@ peg::parser! {
         /// - while (x > 0) { x = x - 1; }
         /// - while (true) { break; }
         pub rule while_stmt() -> Statement
-            = _ kw_while() _ "(" _ condition:expr() _ ")" _ body:block() _ {
+            // C99-style conditional binding (ADR-0026): `while (<decl>; <cond>) …`.
+            // The init runs once before the loop. Tried before the bare form.
+            = _ kw_while() _ "(" _ init:conditional_init() _ condition:expr() _ ")" _ body:block() _ {
+                Statement::WhileBind {
+                    label: None,
+                    init: Box::new(init),
+                    condition,
+                    body,
+                }
+            }
+            / _ kw_while() _ "(" _ condition:expr() _ ")" _ body:block() _ {
                 Statement::While {
                     label: None,
                     condition,
@@ -13163,6 +13196,99 @@ mod control_flow_tests {
                 assert!(else_block.is_none());
             }
             _ => panic!("Expected If statement"),
+        }
+    }
+
+    #[test]
+    fn test_if_bind_c_typed_init() {
+        // ADR-0026: `if (int i = f(); i < 10) { … }` -> Statement::IfBind.
+        let result = crusty_peg_parser::if_stmt("if (int i = f(); i < 10) { return i; }");
+        assert!(result.is_ok(), "failed: {:?}", result);
+        match result.unwrap() {
+            Statement::IfBind {
+                init,
+                condition,
+                else_block,
+                ..
+            } => {
+                assert!(matches!(*init, Statement::Let { .. }), "init should be a Let");
+                assert!(matches!(
+                    condition,
+                    Expression::Binary { op: BinaryOp::Lt, .. }
+                ));
+                assert!(else_block.is_none());
+            }
+            other => panic!("expected IfBind, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_if_bind_let_init_with_else() {
+        let result =
+            crusty_peg_parser::if_stmt("if (let i = f(); i > 0) { return i; } else { return 0; }");
+        match result.unwrap() {
+            Statement::IfBind { else_block, .. } => assert!(else_block.is_some()),
+            other => panic!("expected IfBind, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_while_bind_var_init() {
+        // ADR-0026: `while (var i = n; i > 0) { … }` -> Statement::WhileBind,
+        // var yields a mutable Var init.
+        let result = crusty_peg_parser::while_stmt("while (var i = n; i > 0) { i = i - 1; }");
+        match result.unwrap() {
+            Statement::WhileBind { init, label, .. } => {
+                assert!(matches!(*init, Statement::Var { .. }), "init should be a Var");
+                assert!(label.is_none());
+            }
+            other => panic!("expected WhileBind, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_bare_if_while_unchanged_no_bind() {
+        // The (decl; cond) prefix is optional — a bare condition stays If/While.
+        assert!(matches!(
+            crusty_peg_parser::if_stmt("if (x > 0) { }").unwrap(),
+            Statement::If { .. }
+        ));
+        assert!(matches!(
+            crusty_peg_parser::while_stmt("while (c) { }").unwrap(),
+            Statement::While { .. }
+        ));
+    }
+
+    #[test]
+    fn test_if_bind_rejects_declarator_list_header() {
+        // ADR-0026: the init clause is a SINGLE declaration — a declarator list
+        // (`int i = 0, j = 0`) is not an accepted header. The init rule stops at
+        // the first `;`, so `int i = 0, j = 0; …` does not parse as an IfBind
+        // whose init declares both i and j (j is left dangling in the condition).
+        let r = crusty_peg_parser::if_stmt("if (int i = 0, j = 0; i < 10) { }");
+        let not_two_decl_bind = match r {
+            Ok(Statement::IfBind { init, .. }) => {
+                // If it parsed as IfBind at all, the init is a single Let for `i`,
+                // never a two-variable declaration.
+                matches!(*init, Statement::Let { ref name, .. } if name.name == "i")
+            }
+            _ => true, // a parse error is also an acceptable rejection
+        };
+        assert!(
+            not_two_decl_bind,
+            "a declarator list must not parse as a single two-variable init"
+        );
+    }
+
+    #[test]
+    fn test_labeled_while_bind_sets_label() {
+        // `.label: while (decl; cond)` attaches the label to the WhileBind.
+        let result = crusty_peg_parser::labeled_stmt(".outer: while (var i = n; i > 0) { }");
+        match result.unwrap() {
+            Statement::WhileBind { label, .. } => {
+                assert_eq!(label.map(|l| l.name), Some("outer".to_string()));
+            }
+            other => panic!("expected labeled WhileBind, got {:?}", other),
         }
     }
 

@@ -1585,6 +1585,68 @@ impl SemanticAnalyzer {
                 self.symbol_table.exit_scope();
             }
 
+            Statement::IfBind {
+                init,
+                condition,
+                then_block,
+                else_block,
+            } => {
+                // ADR-0026: the init binding is scoped to the whole statement —
+                // the condition and both branches see it, nothing after does.
+                self.symbol_table.enter_scope();
+                self.analyze_statement(init);
+
+                let cond_type = self.analyze_expression(condition);
+                if !self.type_env.is_compatible(
+                    &Type::Primitive(crate::ast::PrimitiveType::Bool),
+                    &cond_type,
+                ) {
+                    self.errors.push(SemanticError::new(
+                        Span::new(
+                            crate::error::Position::new(0, 0),
+                            crate::error::Position::new(0, 0),
+                        ),
+                        SemanticErrorKind::TypeMismatch,
+                        format!("if condition must be boolean, found {:?}", cond_type),
+                    ));
+                }
+
+                self.analyze_block(then_block);
+                if let Some(ref else_blk) = else_block {
+                    self.analyze_block(else_blk);
+                }
+                self.symbol_table.exit_scope();
+            }
+
+            Statement::WhileBind {
+                label: _,
+                init,
+                condition,
+                body,
+            } => {
+                // ADR-0026: the init runs once and is scoped to the statement.
+                self.symbol_table.enter_scope();
+                self.analyze_statement(init);
+
+                let cond_type = self.analyze_expression(condition);
+                if !self.type_env.is_compatible(
+                    &Type::Primitive(crate::ast::PrimitiveType::Bool),
+                    &cond_type,
+                ) {
+                    self.errors.push(SemanticError::new(
+                        Span::new(
+                            crate::error::Position::new(0, 0),
+                            crate::error::Position::new(0, 0),
+                        ),
+                        SemanticErrorKind::TypeMismatch,
+                        format!("while condition must be boolean, found {:?}", cond_type),
+                    ));
+                }
+
+                self.analyze_block(body);
+                self.symbol_table.exit_scope();
+            }
+
             Statement::Loop { label: _, body } => {
                 // An unconditional loop has no condition to type-check; just
                 // analyze the body in a fresh scope.
@@ -3300,6 +3362,29 @@ impl SemanticAnalyzer {
                 self.collect_used_variables(condition, used);
                 self.collect_used_variables_in_block(body, used);
             }
+            Statement::IfBind {
+                init,
+                condition,
+                then_block,
+                else_block,
+            } => {
+                self.collect_used_variables_in_statement(init, used);
+                self.collect_used_variables(condition, used);
+                self.collect_used_variables_in_block(then_block, used);
+                if let Some(else_blk) = else_block {
+                    self.collect_used_variables_in_block(else_blk, used);
+                }
+            }
+            Statement::WhileBind {
+                init,
+                condition,
+                body,
+                ..
+            } => {
+                self.collect_used_variables_in_statement(init, used);
+                self.collect_used_variables(condition, used);
+                self.collect_used_variables_in_block(body, used);
+            }
             Statement::Loop { body, .. } => {
                 self.collect_used_variables_in_block(body, used);
             }
@@ -3444,6 +3529,29 @@ impl SemanticAnalyzer {
             Statement::While {
                 condition, body, ..
             } => {
+                self.collect_modified_variables(condition, modified);
+                self.collect_modified_variables_in_block(body, modified);
+            }
+            Statement::IfBind {
+                init,
+                condition,
+                then_block,
+                else_block,
+            } => {
+                self.collect_modified_variables_in_statement(init, modified);
+                self.collect_modified_variables(condition, modified);
+                self.collect_modified_variables_in_block(then_block, modified);
+                if let Some(else_blk) = else_block {
+                    self.collect_modified_variables_in_block(else_blk, modified);
+                }
+            }
+            Statement::WhileBind {
+                init,
+                condition,
+                body,
+                ..
+            } => {
+                self.collect_modified_variables_in_statement(init, modified);
                 self.collect_modified_variables(condition, modified);
                 self.collect_modified_variables_in_block(body, modified);
             }

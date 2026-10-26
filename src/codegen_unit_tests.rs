@@ -328,6 +328,87 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_if_bind_wraps_in_block() {
+        // ADR-0026: `if (let i = ...; cond)` lowers to a block wrapping the init
+        // and a plain `if`, scoping the binding to the statement.
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let init = Statement::Let {
+            name: Ident::new("i"),
+            ty: None,
+            init: Some(Expression::Literal(Literal::Int(5))),
+            mutable: false,
+        };
+        let stmt = Statement::IfBind {
+            init: Box::new(init),
+            condition: Expression::Literal(Literal::Bool(true)),
+            then_block: Block::empty(),
+            else_block: None,
+        };
+        let func = Function {
+            generic_params: vec![],
+            where_clause: None,
+            visibility: Visibility::Public,
+            name: Ident::new("test"),
+            params: vec![],
+            return_type: None,
+            body: Some(Block::new(vec![stmt])),
+            is_variadic: false,
+            is_unsafe: false,
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let file = File {
+            items: vec![Item::Function(func)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        // The init and the plain `if` are wrapped in a `{ … }` block.
+        assert!(output.contains("let i = 5;"), "got: {output}");
+        assert!(output.contains("if true"), "got: {output}");
+        let brace = output.find('{').unwrap();
+        let let_pos = output.find("let i = 5;").unwrap();
+        let if_pos = output.find("if true").unwrap();
+        assert!(brace < let_pos && let_pos < if_pos, "init precedes if inside block: {output}");
+    }
+
+    #[test]
+    fn test_generate_while_bind_var_is_mut() {
+        // `while (var i = ...; cond)` -> `{ let mut i = ...; while cond { … } }`.
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let init = Statement::Var {
+            name: Ident::new("i"),
+            ty: None,
+            init: Some(Expression::Literal(Literal::Int(3))),
+        };
+        let stmt = Statement::WhileBind {
+            label: None,
+            init: Box::new(init),
+            condition: Expression::Literal(Literal::Bool(true)),
+            body: Block::empty(),
+        };
+        let func = Function {
+            generic_params: vec![],
+            where_clause: None,
+            visibility: Visibility::Public,
+            name: Ident::new("test"),
+            params: vec![],
+            return_type: None,
+            body: Some(Block::new(vec![stmt])),
+            is_variadic: false,
+            is_unsafe: false,
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let file = File {
+            items: vec![Item::Function(func)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("let mut i = 3;"), "got: {output}");
+        assert!(output.contains("while true"), "got: {output}");
+    }
+
+    #[test]
     fn test_generate_labeled_while() {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let stmt = Statement::While {

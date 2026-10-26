@@ -396,6 +396,24 @@ pub enum Statement {
         condition: Expression,
         body: Block,
     },
+    /// C99-style conditional binding `if (<decl>; <cond>) { … } else { … }`
+    /// (ADR-0026). `init` is a `Let`/`Var` declaration scoped to the whole
+    /// statement; lowers to a block wrapping the init and a plain `if`.
+    IfBind {
+        init: Box<Statement>,
+        condition: Expression,
+        then_block: Block,
+        else_block: Option<Block>,
+    },
+    /// C99-style conditional binding `while (<decl>; <cond>) { … }` (ADR-0026).
+    /// `init` runs once before the loop; lowers to a block wrapping the init and
+    /// a plain `while`.
+    WhileBind {
+        label: Option<Ident>,
+        init: Box<Statement>,
+        condition: Expression,
+        body: Block,
+    },
     /// Unconditional infinite loop: `loop { … }`. Lowers to Rust `loop`.
     /// Exited with `break` (optionally labeled); a `break <expr>` can yield a
     /// value, matching Rust's loop-as-expression.

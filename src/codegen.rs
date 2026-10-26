@@ -1104,6 +1104,49 @@ impl CodeGenerator {
                 self.generate_block(body);
                 self.write("\n");
             }
+            Statement::IfBind {
+                init,
+                condition,
+                then_block,
+                else_block,
+            } => {
+                // ADR-0026: wrap the init + plain `if` in a block so the binding
+                // is scoped to the whole statement (C99 for-header semantics)
+                // and dropped after.
+                self.write_indent();
+                self.write("{\n");
+                self.indent();
+                self.generate_statement(init);
+                // Reuse the plain-If emitter for identical condition/else output.
+                self.generate_statement(&Statement::If {
+                    condition: condition.clone(),
+                    then_block: then_block.clone(),
+                    else_block: else_block.clone(),
+                });
+                self.dedent();
+                self.write_indent();
+                self.write("}\n");
+            }
+            Statement::WhileBind {
+                label,
+                init,
+                condition,
+                body,
+            } => {
+                // ADR-0026: init runs once before the loop, scoped to the block.
+                self.write_indent();
+                self.write("{\n");
+                self.indent();
+                self.generate_statement(init);
+                self.generate_statement(&Statement::While {
+                    label: label.clone(),
+                    condition: condition.clone(),
+                    body: body.clone(),
+                });
+                self.dedent();
+                self.write_indent();
+                self.write("}\n");
+            }
             Statement::Loop { label, body } => {
                 self.write_indent();
                 if let Some(ref label) = label {
