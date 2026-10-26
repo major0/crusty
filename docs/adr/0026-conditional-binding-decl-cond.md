@@ -55,9 +55,32 @@ while "(" [ <decl> ";" ] <bool-expr> ")" <block>
   `let i = e`, or `var i = e` — reusing the existing decl grammar
   (`c_style_decl_stmt` / `let_stmt` / `var_stmt`). Mutability follows the form
   (`var` is mutable). No new `let`-in-condition grammar.
-- `<bool-expr>` is an ordinary boolean condition.
-- With no `<decl>;` prefix, the condition is exactly today's `if (cond)` /
-  `while (cond)` — unchanged.
+- `<bool-expr>` is a single ordinary boolean condition — no comma operator
+  (see *Comma handling* below).
+- The `<decl>;` prefix is **OPTIONAL sugar**. With no prefix, the condition is
+  exactly today's `if (cond)` / `while (cond)`, parsed to `Statement::If` /
+  `Statement::While` unchanged — the bare form is the default and the common case,
+  and nothing about it changes. The prefixed form is purely opt-in for when a
+  scope-tight binding is wanted.
+
+### Comma handling
+
+C's `for (int i = 0, j = 0; …)` uses a comma that is **not** the comma operator —
+it is the declarator separator, declaring `i` and `j` under the shared type `int`.
+The comma *operator* (evaluate-left-discard-return-right) appears only in C's
+expression-init and increment clauses, both of which this conditional header does
+not have.
+
+Crusty's conditional header admits **neither** comma form:
+
+- The init clause is a **single declaration** — no declarator list (`int i = 0,
+  j = 0` is not accepted here; see *Not in scope*).
+- The condition is a **single boolean expression** — the comma operator is not
+  admitted in the condition slot, so there is no obscure `(…, …)` chaining to
+  reason about. (Crusty's comma-operator support elsewhere is unaffected; it is
+  simply not part of this two-clause header.)
+
+This keeps the header exactly two unambiguous clauses separated by one `;`.
 
 ### Scoping
 
@@ -119,8 +142,11 @@ on cond" (not a per-iteration rebind).
   separate `if let` ADR may add it later.
 - **The increment clause** (`for`'s third header slot). A conditional has no
   iteration step; `(decl; cond)` is two clauses only.
-- **Multiple declarations in the init clause** (`int i = 0, j = 1`). One decl per
-  header, matching the common case; comma-decls can be a later addition.
+- **Multiple declarations in the init clause** (`int i = 0, j = 1`). This is C's
+  declarator-list comma (one declaration, several declarators sharing a type) —
+  legal in C's `for`, but deferred here: one declarator per header, matching the
+  common case. A declarator list can be a later additive change. The comma
+  *operator* is never admitted in the header (see *Comma handling*).
 
 ## Consequences
 
@@ -145,7 +171,8 @@ new reserved keyword. The labeled-loop `.label:` prefix composes with
 - [ ] `let`/`var`/C-typed init clauses all parse; `var i = …` lowers to `let mut i = …`.
 - [ ] `if (decl; cond) { … } else { … }` populates `else_block`; an `else if` chains.
 - [ ] `while (let x = seed(); x < n) { … }` parses to `Statement::WhileBind`; a `.label:` prefix sets its `label`.
-- [ ] A bare `if (x > 0) { … }` / `while (c) { … }` still parses to `Statement::If` / `Statement::While` (no regression).
+- [ ] A bare `if (x > 0) { … }` / `while (c) { … }` still parses to `Statement::If` / `Statement::While` (no regression) — the `(decl; cond)` prefix is optional sugar, not the default.
+- [ ] The condition slot does not admit a declarator list (`int i = 0, j = 0; …` in the header is rejected) nor a comma-operator condition — the header is exactly `<decl>? ";" <bool>` with a single boolean.
 - [ ] Codegen wraps the statement in a block: `{ <init>; if <cond> { … } [else …] }` / `{ <init>; while <cond> { … } }`, with the binding scoped to that block.
 - [ ] End-to-end under `rustc -D unused_parens`: an `if (int i = …; i < k)` using `i` in both branches, and a `while (var i = …; i < n)` mutating and testing `i`, compile and run; `i` is not visible after the statement.
 - [ ] Semantic analysis: the init binding is in scope in the condition and the branch(es), and not after the statement.
