@@ -81,6 +81,14 @@ pub enum VariantBody {
 - **Construction / pattern-matching ergonomics.** Constructing `Circle(1.0)` and
   matching it are the existing call-expression and `match` surfaces, which pass
   through to rustc. This ADR adds the *variant declaration* surface only.
+
+  > Follow-up (implemented after acceptance): a tuple variant constructs via the
+  > existing `@Type.Variant(args)` call form, but a *struct-payload* variant had
+  > no surface (it needed `__rust__{ Type::Variant { … } }`). A
+  > `@Type.Variant { field: value, … }` construction form was added — a new
+  > additive `Expression::StructVariantInit` lowering to `Type::Variant { … }`,
+  > reusing the struct-initializer field + functional-update grammar. Matching is
+  > still the raw `match` pattern passthrough.
 - **Generic payloads beyond the type grammar.** A payload type is an ordinary
   `Type`, so `Circle(Vec<f64>)` works for free.
 

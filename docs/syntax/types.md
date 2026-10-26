@@ -113,8 +113,10 @@ A bare variant (`Unit`) emits as a bare Rust variant — Rust auto-assigns it th
 next sequential discriminant, so `as int` casts keep C semantics, and it stays
 valid in an enum that also has payload variants. Only an explicit `= n` emits a
 discriminant. Variants are matched with `match` and constructed with the
-`@Type.Variant` form (tuple: `@Shape.Circle(2.0)`, unit: `@Shape.Unit`); all
-lower to the exact Rust form (ADR-0001).
+`@Type.Variant` form — tuple: `@Shape.Circle(2.0)`, unit: `@Shape.Unit`, and
+struct-payload: `@Shape.Rect { w: 3, h: 4 }` (functional update `..base`
+supported). All lower to the exact Rust form (`Shape::Rect { w: 3, h: 4 }`, etc.;
+ADR-0001).
 
 ### Pointers and References
 ```c
