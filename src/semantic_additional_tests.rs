@@ -52,7 +52,7 @@ mod tests {
             where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Point"),
-            fields: vec![
+            body: StructBody::Named(vec![
                 Field {
                     visibility: Visibility::Public,
                     name: Ident::new("x"),
@@ -67,7 +67,7 @@ mod tests {
                     doc_comments: vec![],
                     attributes: vec![],
                 },
-            ],
+            ]),
             methods: vec![],
             doc_comments: vec![],
             attributes: vec![],

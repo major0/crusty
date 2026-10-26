@@ -224,12 +224,40 @@ pub struct Struct {
     pub name: Ident,
     /// Generic parameter list (PS-08). Empty for a non-generic struct.
     pub generic_params: Vec<GenericParam>,
-    pub fields: Vec<Field>,
+    /// The struct's shape: named-field, tuple (positional), or unit (ADR-0024).
+    pub body: StructBody,
     pub methods: Vec<Function>,
     /// Raw `where` clause span (PS-08), carried verbatim to rustc.
     pub where_clause: Option<String>,
     pub doc_comments: Vec<String>,
     pub attributes: Vec<Attribute>,
+}
+
+/// The shape of a struct body (ADR-0024). A shape axis on the one `Struct`
+/// node rather than three parallel item types: everything else on `Struct`
+/// (visibility, generics, where-clause, attributes, methods) is shared.
+#[derive(Debug, Clone, PartialEq)]
+pub enum StructBody {
+    /// `struct Name { T field; … }` — the C named-field form.
+    Named(Vec<Field>),
+    /// `struct Name(T, …);` — a tuple struct with positional, unnamed fields.
+    Tuple(Vec<Type>),
+    /// `struct Name;` — a unit struct with no fields.
+    Unit,
+}
+
+impl Struct {
+    /// The named fields of this struct, or an empty slice for a tuple/unit
+    /// struct (ADR-0024). A convenience for the common `StructBody::Named` case
+    /// so callers that only care about named fields need not match the shape.
+    /// Test-only today (the codegen/semantic paths match `StructBody` directly).
+    #[cfg(test)]
+    pub fn named_fields(&self) -> &[Field] {
+        match &self.body {
+            StructBody::Named(fields) => fields,
+            StructBody::Tuple(_) | StructBody::Unit => &[],
+        }
+    }
 }
 
 /// Enum definition
@@ -969,7 +997,7 @@ mod tests {
             where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Point"),
-            fields: vec![
+            body: StructBody::Named(vec![
                 Field {
                     visibility: Visibility::Public,
                     name: Ident::new("x"),
@@ -984,16 +1012,21 @@ mod tests {
                     doc_comments: vec![],
                     attributes: vec![],
                 },
-            ],
+            ]),
             methods: vec![],
             doc_comments: vec![],
             attributes: vec![],
         };
 
         assert_eq!(struct_def.name.name, "Point");
-        assert_eq!(struct_def.fields.len(), 2);
-        assert_eq!(struct_def.fields[0].name.name, "x");
-        assert_eq!(struct_def.fields[1].name.name, "y");
+        match &struct_def.body {
+            StructBody::Named(fs) => {
+                assert_eq!(fs.len(), 2);
+                assert_eq!(fs[0].name.name, "x");
+                assert_eq!(fs[1].name.name, "y");
+            }
+            _ => panic!("expected a named-field struct body"),
+        }
     }
 
     #[test]

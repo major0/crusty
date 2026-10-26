@@ -348,13 +348,13 @@ mod tests {
                     where_clause: None,
                     visibility: Visibility::Public,
                     name: Ident::new("MyStruct"),
-                    fields: vec![Field {
+                    body: StructBody::Named(vec![Field {
                         visibility: Visibility::Public,
                         name: Ident::new("field1"),
                         ty: Type::Primitive(PrimitiveType::I32),
                         doc_comments: vec![],
                         attributes: vec![],
-                    }],
+                    }]),
                     methods: vec![],
                     doc_comments: vec![],
                     attributes: vec![],

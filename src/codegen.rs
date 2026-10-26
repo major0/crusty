@@ -388,31 +388,55 @@ impl CodeGenerator {
         self.write("struct ");
         self.write(&struct_def.name.name);
         self.write(&self.generate_generic_params_string(&struct_def.generic_params));
-        if let Some(ref where_clause) = struct_def.where_clause {
-            self.write(" where ");
-            self.write(where_clause);
-        }
-        self.write(" {\n");
-        self.indent();
 
-        // Generate fields
-        for field in &struct_def.fields {
-            for comment in &field.doc_comments {
-                self.write_line(&format!("/// {}", comment));
+        // Body shape (ADR-0024): named `{ … }`, tuple `( … );`, or unit `;`.
+        match &struct_def.body {
+            StructBody::Named(fields) => {
+                if let Some(ref where_clause) = struct_def.where_clause {
+                    self.write(" where ");
+                    self.write(where_clause);
+                }
+                self.write(" {\n");
+                self.indent();
+                for field in fields {
+                    for comment in &field.doc_comments {
+                        self.write_line(&format!("/// {}", comment));
+                    }
+                    self.write_indent();
+                    match field.visibility {
+                        Visibility::Public => self.write("pub "),
+                        Visibility::Private => {}
+                    }
+                    self.write(&field.name.name);
+                    self.write(": ");
+                    self.write(&self.generate_type_string(&field.ty));
+                    self.write(",\n");
+                }
+                self.dedent();
+                self.write_line("}");
             }
-            self.write_indent();
-            match field.visibility {
-                Visibility::Public => self.write("pub "),
-                Visibility::Private => {}
+            StructBody::Tuple(types) => {
+                // `struct Name(T0, T1);` — positional fields, no names.
+                self.write("(");
+                let rendered: Vec<String> =
+                    types.iter().map(|t| self.generate_type_string(t)).collect();
+                self.write(&rendered.join(", "));
+                self.write(")");
+                if let Some(ref where_clause) = struct_def.where_clause {
+                    self.write(" where ");
+                    self.write(where_clause);
+                }
+                self.write(";\n");
             }
-            self.write(&field.name.name);
-            self.write(": ");
-            self.write(&self.generate_type_string(&field.ty));
-            self.write(",\n");
+            StructBody::Unit => {
+                // `struct Name;` — no fields.
+                if let Some(ref where_clause) = struct_def.where_clause {
+                    self.write(" where ");
+                    self.write(where_clause);
+                }
+                self.write(";\n");
+            }
         }
-
-        self.dedent();
-        self.write_line("}");
 
         // Generate impl block for methods if any
         if !struct_def.methods.is_empty() {

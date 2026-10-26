@@ -940,17 +940,22 @@ impl SemanticAnalyzer {
 
     /// Analyze a struct definition
     fn analyze_struct(&mut self, struct_def: &crate::ast::Struct) {
-        // Register struct type in type environment
-        let fields: Vec<(String, Type)> = struct_def
-            .fields
-            .iter()
-            .map(|f| {
-                (
-                    f.name.name.clone(),
-                    self.erase_generics_with(&f.ty, &struct_def.generic_params),
-                )
-            })
-            .collect();
+        // Register struct type in type environment. Only a named-field body
+        // contributes name-keyed fields; a tuple struct's fields are positional
+        // (accessed as `.0`/`.1`, the index path — not named-field lookup) and a
+        // unit struct has none (ADR-0024).
+        let fields: Vec<(String, Type)> = match &struct_def.body {
+            crate::ast::StructBody::Named(fs) => fs
+                .iter()
+                .map(|f| {
+                    (
+                        f.name.name.clone(),
+                        self.erase_generics_with(&f.ty, &struct_def.generic_params),
+                    )
+                })
+                .collect(),
+            crate::ast::StructBody::Tuple(_) | crate::ast::StructBody::Unit => Vec::new(),
+        };
 
         // SEM-00 (ADR-0010): record each method's signature keyed by this type.
         // An instance method is one whose first parameter is named `self`
@@ -2154,6 +2159,15 @@ impl SemanticAnalyzer {
                     // (ADR-0001), rather than false-rejecting it. Arguments
                     // were already analysed above, so their own errors surfaced.
                     Type::Auto => Type::Auto,
+                    // A callee that names a known type is a CONSTRUCTOR — a
+                    // tuple struct (`Point(3, 4)`) or a tuple enum variant is
+                    // callable in Rust and yields a value of that type. Permit
+                    // the call and type it as the constructed type; rustc checks
+                    // the positional field arity/types (ADR-0001 — Crusty does
+                    // not model a tuple struct's positional field list here).
+                    Type::Ident(ref name) if self.type_env.get_type(&name.name).is_some() => {
+                        Type::Ident(name.clone())
+                    }
                     _ => {
                         self.errors.push(SemanticError::new(
                             Span::new(

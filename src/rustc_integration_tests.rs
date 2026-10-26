@@ -743,4 +743,51 @@ int test_func() {
             );
         }
     }
+
+    // ADR-0024: tuple struct, newtype, unit struct and named struct all
+    // transpile, compile, construct and read a tuple field end-to-end.
+    #[test]
+    fn test_compile_tuple_and_unit_structs() {
+        let test_source = r#"
+struct Point(int, int);
+struct Meters(f64);
+struct Marker;
+struct Named { int x; }
+
+void main() {
+    let p = Point(3, 4);
+    let m = Meters(1.5);
+    let _marker = Marker;
+    let n = Named { x: 7 };
+    println!("{} {} {} {}", p.0, p.1, m.0, n.x);
+}
+"#;
+        let input_path = PathBuf::from("test_compile_tuple_unit_structs_24.crst");
+        let output_path = PathBuf::from("test_compile_tuple_unit_structs_24");
+
+        fs::write(&input_path, test_source).unwrap();
+
+        let options = CompilerOptions {
+            input_file: input_path.clone(),
+            output_file: Some(output_path.clone()),
+            out_dir: None,
+            emit: EmitMode::Binary,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        let result = run_compiler(&options);
+
+        let _ = fs::remove_file(&input_path);
+        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(format!("{}.rs", output_path.display()));
+
+        if let Err(err) = result {
+            assert!(
+                matches!(err, crate::error::CompilerError::RustcInvocation(_)),
+                "tuple/unit structs should transpile and compile cleanly; got {err:?}"
+            );
+        }
+    }
 }

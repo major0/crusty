@@ -203,8 +203,8 @@ mod tests {
 
         match &file.items[0] {
             Item::Struct(s) => {
-                assert_eq!(s.fields.len(), 1);
-                assert_eq!(s.fields[0].attributes.len(), 1);
+                assert_eq!(s.named_fields().len(), 1);
+                assert_eq!(s.named_fields()[0].attributes.len(), 1);
             }
             _ => panic!("Expected struct"),
         }

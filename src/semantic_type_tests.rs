@@ -195,13 +195,13 @@ mod tests {
             where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Point"),
-            fields: vec![Field {
+            body: StructBody::Named(vec![Field {
                 visibility: Visibility::Public,
                 name: Ident::new("x"),
                 ty: Type::Primitive(PrimitiveType::Int),
                 doc_comments: vec![],
                 attributes: vec![],
-            }],
+            }]),
             methods: vec![],
             doc_comments: vec![],
             attributes: vec![],
@@ -254,13 +254,13 @@ mod tests {
             where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Point"),
-            fields: vec![Field {
+            body: StructBody::Named(vec![Field {
                 visibility: Visibility::Public,
                 name: Ident::new("x"),
                 ty: Type::Primitive(PrimitiveType::Int),
                 doc_comments: vec![],
                 attributes: vec![],
-            }],
+            }]),
             methods: vec![],
             doc_comments: vec![],
             attributes: vec![],

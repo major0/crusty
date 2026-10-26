@@ -606,13 +606,13 @@ mod tests {
             where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Point"),
-            fields: vec![Field {
+            body: StructBody::Named(vec![Field {
                 visibility: Visibility::Public,
                 name: Ident::new("x"),
                 ty: Type::Primitive(PrimitiveType::Int),
                 doc_comments: vec![],
                 attributes: vec![],
-            }],
+            }]),
             methods: vec![Function {
                 generic_params: vec![],
                 where_clause: None,
@@ -850,7 +850,7 @@ mod tests {
             where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Point"),
-            fields: vec![
+            body: StructBody::Named(vec![
                 Field {
                     visibility: Visibility::Public,
                     name: Ident::new("x"),
@@ -865,7 +865,7 @@ mod tests {
                     doc_comments: vec![],
                     attributes: vec![],
                 },
-            ],
+            ]),
             methods: vec![],
             doc_comments: vec![],
             attributes: vec![],
@@ -1111,13 +1111,13 @@ mod tests {
             where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Point"),
-            fields: vec![Field {
+            body: StructBody::Named(vec![Field {
                 visibility: Visibility::Public,
                 name: Ident::new("x"),
                 ty: Type::Primitive(PrimitiveType::Int),
                 doc_comments: vec![],
                 attributes: vec![],
-            }],
+            }]),
             methods: vec![
                 Function {
                     generic_params: vec![],
@@ -1292,13 +1292,13 @@ mod tests {
             where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Boxy"),
-            fields: vec![Field {
+            body: StructBody::Named(vec![Field {
                 visibility: Visibility::Public,
                 name: Ident::new("v"),
                 ty: Type::Primitive(PrimitiveType::Int),
                 doc_comments: vec![],
                 attributes: vec![],
-            }],
+            }]),
             methods: vec![
                 Function {
                     generic_params: vec![GenericParam::Type {
@@ -1543,6 +1543,22 @@ mod tests {
             "int? g() { return Err(__rust__{ \"x\".into() }); }",
         );
         assert!(err.is_ok(), "Err(..) callee must pass, got {:?}", err.err());
+    }
+
+    #[test]
+    fn test_tuple_struct_constructor_call_is_not_an_error() {
+        // ADR-0024: a tuple struct's name is a CONSTRUCTOR — calling it
+        // (`Point(3, 4)`) must type as the struct, not raise "cannot call
+        // non-function type". A named/unit struct name used as a value is a
+        // separate path and unaffected.
+        let (_, ok) = analyze_source(
+            "struct Point(int, int); void main() { let p = Point(3, 4); }",
+        );
+        assert!(
+            ok.is_ok(),
+            "tuple-struct constructor call must pass, got {:?}",
+            ok.err()
+        );
     }
 
     #[test]

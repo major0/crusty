@@ -900,7 +900,7 @@ mod tests {
             where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Point"),
-            fields: vec![
+            body: StructBody::Named(vec![
                 Field {
                     visibility: Visibility::Public,
                     name: Ident::new("x"),
@@ -915,7 +915,7 @@ mod tests {
                     doc_comments: vec![],
                     attributes: vec![],
                 },
-            ],
+            ]),
             methods: vec![],
             doc_comments: vec![],
             attributes: vec![],
@@ -928,6 +928,58 @@ mod tests {
         assert!(output.contains("pub struct Point"));
         assert!(output.contains("pub x: i32,"));
         assert!(output.contains("pub y: i32,"));
+    }
+
+    #[test]
+    fn test_generate_tuple_struct() {
+        // ADR-0024: `StructBody::Tuple` emits `Name(T0, T1);`.
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let struct_def = Struct {
+            generic_params: vec![],
+            where_clause: None,
+            visibility: Visibility::Public,
+            name: Ident::new("Point"),
+            body: StructBody::Tuple(vec![
+                Type::Primitive(PrimitiveType::I32),
+                Type::Primitive(PrimitiveType::I32),
+            ]),
+            methods: vec![],
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let file = File {
+            items: vec![Item::Struct(struct_def)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(
+            output.contains("pub struct Point(i32, i32);"),
+            "got: {output}"
+        );
+        // No named-field braces.
+        assert!(!output.contains("pub struct Point {"), "got: {output}");
+    }
+
+    #[test]
+    fn test_generate_unit_struct() {
+        // ADR-0024: `StructBody::Unit` emits `Name;`.
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let struct_def = Struct {
+            generic_params: vec![],
+            where_clause: None,
+            visibility: Visibility::Public,
+            name: Ident::new("Marker"),
+            body: StructBody::Unit,
+            methods: vec![],
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        let file = File {
+            items: vec![Item::Struct(struct_def)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("pub struct Marker;"), "got: {output}");
     }
 
     #[test]
@@ -951,7 +1003,7 @@ mod tests {
             where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Point"),
-            fields: vec![],
+            body: StructBody::Named(vec![]),
             methods: vec![method],
             doc_comments: vec![],
             attributes: vec![],
@@ -993,7 +1045,7 @@ mod tests {
             where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Point"),
-            fields: vec![],
+            body: StructBody::Named(vec![]),
             methods: vec![method],
             doc_comments: vec![],
             attributes: vec![],
@@ -1041,7 +1093,7 @@ mod tests {
             where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Point"),
-            fields: vec![],
+            body: StructBody::Named(vec![]),
             methods: vec![method],
             doc_comments: vec![],
             attributes: vec![],
@@ -1077,7 +1129,7 @@ mod tests {
             where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Point"),
-            fields: vec![],
+            body: StructBody::Named(vec![]),
             methods: vec![method],
             doc_comments: vec![],
             attributes: vec![],
@@ -1227,7 +1279,7 @@ mod tests {
             where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Pair"),
-            fields: vec![
+            body: StructBody::Named(vec![
                 Field {
                     visibility: Visibility::Public,
                     name: Ident::new("first"),
@@ -1242,7 +1294,7 @@ mod tests {
                     doc_comments: vec![],
                     attributes: vec![],
                 },
-            ],
+            ]),
             methods: vec![method],
             doc_comments: vec![],
             attributes: vec![],
@@ -1298,7 +1350,7 @@ mod tests {
             where_clause: None,
             visibility: Visibility::Public,
             name: Ident::new("Plain"),
-            fields: vec![],
+            body: StructBody::Named(vec![]),
             methods: vec![],
             doc_comments: vec![],
             attributes: vec![],

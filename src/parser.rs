@@ -3168,11 +3168,13 @@ peg::parser! {
         /// Syntax: [attributes] struct Name { fields_and_methods }
         /// Returns Item::Struct
         ///
-        /// Examples:
-        /// - struct Point { int x; int y; }
-        /// - struct Counter { int value; void increment(var &self) { self.value += 1; } }
-        /// - #[derive(Debug)] struct Data { int id; }
+        /// Three shapes (ADR-0024), distinguished by what follows the name:
+        /// - `struct Point { int x; int y; }`    — named-field (StructBody::Named)
+        /// - `struct Point(int, int);`           — tuple struct (StructBody::Tuple)
+        /// - `struct Marker;`                    — unit struct  (StructBody::Unit)
+        /// - `#[derive(Debug)] struct Data { int id; }`
         pub rule struct_def() -> Item
+            // Named-field body: `struct Name <gp> <where> { members }`
             = _ attrs:attributes() _ kw_struct() __ name:ident() _ gp:generic_params()? _ wc:where_clause()? _ "{" _ members:struct_member()* _ "}" _ {
                 let mut fields = Vec::new();
                 let mut methods = Vec::new();
@@ -3188,12 +3190,48 @@ peg::parser! {
                     visibility: Visibility::Public,
                     name,
                     generic_params: gp.unwrap_or_default(),
-                    fields,
+                    body: StructBody::Named(fields),
                     methods,
                     where_clause: wc,
                     doc_comments: Vec::new(),
                     attributes: attrs,
                 })
+            }
+            // Tuple body: `struct Name <gp> ( T, … ) <where> ;`
+            / _ attrs:attributes() _ kw_struct() __ name:ident() _ gp:generic_params()? _ "(" _ tys:tuple_struct_field_list() _ ")" _ wc:where_clause()? _ ";" _ {
+                Item::Struct(Struct {
+                    visibility: Visibility::Public,
+                    name,
+                    generic_params: gp.unwrap_or_default(),
+                    body: StructBody::Tuple(tys),
+                    methods: Vec::new(),
+                    where_clause: wc,
+                    doc_comments: Vec::new(),
+                    attributes: attrs,
+                })
+            }
+            // Unit body: `struct Name <gp> <where> ;`
+            / _ attrs:attributes() _ kw_struct() __ name:ident() _ gp:generic_params()? _ wc:where_clause()? _ ";" _ {
+                Item::Struct(Struct {
+                    visibility: Visibility::Public,
+                    name,
+                    generic_params: gp.unwrap_or_default(),
+                    body: StructBody::Unit,
+                    methods: Vec::new(),
+                    where_clause: wc,
+                    doc_comments: Vec::new(),
+                    attributes: attrs,
+                })
+            }
+
+        /// Positional type list for a tuple struct: `T0, T1, …` with an optional
+        /// trailing comma. At least one type (an empty `()` is not a tuple
+        /// struct — a field-less struct is the unit form `struct Name;`).
+        rule tuple_struct_field_list() -> Vec<crate::ast::Type>
+            = first:type_expr() rest:(_ "," _ t:type_expr() { t })* _ ","? {
+                let mut v = vec![first];
+                v.extend(rest);
+                v
             }
 
         /// Struct member: either a field or a method
@@ -4881,9 +4919,9 @@ mod peg_tests {
 
         if let Ok(Item::Struct(s)) = result {
             assert_eq!(s.name.name, "Point");
-            assert_eq!(s.fields.len(), 2);
-            assert_eq!(s.fields[0].name.name, "x");
-            assert_eq!(s.fields[1].name.name, "y");
+            assert_eq!(s.named_fields().len(), 2);
+            assert_eq!(s.named_fields()[0].name.name, "x");
+            assert_eq!(s.named_fields()[1].name.name, "y");
             assert!(s.methods.is_empty());
         } else {
             panic!("Expected Item::Struct");
@@ -4898,8 +4936,64 @@ mod peg_tests {
 
         if let Ok(Item::Struct(s)) = result {
             assert_eq!(s.name.name, "Empty");
-            assert!(s.fields.is_empty());
+            assert!(s.named_fields().is_empty());
             assert!(s.methods.is_empty());
+        } else {
+            panic!("Expected Item::Struct");
+        }
+    }
+
+    #[test]
+    fn test_peg_struct_tuple() {
+        // ADR-0024: `struct Name(T, …);` is a tuple struct — positional types.
+        let result = crusty_peg_parser::struct_def("struct Point(int, int);");
+        assert!(result.is_ok(), "Failed to parse tuple struct: {:?}", result);
+        if let Ok(Item::Struct(s)) = result {
+            assert_eq!(s.name.name, "Point");
+            match &s.body {
+                StructBody::Tuple(tys) => assert_eq!(tys.len(), 2),
+                other => panic!("expected a tuple struct body, got {:?}", other),
+            }
+            assert!(s.methods.is_empty());
+        } else {
+            panic!("Expected Item::Struct");
+        }
+    }
+
+    #[test]
+    fn test_peg_struct_tuple_newtype() {
+        // A single-type tuple struct is a newtype.
+        let result = crusty_peg_parser::struct_def("struct Meters(f64);");
+        if let Ok(Item::Struct(s)) = result {
+            match &s.body {
+                StructBody::Tuple(tys) => assert_eq!(tys.len(), 1),
+                other => panic!("expected a tuple struct body, got {:?}", other),
+            }
+        } else {
+            panic!("Expected Item::Struct");
+        }
+    }
+
+    #[test]
+    fn test_peg_struct_unit() {
+        // ADR-0024: `struct Name;` is a unit struct — no fields.
+        let result = crusty_peg_parser::struct_def("struct Marker;");
+        assert!(result.is_ok(), "Failed to parse unit struct: {:?}", result);
+        if let Ok(Item::Struct(s)) = result {
+            assert_eq!(s.name.name, "Marker");
+            assert!(matches!(s.body, StructBody::Unit));
+            assert!(s.methods.is_empty());
+        } else {
+            panic!("Expected Item::Struct");
+        }
+    }
+
+    #[test]
+    fn test_peg_struct_named_body_is_named_shape() {
+        // A braced body is still the Named shape (byte-identical path).
+        let result = crusty_peg_parser::struct_def("struct P { int x; }");
+        if let Ok(Item::Struct(s)) = result {
+            assert!(matches!(s.body, StructBody::Named(_)));
         } else {
             panic!("Expected Item::Struct");
         }
@@ -4919,8 +5013,8 @@ mod peg_tests {
 
         if let Ok(Item::Struct(s)) = result {
             assert_eq!(s.name.name, "Counter");
-            assert_eq!(s.fields.len(), 1);
-            assert_eq!(s.fields[0].name.name, "value");
+            assert_eq!(s.named_fields().len(), 1);
+            assert_eq!(s.named_fields()[0].name.name, "value");
             assert_eq!(s.methods.len(), 1);
             assert_eq!(s.methods[0].name.name, "increment");
         } else {
@@ -4942,7 +5036,7 @@ mod peg_tests {
 
         if let Ok(Item::Struct(s)) = result {
             assert_eq!(s.name.name, "Point");
-            assert_eq!(s.fields.len(), 2);
+            assert_eq!(s.named_fields().len(), 2);
             assert_eq!(s.methods.len(), 1);
             assert_eq!(s.methods[0].name.name, "new");
             // Static methods have Private visibility
@@ -4985,11 +5079,11 @@ mod peg_tests {
 
         if let Ok(Item::Struct(s)) = result {
             assert_eq!(s.name.name, "Config");
-            assert_eq!(s.fields.len(), 2);
-            assert_eq!(s.fields[0].name.name, "internal");
-            assert_eq!(s.fields[0].attributes.len(), 1);
-            assert_eq!(s.fields[1].name.name, "active");
-            assert!(s.fields[1].attributes.is_empty());
+            assert_eq!(s.named_fields().len(), 2);
+            assert_eq!(s.named_fields()[0].name.name, "internal");
+            assert_eq!(s.named_fields()[0].attributes.len(), 1);
+            assert_eq!(s.named_fields()[1].name.name, "active");
+            assert!(s.named_fields()[1].attributes.is_empty());
         } else {
             panic!("Expected Item::Struct");
         }
@@ -5013,7 +5107,7 @@ mod peg_tests {
 
         if let Ok(Item::Struct(s)) = result {
             assert_eq!(s.name.name, "Counter");
-            assert_eq!(s.fields.len(), 1);
+            assert_eq!(s.named_fields().len(), 1);
             assert_eq!(s.methods.len(), 2);
             assert_eq!(s.methods[0].name.name, "get");
             assert_eq!(s.methods[1].name.name, "set");
@@ -5035,11 +5129,11 @@ mod peg_tests {
 
         if let Ok(Item::Struct(s)) = result {
             assert_eq!(s.name.name, "Container");
-            assert_eq!(s.fields.len(), 2);
+            assert_eq!(s.named_fields().len(), 2);
             // Verify pointer type
-            assert!(matches!(s.fields[0].ty, Type::Pointer { .. }));
+            assert!(matches!(s.named_fields()[0].ty, Type::Pointer { .. }));
             // Verify array type
-            assert!(matches!(s.fields[1].ty, Type::Array { .. }));
+            assert!(matches!(s.named_fields()[1].ty, Type::Array { .. }));
         } else {
             panic!("Expected Item::Struct");
         }
@@ -6195,7 +6289,7 @@ mod item_tests {
 
         if let Ok(Item::Struct(s)) = result {
             assert_eq!(s.name.name, "Point");
-            assert_eq!(s.fields.len(), 2);
+            assert_eq!(s.named_fields().len(), 2);
         } else {
             panic!("Expected Item::Struct");
         }
@@ -6711,7 +6805,7 @@ mod item_tests {
 
         if let Ok(Item::Struct(s)) = result {
             assert_eq!(s.name.name, "Counter");
-            assert_eq!(s.fields.len(), 1);
+            assert_eq!(s.named_fields().len(), 1);
             assert_eq!(s.methods.len(), 1);
             assert_eq!(s.methods[0].name.name, "increment");
         } else {
@@ -6849,7 +6943,7 @@ mod file_tests {
             assert_eq!(file.items.len(), 2);
             if let Item::Struct(s) = &file.items[0] {
                 assert_eq!(s.name.name, "Counter");
-                assert_eq!(s.fields.len(), 1);
+                assert_eq!(s.named_fields().len(), 1);
                 assert_eq!(s.methods.len(), 2);
             } else {
                 panic!("Expected Item::Struct");

@@ -27,7 +27,7 @@ mod tests {
         match &file.items[0] {
             Item::Struct(s) => {
                 assert_eq!(s.name.name, "Point");
-                assert_eq!(s.fields.len(), 2);
+                assert_eq!(s.named_fields().len(), 2);
                 assert_eq!(s.methods.len(), 1);
                 assert_eq!(s.methods[0].name.name, "get_x");
             }

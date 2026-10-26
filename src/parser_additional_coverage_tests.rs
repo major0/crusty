@@ -464,7 +464,7 @@ mod tests {
 
         match &file.items[0] {
             Item::Struct(s) => {
-                assert_eq!(s.fields.len(), 3);
+                assert_eq!(s.named_fields().len(), 3);
             }
             _ => panic!("Expected struct"),
         }
@@ -486,7 +486,7 @@ mod tests {
 
         match &file.items[0] {
             Item::Struct(s) => {
-                assert_eq!(s.fields.len(), 1);
+                assert_eq!(s.named_fields().len(), 1);
                 assert_eq!(s.methods.len(), 1);
             }
             _ => panic!("Expected struct"),
