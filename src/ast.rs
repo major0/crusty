@@ -142,21 +142,37 @@ impl Item {
     }
 }
 
-/// Conditional-compilation block (`#ifdef FOO` / `#ifndef FOO` … `#endif`).
+/// Conditional-compilation block — the C `#ifdef` directive family
+/// (ADR-0022): `#ifdef`/`#ifndef` opener, zero or more
+/// `#elif`/`#elifdef`/`#elifndef` chain arms, an optional `#else`, `#endif`.
 ///
-/// Lowers to `#[cfg(FOO)]` (or `#[cfg(not(FOO))]` when negated) applied to each
-/// contained item (see ADR-0001).
+/// Each arm's items lower to a per-item `#[cfg(all(not(c_0), …, c_k))]` — the
+/// arm's own predicate conjoined with the negation of every earlier arm — so a
+/// sequential else-if chain becomes a set of independent, mutually-exclusive
+/// `cfg` attributes (ADR-0001: the predicate is passed through to rustc; Crusty
+/// never evaluates it). A single arm with no `#else` collapses to a bare
+/// `#[cfg(NAME)]`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ConditionalCompilation {
-    pub cfg: Ident,
-    pub negated: bool,
-    pub items: Vec<Item>,
-    /// Items in the optional `#else` branch (ADR-0021), empty when there is no
-    /// `#else`. These emit under the INVERTED predicate of `items`: an `#ifdef`
-    /// else-branch is gated `#[cfg(not(NAME))]`, an `#ifndef` else-branch
-    /// `#[cfg(NAME)]`. One condition drives both branches, so an inconsistent
-    /// else predicate is unrepresentable.
+    /// The condition arms, in order. Length >= 1; `arms[0]` is the
+    /// `#ifdef`/`#ifndef` opener, the rest are `#elif`/`#elifdef`/`#elifndef`.
+    pub arms: Vec<CondArm>,
+    /// Items in the optional `#else` branch, empty when there is no `#else`.
+    /// They emit under the negation of EVERY arm's predicate.
     pub else_items: Vec<Item>,
+}
+
+/// One arm of a conditional-compilation chain (ADR-0022): a single
+/// `defined`-style NAME plus the items guarded by it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CondArm {
+    /// The NAME this arm tests.
+    pub cfg: Ident,
+    /// True for a negated arm — the `#ifndef` opener or an `#elifndef` arm. The
+    /// arm's own predicate is then `not(NAME)` rather than `NAME`.
+    pub negated: bool,
+    /// Items guarded by this arm.
+    pub items: Vec<Item>,
 }
 
 /// Function declaration

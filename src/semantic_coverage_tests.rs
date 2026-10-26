@@ -1569,6 +1569,22 @@ mod tests {
         );
     }
 
+    #[test]
+    fn test_conditional_elif_chain_same_name_not_duplicate() {
+        // ADR-0022: every arm of an #elif chain (and the #else) is mutually
+        // exclusive at compile time, so the same name defined across all of
+        // them is not a DuplicateDefinition — each arm analyzes in its own
+        // throwaway child scope.
+        let (_, result) = analyze_source(
+            "#ifdef A void greet() { } #elif B void greet() { } #elifndef C void greet() { } #else void greet() { } #endif void main() { greet(); }",
+        );
+        assert!(
+            result.is_ok(),
+            "same name across #elif chain arms must not collide, got {:?}",
+            result.err()
+        );
+    }
+
     // --- PS-09 Unit 1: unsafe + deref relaxation (ADR-0015) ---
 
     #[test]

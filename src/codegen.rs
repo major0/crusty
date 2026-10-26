@@ -794,28 +794,64 @@ impl CodeGenerator {
     }
 
     fn generate_conditional_compilation(&mut self, cc: &ConditionalCompilation) {
-        // `#ifdef FOO` / `#ifndef FOO` lowers to `#[cfg(FOO)]` /
-        // `#[cfg(not(FOO))]` on each contained item (ADR-0001). An optional
-        // `#else` branch (ADR-0021) emits its items under the INVERTED
-        // predicate — Rust has no block preprocessor, so the else is a second
-        // cfg-gated group, not a Rust `else`.
-        let predicate = if cc.negated {
-            format!("not({})", cc.cfg.name)
-        } else {
-            cc.cfg.name.clone()
+        // The C `#ifdef` family (ADR-0022) lowers to per-item `#[cfg(...)]`.
+        // Rust has no block preprocessor and no cfg-level else-if, so an
+        // else-if chain becomes a set of INDEPENDENT, mutually-exclusive cfg
+        // attributes: arm k is active only when its own predicate holds AND
+        // every earlier arm's predicate failed. So arm k emits under
+        // `all(not(c_0), …, not(c_{k-1}), c_k)`, and the `#else` items under the
+        // negation of every arm. A single arm with no `#else` collapses to a
+        // bare `#[cfg(NAME)]` (byte-identical to the pre-chain output).
+        //
+        // `c_i` is the arm's own predicate; `not_c_i` is its negation. For a
+        // negated arm (`#ifndef`/`#elifndef`) these swap.
+        let predicate = |arm: &crate::ast::CondArm| -> String {
+            if arm.negated {
+                format!("not({})", arm.cfg.name)
+            } else {
+                arm.cfg.name.clone()
+            }
         };
-        let else_predicate = if cc.negated {
-            cc.cfg.name.clone()
-        } else {
-            format!("not({})", cc.cfg.name)
+        let negation = |arm: &crate::ast::CondArm| -> String {
+            if arm.negated {
+                arm.cfg.name.clone()
+            } else {
+                format!("not({})", arm.cfg.name)
+            }
         };
-        for item in &cc.items {
-            self.write_line(&format!("#[cfg({})]", predicate));
-            self.generate_item(item);
+
+        // Prior-arm negations accumulate as we walk the chain.
+        let mut prior_negations: Vec<String> = Vec::new();
+        for arm in &cc.arms {
+            // The cfg for this arm: all prior negations plus this arm's own
+            // predicate. With no prior negations and a single term, emit the
+            // bare predicate (no `all(...)` wrapper) so existing output is
+            // unchanged.
+            let own = predicate(arm);
+            let cfg = if prior_negations.is_empty() {
+                own
+            } else {
+                let mut terms = prior_negations.clone();
+                terms.push(own);
+                format!("all({})", terms.join(", "))
+            };
+            for item in &arm.items {
+                self.write_line(&format!("#[cfg({})]", cfg));
+                self.generate_item(item);
+            }
+            prior_negations.push(negation(arm));
         }
-        for item in &cc.else_items {
-            self.write_line(&format!("#[cfg({})]", else_predicate));
-            self.generate_item(item);
+
+        // The `#else` items: active only when every arm failed.
+        if !cc.else_items.is_empty() {
+            let cfg = match prior_negations.len() {
+                1 => prior_negations[0].clone(),
+                _ => format!("all({})", prior_negations.join(", ")),
+            };
+            for item in &cc.else_items {
+                self.write_line(&format!("#[cfg({})]", cfg));
+                self.generate_item(item);
+            }
         }
     }
 

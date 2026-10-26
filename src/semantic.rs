@@ -641,17 +641,28 @@ impl SemanticAnalyzer {
             Item::Static(static_def) => self.analyze_static(static_def),
             Item::MacroDefinition(macro_def) => self.analyze_macro_definition(macro_def),
             Item::ConditionalCompilation(cc) => {
-                // Analyze both branches; the cfg predicate is passed through to
-                // rustc (ADR-0001). The branches are mutually exclusive at
-                // compile time, so a name defined in BOTH (the common `#else`
-                // case — same item under each condition) is not a real
-                // duplicate. The primary branch registers into the current
-                // scope (the default visible set); the `#else` branch is
-                // analyzed in a throwaway child scope so its same-named
-                // definitions do not collide with the primary branch's — the
-                // same device as per-method impl scopes (SEM-00).
-                for inner in &cc.items {
-                    self.analyze_item(inner);
+                // Analyze every arm's items; the cfg predicates are passed
+                // through to rustc (ADR-0001). The arms are mutually exclusive
+                // at compile time (the cascade negation guarantees at most one
+                // is active), so the same name defined in several arms — the
+                // common chain case, the same item under each condition — is
+                // not a real duplicate. The FIRST arm registers into the
+                // current scope (the default visible set); every later arm and
+                // the `#else` analyze in a throwaway child scope so their
+                // same-named definitions do not collide — the same device as
+                // per-method impl scopes (SEM-00), generalised to N arms.
+                for (i, arm) in cc.arms.iter().enumerate() {
+                    if i == 0 {
+                        for inner in &arm.items {
+                            self.analyze_item(inner);
+                        }
+                    } else {
+                        self.symbol_table.enter_scope();
+                        for inner in &arm.items {
+                            self.analyze_item(inner);
+                        }
+                        self.symbol_table.exit_scope();
+                    }
                 }
                 if !cc.else_items.is_empty() {
                     self.symbol_table.enter_scope();

@@ -170,6 +170,14 @@ peg::parser! {
         rule kw_ifndef() = "ifndef" !ident_char()
         rule kw_endif() = "endif" !ident_char()
 
+        /// Keyword: elif / elifdef / elifndef — conditional-compilation chain
+        /// arms (ADR-0022). `elif` and `elifdef` are equivalent positive
+        /// defined-tests; `elifndef` is the negated arm. The `!ident_char()`
+        /// guard keeps `elif` from eating `elifdef`/`elifndef`.
+        rule kw_elif() = "elif" !ident_char()
+        rule kw_elifdef() = "elifdef" !ident_char()
+        rule kw_elifndef() = "elifndef" !ident_char()
+
         /// Keyword: import / export (module directives)
         rule kw_import() = "import" !ident_char()
         rule kw_export() = "export" !ident_char()
@@ -3603,18 +3611,42 @@ peg::parser! {
                 })
             }
 
-        /// `#ifdef FOO` / `#ifndef FOO` … `#endif` — conditional compilation.
-        /// Lowers each contained item to `#[cfg(FOO)]` / `#[cfg(not(FOO))]`.
+        /// The C `#ifdef` directive family (ADR-0022): `#ifdef`/`#ifndef`
+        /// opener, zero or more `#elif`/`#elifdef`/`#elifndef` chain arms, an
+        /// optional `#else`, then `#endif`. Each arm lowers to a per-item
+        /// cascade-negated `#[cfg(all(...))]`.
         pub rule conditional_def() -> Item
-            = _ "#" _ kw_ifdef() __ cfg:ident() _ items:item()* else_items:cond_else_branch()? _ "#" _ kw_endif() _ {
-                Item::ConditionalCompilation(ConditionalCompilation { cfg, negated: false, items, else_items: else_items.unwrap_or_default() })
+            = _ "#" _ kw_ifdef() __ cfg:ident() _ items:item()*
+              more:cond_chain_arm()* else_items:cond_else_branch()? _ "#" _ kw_endif() _ {
+                let mut arms = vec![CondArm { cfg, negated: false, items }];
+                arms.extend(more);
+                Item::ConditionalCompilation(ConditionalCompilation { arms, else_items: else_items.unwrap_or_default() })
             }
-            / _ "#" _ kw_ifndef() __ cfg:ident() _ items:item()* else_items:cond_else_branch()? _ "#" _ kw_endif() _ {
-                Item::ConditionalCompilation(ConditionalCompilation { cfg, negated: true, items, else_items: else_items.unwrap_or_default() })
+            / _ "#" _ kw_ifndef() __ cfg:ident() _ items:item()*
+              more:cond_chain_arm()* else_items:cond_else_branch()? _ "#" _ kw_endif() _ {
+                let mut arms = vec![CondArm { cfg, negated: true, items }];
+                arms.extend(more);
+                Item::ConditionalCompilation(ConditionalCompilation { arms, else_items: else_items.unwrap_or_default() })
+            }
+
+        /// One `#elif`/`#elifdef`/`#elifndef` chain arm (ADR-0022). `#elif` and
+        /// `#elifdef` are equivalent positive defined-tests; `#elifndef` is the
+        /// negated arm. Longest spelling first so `elif` cannot shadow the
+        /// others.
+        rule cond_chain_arm() -> CondArm
+            = _ "#" _ kw_elifndef() __ cfg:ident() _ items:item()* {
+                CondArm { cfg, negated: true, items }
+            }
+            / _ "#" _ kw_elifdef() __ cfg:ident() _ items:item()* {
+                CondArm { cfg, negated: false, items }
+            }
+            / _ "#" _ kw_elif() __ cfg:ident() _ items:item()* {
+                CondArm { cfg, negated: false, items }
             }
 
         /// Optional `#else` branch of a conditional-compilation block
-        /// (ADR-0021): the items after `#else`, up to the closing `#endif`.
+        /// (ADR-0021, generalised by ADR-0022): the items after `#else`, up to
+        /// the closing `#endif`.
         rule cond_else_branch() -> Vec<Item>
             = _ "#" _ kw_else() _ else_items:item()* { else_items }
 
@@ -5536,9 +5568,10 @@ mod macro_def_tests {
         assert!(result.is_ok(), "Failed to parse #ifdef: {:?}", result);
 
         if let Ok(Item::ConditionalCompilation(cc)) = result {
-            assert_eq!(cc.cfg.name, "FEATURE");
-            assert!(!cc.negated);
-            assert_eq!(cc.items.len(), 1);
+            assert_eq!(cc.arms.len(), 1);
+            assert_eq!(cc.arms[0].cfg.name, "FEATURE");
+            assert!(!cc.arms[0].negated);
+            assert_eq!(cc.arms[0].items.len(), 1);
         } else {
             panic!("Expected Item::ConditionalCompilation, got {:?}", result);
         }
@@ -5550,8 +5583,8 @@ mod macro_def_tests {
         assert!(result.is_ok(), "Failed to parse #ifndef: {:?}", result);
 
         if let Ok(Item::ConditionalCompilation(cc)) = result {
-            assert_eq!(cc.cfg.name, "FEATURE");
-            assert!(cc.negated);
+            assert_eq!(cc.arms[0].cfg.name, "FEATURE");
+            assert!(cc.arms[0].negated);
         } else {
             panic!("Expected Item::ConditionalCompilation, got {:?}", result);
         }
@@ -5562,7 +5595,7 @@ mod macro_def_tests {
         // ADR-0021: the no-`#else` form is unchanged — else_items stays empty.
         let result = crusty_peg_parser::conditional_def("#ifdef FEATURE void f() { } #endif");
         if let Ok(Item::ConditionalCompilation(cc)) = result {
-            assert_eq!(cc.items.len(), 1);
+            assert_eq!(cc.arms[0].items.len(), 1);
             assert!(cc.else_items.is_empty());
         } else {
             panic!("Expected Item::ConditionalCompilation, got {:?}", result);
@@ -5577,9 +5610,9 @@ mod macro_def_tests {
         );
         assert!(result.is_ok(), "Failed to parse #ifdef/#else: {:?}", result);
         if let Ok(Item::ConditionalCompilation(cc)) = result {
-            assert_eq!(cc.cfg.name, "FEATURE");
-            assert!(!cc.negated);
-            assert_eq!(cc.items.len(), 1);
+            assert_eq!(cc.arms[0].cfg.name, "FEATURE");
+            assert!(!cc.arms[0].negated);
+            assert_eq!(cc.arms[0].items.len(), 1);
             assert_eq!(cc.else_items.len(), 1);
         } else {
             panic!("Expected Item::ConditionalCompilation, got {:?}", result);
@@ -5593,8 +5626,8 @@ mod macro_def_tests {
         );
         assert!(result.is_ok(), "Failed to parse #ifndef/#else: {:?}", result);
         if let Ok(Item::ConditionalCompilation(cc)) = result {
-            assert!(cc.negated);
-            assert_eq!(cc.items.len(), 1);
+            assert!(cc.arms[0].negated);
+            assert_eq!(cc.arms[0].items.len(), 1);
             assert_eq!(cc.else_items.len(), 1);
         } else {
             panic!("Expected Item::ConditionalCompilation, got {:?}", result);
@@ -5609,6 +5642,72 @@ mod macro_def_tests {
         // is not a valid item, so the block cannot reach its `#endif`.
         assert!(crusty_peg_parser::conditional_def(
             "#ifdef FOO void a() { } #else void b() { } #else void c() { } #endif"
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn test_elif_chain_populates_arms_in_order() {
+        // ADR-0022: `#ifdef … #elif … #elifndef … #else … #endif` yields one
+        // arm per opener/elif in source order, plus else_items for `#else`.
+        let result = crusty_peg_parser::conditional_def(
+            "#ifdef A void a() { } #elif B void b() { } #elifndef C void c() { } #else void d() { } #endif",
+        );
+        assert!(result.is_ok(), "Failed to parse #elif chain: {:?}", result);
+        if let Ok(Item::ConditionalCompilation(cc)) = result {
+            assert_eq!(cc.arms.len(), 3);
+            assert_eq!(cc.arms[0].cfg.name, "A");
+            assert!(!cc.arms[0].negated); // #ifdef A
+            assert_eq!(cc.arms[1].cfg.name, "B");
+            assert!(!cc.arms[1].negated); // #elif B (positive)
+            assert_eq!(cc.arms[2].cfg.name, "C");
+            assert!(cc.arms[2].negated); // #elifndef C (negated)
+            assert_eq!(cc.else_items.len(), 1);
+        } else {
+            panic!("Expected Item::ConditionalCompilation, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_elifdef_is_positive_like_elif() {
+        // `#elifdef NAME` is the standard-C spelling of a positive defined-test,
+        // equivalent to `#elif NAME` — both yield a non-negated arm.
+        let result = crusty_peg_parser::conditional_def(
+            "#ifdef A void a() { } #elifdef B void b() { } #endif",
+        );
+        assert!(result.is_ok(), "Failed to parse #elifdef: {:?}", result);
+        if let Ok(Item::ConditionalCompilation(cc)) = result {
+            assert_eq!(cc.arms.len(), 2);
+            assert_eq!(cc.arms[1].cfg.name, "B");
+            assert!(!cc.arms[1].negated);
+            assert!(cc.else_items.is_empty());
+        } else {
+            panic!("Expected Item::ConditionalCompilation, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_elif_chain_without_else_has_empty_else_items() {
+        // A chain with no `#else` leaves else_items empty, arms still ordered.
+        let result = crusty_peg_parser::conditional_def(
+            "#ifndef A void a() { } #elif B void b() { } #endif",
+        );
+        if let Ok(Item::ConditionalCompilation(cc)) = result {
+            assert_eq!(cc.arms.len(), 2);
+            assert!(cc.arms[0].negated); // #ifndef A
+            assert!(!cc.arms[1].negated); // #elif B
+            assert!(cc.else_items.is_empty());
+        } else {
+            panic!("Expected Item::ConditionalCompilation, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_elif_after_else_is_rejected() {
+        // `#elif` must precede `#else` — an elif arm after the else branch
+        // leaves an unparsed item so the block cannot reach `#endif`.
+        assert!(crusty_peg_parser::conditional_def(
+            "#ifdef A void a() { } #else void b() { } #elif C void c() { } #endif"
         )
         .is_err());
     }

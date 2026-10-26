@@ -1741,9 +1741,11 @@ mod tests {
             attributes: vec![],
         };
         let cc = ConditionalCompilation {
-            cfg: Ident::new("FEATURE".to_string()),
-            negated: false,
-            items: vec![Item::Function(func)],
+            arms: vec![CondArm {
+                cfg: Ident::new("FEATURE".to_string()),
+                negated: false,
+                items: vec![Item::Function(func)],
+            }],
             else_items: vec![],
         };
 
@@ -1773,9 +1775,11 @@ mod tests {
             attributes: vec![],
         };
         let cc = ConditionalCompilation {
-            cfg: Ident::new("FEATURE".to_string()),
-            negated: true,
-            items: vec![Item::Function(func)],
+            arms: vec![CondArm {
+                cfg: Ident::new("FEATURE".to_string()),
+                negated: true,
+                items: vec![Item::Function(func)],
+            }],
             else_items: vec![],
         };
 
@@ -1807,9 +1811,11 @@ mod tests {
             attributes: vec![],
         };
         let cc = ConditionalCompilation {
-            cfg: Ident::new("FEATURE".to_string()),
-            negated: false,
-            items: vec![Item::Function(mk("a"))],
+            arms: vec![CondArm {
+                cfg: Ident::new("FEATURE".to_string()),
+                negated: false,
+                items: vec![Item::Function(mk("a"))],
+            }],
             else_items: vec![Item::Function(mk("b"))],
         };
         let file = File {
@@ -1823,6 +1829,79 @@ mod tests {
         let a_pos = output.find("fn a").unwrap();
         let b_pos = output.find("fn b").unwrap();
         assert!(a_pos < b_pos, "primary branch emits before else branch");
+    }
+
+    #[test]
+    fn test_generate_conditional_compilation_elif_cascade_negation() {
+        // ADR-0022: an #elif chain lowers each arm under the conjunction of its
+        // own predicate with the negation of every PRIOR arm, so exactly one
+        // arm is active for any cfg combination. #elifndef contributes not(C).
+        let mut gen = CodeGenerator::new(TargetLanguage::Rust);
+        let mk = |name: &str| Function {
+            generic_params: vec![],
+            where_clause: None,
+            visibility: Visibility::Private,
+            name: Ident::new(name.to_string()),
+            params: vec![],
+            return_type: None,
+            body: Some(Block::new(vec![])),
+            is_variadic: false,
+            is_unsafe: false,
+            doc_comments: vec![],
+            attributes: vec![],
+        };
+        // #ifdef A a #elif B b #elifndef C c #else d #endif
+        let cc = ConditionalCompilation {
+            arms: vec![
+                CondArm {
+                    cfg: Ident::new("A".to_string()),
+                    negated: false,
+                    items: vec![Item::Function(mk("a"))],
+                },
+                CondArm {
+                    cfg: Ident::new("B".to_string()),
+                    negated: false,
+                    items: vec![Item::Function(mk("b"))],
+                },
+                CondArm {
+                    cfg: Ident::new("C".to_string()),
+                    negated: true,
+                    items: vec![Item::Function(mk("c"))],
+                },
+            ],
+            else_items: vec![Item::Function(mk("d"))],
+        };
+        let file = File {
+            items: vec![Item::ConditionalCompilation(cc)],
+            doc_comments: vec![],
+        };
+        let output = gen.generate(&file);
+        assert!(output.contains("#[cfg(A)]"), "arm A: {}", output);
+        assert!(
+            output.contains("#[cfg(all(not(A), B))]"),
+            "arm B cascade: {}",
+            output
+        );
+        // #elifndef C contributes not(C) as its own term.
+        assert!(
+            output.contains("#[cfg(all(not(A), not(B), not(C)))]"),
+            "arm C (elifndef) cascade: {}",
+            output
+        );
+        // The #else negates every prior arm's own condition (C, not not(C)).
+        assert!(
+            output.contains("#[cfg(all(not(A), not(B), C))]"),
+            "else cascade: {}",
+            output
+        );
+        let order: Vec<_> = ["fn a", "fn b", "fn c", "fn d"]
+            .iter()
+            .map(|n| output.find(n).unwrap())
+            .collect();
+        assert!(
+            order.windows(2).all(|w| w[0] < w[1]),
+            "arms emit in source order"
+        );
     }
 
     #[test]
