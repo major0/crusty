@@ -2511,6 +2511,24 @@ impl SemanticAnalyzer {
                 ty.clone()
             }
 
+            Expression::StructVariantInit {
+                ty, fields, base, ..
+            } => {
+                // `@Type.Variant { … }` constructs a struct-payload enum variant
+                // (ADR-0023 follow-up). A variant's field set is not keyed by
+                // variant in the type env, so there is no SEM-05 field check
+                // here — analyze each initializer (and base) to surface errors
+                // inside them, then type the result as the owning enum `ty`
+                // (rustc arbitrates the variant/field match, ADR-0001).
+                for (_, expr) in fields {
+                    self.analyze_expression(expr);
+                }
+                if let Some(base) = base {
+                    self.analyze_expression(base);
+                }
+                ty.clone()
+            }
+
             Expression::ArrayLit { elements } => {
                 if elements.is_empty() {
                     Type::Array {
@@ -3147,6 +3165,14 @@ impl SemanticAnalyzer {
                 }
             }
             Expression::StructInit { fields, base, .. } => {
+                for (_, field_expr) in fields {
+                    self.collect_used_variables(field_expr, used);
+                }
+                if let Some(base) = base {
+                    self.collect_used_variables(base, used);
+                }
+            }
+            Expression::StructVariantInit { fields, base, .. } => {
                 for (_, field_expr) in fields {
                     self.collect_used_variables(field_expr, used);
                 }

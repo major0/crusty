@@ -1136,6 +1136,18 @@ peg::parser! {
                     args: args.unwrap_or_default(),
                 }
             }
+            // Crusty struct-payload variant construction (ADR-0023 follow-up):
+            // @Type.Variant { field: value, … } -> Type::Variant { … }.
+            // Tried before the no-call path form so the `{ … }` body wins; the
+            // `{` after the member distinguishes it from a bare @Type.member.
+            / _ "@" _ ty:type_for_scoped_call() _ "." _ variant:ident() _ "{" _ fields:struct_init_fields()? _ base:struct_init_base()? _ "}" _ {
+                Expression::StructVariantInit {
+                    ty,
+                    variant,
+                    fields: fields.unwrap_or_default(),
+                    base: base.map(Box::new),
+                }
+            }
             // Crusty type-scoped associated access, no call (PS-15):
             // @Type.CONST -> Type::CONST (associated const / unit enum variant).
             // Tried after the call form so @Type.method(args) stays a call.
@@ -10739,6 +10751,56 @@ mod call_access_expression_tests {
                 ty: Type::Ident(Ident::new("String")),
                 method: Ident::new("from"),
                 args: vec![Expression::Literal(Literal::String("hi".to_string()))],
+            })
+        );
+    }
+
+    #[test]
+    fn test_struct_variant_init_parses() {
+        // ADR-0023 follow-up: `@Type.Variant { field: value, … }` builds a
+        // struct-payload enum variant.
+        let result = crusty_peg_parser::type_scoped_call("@Shape.Rect { w: 3, h: 4 }");
+        match result {
+            Ok(Expression::StructVariantInit {
+                ty,
+                variant,
+                fields,
+                base,
+            }) => {
+                assert_eq!(ty, Type::Ident(Ident::new("Shape")));
+                assert_eq!(variant.name, "Rect");
+                assert_eq!(fields.len(), 2);
+                assert_eq!(fields[0].0.name, "w");
+                assert_eq!(fields[1].0.name, "h");
+                assert!(base.is_none());
+            }
+            other => panic!("expected StructVariantInit, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_struct_variant_init_functional_update() {
+        // A `..base` functional update is accepted, mirroring StructInit.
+        let result = crusty_peg_parser::type_scoped_call("@E.V { a: 9, ..base }");
+        match result {
+            Ok(Expression::StructVariantInit { variant, fields, base, .. }) => {
+                assert_eq!(variant.name, "V");
+                assert_eq!(fields.len(), 1);
+                assert!(base.is_some());
+            }
+            other => panic!("expected StructVariantInit, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_struct_variant_init_does_not_shadow_bare_path() {
+        // Without a `{ … }` body it is still the bare associated-path form.
+        let result = crusty_peg_parser::type_scoped_call("@Shape.Empty");
+        assert_eq!(
+            result,
+            Ok(Expression::TypeScopedPath {
+                ty: Type::Ident(Ident::new("Shape")),
+                member: Ident::new("Empty"),
             })
         );
     }

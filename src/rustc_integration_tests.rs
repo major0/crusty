@@ -817,7 +817,7 @@ int area(Shape s) {
 
 void main() {
     let sq = @Shape.Square(5);
-    let rc = __rust__{ Shape::Rect { w: 3, h: 4 } };
+    let rc = @Shape.Rect { w: 3, h: 4 };
     let em = @Shape.Empty;
     println!("{} {} {}", area(sq), area(rc), area(em));
     let code = __rust__{ Code::Warn as i32 };

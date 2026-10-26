@@ -893,6 +893,36 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_struct_variant_init() {
+        // ADR-0023 follow-up: StructVariantInit emits `Type::Variant { … }`.
+        let gen = CodeGenerator::new(TargetLanguage::Rust);
+        let expr = Expression::StructVariantInit {
+            ty: Type::Ident(Ident::new("Shape")),
+            variant: Ident::new("Rect"),
+            fields: vec![
+                (Ident::new("w"), Expression::Literal(Literal::Int(3))),
+                (Ident::new("h"), Expression::Literal(Literal::Int(4))),
+            ],
+            base: None,
+        };
+        let result = gen.generate_expression_string(&expr);
+        assert_eq!(result, "Shape::Rect { w: 3, h: 4 }");
+    }
+
+    #[test]
+    fn test_generate_struct_variant_init_functional_update() {
+        let gen = CodeGenerator::new(TargetLanguage::Rust);
+        let expr = Expression::StructVariantInit {
+            ty: Type::Ident(Ident::new("E")),
+            variant: Ident::new("V"),
+            fields: vec![(Ident::new("a"), Expression::Literal(Literal::Int(9)))],
+            base: Some(Box::new(Expression::Ident(Ident::new("base")))),
+        };
+        let result = gen.generate_expression_string(&expr);
+        assert_eq!(result, "E::V { a: 9, ..base }");
+    }
+
+    #[test]
     fn test_generate_struct() {
         let mut gen = CodeGenerator::new(TargetLanguage::Rust);
         let struct_def = Struct {

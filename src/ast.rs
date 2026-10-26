@@ -518,6 +518,17 @@ pub enum Expression {
         /// `None` when the initializer lists every field directly.
         base: Option<Box<Expression>>,
     },
+    /// Struct-payload enum-variant construction (ADR-0023 follow-up):
+    /// `@Type.Variant { field: value, … }` -> `Type::Variant { field: value, … }`.
+    /// Distinct from `StructInit` because the constructed name is a `Type::member`
+    /// path (a variant), not a bare type. Reuses the field + functional-update
+    /// shape; lowers to the exact Rust struct-variant literal.
+    StructVariantInit {
+        ty: Type,
+        variant: Ident,
+        fields: Vec<(Ident, Expression)>,
+        base: Option<Box<Expression>>,
+    },
     ArrayLit {
         elements: Vec<Expression>,
     },

@@ -1516,6 +1516,37 @@ impl CodeGenerator {
                 result.push_str(" }");
                 result
             }
+            Expression::StructVariantInit {
+                ty,
+                variant,
+                fields,
+                base,
+            } => {
+                // `@Type.Variant { … }` -> `Type::Variant { … }` (ADR-0023
+                // follow-up). Same field + functional-update emission as
+                // StructInit, but the head is a `Type::Variant` path.
+                let mut result = self.generate_type_string(ty);
+                result.push_str("::");
+                result.push_str(&variant.name);
+                result.push_str(" { ");
+                for (i, (name, value)) in fields.iter().enumerate() {
+                    if i > 0 {
+                        result.push_str(", ");
+                    }
+                    result.push_str(&name.name);
+                    result.push_str(": ");
+                    result.push_str(&self.generate_expression_string(value));
+                }
+                if let Some(base) = base {
+                    if !fields.is_empty() {
+                        result.push_str(", ");
+                    }
+                    result.push_str("..");
+                    result.push_str(&self.generate_expression_string(base));
+                }
+                result.push_str(" }");
+                result
+            }
             Expression::ArrayLit { elements } => {
                 let mut result = String::from("[");
                 for (i, elem) in elements.iter().enumerate() {
