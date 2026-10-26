@@ -1,7 +1,7 @@
 # ADR-0021: `#else` for conditional-compilation directives
 
 ## Status
-accepted
+superseded by ADR-0022
 
 ## Context
 

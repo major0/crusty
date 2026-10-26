@@ -16,6 +16,7 @@ The complete macro surface is four directives:
 | `#macro __NAME__(a, b) body`  | `macro_rules! name { … }`  | Parameterised macro           |
 | `#ifdef FOO` … `#endif`       | `#[cfg(FOO)]`              | Conditional compilation       |
 | `#ifdef FOO` … `#else` … `#endif` | `#[cfg(FOO)]` / `#[cfg(not(FOO))]` | Conditional with else branch |
+| `#ifdef A` … `#elif B` … `#endif` | `#[cfg(A)]` / `#[cfg(all(not(A), B))]` | Condition chain (cascade) |
 | `name!(args)`                 | `name!(args)`              | Macro invocation (bang form)  |
 
 Anything else — raw `macro_rules!`, `#[derive(...)]`, attribute macros,
@@ -135,9 +136,50 @@ fn greet() { println!("FOO is not set"); }
 
 Both branches may define the same name — they are mutually exclusive at compile
 time, so exactly one is active and there is no real duplicate. The condition is
-written once; the `#else` predicate is always its inverse. `#elif` / condition
-chains are not supported — nest a second `#ifdef` inside the `#else` branch, or
-write separate blocks.
+written once; the `#else` predicate is always its inverse.
+
+### `#elif` / `#elifdef` / `#elifndef` — condition chains
+
+A block may carry any number of `#elif` arms between the opener and the optional
+`#else`. Crusty accepts the standard C `#ifdef` family:
+
+| Directive            | Meaning                                  |
+|----------------------|------------------------------------------|
+| `#elif NAME`         | positive defined-test (same as `#elifdef`) |
+| `#elifdef NAME`      | positive defined-test (standard-C spelling) |
+| `#elifndef NAME`     | negated defined-test                     |
+
+`#if <expr>` / `#elif <expr>` (general constant expressions) are **not**
+supported — the family keys off a single `defined`-style NAME, because a Rust
+`cfg` predicate is not an expression evaluator. Arithmetic conditions stay in a
+`__rust__{}` block.
+
+Because Rust has no `cfg`-level else-if, a chain lowers to **independent
+per-item `#[cfg]` groups**: each arm conjoins its own predicate with the
+negation of every *prior* arm, so exactly one arm is active for any cfg
+combination.
+
+```c
+#ifdef A
+void which() { println!("A"); }
+#elif B
+void which() { println!("B"); }
+#elifndef C
+void which() { println!("not C"); }
+#else
+void which() { println!("else"); }
+#endif
+```
+Translates to:
+```rust
+#[cfg(A)]                           fn which() { println!("A"); }
+#[cfg(all(not(A), B))]              fn which() { println!("B"); }
+#[cfg(all(not(A), not(B), not(C)))] fn which() { println!("not C"); }
+#[cfg(all(not(A), not(B), C))]      fn which() { println!("else"); }
+```
+
+As with `#else`, every arm may define the same name — the groups are mutually
+exclusive, so there is no real duplicate.
 
 ## Invocation and delimiter preservation
 
@@ -175,7 +217,9 @@ const_value   = [ "-" ] literal ;
 macro_item    = "#macro" "__" IDENT "__" "(" [ param_list ] ")" macro_body ;
 macro_body    = raw_span ;
 
-conditional   = ( "#ifdef" | "#ifndef" ) IDENT item* ( "#else" item* )? "#endif" ;
+conditional   = ( "#ifdef" | "#ifndef" ) IDENT item*
+                ( ( "#elif" | "#elifdef" | "#elifndef" ) IDENT item* )*
+                ( "#else" item* )? "#endif" ;
 
 macro_invoke  = IDENT "!" ( "(" args ")" | "[" args "]" | "{" args "}" ) ;
 ```

@@ -1,7 +1,7 @@
 # ADR-0022: the C `#ifdef` directive family — `#elif` / `#elifdef` / `#elifndef` condition chains
 
 ## Status
-proposed
+accepted
 
 ## Context
 
@@ -174,17 +174,17 @@ This supersedes ADR-0021's AST shape (the two-branch record); ADR-0021's
 
 ## Verification
 
-- [ ] `ConditionalCompilation` is `{ arms: Vec<CondArm>, else_items: Vec<Item> }`; `CondArm` is `{ cfg, negated, items }`.
-- [ ] `#ifdef A <a> #elif B <b> #elif C <c> #else <d> #endif` parses to 3 arms + else_items; `arms[0].negated == false`, elif arms `negated == false`.
-- [ ] `#ifndef A <a> #elif B <b> #endif` parses: `arms[0].negated == true`, `arms[1].negated == false`, `else_items` empty.
-- [ ] `#elif NAME` and `#elifdef NAME` parse to the same arm (`negated == false`); `#elifndef NAME` parses to a negated arm (`negated == true`).
-- [ ] A single `#ifdef A <a> #endif` still emits exactly `#[cfg(A)]` on each item (no `all(…)` wrapper) — byte-identical to pre-ADR output.
-- [ ] Codegen emits the cascade: arm k under `#[cfg(all(not(c_0), …, c_k))]`, `#else` under `#[cfg(all(not(c_0), …, not(c_{n-1})))]`, where a `#elifndef` arm contributes `not(NAME)` as its own term `c_k` and `NAME` to later arms' negations.
-- [ ] End-to-end under `rustc -D unused_parens`: a chain mixing `#elif`/`#elifndef` compiles and runs the correct single arm under each relevant `--cfg` combination, with no combination activating two arms.
-- [ ] Same NAME-defining item in multiple arms is not a `DuplicateDefinition`.
-- [ ] A stray chain arm (`#elif`/`#elifdef`/`#elifndef`) with no open `#if*`, any chain arm after `#else`, and `#else` after `#else` are parse errors.
-- [ ] Full suite green (`cargo test`), clippy clean.
-- [ ] `docs/syntax/` documents the full `#ifdef` family (`#elif`/`#elifdef`/`#elifndef` chain + cascade-negation lowering); ADR-0021's status reflects the superseded AST shape.
+- [x] `ConditionalCompilation` is `{ arms: Vec<CondArm>, else_items: Vec<Item> }`; `CondArm` is `{ cfg, negated, items }`.
+- [x] `#ifdef A <a> #elif B <b> #elif C <c> #else <d> #endif` parses to 3 arms + else_items; `arms[0].negated == false`, elif arms `negated == false`.
+- [x] `#ifndef A <a> #elif B <b> #endif` parses: `arms[0].negated == true`, `arms[1].negated == false`, `else_items` empty.
+- [x] `#elif NAME` and `#elifdef NAME` parse to the same arm (`negated == false`); `#elifndef NAME` parses to a negated arm (`negated == true`).
+- [x] A single `#ifdef A <a> #endif` still emits exactly `#[cfg(A)]` on each item (no `all(…)` wrapper) — byte-identical to pre-ADR output.
+- [x] Codegen emits the cascade: arm k under `#[cfg(all(not(c_0), …, c_k))]`, `#else` under `#[cfg(all(not(c_0), …, not(c_{n-1})))]`, where a `#elifndef` arm contributes `not(NAME)` as its own term `c_k` and `NAME` to later arms' negations.
+- [x] End-to-end under `rustc -D unused_parens`: a chain mixing `#elif`/`#elifndef` compiles and runs the correct single arm under each relevant `--cfg` combination, with no combination activating two arms.
+- [x] Same NAME-defining item in multiple arms is not a `DuplicateDefinition`.
+- [x] A stray chain arm (`#elif`/`#elifdef`/`#elifndef`) with no open `#if*`, any chain arm after `#else`, and `#else` after `#else` are parse errors.
+- [x] Full suite green (`cargo test`), clippy clean.
+- [x] `docs/syntax/` documents the full `#ifdef` family (`#elif`/`#elifdef`/`#elifndef` chain + cascade-negation lowering); ADR-0021's status reflects the superseded AST shape.
 
 ## Alternatives considered
 
