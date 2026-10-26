@@ -194,7 +194,7 @@ int square(int n) {
         let test_source = r#"
 void main() {
     int n = 7;
-    int grade = match n {
+    int grade = match (n) {
         0 => 100,
         1..=5 => 50,
         x if x > 6 => 10,
@@ -808,7 +808,7 @@ enum Code {
 }
 
 int area(Shape s) {
-    return match s {
+    return match (s) {
         Shape::Square(side) => side * side,
         Shape::Rect { w, h } => w * h,
         _ => 0,

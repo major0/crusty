@@ -1534,7 +1534,7 @@ peg::parser! {
         /// `p {}` as an empty struct literal. A struct-literal scrutinee must be
         /// parenthesised. Lowered verbatim to a Rust `match`.
         rule match_expr() -> Expression
-            = _ kw_match() __ scrutinee:expr_inner(false, false) _ "{" _ arms:match_arms() _ "}" _ {
+            = _ kw_match() _ "(" _ scrutinee:expr() _ ")" _ "{" _ arms:match_arms() _ "}" _ {
                 Expression::Match {
                     scrutinee: Box::new(scrutinee),
                     arms,
@@ -6123,7 +6123,7 @@ mod item_tests {
 
     #[test]
     fn test_match_literal_arms_and_wildcard() {
-        let result = crusty_peg_parser::expr("match n { 1 => 10, 2 => 20, _ => 0 }");
+        let result = crusty_peg_parser::expr("match (n) { 1 => 10, 2 => 20, _ => 0 }");
         assert!(result.is_ok(), "match should parse: {:?}", result);
         if let Ok(Expression::Match { scrutinee, arms }) = result {
             assert!(matches!(&*scrutinee, Expression::Ident(i) if i.name == "n"));
@@ -6137,14 +6137,32 @@ mod item_tests {
     }
 
     #[test]
-    fn test_match_scrutinee_ident_not_read_as_struct_literal() {
-        // `match p { … }` must read `p` as the scrutinee and `{` as the arm
-        // block, never `p {}` as an empty struct literal (the for-in rule).
-        let result = crusty_peg_parser::expr("match p { _ => 1 }");
-        assert!(result.is_ok(), "bare-ident scrutinee should parse: {:?}", result);
+    fn test_match_requires_parenthesised_scrutinee() {
+        // ADR-0028: the scrutinee is parenthesised `match (p) { … }`, like
+        // `switch (expr)`. The bare `match p { … }` form is no longer accepted.
+        let result = crusty_peg_parser::expr("match (p) { _ => 1 }");
+        assert!(result.is_ok(), "parenthesised scrutinee should parse: {:?}", result);
         if let Ok(Expression::Match { scrutinee, arms }) = result {
             assert!(matches!(&*scrutinee, Expression::Ident(i) if i.name == "p"));
             assert_eq!(arms.len(), 1);
+        } else {
+            panic!("expected Expression::Match, got {:?}", result);
+        }
+        // Bare form rejected.
+        assert!(
+            crusty_peg_parser::expr("match p { _ => 1 }").is_err(),
+            "bare match scrutinee must no longer parse"
+        );
+    }
+
+    #[test]
+    fn test_match_struct_literal_scrutinee() {
+        // With the scrutinee parenthesised, the full expression grammar is
+        // available — a struct-literal scrutinee now parses (ADR-0028).
+        let result = crusty_peg_parser::expr("match (Point { x: 1 }) { _ => 0 }");
+        assert!(result.is_ok(), "struct-literal scrutinee should parse: {:?}", result);
+        if let Ok(Expression::Match { scrutinee, .. }) = result {
+            assert!(matches!(&*scrutinee, Expression::StructInit { .. }));
         } else {
             panic!("expected Expression::Match, got {:?}", result);
         }
@@ -6153,7 +6171,7 @@ mod item_tests {
     #[test]
     fn test_match_guard_and_inclusive_range() {
         let result =
-            crusty_peg_parser::expr("match c { 'a'..='z' => 1, n if n > 0 => 2, _ => 3 }");
+            crusty_peg_parser::expr("match (c) { 'a'..='z' => 1, n if n > 0 => 2, _ => 3 }");
         assert!(result.is_ok(), "guard + range should parse: {:?}", result);
         if let Ok(Expression::Match { arms, .. }) = result {
             assert_eq!(arms.len(), 3);
@@ -6171,7 +6189,7 @@ mod item_tests {
 
     #[test]
     fn test_match_or_and_path_patterns() {
-        let result = crusty_peg_parser::expr("match x { 1 | 2 | 3 => 10, Color::Red => 20, _ => 0 }");
+        let result = crusty_peg_parser::expr("match (x) { 1 | 2 | 3 => 10, Color::Red => 20, _ => 0 }");
         assert!(result.is_ok(), "or + path patterns should parse: {:?}", result);
         if let Ok(Expression::Match { arms, .. }) = result {
             assert_eq!(arms.len(), 3);
@@ -6196,7 +6214,7 @@ mod item_tests {
     fn test_match_destructuring_pattern_is_raw_passthrough() {
         // A payload-destructuring pattern Crusty does not model is captured
         // verbatim as Pattern::Raw, not a parse error (ADR-0012 escape hatch).
-        let result = crusty_peg_parser::expr("match o { Some(v) => v, None => 0 }");
+        let result = crusty_peg_parser::expr("match (o) { Some(v) => v, None => 0 }");
         assert!(result.is_ok(), "destructuring arm should parse as raw: {:?}", result);
         if let Ok(Expression::Match { arms, .. }) = result {
             assert_eq!(arms.len(), 2);
@@ -6211,7 +6229,7 @@ mod item_tests {
     #[test]
     fn test_match_in_let_initializer_expression_position() {
         // The whole point of PS-06 over `switch`: match yields a value.
-        let result = crusty_peg_parser::statement("let r = match n { 0 => 1, _ => 2 };");
+        let result = crusty_peg_parser::statement("let r = match (n) { 0 => 1, _ => 2 };");
         assert!(result.is_ok(), "match in let initializer should parse: {:?}", result);
         if let Ok(Statement::Let { init: Some(Expression::Match { arms, .. }), .. }) = result {
             assert_eq!(arms.len(), 2);
