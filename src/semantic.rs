@@ -420,6 +420,12 @@ impl TypeEnvironment {
             // Auto type is compatible with anything
             (Type::Auto, _) | (_, Type::Auto) => true,
 
+            // A verbatim trait-object / impl-Trait type (ADR-0027) is opaque to
+            // Crusty — it does not model trait membership — so treat it as
+            // compatible with anything and let rustc arbitrate (ADR-0001), the
+            // same relaxation as Auto.
+            (Type::Raw(_), _) | (_, Type::Raw(_)) => true,
+
             // Numeric type compatibility. Crusty is lenient about integer
             // width here — an integer literal is typed I32 but legitimately
             // fits any integer-typed binding (rustc performs the real

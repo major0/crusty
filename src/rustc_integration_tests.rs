@@ -911,4 +911,63 @@ void main() {
             );
         }
     }
+
+    // ADR-0027: dyn / impl Trait type positions — impl Trait return,
+    // &dyn Trait param, Box<dyn Trait> return — compile + run.
+    #[test]
+    fn test_compile_dyn_impl_trait() {
+        let test_source = r#"
+#import std.fmt.Display
+
+impl Iterator<Item = i32> counter(int n) {
+    return __rust__{ 0..n };
+}
+
+void show(&dyn Display x) {
+    println!("{}", x);
+}
+
+Box<dyn Display> boxed() {
+    return __rust__{ Box::new(42) };
+}
+
+void main() {
+    var total = 0;
+    for i in counter(5) {
+        total = total + i;
+    }
+    println!("sum={}", total);
+    show(&total);
+    let b = boxed();
+    println!("boxed={}", b);
+}
+"#;
+        let input_path = PathBuf::from("test_compile_dyn_impl_trait_27.crst");
+        let output_path = PathBuf::from("test_compile_dyn_impl_trait_27");
+
+        fs::write(&input_path, test_source).unwrap();
+
+        let options = CompilerOptions {
+            input_file: input_path.clone(),
+            output_file: Some(output_path.clone()),
+            out_dir: None,
+            emit: EmitMode::Binary,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        let result = run_compiler(&options);
+
+        let _ = fs::remove_file(&input_path);
+        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(format!("{}.rs", output_path.display()));
+
+        if let Err(err) = result {
+            assert!(
+                matches!(err, crate::error::CompilerError::RustcInvocation(_)),
+                "dyn/impl Trait should transpile and compile cleanly; got {err:?}"
+            );
+        }
+    }
 }

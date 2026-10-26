@@ -2922,6 +2922,31 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_raw_trait_type_verbatim() {
+        // ADR-0027: Type::Raw emits its verbatim spec, standalone and nested.
+        let gen = CodeGenerator::new(TargetLanguage::Rust);
+        assert_eq!(
+            gen.generate_type_string(&Type::Raw("dyn Error".to_string())),
+            "dyn Error"
+        );
+        assert_eq!(
+            gen.generate_type_string(&Type::Raw("impl Iterator<Item = i32>".to_string())),
+            "impl Iterator<Item = i32>"
+        );
+        // Composes under a generic / reference.
+        let boxed = Type::Generic {
+            base: Box::new(Type::Ident(Ident::new("Box"))),
+            args: vec![Type::Raw("dyn Error".to_string())],
+        };
+        assert_eq!(gen.generate_type_string(&boxed), "Box<dyn Error>");
+        let refd = Type::Reference {
+            ty: Box::new(Type::Raw("dyn Display".to_string())),
+            mutable: false,
+        };
+        assert_eq!(gen.generate_type_string(&refd), "&dyn Display");
+    }
+
+    #[test]
     fn test_generate_error_prop_operator() {
         let gen = CodeGenerator::new(TargetLanguage::Rust);
         let expr = Expression::ErrorProp {

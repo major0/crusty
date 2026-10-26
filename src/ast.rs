@@ -707,6 +707,12 @@ pub enum Type {
     Fallible {
         ty: Box<Type>,
     },
+    /// A verbatim type Crusty does not model structurally — a trait object
+    /// (`dyn Trait`) or opaque type (`impl Trait`) (ADR-0027). The string is the
+    /// exact type text including the `dyn`/`impl` keyword; codegen emits it
+    /// unchanged and rustc arbitrates (ADR-0001), the same escape-hatch move as
+    /// `Literal::Raw` and verbatim generic bounds.
+    Raw(String),
     Auto,
 }
 

@@ -821,6 +821,36 @@ peg::parser! {
             / primitive_type()
             / ident_type()
 
+        /// Verbatim trait-spec capture for `dyn`/`impl` type positions
+        /// (ADR-0027). Captures one or more `+`-separated trait segments, each a
+        /// path (`a::b::Trait`) with optional balanced `<…>` / `(…) -> R`
+        /// groups, keeping the exact source text. It deliberately does NOT
+        /// consume trailing whitespace+identifier (the following param/var name)
+        /// or a `)` / `{` — those bound the enclosing type. A ` + Bound ` chain
+        /// IS captured (the `+` continues the spec).
+        rule trait_spec() -> &'input str
+            = s:$(trait_spec_segment() (_ "+" _ trait_spec_segment())*) { s }
+
+        /// One trait segment: a path of ident/`::` runs, each optionally
+        /// followed by a `<…>` generic group or a `(…) -> R` Fn-sugar group.
+        rule trait_spec_segment()
+            = trait_spec_name() (trait_spec_group() / "::" trait_spec_name())* (_ "->" _ trait_spec_segment())?
+
+        rule trait_spec_name()
+            = ['a'..='z' | 'A'..='Z' | '_'] ['a'..='z' | 'A'..='Z' | '0'..='9' | '_']*
+
+        rule trait_spec_group()
+            = "<" trait_spec_inner()* ">"
+            / "(" trait_spec_inner()* ")"
+
+        /// Content inside a balanced `<…>`/`(…)` within a trait spec — any char
+        /// including nested balanced groups.
+        rule trait_spec_inner()
+            = "<" trait_spec_inner()* ">"
+            / "(" trait_spec_inner()* ")"
+            / "[" trait_spec_inner()* "]"
+            / (!['<' | '>' | '(' | ')' | '[' | ']'] [_])
+
         /// Type expression using precedence! macro
         /// Handles all type operators with correct precedence
         ///
@@ -880,6 +910,17 @@ peg::parser! {
             // Level 3: Primary types (highest precedence)
             // Generic type: Base<T1, T2, ...>
             // Must come before ident_type to avoid consuming the base identifier
+            // Trait-object / opaque-type positions (ADR-0027): `dyn <spec>` and
+            // `impl <spec>`, captured VERBATIM into Type::Raw. The spec balances
+            // its own `<…>`/`(…)` and stops at the enclosing type's terminator.
+            // `!ident_char()` keeps identifiers like `dynamic`/`implements` as
+            // ident types. Matched first in Level 3 so the keyword wins.
+            "dyn" !ident_char() _ spec:trait_spec() {
+                Type::Raw(format!("dyn {}", spec.trim()))
+            }
+            "impl" !ident_char() _ spec:trait_spec() {
+                Type::Raw(format!("impl {}", spec.trim()))
+            }
             // Function-pointer type (PS-07, ADR-0013): `fn(T1, T2) -> R`, and
             // the return-less `fn(T1, T2)` which defaults to unit. Lowers to
             // the existing Type::Function, which codegen emits verbatim as a
@@ -8402,6 +8443,75 @@ mod complex_type_tests {
                 base: Box::new(Type::Ident(Ident::new("Vec"))),
                 args: vec![Type::Primitive(PrimitiveType::Int)]
             })
+        );
+    }
+
+    #[test]
+    fn test_peg_dyn_trait_object() {
+        // ADR-0027: `dyn Trait` -> Type::Raw verbatim.
+        assert_eq!(
+            crusty_peg_parser::type_expr("dyn Error"),
+            Ok(Type::Raw("dyn Error".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_peg_impl_trait() {
+        // `impl Trait` with an associated-type binding is captured whole.
+        assert_eq!(
+            crusty_peg_parser::type_expr("impl Iterator<Item = i32>"),
+            Ok(Type::Raw("impl Iterator<Item = i32>".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_peg_dyn_in_box_generic_arg() {
+        // `Box<dyn Error>` -> the generic arg is a Type::Raw.
+        assert_eq!(
+            crusty_peg_parser::type_expr("Box<dyn Error>"),
+            Ok(Type::Generic {
+                base: Box::new(Type::Ident(Ident::new("Box"))),
+                args: vec![Type::Raw("dyn Error".to_string())],
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_ref_to_dyn_trait() {
+        // `&dyn Display` -> reference to a Type::Raw; the spec must NOT eat a
+        // following name.
+        assert_eq!(
+            crusty_peg_parser::type_expr("&dyn Display"),
+            Ok(Type::Reference {
+                ty: Box::new(Type::Raw("dyn Display".to_string())),
+                mutable: false,
+            })
+        );
+    }
+
+    #[test]
+    fn test_peg_dyn_fn_sugar_and_plus_bound() {
+        // A trait spec with Fn(...) -> R and a `+ Bound` is captured whole.
+        assert_eq!(
+            crusty_peg_parser::type_expr("dyn Fn(i32) -> i32"),
+            Ok(Type::Raw("dyn Fn(i32) -> i32".to_string()))
+        );
+        assert_eq!(
+            crusty_peg_parser::type_expr("impl A + B"),
+            Ok(Type::Raw("impl A + B".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_peg_dyn_impl_prefixed_ident_is_ident_type() {
+        // The `!ident_char()` guard: `dynamic` / `implements` are ident types.
+        assert_eq!(
+            crusty_peg_parser::type_expr("dynamic"),
+            Ok(Type::Ident(Ident::new("dynamic")))
+        );
+        assert_eq!(
+            crusty_peg_parser::type_expr("implements"),
+            Ok(Type::Ident(Ident::new("implements")))
         );
     }
 

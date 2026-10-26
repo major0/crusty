@@ -2204,6 +2204,7 @@ impl CodeGenerator {
                     self.generate_type_string(ty)
                 )
             }
+            Type::Raw(s) => s.clone(),
             Type::Auto => String::from("_"),
         }
     }
