@@ -1192,6 +1192,20 @@ peg::parser! {
                     args: args.unwrap_or_default(),
                 }
             }
+            // Crusty $type-marked type-scoped generic call (ADR-0031 extended
+            // to the type-scoped position): @Type.method($G1, $G2, valargs).
+            // The `$Type` args are the method's turbofish type arguments, so
+            // this lowers to the SAME TurbofishCall as `Type::method::<G>(args)`
+            // -> `Type::method::<G1, G2>(args)`. Tried before the plain
+            // @Type.method(args) form so the `$` wins.
+            / _ "@" _ ty:type_for_scoped_call() _ "." _ method:ident() _ "(" _ generics:dollar_type_args() _ args:(_ "," _ a:call_args() { a })? _ ")" _ {
+                Expression::TurbofishCall {
+                    ty,
+                    method,
+                    generics,
+                    args: args.unwrap_or_default(),
+                }
+            }
             // Crusty type-scoped call: @Type.method(args)
             / _ "@" _ ty:type_for_scoped_call() _ "." _ method:ident() _ "(" _ args:call_args()? _ ")" _ {
                 Expression::TypeScopedCall {
@@ -11060,6 +11074,59 @@ mod call_access_expression_tests {
             Ok(Expression::TypeScopedCall {
                 ty: Type::Ident(Ident::new("Vec")),
                 method: Ident::new("new"),
+                args: vec![],
+            })
+        );
+    }
+
+    // --- ADR-0031 extended: $type args in the type-scoped position ---
+
+    #[test]
+    fn test_dollar_type_scoped_call_single_generic() {
+        // @mem.size_of($i32) -> same TurbofishCall as mem::size_of::<i32>().
+        // `i32` is a pass-through identifier (Crusty's own keyword is `int32`).
+        let result = crusty_peg_parser::type_scoped_call("@mem.size_of($i32)");
+        assert_eq!(
+            result,
+            Ok(Expression::TurbofishCall {
+                ty: Type::Ident(Ident::new("mem")),
+                method: Ident::new("size_of"),
+                generics: vec![Type::Ident(Ident::new("i32"))],
+                args: vec![],
+            })
+        );
+    }
+
+    #[test]
+    fn test_dollar_type_scoped_call_generics_and_args() {
+        // @Map.of($int, $bool, k, v): two $type args, then value args.
+        let result = crusty_peg_parser::type_scoped_call("@Map.of($int, $bool, k, v)");
+        assert_eq!(
+            result,
+            Ok(Expression::TurbofishCall {
+                ty: Type::Ident(Ident::new("Map")),
+                method: Ident::new("of"),
+                generics: vec![
+                    Type::Primitive(PrimitiveType::Int),
+                    Type::Primitive(PrimitiveType::Bool),
+                ],
+                args: vec![
+                    Expression::Ident(Ident::new("k")),
+                    Expression::Ident(Ident::new("v")),
+                ],
+            })
+        );
+    }
+
+    #[test]
+    fn test_dollar_type_scoped_absent_stays_plain_call() {
+        // No `$` -> still a plain TypeScopedCall, not a TurbofishCall.
+        let result = crusty_peg_parser::type_scoped_call("@mem.size_of()");
+        assert_eq!(
+            result,
+            Ok(Expression::TypeScopedCall {
+                ty: Type::Ident(Ident::new("mem")),
+                method: Ident::new("size_of"),
                 args: vec![],
             })
         );
