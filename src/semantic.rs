@@ -2878,9 +2878,35 @@ impl SemanticAnalyzer {
                 self.symbol_table.exit_scope();
                 ty
             }
+            Expression::If { condition, then_block, else_block } => {
+                // ADR-0029: `if`/`else` as a value. Analyse the condition and
+                // both branches (each in its own scope) so errors surface; the
+                // expression's type is the then-branch's tail type. Both
+                // branches should agree — rustc arbitrates if they do not
+                // (ADR-0001). An `else`-less if yields unit.
+                self.analyze_expression(condition);
+                self.symbol_table.enter_scope();
+                for statement in &then_block.statements {
+                    self.analyze_statement(statement);
+                }
+                let then_ty = match then_block.tail {
+                    Some(ref tail) => self.analyze_expression(tail),
+                    None => Type::Primitive(PrimitiveType::Void),
+                };
+                self.symbol_table.exit_scope();
+                if let Some(else_blk) = else_block {
+                    self.symbol_table.enter_scope();
+                    for statement in &else_blk.statements {
+                        self.analyze_statement(statement);
+                    }
+                    if let Some(ref tail) = else_blk.tail {
+                        self.analyze_expression(tail);
+                    }
+                    self.symbol_table.exit_scope();
+                }
+                then_ty
+            }
             Expression::Loop { body, .. } => {
-                // Analyze the body so errors inside it (e.g. undefined
-                // variables) are reported.
                 self.symbol_table.enter_scope();
                 self.analyze_block(body);
                 self.symbol_table.exit_scope();
@@ -3428,6 +3454,15 @@ impl SemanticAnalyzer {
                 // ADR-0029: a value-block can reference enclosing locals in its
                 // statements or tail expression.
                 self.collect_used_variables_in_block(body, used);
+            }
+            Expression::If { condition, then_block, else_block } => {
+                // ADR-0029: an if-expression references variables in its
+                // condition and either branch.
+                self.collect_used_variables(condition, used);
+                self.collect_used_variables_in_block(then_block, used);
+                if let Some(else_blk) = else_block {
+                    self.collect_used_variables_in_block(else_blk, used);
+                }
             }
             Expression::Thread { body } => {
                 self.collect_used_variables_in_block(body, used);

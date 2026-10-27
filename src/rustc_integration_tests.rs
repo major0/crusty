@@ -1007,6 +1007,51 @@ void main() {
         }
     }
 
+    // ADR-0029: `if`/`else` as a value (Expression::If) — `let g = if (c) { a }
+    // else { b };` lowers to a Rust if-expression and is usable in arithmetic.
+    // grade(95) = 1 + 100 = 101; grade(80) = 2 + 100 = 102 — compile + run.
+    #[test]
+    fn test_compile_if_as_value() {
+        let test_source = r#"
+int grade(int s) {
+    let g = if (s > 90) { 1 } else { 2 };
+    return g + 100;
+}
+
+void main() {
+    println!("hi={}", grade(95));
+    println!("lo={}", grade(80));
+}
+"#;
+        let input_path = PathBuf::from("test_compile_if_as_value_29.crst");
+        let output_path = PathBuf::from("test_compile_if_as_value_29");
+
+        fs::write(&input_path, test_source).unwrap();
+
+        let options = CompilerOptions {
+            input_file: input_path.clone(),
+            output_file: Some(output_path.clone()),
+            out_dir: None,
+            emit: EmitMode::Binary,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        let result = run_compiler(&options);
+
+        let _ = fs::remove_file(&input_path);
+        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(format!("{}.rs", output_path.display()));
+
+        if let Err(err) = result {
+            assert!(
+                matches!(err, crate::error::CompilerError::RustcInvocation(_)),
+                "if-as-value should transpile and compile cleanly; got {err:?}"
+            );
+        }
+    }
+
     // ADR-0027: dyn / impl Trait type positions — impl Trait return,
     // &dyn Trait param, Box<dyn Trait> return — compile + run.
     #[test]

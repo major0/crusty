@@ -1452,6 +1452,7 @@ peg::parser! {
             / scope_expr()
             / match_expr()
             / block_value_expr()
+            / if_expr()
             / sizeof_expr()
             / macro_call()
             / cast_expr()
@@ -1461,6 +1462,21 @@ peg::parser! {
             / array_lit()
             / literal_expr()
             / ident_expr()
+
+        /// `if`/`else` as a value (ADR-0029): `if (cond) { … } else { … }` in
+        /// expression position, e.g. `let g = { if (s > 90) { 1 } else { 2 } };`.
+        /// Reuses `block()` for each branch, so a branch's value is its trailing
+        /// expression. The statement dispatch tries `if_stmt()` first, so a
+        /// control-flow `if` statement is unaffected — this only fires where an
+        /// expression is expected. An `else if` chain nests via else_clause.
+        rule if_expr() -> Expression
+            = _ kw_if() _ "(" _ condition:expr() _ ")" _ then_block:block() _ else_block:else_clause()? _ {
+                Expression::If {
+                    condition: Box::new(condition),
+                    then_block: Box::new(then_block),
+                    else_block: else_block.map(Box::new),
+                }
+            }
 
         /// Value-block expression (ADR-0029): `{ … }` in expression position,
         /// e.g. `let x = { let t = f(); t + 1 };`. Reuses `block()`, so the

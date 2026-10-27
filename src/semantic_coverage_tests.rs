@@ -1328,6 +1328,18 @@ mod tests {
         );
     }
 
+    /// ADR-0029: `if`/`else` as a value (Expression::If) types to its branch
+    /// value, so the result is usable in arithmetic.
+    #[test]
+    fn test_adr0029_if_as_value_accepted() {
+        let (_a, result) =
+            analyze_source("int grade(int s) { let g = if (s > 90) { 1 } else { 2 }; return g + 100; }");
+        assert!(
+            result.is_ok(),
+            "if-as-value should type to its branch value: {result:?}"
+        );
+    }
+
     /// A struct `Box` with a static method `wrap<U>(U) -> U` (returns its own
     /// generic parameter) plus `first(&self) -> int` (concrete return).
     fn box_with_generic_method() -> Item {

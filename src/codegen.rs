@@ -1927,6 +1927,29 @@ impl CodeGenerator {
                 sub.generate_block(body);
                 sub.output
             }
+            // ADR-0029: `if`/`else` as a value lowers to a Rust `if`
+            // expression. Condition is emitted bare (Rust style); each branch
+            // is a value-block rendered via the sub-generator, so a branch's
+            // trailing expression is its value. An `else`-less if yields `()`.
+            Expression::If { condition, then_block, else_block } => {
+                let mut result = String::from("if ");
+                result.push_str(&self.generate_expression_string(condition));
+                result.push(' ');
+                let mut sub = CodeGenerator::new(self.target);
+                sub.indent_level = self.indent_level;
+                sub.nested_function_captures = self.nested_function_captures.clone();
+                sub.generate_block(then_block);
+                result.push_str(&sub.output);
+                if let Some(else_blk) = else_block {
+                    result.push_str(" else ");
+                    let mut esub = CodeGenerator::new(self.target);
+                    esub.indent_level = self.indent_level;
+                    esub.nested_function_captures = self.nested_function_captures.clone();
+                    esub.generate_block(else_blk);
+                    result.push_str(&esub.output);
+                }
+                result
+            }
         }
     }
     /// Structural patterns are emitted from their parts; `Pattern::Raw` is

@@ -638,6 +638,18 @@ pub enum Expression {
     /// inside it exits the nearest enclosing function/closure, not the block.
     /// Lowers verbatim to a Rust block.
     Block(Box<Block>),
+    /// `if`/`else` in expression position (ADR-0029), e.g.
+    /// `let g = { if (s > 90) { 1 } else { 2 } };`. Each branch is a value-
+    /// block whose tail is the branch's value; lowers to a Rust `if`
+    /// expression. The statement form stays `Statement::If` (the statement
+    /// dispatch tries it first), so ordinary control-flow `if` is unaffected —
+    /// this variant only fires where an expression is expected. Mirrors the
+    /// `Expression::Match` / `Statement::Switch` split.
+    If {
+        condition: Box<Expression>,
+        then_block: Box<Block>,
+        else_block: Option<Box<Block>>,
+    },
 }
 
 /// One arm of a `match` expression (PS-06). The body is an expression; a
