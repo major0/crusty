@@ -2786,6 +2786,19 @@ impl SemanticAnalyzer {
                 Type::Auto
             }
 
+            Expression::GenericMethodCall { receiver, args, .. } => {
+                // $Type method-generic call (ADR prototype). The explicit
+                // turbofish type args are passed through to the method and
+                // arbitrated by rustc, so the call types as Auto — the same
+                // treatment as TurbofishCall. Analyze receiver + value args so
+                // their own errors still fire.
+                self.analyze_expression(receiver);
+                for arg in args {
+                    self.analyze_expression(arg);
+                }
+                Type::Auto
+            }
+
             Expression::TypeScopedCall {
                 ty,
                 method,
@@ -3420,6 +3433,12 @@ impl SemanticAnalyzer {
                 self.collect_used_variables(expr, used);
             }
             Expression::MethodCall { receiver, args, .. } => {
+                self.collect_used_variables(receiver, used);
+                for arg in args {
+                    self.collect_used_variables(arg, used);
+                }
+            }
+            Expression::GenericMethodCall { receiver, args, .. } => {
                 self.collect_used_variables(receiver, used);
                 for arg in args {
                     self.collect_used_variables(arg, used);

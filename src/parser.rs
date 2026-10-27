@@ -78,6 +78,13 @@ enum PostfixOp {
         method: Ident,
         args: Vec<Expression>,
     },
+    /// Generic method call with leading `$Type` args (ADR prototype):
+    /// `.method($T1, $T2, valargs)` -> `method::<T1, T2>(valargs)`.
+    GenericMethodCall {
+        method: Ident,
+        generics: Vec<Type>,
+        args: Vec<Expression>,
+    },
     /// Postfix increment: ++
     PostInc,
     /// Postfix decrement: --
@@ -1232,6 +1239,20 @@ peg::parser! {
                 args
             }
 
+        /// Leading `$Type` type arguments for a generic method call (ADR
+        /// prototype): one or more `$Type`, comma-separated. The `$` marks the
+        /// argument as a TYPE (not a value), so a bare type name need not be
+        /// distinguishable from a variable by the parser.
+        rule dollar_type_args() -> Vec<Type>
+            = first:dollar_type_arg() rest:(_ "," _ t:dollar_type_arg() { t })* {
+                let mut v = vec![first];
+                v.extend(rest);
+                v
+            }
+
+        rule dollar_type_arg() -> Type
+            = _ "$" _ t:type_expr() { t }
+
         /// Postfix operation: represents a single postfix operation
         /// Used internally to build chains of operations
         rule postfix_op() -> PostfixOp
@@ -1249,6 +1270,16 @@ peg::parser! {
             // then-branch and `:` follow.
             / _ "?" !(_ expr() _ ":") {
                 PostfixOp::ErrorProp
+            }
+            // Generic method call with leading `$Type` args (ADR prototype):
+            // .method($T1, $T2, valargs) — at least one `$Type`, then optional
+            // value args. Tried BEFORE the plain method call so the `$` wins.
+            / _ "." _ method:member_name() _ "(" _ generics:dollar_type_args() _ args:(_ "," _ a:call_args() { a })? _ ")" {
+                PostfixOp::GenericMethodCall {
+                    method,
+                    generics,
+                    args: args.unwrap_or_default(),
+                }
             }
             // Method call: .method(args)
             / _ "." _ method:member_name() _ "(" _ args:call_args()? _ ")" {
@@ -1301,6 +1332,12 @@ peg::parser! {
                         PostfixOp::MethodCall { method, args } => Expression::MethodCall {
                             receiver: Box::new(expr),
                             method,
+                            args,
+                        },
+                        PostfixOp::GenericMethodCall { method, generics, args } => Expression::GenericMethodCall {
+                            receiver: Box::new(expr),
+                            method,
+                            generics,
                             args,
                         },
                         PostfixOp::PostInc => Expression::Unary {
@@ -14237,6 +14274,43 @@ mod control_flow_tests {
         let result = crusty_peg_parser::statement("print(x);");
         assert!(result.is_ok());
         assert!(matches!(result.unwrap(), Statement::Expr(_)));
+    }
+
+    #[test]
+    fn test_dollar_type_generic_method_call() {
+        // ADR-0031: a leading `$Type` argument parses as a GenericMethodCall,
+        // splitting the `$`-marked type arguments from the value arguments.
+        let result = crusty_peg_parser::statement("let n = s.get_one($String, \"x\");");
+        assert!(result.is_ok(), "$type call should parse: {result:?}");
+        // The initializer is an Expression::GenericMethodCall with one generic
+        // (String) and one value arg ("x").
+        if let Statement::Let { init: Some(expr), .. } = result.unwrap() {
+            match expr {
+                Expression::GenericMethodCall { generics, args, method, .. } => {
+                    assert_eq!(method.name, "get_one");
+                    assert_eq!(generics.len(), 1, "one $type arg");
+                    assert_eq!(args.len(), 1, "one value arg");
+                }
+                other => panic!("expected GenericMethodCall, got {other:?}"),
+            }
+        } else {
+            panic!("expected a let statement with an initializer");
+        }
+    }
+
+    #[test]
+    fn test_plain_method_call_is_not_generic() {
+        // A plain method call (no `$`) stays a MethodCall, not a GenericMethodCall.
+        let result = crusty_peg_parser::statement("let n = s.plain(1, 2);");
+        assert!(result.is_ok());
+        if let Statement::Let { init: Some(expr), .. } = result.unwrap() {
+            assert!(
+                matches!(expr, Expression::MethodCall { .. }),
+                "a $-free call must remain a MethodCall"
+            );
+        } else {
+            panic!("expected a let statement with an initializer");
+        }
     }
 }
 

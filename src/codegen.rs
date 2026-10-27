@@ -1778,6 +1778,34 @@ impl CodeGenerator {
                 result.push(')');
                 result
             }
+            Expression::GenericMethodCall {
+                receiver,
+                method,
+                generics,
+                args,
+            } => {
+                // $Type leading args lower to a method turbofish:
+                // recv.method($T, valargs) -> recv.method::<T>(valargs).
+                let mut result = self.generate_expression_string(receiver);
+                result.push('.');
+                result.push_str(&method.name);
+                result.push_str("::<");
+                for (i, gen) in generics.iter().enumerate() {
+                    if i > 0 {
+                        result.push_str(", ");
+                    }
+                    result.push_str(&self.generate_type_string(gen));
+                }
+                result.push_str(">(");
+                for (i, arg) in args.iter().enumerate() {
+                    if i > 0 {
+                        result.push_str(", ");
+                    }
+                    result.push_str(&self.generate_expression_string(arg));
+                }
+                result.push(')');
+                result
+            }
             Expression::TypeScopedCall { ty, method, args } => {
                 // Translate @Type.method() to Type::method()
                 let mut result = self.generate_type_string(ty);
