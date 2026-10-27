@@ -4019,6 +4019,21 @@ peg::parser! {
                 })
             }
 
+        /// Top-level constant item (ADR-0001 C surface): `const TYPE NAME = v;`
+        /// -> Rust `const NAME: TYPE = v;`. Mirrors the C-style
+        /// `type name = value` ordering used by `static`. Public by default
+        /// like every Crusty item; `pub_item` handles an explicit `pub`.
+        pub rule const_item() -> Item
+            = _ kw_const() __ ty:type_expr() __ name:ident() _ "=" _ value:expr() _ ";" _ {
+                Item::Const(Const {
+                    visibility: Visibility::Public,
+                    name,
+                    ty,
+                    value,
+                    doc_comments: Vec::new(),
+                })
+            }
+
         /// Extern block: FFI function declarations under an ABI.
         /// Syntax: extern ["ABI"] { extern_fn_decl* }
         /// Lowers to a Rust `extern "ABI" { … }` block.
@@ -4232,6 +4247,7 @@ peg::parser! {
             / typedef_def()
             / item_macro_invocation()
             / static_item()
+            / const_item()
             / unsafe_function()
             / function()
 
@@ -4255,6 +4271,7 @@ peg::parser! {
             / impl_block_def()
             / typedef_def()
             / static_item()
+            / const_item()
             / unsafe_function()
             / function()
 
@@ -6195,6 +6212,35 @@ mod item_tests {
             assert!(f.return_type.is_none());
         } else {
             panic!("Expected Item::Function");
+        }
+    }
+
+    // --- top-level const item ---
+
+    #[test]
+    fn test_peg_item_const() {
+        // `const TYPE NAME = value;` at file scope -> Item::Const.
+        let result = crusty_peg_parser::item("const int MAX = 10;");
+        assert!(result.is_ok(), "const item should parse: {result:?}");
+        if let Ok(Item::Const(c)) = result {
+            assert_eq!(c.name.name, "MAX");
+            assert_eq!(c.visibility, Visibility::Public);
+            assert!(matches!(c.ty, Type::Primitive(PrimitiveType::Int)));
+        } else {
+            panic!("Expected Item::Const, got {result:?}");
+        }
+    }
+
+    #[test]
+    fn test_peg_item_pub_const() {
+        // `pub const` parses (public is already the default for a const item).
+        let result = crusty_peg_parser::item("pub const int SHARED = 42;");
+        assert!(result.is_ok(), "pub const item should parse: {result:?}");
+        if let Ok(Item::Const(c)) = result {
+            assert_eq!(c.name.name, "SHARED");
+            assert_eq!(c.visibility, Visibility::Public);
+        } else {
+            panic!("Expected Item::Const, got {result:?}");
         }
     }
 
