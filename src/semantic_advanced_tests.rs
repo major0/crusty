@@ -373,6 +373,7 @@ mod tests {
                             init: None,
                             mutable: false,
                         }],
+                        tail: None,
                     }),
                     is_variadic: false,
                     is_unsafe: false,

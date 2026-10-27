@@ -1316,6 +1316,13 @@ impl SemanticAnalyzer {
         for statement in &block.statements {
             self.analyze_statement(statement);
         }
+
+        // ADR-0029: analyse the trailing value expression (if any) so errors
+        // inside it are reported. Its type is consumed by the enclosing
+        // value-block expression (Expression::Block), not here.
+        if let Some(ref tail) = block.tail {
+            self.analyze_expression(tail);
+        }
     }
 
     /// Analyze a statement (placeholder for sub-task 8.3)
@@ -2829,6 +2836,24 @@ impl SemanticAnalyzer {
                 self.analyze_expression(right)
             }
 
+            Expression::Block(body) => {
+                // ADR-0029: a value-block `{ … }` yields the type of its tail
+                // expression. The block is NOT a function boundary, so a
+                // `return` inside it still targets the enclosing function
+                // (expected_return_type is left untouched, unlike a closure).
+                // Type the tail WITHIN the block's scope, before exiting, so a
+                // local declared in the block is visible to the tail.
+                self.symbol_table.enter_scope();
+                for statement in &body.statements {
+                    self.analyze_statement(statement);
+                }
+                let ty = match body.tail {
+                    Some(ref tail) => self.analyze_expression(tail),
+                    None => Type::Primitive(PrimitiveType::Void),
+                };
+                self.symbol_table.exit_scope();
+                ty
+            }
             Expression::Loop { body, .. } => {
                 // Analyze the body so errors inside it (e.g. undefined
                 // variables) are reported.
@@ -3299,6 +3324,11 @@ impl SemanticAnalyzer {
             Expression::Loop { body, .. } => {
                 self.collect_used_variables_in_block(body, used);
             }
+            Expression::Block(body) => {
+                // ADR-0029: a value-block can reference enclosing locals in its
+                // statements or tail expression.
+                self.collect_used_variables_in_block(body, used);
+            }
             Expression::Thread { body } => {
                 self.collect_used_variables_in_block(body, used);
             }
@@ -3455,6 +3485,10 @@ impl SemanticAnalyzer {
     ) {
         for stmt in &block.statements {
             self.collect_used_variables_in_statement(stmt, used);
+        }
+        // ADR-0029: a value-block's tail expression can reference variables.
+        if let Some(ref tail) = block.tail {
+            self.collect_used_variables(tail, used);
         }
     }
 

@@ -965,6 +965,7 @@ mod tests {
                 return_type: Some(return_type.clone()),
                 body: Block {
                     statements: vec![Statement::Return(Some(Expression::Ident(param_name.clone())))],
+                    tail: None,
                 },
             };
 
@@ -978,6 +979,7 @@ mod tests {
                 return_type: Some(Type::Primitive(PrimitiveType::Void)),
                 body: Some(Block {
                     statements: vec![nested_func],
+                    tail: None,
                 }),
                 is_variadic: false,
                 is_unsafe: false,

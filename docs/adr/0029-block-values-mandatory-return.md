@@ -1,7 +1,7 @@
 # ADR-0029: Block values — mandatory `return` in function bodies, bare trailing values in value-blocks
 
 ## Status
-proposed
+accepted
 
 ## Context
 

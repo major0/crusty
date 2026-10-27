@@ -907,6 +907,14 @@ impl CodeGenerator {
             self.generate_statement(stmt);
         }
 
+        // ADR-0029: a value-block's trailing expression is its value — emit it
+        // as a bare (semicolon-less) final expression so the Rust block yields.
+        if let Some(ref tail) = block.tail {
+            self.write_indent();
+            self.write(&self.generate_expression_string(tail));
+            self.write("\n");
+        }
+
         self.dedent();
         self.write_indent();
         self.write("}");
@@ -1908,10 +1916,19 @@ impl CodeGenerator {
                 result.push_str(&sub.output);
                 result
             }
+            // ADR-0029: a value-block `{ … }` in expression position lowers to
+            // a Rust block verbatim. Rendered via a sub-generator so the real
+            // statement/block emitter (generate_block is &mut self) is reused
+            // from this &self string context — same idiom as AnonFunction/Loop.
+            Expression::Block(body) => {
+                let mut sub = CodeGenerator::new(self.target);
+                sub.indent_level = self.indent_level;
+                sub.nested_function_captures = self.nested_function_captures.clone();
+                sub.generate_block(body);
+                sub.output
+            }
         }
     }
-
-    /// Generate a match-arm pattern as a Rust string (PS-06, ADR-0012).
     /// Structural patterns are emitted from their parts; `Pattern::Raw` is
     /// emitted verbatim (ADR-0001 — rustc arbitrates what Crusty does not
     /// model structurally).

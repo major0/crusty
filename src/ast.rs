@@ -632,6 +632,12 @@ pub enum Expression {
         return_type: Option<Type>,
         body: Box<Block>,
     },
+    /// A value-block `{ … }` in expression position (ADR-0029), e.g.
+    /// `let x = { let t = f(); t + 1 };`. Its value is the block's `tail`
+    /// expression. A bare block is NOT a function boundary, so a `return`
+    /// inside it exits the nearest enclosing function/closure, not the block.
+    /// Lowers verbatim to a Rust block.
+    Block(Box<Block>),
 }
 
 /// One arm of a `match` expression (PS-06). The body is an expression; a
@@ -966,21 +972,41 @@ impl Ident {
     }
 }
 
-/// Block of statements
+/// Block of statements, with an optional trailing value expression.
+///
+/// A `tail` of `Some(expr)` is a bare trailing expression (no `;`) that is the
+/// block's value (ADR-0029). Function and closure bodies keep `tail: None` and
+/// yield via `return`; value-blocks (`let x = { … }`, `if`/`else` as a value,
+/// `match` arms) carry the value in `tail`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block {
     pub statements: Vec<Statement>,
+    pub tail: Option<Box<Expression>>,
 }
 
 impl Block {
+    /// A block with no trailing value expression (the common case: function
+    /// bodies, loop bodies, and any block that yields via `return`).
     pub fn new(statements: Vec<Statement>) -> Self {
-        Self { statements }
+        Self {
+            statements,
+            tail: None,
+        }
+    }
+
+    /// A value-block whose value is the trailing expression `tail` (ADR-0029).
+    pub fn with_tail(statements: Vec<Statement>, tail: Option<Expression>) -> Self {
+        Self {
+            statements,
+            tail: tail.map(Box::new),
+        }
     }
 
     #[allow(dead_code)]
     pub fn empty() -> Self {
         Self {
             statements: Vec::new(),
+            tail: None,
         }
     }
 }

@@ -1451,6 +1451,7 @@ peg::parser! {
             / thread_expr()
             / scope_expr()
             / match_expr()
+            / block_value_expr()
             / sizeof_expr()
             / macro_call()
             / cast_expr()
@@ -1460,6 +1461,16 @@ peg::parser! {
             / array_lit()
             / literal_expr()
             / ident_expr()
+
+        /// Value-block expression (ADR-0029): `{ … }` in expression position,
+        /// e.g. `let x = { let t = f(); t + 1 };`. Reuses `block()`, so the
+        /// block's value is its optional trailing expression. Tried after the
+        /// keyword-led block forms (rust/loop/thread/scope/match) so those still
+        /// win; a bare `{` only reaches here where an expression is expected.
+        rule block_value_expr() -> Expression
+            = _ b:block() _ {
+                Expression::Block(Box::new(b))
+            }
 
         /// Loop expression: `loop { … }` (optionally labeled) in expression
         /// position. Yields the value of a `break <value>` inside it. The
@@ -2748,8 +2759,13 @@ peg::parser! {
         /// Syntax: { statement* }
         /// Returns Block
         pub rule block() -> Block
-            = _ "{" _ stmts:statement()* _ "}" _ {
-                Block::new(stmts)
+            // ADR-0029: a block is zero or more statements, optionally followed
+            // by a trailing VALUE expression with no `;`. An `expr_stmt` requires
+            // its `;`, so a bare trailing expression is never consumed as a
+            // statement — `statement()*` stops and `tail` captures it. A block
+            // with no trailing expression keeps `tail: None`.
+            = _ "{" _ stmts:statement()* _ tail:expr()? _ "}" _ {
+                Block::with_tail(stmts, tail)
             }
 
         // ====================================================================
