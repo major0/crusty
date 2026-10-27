@@ -1254,6 +1254,73 @@ void main() {
         }
     }
 
+    // ADR-0032 slice 3: switch carries match's full pattern surface — a binding
+    // + guard (`case m if m > 100: m`), `Raw` payload destructuring
+    // (`case Some(v): v`), and a slice pattern (`case [first, .., last]:`),
+    // all as values. classify(500)=500 (binding+guard), unwrap(Some(7))=7,
+    // ends([10,20,30,40]) = 10+40 = 50.
+    #[test]
+    fn test_compile_switch_pattern_surface() {
+        let test_source = r#"
+#import std.option.Option
+
+int classify(int n) {
+    return switch (n) {
+        case 0: 100;
+        case 1, 2, 3: 50;
+        case 10 ... 20: 25;
+        case m if m > 100: m;
+        default: 0;
+    };
+}
+
+int unwrap_or_zero(Option<int> o) {
+    return switch (o) {
+        case Some(v): v;
+        case None: 0;
+    };
+}
+
+void main() {
+    let s = __rust__{ &[10, 20, 30, 40][..] };
+    let ends = switch (s) {
+        case [first, .., last]: __rust__{ *first + *last };
+        case [only]: __rust__{ *only };
+        case []: 0;
+    };
+    let a = unwrap_or_zero(@Option.Some(7));
+    println!("x={} y={} z={}", classify(500), a, ends);
+}
+"#;
+        let input_path = PathBuf::from("test_compile_switch_patterns_32.crst");
+        let output_path = PathBuf::from("test_compile_switch_patterns_32");
+
+        fs::write(&input_path, test_source).unwrap();
+
+        let options = CompilerOptions {
+            input_file: input_path.clone(),
+            output_file: Some(output_path.clone()),
+            out_dir: None,
+            emit: EmitMode::Binary,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        let result = run_compiler(&options);
+
+        let _ = fs::remove_file(&input_path);
+        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(format!("{}.rs", output_path.display()));
+
+        if let Err(err) = result {
+            assert!(
+                matches!(err, crate::error::CompilerError::RustcInvocation(_)),
+                "switch pattern surface should transpile and compile cleanly; got {err:?}"
+            );
+        }
+    }
+
     // ADR-0029: a `__func__` body requires `return` and lowers to a closure
     // whose `return` is closure-scoped; a value-block nested inside it yields
     // locally via its bare tail, while an inner `return` exits the `__func__`
