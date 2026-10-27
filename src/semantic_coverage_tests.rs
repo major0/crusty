@@ -1340,6 +1340,37 @@ mod tests {
         );
     }
 
+    /// ADR-0029: a redundant `{ if … }` wrap — an `if`/`else` as the sole
+    /// content of a value-block — is captured as the block's tail VALUE
+    /// (`block()` parameterized by `allow_tail_cf`), so the result types to the
+    /// branch value and is usable in arithmetic. Using `g + 100` makes a Void
+    /// mis-type a hard type error, so `is_ok()` is a real proof of correct
+    /// typing, not just of parsing.
+    #[test]
+    fn test_adr0029_wrapped_if_value_block_accepted() {
+        let (_a, result) = analyze_source(
+            "int wrap(int s) { let g = { if (s > 90) { 1 } else { 2 } }; return g + 100; }",
+        );
+        assert!(
+            result.is_ok(),
+            "a redundant {{ if … }} wrap should type to its tail value: {result:?}"
+        );
+    }
+
+    /// ADR-0029 context distinction: the SAME trailing `if`/`else` syntax in a
+    /// FUNCTION BODY stays a control-flow statement (both branches return), so
+    /// the mandatory-return check is satisfied — the body-context block passes
+    /// `allow_tail_cf = false` and does not swallow the `if` into a tail.
+    #[test]
+    fn test_adr0029_body_trailing_if_stays_statement() {
+        let (_a, result) =
+            analyze_source("int body(int x) { if (x > 0) { return x; } else { return 0; } }");
+        assert!(
+            result.is_ok(),
+            "a function-body trailing diverging if/else stays a statement and satisfies mandatory-return: {result:?}"
+        );
+    }
+
     /// A struct `Box` with a static method `wrap<U>(U) -> U` (returns its own
     /// generic parameter) plus `first(&self) -> int` (concrete return).
     fn box_with_generic_method() -> Item {

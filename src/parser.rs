@@ -1470,7 +1470,7 @@ peg::parser! {
         /// control-flow `if` statement is unaffected — this only fires where an
         /// expression is expected. An `else if` chain nests via else_clause.
         rule if_expr() -> Expression
-            = _ kw_if() _ "(" _ condition:expr() _ ")" _ then_block:block() _ else_block:else_clause()? _ {
+            = _ kw_if() _ "(" _ condition:expr() _ ")" _ then_block:block(true) _ else_block:else_clause(true)? _ {
                 Expression::If {
                     condition: Box::new(condition),
                     then_block: Box::new(then_block),
@@ -1484,7 +1484,7 @@ peg::parser! {
         /// keyword-led block forms (rust/loop/thread/scope/match) so those still
         /// win; a bare `{` only reaches here where an expression is expected.
         rule block_value_expr() -> Expression
-            = _ b:block() _ {
+            = _ b:block(true) _ {
                 Expression::Block(Box::new(b))
             }
 
@@ -1494,10 +1494,10 @@ peg::parser! {
         /// position stays a Statement::Loop; this rule only fires when a loop
         /// appears where an expression is expected (e.g. a `let` initializer).
         rule loop_expr() -> Expression
-            = _ "." label:ident() _ ":" _ kw_loop() _ body:block() _ {
+            = _ "." label:ident() _ ":" _ kw_loop() _ body:block(false) _ {
                 Expression::Loop { label: Some(label), body: Box::new(body) }
             }
-            / _ kw_loop() _ body:block() _ {
+            / _ kw_loop() _ body:block(false) _ {
                 Expression::Loop { label: None, body: Box::new(body) }
             }
 
@@ -1509,7 +1509,7 @@ peg::parser! {
         /// (guarded by `!ident_char()` so `__thread__x` stays an identifier),
         /// never a reserved word. Lowers to `std::thread::spawn(move || { … })`.
         rule thread_expr() -> Expression
-            = _ "__thread__" !ident_char() _ body:block() _ {
+            = _ "__thread__" !ident_char() _ body:block(false) _ {
                 Expression::Thread { body: Box::new(body) }
             }
 
@@ -1521,7 +1521,7 @@ peg::parser! {
         /// `__scope__x` stays an identifier. Lowers to
         /// `std::thread::scope(|__crusty_scope| { … })`.
         rule scope_expr() -> Expression
-            = _ "__scope__" !ident_char() _ body:block() _ {
+            = _ "__scope__" !ident_char() _ body:block(false) _ {
                 Expression::Scope { body: Box::new(body) }
             }
 
@@ -1532,21 +1532,21 @@ peg::parser! {
         /// before `__func__` lowers to a closure's `-> ret` (`void`/omitted ⇒
         /// unit). Produces a callable value; lowered to a Rust closure.
         rule anon_function() -> Expression
-            = _ kw_void() __ "__func__" _ "(" _ params:function_params()? _ ")" _ body:block() _ {
+            = _ kw_void() __ "__func__" _ "(" _ params:function_params()? _ ")" _ body:block(false) _ {
                 Expression::AnonFunction {
                     params: params.unwrap_or_default(),
                     return_type: None,
                     body: Box::new(body),
                 }
             }
-            / _ ret:type_expr() __ "__func__" _ "(" _ params:function_params()? _ ")" _ body:block() _ {
+            / _ ret:type_expr() __ "__func__" _ "(" _ params:function_params()? _ ")" _ body:block(false) _ {
                 Expression::AnonFunction {
                     params: params.unwrap_or_default(),
                     return_type: Some(ret),
                     body: Box::new(body),
                 }
             }
-            / _ "__func__" _ "(" _ params:function_params()? _ ")" _ body:block() _ {
+            / _ "__func__" _ "(" _ params:function_params()? _ ")" _ body:block(false) _ {
                 Expression::AnonFunction {
                     params: params.unwrap_or_default(),
                     return_type: None,
@@ -2514,7 +2514,7 @@ peg::parser! {
             // Tried first; the decl rule consumes its own `;`, so the boolean
             // condition follows directly. Optional sugar — the bare form below
             // is unchanged.
-            = _ kw_if() _ "(" _ init:conditional_init() _ condition:expr() _ ")" _ then_block:block() _ else_block:else_clause()? _ {
+            = _ kw_if() _ "(" _ init:conditional_init() _ condition:expr() _ ")" _ then_block:block(false) _ else_block:else_clause(false)? _ {
                 Statement::IfBind {
                     init: Box::new(init),
                     condition,
@@ -2522,7 +2522,7 @@ peg::parser! {
                     else_block,
                 }
             }
-            / _ kw_if() _ "(" _ condition:expr() _ ")" _ then_block:block() _ else_block:else_clause()? _ {
+            / _ kw_if() _ "(" _ condition:expr() _ ")" _ then_block:block(false) _ else_block:else_clause(false)? _ {
                 Statement::If {
                     condition,
                     then_block,
@@ -2538,14 +2538,23 @@ peg::parser! {
             / s:let_stmt() { s }
             / s:var_stmt() { s }
 
-        /// Helper: else clause (else block or else-if chain)
-        rule else_clause() -> Block
-            // else if: parse as nested if statement wrapped in a block
-            = kw_else() __ nested:if_stmt() {
+        /// Helper: else clause (else block or else-if chain). `allow_tail_cf`
+        /// is threaded from the caller: a statement `if` passes `false` (else
+        /// body is a statement block), the value `if_expr` passes `true` (else
+        /// body is a value-block, and an `else if` chain nests as a value
+        /// `if_expr` so the whole chain yields a value).
+        rule else_clause(allow_tail_cf: bool) -> Block
+            // else if (value context): nest as an `if_expr` tail so the chain
+            // keeps yielding a value.
+            = flag_on(allow_tail_cf) kw_else() __ nested:if_expr() {
+                Block::with_tail(vec![], Some(nested))
+            }
+            // else if (statement context): parse as nested if statement in a block
+            / kw_else() __ nested:if_stmt() {
                 Block::new(vec![nested])
             }
-            // else: parse block directly
-            / kw_else() _ b:block() { b }
+            // else: parse block directly, honoring the caller's tail-cf context
+            / kw_else() _ b:block(allow_tail_cf) { b }
 
         /// Labeled loop: `.label: <loop>` where <loop> is a while/for/for-in.
         /// The `.label:` prefix (Crusty syntax) attaches a loop label that
@@ -2583,7 +2592,7 @@ peg::parser! {
         pub rule while_stmt() -> Statement
             // C99-style conditional binding (ADR-0026): `while (<decl>; <cond>) …`.
             // The init runs once before the loop. Tried before the bare form.
-            = _ kw_while() _ "(" _ init:conditional_init() _ condition:expr() _ ")" _ body:block() _ {
+            = _ kw_while() _ "(" _ init:conditional_init() _ condition:expr() _ ")" _ body:block(false) _ {
                 Statement::WhileBind {
                     label: None,
                     init: Box::new(init),
@@ -2591,7 +2600,7 @@ peg::parser! {
                     body,
                 }
             }
-            / _ kw_while() _ "(" _ condition:expr() _ ")" _ body:block() _ {
+            / _ kw_while() _ "(" _ condition:expr() _ ")" _ body:block(false) _ {
                 Statement::While {
                     label: None,
                     condition,
@@ -2607,7 +2616,7 @@ peg::parser! {
         /// - loop { break; }
         /// - loop { work(); }
         pub rule loop_stmt() -> Statement
-            = _ kw_loop() _ body:block() _ {
+            = _ kw_loop() _ body:block(false) _ {
                 Statement::Loop {
                     label: None,
                     body,
@@ -2633,7 +2642,7 @@ peg::parser! {
         /// - for (i = 0; i < 10; i++) { ... }
         /// - for (let int i = 0, j = 10; i < j; i++, j--) { ... }
         pub rule for_stmt() -> Statement
-            = _ kw_for() _ "(" _ init:for_init() _ ";" _ condition:expr() _ ";" _ increment:for_increment()? _ ")" _ body:block() _ {
+            = _ kw_for() _ "(" _ init:for_init() _ ";" _ condition:expr() _ ";" _ increment:for_increment()? _ ")" _ body:block(false) _ {
                 Statement::For {
                     label: None,
                     init: Box::new(init),
@@ -2710,7 +2719,7 @@ peg::parser! {
         /// - for x in array { ... }
         /// - for item in 0..10 { ... }
         pub rule for_in_stmt() -> Statement
-            = _ kw_for() __ var:ident() __ kw_in() __ iter:for_in_iter() _ body:block() _ {
+            = _ kw_for() __ var:ident() __ kw_in() __ iter:for_in_iter() _ body:block(false) _ {
                 Statement::ForIn {
                     label: None,
                     var,
@@ -2758,7 +2767,7 @@ peg::parser! {
         /// Helper: switch case
         /// Syntax: case value: { body } or case value1: case value2: { body }
         rule switch_case() -> SwitchCase
-            = _ values:case_values() _ body:block() _ {
+            = _ values:case_values() _ body:block(false) _ {
                 SwitchCase { values, body }
             }
 
@@ -2769,20 +2778,58 @@ peg::parser! {
         /// Helper: switch default case
         /// Syntax: default: { body }
         rule switch_default() -> Block
-            = _ kw_default() _ ":" _ body:block() _ { body }
+            = _ kw_default() _ ":" _ body:block(false) _ { body }
 
         /// Block: a sequence of statements enclosed in braces
         /// Syntax: { statement* }
         /// Returns Block
-        pub rule block() -> Block
+        pub rule block(allow_tail_cf: bool) -> Block
             // ADR-0029: a block is zero or more statements, optionally followed
             // by a trailing VALUE expression with no `;`. An `expr_stmt` requires
             // its `;`, so a bare trailing expression is never consumed as a
-            // statement — `statement()*` stops and `tail` captures it. A block
-            // with no trailing expression keeps `tail: None`.
-            = _ "{" _ stmts:statement()* _ tail:expr()? _ "}" _ {
+            // statement — the statement loop stops and `tail` captures it. A
+            // block with no trailing expression keeps `tail: None`.
+            //
+            // `allow_tail_cf` distinguishes the two block contexts whose shared
+            // syntax means different things: in a VALUE-block (`let x = { … }`,
+            // an `if`/`match` branch) a trailing control-flow form (`if`/`match`/
+            // `loop`/bare `{ }`) is the block's VALUE, so the statement loop must
+            // NOT consume it — the `!cf_tail_ahead` guard stops before it and
+            // `tail:expr()?` captures it as an `Expression::If`/`Match`/etc. In a
+            // STATEMENT body (`fn`/`__func__`/loop/`for`/`while`/`unsafe`) the
+            // same trailing `if` is a control-flow STATEMENT (a diverging return,
+            // the mandatory-return check inspects `statements.last()`), so the
+            // guard is disabled and the `if` parses as a `Statement::If`. A bare
+            // (non-control-flow) trailing expression is captured as the tail in
+            // BOTH contexts — the guard only governs control-flow forms.
+            = _ "{" _ stmts:(!cf_tail_ahead(allow_tail_cf) s:statement() { s })* _ tail:expr()? _ "}" _ {
                 Block::with_tail(stmts, tail)
             }
+
+        /// Non-consuming guard: succeeds (so a following `!` FAILS, stopping the
+        /// statement loop) exactly when `allow_tail_cf` is true AND the upcoming
+        /// tokens are a control-flow tail expression immediately before `}`.
+        /// Used only inside `!( … )` in `block`, so it never consumes input.
+        rule cf_tail_ahead(allow_tail_cf: bool) -> ()
+            = flag_on(allow_tail_cf) block_tail_cf() _ "}"
+
+        /// Flag gate: consumes nothing, succeeds only when the bool is true.
+        /// The proven `{? }` conditional idiom (cf. `comma_guard`); a predicate
+        /// on a rule parameter cannot live in a precedence table but is fine in
+        /// a normal rule like this one.
+        rule flag_on(allow_tail_cf: bool) -> ()
+            = "" {? if allow_tail_cf { Ok(()) } else { Err("tail control-flow disallowed here") } }
+
+        /// The control-flow expression forms that are eligible to be a block's
+        /// trailing VALUE (ADR-0029): `if`/`match`/`loop`/bare `{ }`. These are
+        /// the keyword/brace-led atoms that `statement()` would otherwise eat as
+        /// a statement in tail position. Matched only inside `!( … )`, so the
+        /// parse is backtracked — this is a lookahead, not a real consume.
+        rule block_tail_cf() -> ()
+            = if_expr() ()
+            / match_expr() ()
+            / loop_expr() ()
+            / block_value_expr() ()
 
         // ====================================================================
         // NESTED FUNCTION STATEMENT (Task 5.5)
@@ -2814,7 +2861,7 @@ peg::parser! {
         /// function declarations that start with a type identifier.
         pub rule nested_function() -> Statement
             // With void return type: void name(params) { body }
-            = _ kw_void() __ name:ident() _ "(" _ params:param_list()? _ ")" _ body:block() _ {
+            = _ kw_void() __ name:ident() _ "(" _ params:param_list()? _ ")" _ body:block(false) _ {
                 Statement::NestedFunction {
                     name,
                     params: params.unwrap_or_default(),
@@ -2823,7 +2870,7 @@ peg::parser! {
                 }
             }
             // With explicit return type: Type name(params) { body }
-            / _ return_type:type_expr() __ name:ident() _ "(" _ params:param_list()? _ ")" _ body:block() _ {
+            / _ return_type:type_expr() __ name:ident() _ "(" _ params:param_list()? _ ")" _ body:block(false) _ {
                 Statement::NestedFunction {
                     name,
                     params: params.unwrap_or_default(),
@@ -2898,7 +2945,7 @@ peg::parser! {
         /// `unsafe { … }` block statement (PS-09 Unit 1, ADR-0015). Lowers
         /// verbatim to a Rust `unsafe { … }` block; rustc owns unsafety.
         rule unsafe_stmt() -> Statement
-            = _ kw_unsafe() _ body:block() _ {
+            = _ kw_unsafe() _ body:block(false) _ {
                 Statement::Unsafe(body)
             }
 
@@ -3145,7 +3192,7 @@ peg::parser! {
         /// - #[test] void test_something() { }
         pub rule function() -> Item
             // With attributes, static, and void return type
-            = _ attrs:attributes() _ kw_static() __ kw_void() __ name:ident() _ gp:generic_params()? _ "(" _ params:function_params()? _ ")" _ wc:where_clause()? _ body:block() _ {
+            = _ attrs:attributes() _ kw_static() __ kw_void() __ name:ident() _ gp:generic_params()? _ "(" _ params:function_params()? _ ")" _ wc:where_clause()? _ body:block(false) _ {
                 Item::Function(Function {
                     visibility: Visibility::Private,
                     name,
@@ -3161,7 +3208,7 @@ peg::parser! {
                 })
             }
             // With attributes, static, and explicit return type
-            / _ attrs:attributes() _ kw_static() __ return_type:type_expr() __ name:ident() _ gp:generic_params()? _ "(" _ params:function_params()? _ ")" _ wc:where_clause()? _ body:block() _ {
+            / _ attrs:attributes() _ kw_static() __ return_type:type_expr() __ name:ident() _ gp:generic_params()? _ "(" _ params:function_params()? _ ")" _ wc:where_clause()? _ body:block(false) _ {
                 Item::Function(Function {
                     visibility: Visibility::Private,
                     name,
@@ -3177,7 +3224,7 @@ peg::parser! {
                 })
             }
             // With attributes and void return type (public)
-            / _ attrs:attributes() _ kw_void() __ name:ident() _ gp:generic_params()? _ "(" _ params:function_params()? _ ")" _ wc:where_clause()? _ body:block() _ {
+            / _ attrs:attributes() _ kw_void() __ name:ident() _ gp:generic_params()? _ "(" _ params:function_params()? _ ")" _ wc:where_clause()? _ body:block(false) _ {
                 Item::Function(Function {
                     visibility: Visibility::Public,
                     name,
@@ -3193,7 +3240,7 @@ peg::parser! {
                 })
             }
             // With attributes and explicit return type (public)
-            / _ attrs:attributes() _ return_type:type_expr() __ name:ident() _ gp:generic_params()? _ "(" _ params:function_params()? _ ")" _ wc:where_clause()? _ body:block() _ {
+            / _ attrs:attributes() _ return_type:type_expr() __ name:ident() _ gp:generic_params()? _ "(" _ params:function_params()? _ ")" _ wc:where_clause()? _ body:block(false) _ {
                 Item::Function(Function {
                     visibility: Visibility::Public,
                     name,
@@ -3402,7 +3449,7 @@ peg::parser! {
         /// - static Point new(int x, int y) { ... }
         rule struct_method() -> Function
             // Static method with void return type
-            = _ attrs:attributes() _ kw_static() __ kw_void() __ name:method_name() _ "(" _ params:function_params()? _ ")" _ body:block() _ {
+            = _ attrs:attributes() _ kw_static() __ kw_void() __ name:method_name() _ "(" _ params:function_params()? _ ")" _ body:block(false) _ {
                 Function {
                     visibility: Visibility::Private,
                     name,
@@ -3418,7 +3465,7 @@ peg::parser! {
                 }
             }
             // Static method with explicit return type
-            / _ attrs:attributes() _ kw_static() __ return_type:type_expr() __ name:method_name() _ "(" _ params:function_params()? _ ")" _ body:block() _ {
+            / _ attrs:attributes() _ kw_static() __ return_type:type_expr() __ name:method_name() _ "(" _ params:function_params()? _ ")" _ body:block(false) _ {
                 Function {
                     visibility: Visibility::Private,
                     name,
@@ -3434,7 +3481,7 @@ peg::parser! {
                 }
             }
             // Instance method with void return type
-            / _ attrs:attributes() _ kw_void() __ name:method_name() _ "(" _ params:function_params()? _ ")" _ body:block() _ {
+            / _ attrs:attributes() _ kw_void() __ name:method_name() _ "(" _ params:function_params()? _ ")" _ body:block(false) _ {
                 Function {
                     visibility: Visibility::Public,
                     name,
@@ -3450,7 +3497,7 @@ peg::parser! {
                 }
             }
             // Instance method with explicit return type
-            / _ attrs:attributes() _ return_type:type_expr() __ name:method_name() _ "(" _ params:function_params()? _ ")" _ body:block() _ {
+            / _ attrs:attributes() _ return_type:type_expr() __ name:method_name() _ "(" _ params:function_params()? _ ")" _ body:block(false) _ {
                 Function {
                     visibility: Visibility::Public,
                     name,
@@ -14045,7 +14092,7 @@ mod control_flow_tests {
     #[test]
     fn test_block_empty() {
         // Test empty block
-        let result = crusty_peg_parser::block("{ }");
+        let result = crusty_peg_parser::block("{ }", false);
         assert!(result.is_ok());
         let block = result.unwrap();
         assert_eq!(block.statements.len(), 0);
@@ -14054,7 +14101,7 @@ mod control_flow_tests {
     #[test]
     fn test_block_single_statement() {
         // Test block with single statement
-        let result = crusty_peg_parser::block("{ let x = 42; }");
+        let result = crusty_peg_parser::block("{ let x = 42; }", false);
         assert!(result.is_ok());
         let block = result.unwrap();
         assert_eq!(block.statements.len(), 1);
@@ -14063,7 +14110,7 @@ mod control_flow_tests {
     #[test]
     fn test_block_multiple_statements() {
         // Test block with multiple statements
-        let result = crusty_peg_parser::block("{ let x = 1; let y = 2; let z = 3; }");
+        let result = crusty_peg_parser::block("{ let x = 1; let y = 2; let z = 3; }", false);
         assert!(result.is_ok());
         let block = result.unwrap();
         assert_eq!(block.statements.len(), 3);

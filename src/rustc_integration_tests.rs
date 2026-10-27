@@ -1052,6 +1052,65 @@ void main() {
         }
     }
 
+    // ADR-0029: a redundant `{ if … }` wrap — an `if`/`else` as the SOLE
+    // content of a value-block — is now the block's tail VALUE (not a consumed
+    // statement). `block()` is parameterized by context (`allow_tail_cf`): a
+    // value-block lets a trailing control-flow form become the tail, a function
+    // body keeps it a statement. The value is USED in arithmetic, so a Void
+    // mis-type would surface as a non-RustcInvocation compiler error here.
+    // wrap(95) = 1 + 100 = 101; wrap(80) = 2 + 100 = 102. The `{ if … else if …
+    // else … }` chain nests as a value `if_expr`: chain(95)=11, chain(70)=12,
+    // chain(10)=13 — compile + run.
+    #[test]
+    fn test_compile_wrapped_if_value_block() {
+        let test_source = r#"
+int wrap(int s) {
+    let g = { if (s > 90) { 1 } else { 2 } };
+    return g + 100;
+}
+
+int chain(int s) {
+    let g = { if (s > 90) { 1 } else if (s > 50) { 2 } else { 3 } };
+    return g + 10;
+}
+
+void main() {
+    println!("hi={}", wrap(95));
+    println!("lo={}", wrap(80));
+    println!("c1={}", chain(95));
+    println!("c2={}", chain(70));
+    println!("c3={}", chain(10));
+}
+"#;
+        let input_path = PathBuf::from("test_compile_wrapped_if_29.crst");
+        let output_path = PathBuf::from("test_compile_wrapped_if_29");
+
+        fs::write(&input_path, test_source).unwrap();
+
+        let options = CompilerOptions {
+            input_file: input_path.clone(),
+            output_file: Some(output_path.clone()),
+            out_dir: None,
+            emit: EmitMode::Binary,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        let result = run_compiler(&options);
+
+        let _ = fs::remove_file(&input_path);
+        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(format!("{}.rs", output_path.display()));
+
+        if let Err(err) = result {
+            assert!(
+                matches!(err, crate::error::CompilerError::RustcInvocation(_)),
+                "a redundant {{ if … }} wrap should type as its tail value and compile cleanly; got {err:?}"
+            );
+        }
+    }
+
     // ADR-0027: dyn / impl Trait type positions — impl Trait return,
     // &dyn Trait param, Box<dyn Trait> return — compile + run.
     #[test]
