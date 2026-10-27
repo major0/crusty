@@ -1111,21 +1111,21 @@ void main() {
         }
     }
 
-    // ADR-0031: `$type` generic method arguments. A leading `$Type` argument
-    // lowers to the method's Rust turbofish: `"42".parse($i32)` ->
+    // ADR-0034: Go-style `[T]` generic method arguments. The bracketed type
+    // argument lowers to the method's Rust turbofish: `"42".parse[i32]()` ->
     // `"42".parse::<i32>()`. The parsed value is USED in arithmetic (n + 1),
     // so a mis-lowering would be a hard compile error here, not a silent pass.
     #[test]
-    fn test_compile_dollar_type_generic_method() {
+    fn test_compile_instance_generic_method() {
         let test_source = r#"
 void main() {
     let s = "42";
-    let n = s.parse($i32).unwrap();
+    let n = s.parse[i32]().unwrap();
     println!("n={}", n + 1);
 }
 "#;
-        let input_path = PathBuf::from("test_compile_dollar_type_31.crst");
-        let output_path = PathBuf::from("test_compile_dollar_type_31");
+        let input_path = PathBuf::from("test_compile_instance_generic.crst");
+        let output_path = PathBuf::from("test_compile_instance_generic");
 
         fs::write(&input_path, test_source).unwrap();
 
@@ -1148,7 +1148,7 @@ void main() {
         if let Err(err) = result {
             assert!(
                 matches!(err, crate::error::CompilerError::RustcInvocation(_)),
-                "$type generic method call should transpile and compile cleanly; got {err:?}"
+                "[T] generic method call should transpile and compile cleanly; got {err:?}"
             );
         }
     }
@@ -1424,17 +1424,17 @@ void main() {
         }
     }
 
-    // ADR-0031 extended: $type args in the type-scoped position.
-    // @mem.size_of($i32) -> mem::size_of::<i32>(). size_of::<i32>() = 4,
+    // ADR-0034: `[T]` args in the type-scoped position.
+    // @mem.size_of[i32] -> mem::size_of::<i32>(). size_of::<i32>() = 4,
     // size_of::<i64>() = 8.
     #[test]
-    fn test_compile_dollar_type_scoped_call() {
+    fn test_compile_scoped_generic_call() {
         let test_source = r#"
 #import std.mem
 
 void main() {
-    let a = @mem.size_of($i32);
-    let b = @mem.size_of($i64);
+    let a = @mem.size_of[i32]();
+    let b = @mem.size_of[i64]();
     println!("a={} b={}", a, b);
 }
 "#;
@@ -1462,7 +1462,7 @@ void main() {
         if let Err(err) = result {
             assert!(
                 matches!(err, crate::error::CompilerError::RustcInvocation(_)),
-                "$type scoped call should transpile and compile cleanly; got {err:?}"
+                "[T] scoped call should transpile and compile cleanly; got {err:?}"
             );
         }
     }
