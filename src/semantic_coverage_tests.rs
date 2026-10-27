@@ -620,7 +620,13 @@ mod tests {
                 name: Ident::new("new"),
                 params: vec![],
                 return_type: Some(Type::Ident(Ident::new("Point"))),
-                body: Some(Block::new(vec![])),
+                body: Some(Block::new(vec![Statement::Return(Some(
+                    Expression::StructInit {
+                        ty: Type::Ident(Ident::new("Point")),
+                        fields: vec![(Ident::new("x"), Expression::Literal(Literal::Int(0)))],
+                        base: None,
+                    },
+                ))])),
                 is_variadic: false,
                 is_unsafe: false,
                 doc_comments: vec![],
@@ -1282,6 +1288,31 @@ mod tests {
         let mut analyzer = SemanticAnalyzer::new();
         let result = analyzer.analyze(&file);
         (analyzer, result)
+    }
+
+    /// ADR-0029: a non-void function body that can fall off its end without a
+    /// `return` is rejected (Crusty has no bare trailing-value return in a
+    /// function body).
+    #[test]
+    fn test_adr0029_nonvoid_body_without_return_rejected() {
+        let (_a, result) = analyze_source("int f(int x) { let y = x + 1; }");
+        let errs = result.expect_err("return-less non-void body should be rejected");
+        assert!(
+            errs.iter().any(|e| e.message.contains("must end with an explicit `return`")),
+            "expected mandatory-return error, got: {errs:?}"
+        );
+    }
+
+    /// ADR-0029: a non-void body that diverges — every branch of a terminal
+    /// `if`/`else` returns — is accepted without a trailing `return`.
+    #[test]
+    fn test_adr0029_divergent_if_else_body_accepted() {
+        let (_a, result) =
+            analyze_source("int g(int x) { if (x > 0) { return x; } else { return 0; } }");
+        assert!(
+            result.is_ok(),
+            "an all-branches-return body should pass: {result:?}"
+        );
     }
 
     /// A struct `Box` with a static method `wrap<U>(U) -> U` (returns its own

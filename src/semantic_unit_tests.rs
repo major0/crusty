@@ -570,7 +570,9 @@ mod tests {
             name: Ident::new("test_func"),
             params: vec![],
             return_type: Some(Type::Primitive(PrimitiveType::I32)),
-            body: Some(Block::empty()),
+            body: Some(Block::new(vec![Statement::Return(Some(
+                Expression::Literal(Literal::Int(0)),
+            ))])),
             is_variadic: false,
             is_unsafe: false,
             doc_comments: vec![],
@@ -667,7 +669,9 @@ mod tests {
             name: Ident::new("duplicate"),
             params: vec![],
             return_type: Some(Type::Primitive(PrimitiveType::I32)),
-            body: Some(Block::empty()),
+            body: Some(Block::new(vec![Statement::Return(Some(
+                Expression::Literal(Literal::Int(0)),
+            ))])),
             is_variadic: false,
             is_unsafe: false,
             doc_comments: vec![],

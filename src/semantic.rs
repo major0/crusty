@@ -934,6 +934,30 @@ impl SemanticAnalyzer {
         // declaration has nothing to check).
         if let Some(ref body) = func.body {
             self.analyze_block(body);
+
+            // ADR-0029: a non-void function body must yield its value with an
+            // explicit `return` (no bare trailing value). Error if the body can
+            // fall off its end without returning. Void bodies need no return;
+            // the check is conservative (see block_guarantees_return) so it
+            // never rejects a body that genuinely diverges or returns.
+            let is_void = matches!(
+                self.expected_return_type,
+                Some(Type::Primitive(crate::ast::PrimitiveType::Void)) | None
+            );
+            if !is_void && !Self::block_guarantees_return(body) {
+                self.errors.push(SemanticError::new(
+                    Span::new(
+                        crate::error::Position::new(0, 0),
+                        crate::error::Position::new(0, 0),
+                    ),
+                    SemanticErrorKind::InvalidOperation,
+                    format!(
+                        "non-void function '{}' must end with an explicit `return` \
+                         (Crusty has no bare trailing-value return in a function body)",
+                        func.name.name
+                    ),
+                ));
+            }
         }
 
         // Exit function scope
@@ -3024,6 +3048,82 @@ impl SemanticAnalyzer {
             | Pattern::Range { .. }
             | Pattern::Path(_)
             | Pattern::Raw(_) => {}
+        }
+    }
+
+    /// ADR-0029: does this block GUARANTEE it leaves via `return` (or
+    /// diverges), so a non-void function body is value-complete? A value-block
+    /// `tail` does NOT count — a function body must `return`, not fall off a
+    /// trailing expression. Conservative: when unsure, returns true so we never
+    /// reject valid code (rustc still arbitrates missing-value cases).
+    fn block_guarantees_return(block: &crate::ast::Block) -> bool {
+        // A trailing value expression is not a function return.
+        match block.statements.last() {
+            Some(stmt) => Self::stmt_guarantees_return(stmt),
+            None => false,
+        }
+    }
+
+    fn stmt_guarantees_return(stmt: &crate::ast::Statement) -> bool {
+        use crate::ast::{Expression, Statement};
+        match stmt {
+            Statement::Return(_) => true,
+            // Both branches must guarantee a return (an `if` with no `else`
+            // can fall through).
+            Statement::If { then_block, else_block, .. } => {
+                else_block.as_ref().is_some_and(|e| {
+                    Self::block_guarantees_return(then_block) && Self::block_guarantees_return(e)
+                })
+            }
+            // ADR-0026 conditional binding behaves like `if`/`else` for
+            // divergence: both branches must guarantee a return.
+            Statement::IfBind { then_block, else_block, .. } => {
+                else_block.as_ref().is_some_and(|e| {
+                    Self::block_guarantees_return(then_block) && Self::block_guarantees_return(e)
+                })
+            }
+            // An infinite `loop` with no `break` never falls through.
+            Statement::Loop { body, .. } => !Self::block_has_break(body),
+            // A `switch`/match with a default and every arm guaranteeing return.
+            Statement::Switch { cases, default, .. } => {
+                default.as_ref().is_some_and(Self::block_guarantees_return)
+                    && cases.iter().all(|c| Self::block_guarantees_return(&c.body))
+            }
+            Statement::Unsafe(body) => Self::block_guarantees_return(body),
+            // A trailing `__rust__ { … }` statement is opaque — assume it may
+            // diverge/return so we do not reject it (rustc arbitrates).
+            Statement::Expr(Expression::RustBlock { .. }) => true,
+            // A trailing value-block or match expression in statement position
+            // is opaque to this conservative check — accept it.
+            Statement::Expr(Expression::Block(_)) | Statement::Expr(Expression::Match { .. }) => {
+                true
+            }
+            Statement::Attributed { stmt, .. } => Self::stmt_guarantees_return(stmt),
+            _ => false,
+        }
+    }
+
+    /// Does the block contain a `break` that would exit an enclosing `loop`
+    /// (not descending into nested loops/while/for, whose breaks bind inward)?
+    fn block_has_break(block: &crate::ast::Block) -> bool {
+        block.statements.iter().any(Self::stmt_has_break)
+    }
+
+    fn stmt_has_break(stmt: &crate::ast::Statement) -> bool {
+        use crate::ast::Statement;
+        match stmt {
+            Statement::Break { .. } => true,
+            Statement::If { then_block, else_block, .. } => {
+                Self::block_has_break(then_block)
+                    || else_block.as_ref().is_some_and(Self::block_has_break)
+            }
+            Statement::IfBind { then_block, else_block, .. } => {
+                Self::block_has_break(then_block)
+                    || else_block.as_ref().is_some_and(Self::block_has_break)
+            }
+            Statement::Unsafe(body) => Self::block_has_break(body),
+            Statement::Attributed { stmt, .. } => Self::stmt_has_break(stmt),
+            _ => false,
         }
     }
 
