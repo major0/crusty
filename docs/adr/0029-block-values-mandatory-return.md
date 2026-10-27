@@ -105,16 +105,16 @@ Harder / accepted:
 
 ## Verification
 
-- [ ] `int f() { 42 }` (bare tail value in a function body) is a Crusty error;
+- [x] `int f() { 42 }` (bare tail value in a function body) is a Crusty error;
       `int f() { return 42; }` compiles.
-- [ ] `let x = { if (c) { 1 } else { 2 } };` parses, type-checks, and emits a
+- [x] `let x = { if (c) { 1 } else { 2 } };` parses, type-checks, and emits a
       Rust bare block with trailing-expression branches; `x` holds `1`/`2`.
-- [ ] `let x = { if (c) { return 0; } 5 };` — when `c`, returns from the
+- [x] `let x = { if (c) { return 0; } 5 };` — when `c`, returns from the
       containing function; otherwise `x == 5`. Proven against emitted Rust.
-- [ ] A block-bodied `match` arm (`pat => { …; v }`) yields `v` via the trailing
+- [x] A block-bodied `match` arm (`pat => { …; v }`) yields `v` via the trailing
       expression.
-- [ ] A `__func__` body still requires `return` and emits a closure whose
+- [x] A `__func__` body still requires `return` and emits a closure whose
       `return` is closure-scoped; a value-block nested inside it yields locally
       while an inner `return` exits that `__func__`. Proven: `run(7) == 1107`,
       `run(3) == 1000`.
-- [ ] Emitted Rust compiles under `rustc -D unused_parens -D unused_braces`.
+- [x] Emitted Rust compiles under `rustc -D unused_parens -D unused_braces`.

@@ -216,15 +216,75 @@ let v = match (opt) {
   like `Shape.Circle(r)` destructures a Crusty-declared variant directly. A value
   whose type is defined outside Crusty (in a `__rust__ { … }` block) still needs
   a raw pass-through pattern, since Crusty cannot see its variant shapes.
-- **Arm bodies are expressions.** `pat => expr` is the arm shape; a
-  block-bodied arm (`pat => { … }`) is not yet supported, because Crusty has no
-  general block-expression form. Use an expression body, or a `__rust__ { … }`
-  block in expression position.
+- **Arm bodies are expressions, including block bodies.** `pat => expr` is the
+  arm shape, and a block-bodied arm (`pat => { …; v }`) is also an expression: it
+  is a value-block whose value is its trailing (semicolon-less) expression
+  (ADR-0029). A `return` inside such a block exits the enclosing function, not
+  the arm. See [Value-blocks](#value-blocks-and-if-as-a-value) below.
+
+  ```c
+  let label = match (n) {
+      0 => "zero",                        // expression body
+      _ => { let d = n * 2; "nonzero" },  // block body; value is the trailing expr
+  };
+  ```
 - **No exhaustiveness checking in Crusty.** Whether the arms cover every case,
   and whether any arm is unreachable, are decided by `rustc`.
 
 `match` and the C-style `switch` coexist: `switch` stays the value-matching
 statement; `match` is the pattern-matching expression.
+
+## Value-blocks and `if` as a value
+
+A brace block can appear where a value is expected — a `let`/`var` initializer,
+a `match` arm body, an `if`/`else` branch. In that position it is a
+**value-block**: its value is its final semicolon-less **trailing expression**.
+
+```c
+let x = { let t = expensive(); t + 1 };   // x = t + 1
+```
+
+An `if`/`else` is itself an expression and can be used directly as a value; each
+branch is a value-block, so a branch's value is its trailing expression:
+
+```c
+let grade = if (score > 90) { 1 } else { 2 };          // direct form
+let grade = { if (score > 90) { 1 } else { 2 } };      // redundant wrap, same value
+let band  = if (s > 90) { 1 } else if (s > 50) { 2 } else { 3 };   // chain
+```
+
+The redundant `{ … }` wrap around an `if` is accepted and yields the same value;
+the direct form is the idiomatic one.
+
+### `return` has one meaning: leave the function
+
+A `return` is **never** a value-block's yield — it always exits the nearest
+enclosing function or closure. So a `return` inside a value-block punches out of
+the *containing* function, not the block:
+
+```c
+int pick(int x) {
+    let y = { if (x <= 5) { return 0; } x + 1 };   // x<=5: returns 0 from pick
+    return y + 100;                                // otherwise y = x + 1
+}
+```
+
+### Function bodies require `return`
+
+A function or closure body (`fn`, `__func__`) is **not** a value-block. A
+non-void body must yield its value with an explicit `return` — a bare trailing
+value in a function body is an error, even in tail position (ADR-0029):
+
+```c
+int f(int x) { return x + 1; }   // OK
+int f(int x) { x + 1 }           // ERROR — a function body requires `return`
+```
+
+This keeps the function-vs-value-block distinction visible: `return` leaves a
+function, a trailing expression yields a value-block. A `__func__` lowers to a
+Rust closure, so a value-block nested inside its body yields locally while a
+`return` in that body exits the `__func__` (the closure), not the outer
+function.
 
 ## Formal Grammar
 
@@ -244,6 +304,16 @@ pattern_no_or = "_" | literal | IDENT
               | IDENT {"::" IDENT}                 (* path pattern, 2+ segments *)
               | raw_pattern ;                      (* verbatim pass-through *)
 range_op      = ".." | "..=" | "..." ;
+
+(* ADR-0029 value-blocks: a block in expression position yields its trailing,
+   semicolon-less expression; an `if`/`else` is itself an expression. Both are
+   primary expressions, so they appear as a `let` initializer, an arm body, or
+   an `if`/`else` branch. In a function/closure body a block is NOT a value —
+   a non-void body must yield via `return`. *)
+block         = "{" {statement} [tail_expr] "}" ;
+tail_expr     = expr ;                             (* no trailing ";" *)
+value_block   = block ;                            (* block in expression position *)
+if_expr       = "if" "(" expr ")" block ["else" (if_expr | block)] ;
 ```
 
 Note: the `match` scrutinee is parenthesised — `match (p) { … }`, like
