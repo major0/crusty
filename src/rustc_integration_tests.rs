@@ -1111,6 +1111,57 @@ void main() {
         }
     }
 
+    // ADR-0029: a `__func__` body requires `return` and lowers to a closure
+    // whose `return` is closure-scoped; a value-block nested inside it yields
+    // locally via its bare tail, while an inner `return` exits the `__func__`
+    // (the closure), not the enclosing fn. run(7): v=7 > 5, the value-block
+    // yields y=7, the closure returns y + 1100 = 1107; run(3): v=3 <= 5, the
+    // inner `return 1000;` exits the __func__ -> 1000 — compile + run.
+    #[test]
+    fn test_compile_func_body_nested_value_block() {
+        let test_source = r#"
+int run(int x) {
+    let f = int __func__(int v) {
+        let y = { if (v <= 5) { return 1000; } v };
+        return y + 1100;
+    };
+    return f(x);
+}
+
+void main() {
+    println!("big={}", run(7));
+    println!("small={}", run(3));
+}
+"#;
+        let input_path = PathBuf::from("test_compile_func_nested_block_29.crst");
+        let output_path = PathBuf::from("test_compile_func_nested_block_29");
+
+        fs::write(&input_path, test_source).unwrap();
+
+        let options = CompilerOptions {
+            input_file: input_path.clone(),
+            output_file: Some(output_path.clone()),
+            out_dir: None,
+            emit: EmitMode::Binary,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        let result = run_compiler(&options);
+
+        let _ = fs::remove_file(&input_path);
+        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(format!("{}.rs", output_path.display()));
+
+        if let Err(err) = result {
+            assert!(
+                matches!(err, crate::error::CompilerError::RustcInvocation(_)),
+                "a __func__ body with a nested value-block should transpile and compile cleanly; got {err:?}"
+            );
+        }
+    }
+
     // ADR-0027: dyn / impl Trait type positions — impl Trait return,
     // &dyn Trait param, Box<dyn Trait> return — compile + run.
     #[test]
