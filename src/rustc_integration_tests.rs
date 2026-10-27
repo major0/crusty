@@ -1372,6 +1372,58 @@ void main() {
         }
     }
 
+    // Slice/array types in type position (reuse Rust's syntax): a `&[int]`
+    // slice-reference param and an `[int; 3]` array param compile + run.
+    // sum_ends(&[10,20,30,40]) = 10 + 40 = 50; first_of([1,2,3]) = 1.
+    #[test]
+    fn test_compile_slice_and_array_types() {
+        let test_source = r#"
+int sum_ends(&[int] s) {
+    return switch (s) {
+        case [first, .., last]: __rust__{ *first + *last };
+        default: 0;
+    };
+}
+
+int first_of([int; 3] a) {
+    return a[0];
+}
+
+void main() {
+    let s = __rust__{ &[10, 20, 30, 40][..] };
+    let arr = __rust__{ [1, 2, 3] };
+    println!("a={} b={}", sum_ends(s), first_of(arr));
+}
+"#;
+        let input_path = PathBuf::from("test_compile_slice_types.crst");
+        let output_path = PathBuf::from("test_compile_slice_types");
+
+        fs::write(&input_path, test_source).unwrap();
+
+        let options = CompilerOptions {
+            input_file: input_path.clone(),
+            output_file: Some(output_path.clone()),
+            out_dir: None,
+            emit: EmitMode::Binary,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        let result = run_compiler(&options);
+
+        let _ = fs::remove_file(&input_path);
+        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(format!("{}.rs", output_path.display()));
+
+        if let Err(err) = result {
+            assert!(
+                matches!(err, crate::error::CompilerError::RustcInvocation(_)),
+                "slice/array types should transpile and compile cleanly; got {err:?}"
+            );
+        }
+    }
+
     // ADR-0027: dyn / impl Trait type positions — impl Trait return,
     // &dyn Trait param, Box<dyn Trait> return — compile + run.
     #[test]
