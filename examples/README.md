@@ -14,13 +14,14 @@ See `docs/adr/0005-example-apps-integration-tests.md` for the design.
 | `config/` | [`toml`](https://crates.io/crates/toml) + [`serde`](https://crates.io/crates/serde) | `#[derive(Deserialize)]`, nested structs, serde generic inference |
 | `cli/` | [`clap`](https://crates.io/crates/clap) | builder method chains, `&String` ref types, array-literal args |
 | `counts/` | [`indexmap`](https://crates.io/crates/indexmap) | generic type use, for-in iteration, inference over a generic ctor |
-| `flags/` | [`bitflags`](https://crates.io/crates/bitflags) | bitwise ops, `static` consts (crate macro is a known gap — see below) |
-| `lazy/` | [`lazy_static`](https://crates.io/crates/lazy_static) | `static` read + print (crate macro is a known gap — see below) |
+| `flags/` | [`bitflags`](https://crates.io/crates/bitflags) | `bitflags!` macro invocation, `@Type.CONST` paths, bitwise ops, generated `.contains()`/`.bits()` |
+| `lazy/` | [`lazy_static`](https://crates.io/crates/lazy_static) | `static` read + print (the macro invocation parses; only *reading* its generated static needs an escape — see below) |
 
-Some apps deliberately model a crate's behaviour with parseable Crusty because
-the crate's only consumer API is a macro Crusty cannot yet express (see the
-grammar gaps the wave surfaced, tracked in `docs/`). Those apps still declare
-and link the crate; their `__rust__` count stays 0.
+The `flags/` app invokes the real `bitflags!` macro directly. The `lazy/` app
+models its behaviour with a plain `static`: `lazy_static!`'s invocation is
+expressible, but reading the static it generates would need a one-token
+`__rust__` escape (the macro-defined name is invisible to Crusty's analyzer —
+see `lazy/src/main.crst`). Every app's `__rust__` count stays 0.
 
 ## Running locally
 

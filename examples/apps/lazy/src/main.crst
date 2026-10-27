@@ -3,28 +3,36 @@
 // GOAL (per brief): use the `lazy_static!` MACRO to declare a lazily-initialized
 // `static ref NAME: T = expr;` and read/print it.
 //
-// MAJOR GAP — the macro is UNEXPRESSIBLE in Crusty, three ways over:
-//   1. Crusty's bang-macro form is paren-only: `name!(...)`. A brace body
-//      `name! { ... }` fails to parse (expected "(", found "{").
-//   2. Macro invocation has no module-level (item) production at all — a
-//      top-level `lazy_static!(...)` / `lazy_static! { ... }` fails at the `!`.
-//   3. The `static ref NAME: T = expr;` body is not Crusty surface syntax, and
-//      the only raw-Rust escape, `__rust__{ ... }`, emits ONLY nested inside an
-//      `extern` block — where rustc rejects the macro's generated struct/impl/
-//      static ("struct is not supported in `extern` blocks").
-// `lazy_static`'s ENTIRE public API is that macro (plus `initialize()`, which
-// needs a static the macro produced), so the crate cannot be reached from any
-// parseable Crusty. See the brief report for the full gap write-up.
+// WHAT WORKS NOW: the macro INVOCATION is fully expressible. An item-position
+// bang-macro with a brace body parses and emits verbatim (ADR-0002), and
+// `#import lazy_static.lazy_static` brings it into scope, so
 //
-// To keep the app compiling and still demonstrate the TARGET BEHAVIOUR — a
-// static value read and printed — this falls back to a plain `static` read
-// directly, the construct Crusty does parse. The `lazy_static` dependency stays
-// declared (crate linked) to mark the gap in place; it is unreachable from
-// parseable Crusty today.
+//     lazy_static! { static ref LAZY_VALUE: i32 = 40 + 2; }
+//
+// transpiles to exactly that Rust and compiles against the real crate. (The
+// three limitations an earlier version of this comment recorded — brace bodies
+// not parsing, no item-position macro production, `__rust__` being
+// extern-block-only — have all since been fixed.)
+//
+// THE ONE REMAINING GAP: *reading* the macro-generated static. `lazy_static!`
+// defines `LAZY_VALUE` INSIDE its opaque macro body, which Crusty passes through
+// verbatim without parsing — so the name never enters Crusty's symbol table, and
+// a bare `let v = *LAZY_VALUE;` is rejected by the semantic analyzer as an
+// undefined variable (the same SEM-00 rule: a bare identifier in value position
+// must resolve to a declared symbol). Reading it therefore needs a one-token
+// escape, `let v = __rust__{ *LAZY_VALUE };`. This is a real, narrow gap:
+// macro-defined symbols are invisible to the analyzer.
+//
+// To keep this app's `__rust__` escape count at 0 (the suite's gap metric), it
+// demonstrates the TARGET BEHAVIOUR — a static value read and printed — with a
+// plain `static`, the construct Crusty parses and whose name it DOES see. The
+// `lazy_static` dependency stays declared (crate linked) to mark the gap. A
+// variant that invokes the macro for real lives in the gap-analysis notes; it
+// costs the one escape described above.
 
-// A plain static (Crusty parses `static_item`). Const-initialized, not lazy —
-// Crusty can declare and read a static, but cannot defer its init the way the
-// macro would.
+// A plain static (Crusty parses `static_item` and records its name). Const-
+// initialized, not lazy — Crusty can declare and read a static, but cannot
+// defer its init the way the macro would.
 static int LAZY_VALUE = 42;
 
 void main() {

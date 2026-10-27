@@ -3,9 +3,13 @@
 // is the expected lazily-initialized static value — proving the transpiled
 // Crusty program builds, links, and behaves correctly end to end.
 //
-// NOTE: `lazy_static`'s `lazy_static!` macro cannot be expressed in Crusty today
-// (see src/main.crst for the recorded grammar gap), so the app demonstrates the
-// equivalent read-and-print behaviour with constructs Crusty does parse.
+// NOTE: `lazy_static`'s `lazy_static!` macro INVOCATION is expressible in Crusty
+// now (item-position brace-body bang-macros parse and emit verbatim), but
+// READING the macro-generated static needs a one-token `__rust__` escape — the
+// name lives inside the opaque macro body and never enters Crusty's symbol
+// table (see src/main.crst for the full write-up). To keep this app's escape
+// count at 0, it demonstrates the equivalent read-and-print behaviour with a
+// plain `static`, whose name Crusty does see.
 
 use std::process::Command;
 
