@@ -1,7 +1,12 @@
 # ADR-0030: Switch case values — comma-list and `...` ranges, no `|`, no stacking
 
 ## Status
-proposed
+superseded by ADR-0032
+
+ADR-0032 expands this decision: the `switch` construct becomes a unified,
+value-yielding matching expression that subsumes and retires `match`. The
+case-value syntax decided here (comma-list, `...` ranges, no `|`, no stacking,
+no fallthrough) is carried forward unchanged by ADR-0032 — only the scope grew.
 
 ## Context
 
