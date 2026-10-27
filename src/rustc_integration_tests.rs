@@ -961,6 +961,52 @@ void main() {
         }
     }
 
+    // ADR-0029: a `return` inside a value-block exits the CONTAINING function,
+    // not the block. `pick(7)` falls through the inner `if`, binds y = x+1 = 8,
+    // returns 108; `pick(3)` hits `return 0;` inside the value-block and exits
+    // pick entirely (the `y + 100` never runs), returning 0 — compile + run.
+    #[test]
+    fn test_compile_return_inside_value_block() {
+        let test_source = r#"
+int pick(int x) {
+    let y = { if (x <= 5) { return 0; } x + 1 };
+    return y + 100;
+}
+
+void main() {
+    println!("big={}", pick(7));
+    println!("small={}", pick(3));
+}
+"#;
+        let input_path = PathBuf::from("test_compile_return_in_block_29.crst");
+        let output_path = PathBuf::from("test_compile_return_in_block_29");
+
+        fs::write(&input_path, test_source).unwrap();
+
+        let options = CompilerOptions {
+            input_file: input_path.clone(),
+            output_file: Some(output_path.clone()),
+            out_dir: None,
+            emit: EmitMode::Binary,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        let result = run_compiler(&options);
+
+        let _ = fs::remove_file(&input_path);
+        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(format!("{}.rs", output_path.display()));
+
+        if let Err(err) = result {
+            assert!(
+                matches!(err, crate::error::CompilerError::RustcInvocation(_)),
+                "return inside a value-block should transpile and compile cleanly; got {err:?}"
+            );
+        }
+    }
+
     // ADR-0027: dyn / impl Trait type positions — impl Trait return,
     // &dyn Trait param, Box<dyn Trait> return — compile + run.
     #[test]
