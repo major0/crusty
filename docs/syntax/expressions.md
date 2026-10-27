@@ -38,8 +38,8 @@ let max: i32 = if a > b { a } else { b };
 ```
 Translates to:
 ```rust
-{ i += 1; i }
-{ i -= 1; i }
+{ let __p = &mut (i); *__p += 1; *__p }
+{ let __p = &mut (i); *__p -= 1; *__p }
 ```
 
 ### Postfix Increment/Decrement
@@ -47,10 +47,10 @@ Translates to:
 i++;    // Increment after use (yields the old value)
 i--;    // Decrement after use (yields the old value)
 ```
-Translates to a block expression that captures the prior value, then mutates:
+Translates to a block expression that borrows the place, captures the prior value, then mutates:
 ```rust
-{ let __old = i; i += 1; __old }
-{ let __old = i; i -= 1; __old }
+{ let __p = &mut (i); let __old = *__p; *__p += 1; __old }
+{ let __p = &mut (i); let __old = *__p; *__p -= 1; __old }
 ```
 
 Both prefix (`++i`, `--i`) and postfix (`i++`, `i--`) forms are supported. Prefix

@@ -19,11 +19,16 @@ int? parse_number(char* str) {
 ```
 Translates to:
 ```rust
-pub fn parse_number(str: &str) -> Result<i32, Box<dyn std::error::Error>> {
+pub fn parse_number(str: *const char) -> Result<i32, Box<dyn std::error::Error>> {
     let num = str.parse()?;
-    Ok(num)
+    return Ok(num);
 }
 ```
+
+> Note: `char*` lowers to the raw pointer `*const char`, not `&str` — Crusty is
+> a syntax layer and does not infer Rust's string-slice type from a C `char*`.
+> The explicit `return` is preserved verbatim (Crusty does not rewrite a tail
+> `return` into a trailing expression).
 
 ### Error Propagation
 ```c

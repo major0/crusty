@@ -43,9 +43,9 @@ struct Point {
 ```
 Translates to:
 ```rust
-struct Point {
-    x: i32,
-    y: i32,
+pub struct Point {
+    pub x: i32,
+    pub y: i32,
 }
 ```
 
@@ -74,11 +74,11 @@ Translates to:
 ```rust
 impl Point {
     pub fn new(x: i32, y: i32) -> Point {
-        Point { x: x, y: y }
+        return Point { x: x, y: y };
     }
 
     pub fn distance_squared(&self) -> i32 {
-        self.x * self.x + self.y * self.y
+        return self.x * self.x + self.y * self.y;
     }
 }
 ```
@@ -94,8 +94,8 @@ typedef default {
 Translates to:
 ```rust
 impl Default for Point {
-    fn default() -> Self {
-        Point { x: 0, y: 0 }
+    fn default() -> Point {
+        return Point { x: 0, y: 0 };
     }
 }
 ```
