@@ -209,7 +209,7 @@ void main() {
 - **Nested functions**: C-style closures
 - **Raw Rust**: `__rust__{}` escape hatch
 
-**📖 For complete syntax reference with examples, see [SYNTAX_REFERENCE.md](SYNTAX_REFERENCE.md)**
+**📖 For the complete syntax reference — grammar, examples, and the emitted Rust for every feature — see [docs/syntax/](docs/syntax/README.md). The [Transformation Summary](docs/syntax/transformations.md) is a one-page map of every form to its Rust output.**
 
 ## Usage
 
@@ -275,7 +275,7 @@ crusty test         # run a Crusty project's tests via the cargo harness
 
 ### Getting Started
 - **[QUICK_START.md](QUICK_START.md)** - Installation, first program, and basic usage
-- **[SYNTAX_REFERENCE.md](SYNTAX_REFERENCE.md)** - Complete syntax guide with examples
+- **[Syntax Reference](docs/syntax/README.md)** - Per-topic syntax guide with grammar and emitted-Rust examples
 - **[Example Programs](example/README.md)** - Working examples with build integration
 
 ### Core Concepts

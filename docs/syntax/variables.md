@@ -34,6 +34,26 @@ const MAX_SIZE = 1024;       // Type inference
 module-level (top-level) constant, use `static` instead (see
 [statics.md](statics.md)) — a top-level `const` does not parse.
 
+### Translates to Rust
+
+```c
+int x = 42;
+var int count = 0;
+let y = 42;
+const int MAX_SIZE = 1024;
+```
+
+```rust
+let x: i32 = 42;
+let mut count: i32 = 0;
+let y = 42;
+const MAX_SIZE: i32 = 1024;
+```
+
+Immutable declarations (`int x`, `let y`) lower to a plain `let`; `var` lowers
+to `let mut`; an explicit C-style type becomes the `let`'s type annotation, and
+inferred forms carry none.
+
 ## Formal Grammar
 
 ```ebnf

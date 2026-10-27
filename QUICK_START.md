@@ -210,7 +210,7 @@ The example is automatically built and tested in the CI/CD pipeline to ensure th
 
 ### Learn the Syntax
 
-- **[SYNTAX_REFERENCE.md](SYNTAX_REFERENCE.md)** - Complete syntax guide with examples
+- **[Syntax Reference](docs/syntax/README.md)** - Complete syntax guide with examples
 - **[Philosophy](README.md#philosophy)** - Understand Crusty's design principles
 - **[docs/design/philosophy.md](docs/design/philosophy.md)** - Detailed rationale
 
@@ -289,11 +289,11 @@ If the generated Rust code doesn't compile:
 ## Additional Resources
 
 - **[README.md](README.md)** - Project overview and philosophy
-- **[SYNTAX_REFERENCE.md](SYNTAX_REFERENCE.md)** - Complete syntax guide
+- **[Syntax Reference](docs/syntax/README.md)** - Complete syntax guide
 - **[Build Integration Guide](docs/build-rs-integration.md)** - Comprehensive build.rs guide
 - **[Architecture Overview](docs/architecture/overview.md)** - Compiler pipeline and components
 - **[Design Notes](docs/design/README.md)** - Language design decisions
 
 ---
 
-**Ready to dive deeper?** Check out the [SYNTAX_REFERENCE.md](SYNTAX_REFERENCE.md) for comprehensive syntax examples and transformations.
+**Ready to dive deeper?** Check out the [syntax reference](docs/syntax/README.md) for comprehensive syntax examples and transformations.

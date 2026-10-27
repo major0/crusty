@@ -21,3 +21,4 @@ Crusty provides a C-like syntax that transpiles to Rust, giving developers famil
 - [Namespaces](namespaces.md) - Grouping items into named modules
 - [Static Variables](statics.md) - Top-level static globals and mutability
 - [Extern Blocks](extern-blocks.md) - FFI declarations and extern block syntax
+- [Transformation Summary](transformations.md) - At-a-glance map of every Crusty form to its emitted Rust
