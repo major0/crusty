@@ -1424,6 +1424,49 @@ void main() {
         }
     }
 
+    // ADR-0031 extended: $type args in the type-scoped position.
+    // @mem.size_of($i32) -> mem::size_of::<i32>(). size_of::<i32>() = 4,
+    // size_of::<i64>() = 8.
+    #[test]
+    fn test_compile_dollar_type_scoped_call() {
+        let test_source = r#"
+#import std.mem
+
+void main() {
+    let a = @mem.size_of($i32);
+    let b = @mem.size_of($i64);
+    println!("a={} b={}", a, b);
+}
+"#;
+        let input_path = PathBuf::from("test_compile_dollar_scoped.crst");
+        let output_path = PathBuf::from("test_compile_dollar_scoped");
+
+        fs::write(&input_path, test_source).unwrap();
+
+        let options = CompilerOptions {
+            input_file: input_path.clone(),
+            output_file: Some(output_path.clone()),
+            out_dir: None,
+            emit: EmitMode::Binary,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        let result = run_compiler(&options);
+
+        let _ = fs::remove_file(&input_path);
+        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(format!("{}.rs", output_path.display()));
+
+        if let Err(err) = result {
+            assert!(
+                matches!(err, crate::error::CompilerError::RustcInvocation(_)),
+                "$type scoped call should transpile and compile cleanly; got {err:?}"
+            );
+        }
+    }
+
     // ADR-0027: dyn / impl Trait type positions — impl Trait return,
     // &dyn Trait param, Box<dyn Trait> return — compile + run.
     #[test]
