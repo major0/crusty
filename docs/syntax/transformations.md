@@ -39,8 +39,7 @@ the single exception.
 |--------|------|-----------|
 | `for (int i = 0; i < n; ++i)` | `for i in 0..n` | [control-flow.md](control-flow.md) |
 | `for i in seq { … }` | `for i in seq { … }` | [control-flow.md](control-flow.md) |
-| `switch (e) { case … }` | `match e { … }` | [control-flow.md](control-flow.md) |
-| `match (e) { … }` | `match e { … }` (scrutinee parens dropped) | [control-flow.md](control-flow.md) |
+| `switch (e) { case p: v; default: d; }` | `match e { p => v, _ => d }` | [control-flow.md](control-flow.md) |
 | `if (int i = e; cond) { … }` | `{ let i = e; if cond { … } }` | [control-flow.md](control-flow.md) |
 | `while (var i = e; cond) { … }` | `{ let mut i = e; while cond { … } }` | [control-flow.md](control-flow.md) |
 

@@ -100,6 +100,11 @@ Harder / accepted:
 - Crusty diverges further from a 1:1 C `switch` (which is a fallthrough statement
   with no value) — accepted: the value-yielding, no-fallthrough `switch` is the
   intended Crusty semantics, and it still lowers to idiomatic Rust.
+- The old statement-`switch` raised its own "case value type mismatch" when a
+  case value's type disagreed with the scrutinee. That check is removed: a case
+  is now a pattern, and pattern/scrutinee type agreement is rustc's, consistent
+  with the retired `match` and ADR-0001. Crusty reports fewer local diagnostics
+  here, deferring to rustc.
 
 ## Rejected alternatives
 
@@ -113,16 +118,17 @@ Harder / accepted:
 
 ## Verification
 
-- [ ] `let i = switch (x) { case 1: bar; default: baz; };` type-checks and emits
+- [x] `let i = switch (x) { case 1: bar; default: baz; };` type-checks and emits
       Rust `let i = match x { 1 => bar, _ => baz };`; `i` holds the arm value.
-- [ ] `case X, Y, Z: v;` → `X | Y | Z => v`; `case a ... b: v;` → `a..=b => v`.
-- [ ] `case n: { s; expr }` yields `expr` via the block tail; `case n: expr;`
+- [x] `case X, Y, Z: v;` → `X | Y | Z => v`; `case a ... b: v;` → `a..=b => v`.
+- [x] `case n: { s; expr }` yields `expr` via the block tail; `case n: expr;`
       yields `expr` (the `;` terminates the arm).
-- [ ] `return` inside an arm exits the enclosing function; `break .outer v;` /
+- [x] `return` inside a case exits the enclosing function; `break .outer v;` /
       `continue .outer;` target the enclosing loop. Proven under `rustc`.
-- [ ] A destructuring case value (`Some(x)`, `(a, b)`) carries through verbatim
-      and compiles, as the retired `match` did.
-- [ ] `Expression::Match` / `MatchArm` / `match_expr` are removed; no source,
+- [x] A destructuring case value (`Some(x)`, `[first, .., last]`) carries through
+      verbatim and compiles, as the retired `match` did.
+- [x] `Expression::Match` / `MatchArm` / `match_expr` are removed; no source,
       test, example, or doc references the `match` construct; the full suite is
-      green under `rustc -D unused_parens`.
-- [ ] ADR-0030 and ADR-0012 statuses are set to `superseded by ADR-0032`.
+      green under `rustc -D unused_parens`. (`match` stays a reserved word, so
+      old `match (x) { … }` is a clean parse error, not an identifier.)
+- [x] ADR-0030 and ADR-0012 statuses are set to `superseded by ADR-0032`.

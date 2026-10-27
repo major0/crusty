@@ -60,7 +60,7 @@ lowers to a block wrapping the binding and a plain conditional:
 The prefix is optional sugar — a bare `if (cond)` / `while (cond)` is unchanged.
 The header is exactly two clauses: a single declaration (no declarator list) and a
 single boolean (no comma operator). It is bind-then-test, not pattern matching —
-use `match` to destructure.
+use `switch` to destructure.
 
 ### C-Style For Loop
 ```c
@@ -142,24 +142,26 @@ The dot is what distinguishes a label from a value: an undotted name after
 a labeled break cannot be written by accident. `continue` carries no value, so
 an undotted name after it is a parse error.
 
-## Match Expression
+## Switch
 
-`match` tests a value against a series of patterns and takes the first arm that
-matches. Unlike the C-style `switch` statement (which matches value
-expressions), `match` matches **patterns** and is an **expression**, so it
-yields a value and can appear in value position such as a `let` initializer.
+`switch` is Crusty's one multi-way construct (ADR-0032): a value-yielding
+expression that matches a value against a series of **patterns** and takes the
+first case that matches. Because it yields a value it can appear in value
+position (a `let` initializer); used as a statement, its value is simply
+unused. It replaces the Rust-style `match` (retired) — the pattern power is the
+same, worn in C/Go-style `case … :` syntax.
 
 ```c
-let grade = match (score) {
-    0 => 100,
-    1..=5 => 50,
-    n if n > 6 => 10,
-    _ => 0,
+let grade = switch (score) {
+    case 0: 100;
+    case 1 ... 5: 50;
+    case n if n > 6: 10;
+    default: 0;
 };
 ```
 
-Lowers to the equivalent Rust `match` unchanged (Rust's scrutinee is bare; the
-Crusty parens are a surface wrapper and are not re-emitted):
+Lowers to a Rust `match` (Rust's scrutinee is bare; the Crusty parens are a
+surface wrapper and are not re-emitted; each case becomes an arm):
 ```rust
 let grade = match score {
     0 => 100,
@@ -169,75 +171,84 @@ let grade = match score {
 };
 ```
 
-### Patterns
+### Case patterns
 
-The arm patterns Crusty understands structurally:
+The case patterns Crusty understands structurally:
 
 | Pattern | Example | Meaning |
 |---|---|---|
-| Wildcard | `_` | matches anything, binds nothing |
-| Literal | `0`, `'a'`, `"x"`, `true` | matches that exact value |
-| Binding | `n` | matches anything and binds it to `n` |
-| Range | `1..=5`, `'a'..='z'`, `0..10` | matches a value in the range |
-| Alternation | `1 \| 2 \| 3` | matches any of the listed patterns |
-| Path | `Color::Red` | matches a unit enum variant or a constant |
+| Wildcard | `default:` | the catch-all case (lowers to Rust `_`) |
+| Literal | `case 0:`, `case 'a':`, `case true:` | matches that exact value |
+| Binding | `case n:` | matches anything and binds it to `n` |
+| Range | `case 1 ... 5:`, `case 'a' ... 'z':` | inclusive range (GNU-C style) |
+| Comma-list | `case 1, 2, 3:` | matches any of the listed patterns (Go style) |
+| Path | `case Color::Red:` | matches a unit enum variant or a constant |
 
-A **guard** (`if <cond>`) after the pattern adds a boolean condition the arm
-must also satisfy. A pattern binding is in scope in both the guard and the arm
-body, and does not leak past the arm:
+The comma-list is Crusty's alternation surface; `|` is **not** accepted in a
+case (it keeps its sole meaning, bitwise-OR). A **guard** (`if <cond>`) after
+the pattern adds a boolean condition the case must also satisfy. A pattern
+binding is in scope in the guard and the case body, and does not leak past the
+case:
 ```c
-let doubled = match (n) {
-    x if x > 6 => x + x,
-    y => y,
+let doubled = switch (n) {
+    case x if x > 6: x + x;
+    case y: y;
 };
 ```
 
 ### Raw pass-through patterns
 
 Any pattern Crusty does not model structurally — payload destructuring
-(`Some(v)`), tuples (`(a, b)`), struct patterns (`Point { x, y }`) — is carried
-**verbatim** to Rust and left to the Rust compiler, the same way generic bounds
-and `where` clauses pass through. Crusty does not analyse such an arm's body
-(the names a raw pattern binds live in text Crusty did not parse), so those
-arms rely on `rustc` for their diagnostics.
+(`Some(v)`), tuples (`(a, b)`), struct patterns (`Point { x, y }`), slice
+patterns (`[first, .., last]`) — is carried **verbatim** to Rust and left to the
+Rust compiler, the same way generic bounds and `where` clauses pass through.
+Crusty does not analyse such a case's body (the names a raw pattern binds live
+in text Crusty did not parse), so those cases rely on `rustc` for their
+diagnostics.
 
 ```c
-let v = match (opt) {
-    Some(x) => x,   // `Some(x)` is passed through verbatim
-    None => 0,
+let v = switch (opt) {
+    case Some(x): x;   // `Some(x)` is passed through verbatim
+    case None: 0;
+};
+```
+
+### Case bodies
+
+A case body is a bare expression terminated by `;` (`case n: expr;`, whose value
+is `expr` — the `;` is the case terminator) or a brace block (`case n: { … }`,
+whose value is the block's trailing semicolon-less expression, ADR-0029):
+```c
+let label = switch (n) {
+    case 0: "zero";                     // bare-expression body
+    case 1: { let d = n * 2; "one" }    // block body; value is the trailing expr
+    default: "other";
 };
 ```
 
 ### Boundaries
 
+- **A `switch` is not a function boundary.** A `return` inside a case body exits
+  the enclosing function (not the switch); `break`/`continue [.label] [value]`
+  target the enclosing loop. This fixes C's footgun where `break` inside a
+  `switch` escapes only the switch.
 - **Native enum payloads destructure; foreign ones need `__rust__`.** A Crusty
   `enum` variant may be a unit, a discriminant (`= n`), a tuple payload
   (`Variant(T, …)`), or a struct payload (`Variant { T x; … }`), so a pattern
   like `Shape.Circle(r)` destructures a Crusty-declared variant directly. A value
-  whose type is defined outside Crusty (in a `__rust__ { … }` block) still needs
-  a raw pass-through pattern, since Crusty cannot see its variant shapes.
-- **Arm bodies are expressions, including block bodies.** `pat => expr` is the
-  arm shape, and a block-bodied arm (`pat => { …; v }`) is also an expression: it
-  is a value-block whose value is its trailing (semicolon-less) expression
-  (ADR-0029). A `return` inside such a block exits the enclosing function, not
-  the arm. See [Value-blocks](#value-blocks-and-if-as-a-value) below.
+  whose type is defined outside Crusty still needs a raw pass-through pattern.
+- **No exhaustiveness or pattern/scrutinee type checking in Crusty.** Whether the
+  cases cover every value, whether any is unreachable, and whether a pattern
+  matches the scrutinee's type are all decided by `rustc` (ADR-0001).
 
-  ```c
-  let label = match (n) {
-      0 => "zero",                        // expression body
-      _ => { let d = n * 2; "nonzero" },  // block body; value is the trailing expr
-  };
-  ```
-- **No exhaustiveness checking in Crusty.** Whether the arms cover every case,
-  and whether any arm is unreachable, are decided by `rustc`.
-
-`match` and the C-style `switch` coexist: `switch` stays the value-matching
-statement; `match` is the pattern-matching expression.
+The C-style fallthrough-statement `switch` is gone: cases do not fall through
+(each lowers to an independent `match` arm), there is no `case:`-stacking, and
+there is no `fallthrough` keyword (Rust has none to lower to).
 
 ## Value-blocks and `if` as a value
 
 A brace block can appear where a value is expected — a `let`/`var` initializer,
-a `match` arm body, an `if`/`else` branch. In that position it is a
+a `switch` case body, an `if`/`else` branch. In that position it is a
 **value-block**: its value is its final semicolon-less **trailing expression**.
 
 ```c
@@ -296,14 +307,16 @@ for_in_stmt   = "for" IDENT "in" expr block ;
 loop_stmt     = ["." IDENT ":"] "loop" block ;
 break_stmt    = "break" ["." IDENT] [expr] ";" ;
 continue_stmt = "continue" ["." IDENT] ";" ;
-match_expr    = "match" "(" expr ")" "{" {match_arm ","} [match_arm [","]] "}" ;
-match_arm     = pattern ["if" expr_no_struct] "=>" expr_no_comma ;
-pattern       = pattern_no_or {"|" pattern_no_or} ;
+switch_stmt   = "switch" "(" expr ")" "{" {switch_case} [switch_default] "}" ;
+switch_expr   = switch_stmt ;                        (* in expression position *)
+switch_case   = "case" case_pattern ["if" expr_no_struct] ":" case_body ;
+case_pattern  = pattern_no_or {"," pattern_no_or} ;  (* comma-list -> Pattern::Or *)
+case_body     = block | expr ";" ;                   (* block tail, or bare value *)
+switch_default = "default" ":" case_body ;
 pattern_no_or = "_" | literal | IDENT
-              | literal range_op literal          (* range pattern *)
-              | IDENT {"::" IDENT}                 (* path pattern, 2+ segments *)
-              | raw_pattern ;                      (* verbatim pass-through *)
-range_op      = ".." | "..=" | "..." ;
+              | literal "..." literal                (* inclusive range *)
+              | IDENT {"::" IDENT}                   (* path pattern, 2+ segments *)
+              | raw_pattern ;                        (* verbatim pass-through *)
 
 (* ADR-0029 value-blocks: a block in expression position yields its trailing,
    semicolon-less expression; an `if`/`else` is itself an expression. Both are
@@ -316,8 +329,8 @@ value_block   = block ;                            (* block in expression positi
 if_expr       = "if" "(" expr ")" block ["else" (if_expr | block)] ;
 ```
 
-Note: the `match` scrutinee is parenthesised — `match (p) { … }`, like
-`switch (expr)` and `if (cond)` (ADR-0028) — so the full expression grammar is
-available inside the parens (a struct-literal scrutinee `match (Point { x: 1 })`
-works). An arm body is parsed without the top-level comma operator
-(`expr_no_comma`) so a `,` ends the arm rather than forming a comma expression.
+Note: the `switch` scrutinee is parenthesised — `switch (p) { … }`, like
+`if (cond)` — so the full expression grammar is available inside the parens (a
+struct-literal scrutinee `switch (Point { x: 1 })` works). A case value element
+is parsed through a primary/postfix tier, so `|` (bitwise-OR) is not a case
+surface and the comma-list is the alternation form.
