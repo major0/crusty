@@ -1,7 +1,7 @@
 # ADR-0031: `$type` generic method arguments (no turbofish)
 
 ## Status
-accepted
+superseded by ADR-0034
 
 ## Context
 

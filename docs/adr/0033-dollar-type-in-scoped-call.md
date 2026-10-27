@@ -1,7 +1,7 @@
 # ADR-0033: $type generic arguments in the type-scoped call position
 
 ## Status
-accepted
+superseded by ADR-0034
 
 ## Context
 
