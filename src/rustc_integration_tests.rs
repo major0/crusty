@@ -1153,6 +1153,57 @@ void main() {
         }
     }
 
+    // ADR-0032 slice 1: a value-yielding `switch` in expression position with
+    // bare (`case 1: 100;`) and block (`case 2: { …; t + 20 }`) arm bodies.
+    // The result is USED in arithmetic (i + 1), so a mis-lowering would be a
+    // hard compile error. pick(1)=100+1=101, pick(2)=(5+20)+1=26, pick(9)=0+1=1.
+    #[test]
+    fn test_compile_switch_as_expression() {
+        let test_source = r#"
+int pick(int x) {
+    let i = switch (x) {
+        case 1: 100;
+        case 2: { let t = 5; t + 20 }
+        default: 0;
+    };
+    return i + 1;
+}
+
+void main() {
+    println!("a={}", pick(1));
+    println!("b={}", pick(2));
+    println!("c={}", pick(9));
+}
+"#;
+        let input_path = PathBuf::from("test_compile_switch_expr_32.crst");
+        let output_path = PathBuf::from("test_compile_switch_expr_32");
+
+        fs::write(&input_path, test_source).unwrap();
+
+        let options = CompilerOptions {
+            input_file: input_path.clone(),
+            output_file: Some(output_path.clone()),
+            out_dir: None,
+            emit: EmitMode::Binary,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        let result = run_compiler(&options);
+
+        let _ = fs::remove_file(&input_path);
+        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(format!("{}.rs", output_path.display()));
+
+        if let Err(err) = result {
+            assert!(
+                matches!(err, crate::error::CompilerError::RustcInvocation(_)),
+                "switch-as-expression should transpile and compile cleanly; got {err:?}"
+            );
+        }
+    }
+
     // ADR-0029: a `__func__` body requires `return` and lowers to a closure
     // whose `return` is closure-scoped; a value-block nested inside it yields
     // locally via its bare tail, while an inner `return` exits the `__func__`
