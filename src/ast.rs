@@ -579,10 +579,10 @@ pub enum Expression {
         method: Ident,
         args: Vec<Expression>,
     },
-    /// Generic method call with explicit leading `$Type` arguments (ADR
-    /// prototype): `recv.method($T, valargs)` → `recv.method::<T>(valargs)`.
-    /// The `$`-marked args are the method's turbofish type arguments, lifted
-    /// out of the value-argument list at codegen.
+    /// Generic method call with explicit bracketed type arguments (ADR-0034,
+    /// Go-style): `recv.method[T](valargs)` → `recv.method::<T>(valargs)`.
+    /// The bracketed args are the method's turbofish type arguments, emitted
+    /// into the method's turbofish at codegen.
     GenericMethodCall {
         receiver: Box<Expression>,
         method: Ident,

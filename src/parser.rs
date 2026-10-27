@@ -78,8 +78,8 @@ enum PostfixOp {
         method: Ident,
         args: Vec<Expression>,
     },
-    /// Generic method call with leading `$Type` args (ADR prototype):
-    /// `.method($T1, $T2, valargs)` -> `method::<T1, T2>(valargs)`.
+    /// Generic method call with bracketed type args (ADR-0034, Go-style):
+    /// `.method[T1, T2](valargs)` -> `method::<T1, T2>(valargs)`.
     GenericMethodCall {
         method: Ident,
         generics: Vec<Type>,
@@ -1192,13 +1192,14 @@ peg::parser! {
                     args: args.unwrap_or_default(),
                 }
             }
-            // Crusty $type-marked type-scoped generic call (ADR-0031 extended
-            // to the type-scoped position): @Type.method($G1, $G2, valargs).
-            // The `$Type` args are the method's turbofish type arguments, so
-            // this lowers to the SAME TurbofishCall as `Type::method::<G>(args)`
-            // -> `Type::method::<G1, G2>(args)`. Tried before the plain
-            // @Type.method(args) form so the `$` wins.
-            / _ "@" _ ty:type_for_scoped_call() _ "." _ method:ident() _ "(" _ generics:dollar_type_args() _ args:(_ "," _ a:call_args() { a })? _ ")" _ {
+            // Crusty type-scoped generic call (ADR-0034), Go-style square
+            // brackets: @Type.method[G1, G2](args). The brackets hold the
+            // method's turbofish type arguments, so this lowers to the SAME
+            // TurbofishCall as `Type::method::<G>(args)` ->
+            // `Type::method::<G1, G2>(args)`. Tried before the plain
+            // @Type.method(args) form so the `[` wins; the trailing `(` after
+            // `]` keeps it distinct from `@Type.member[index]`.
+            / _ "@" _ ty:type_for_scoped_call() _ "." _ method:ident() _ "[" _ generics:type_list() _ "]" _ "(" _ args:call_args()? _ ")" _ {
                 Expression::TurbofishCall {
                     ty,
                     method,
@@ -1269,20 +1270,6 @@ peg::parser! {
                 args
             }
 
-        /// Leading `$Type` type arguments for a generic method call (ADR
-        /// prototype): one or more `$Type`, comma-separated. The `$` marks the
-        /// argument as a TYPE (not a value), so a bare type name need not be
-        /// distinguishable from a variable by the parser.
-        rule dollar_type_args() -> Vec<Type>
-            = first:dollar_type_arg() rest:(_ "," _ t:dollar_type_arg() { t })* {
-                let mut v = vec![first];
-                v.extend(rest);
-                v
-            }
-
-        rule dollar_type_arg() -> Type
-            = _ "$" _ t:type_expr() { t }
-
         /// Postfix operation: represents a single postfix operation
         /// Used internally to build chains of operations
         rule postfix_op() -> PostfixOp
@@ -1301,10 +1288,11 @@ peg::parser! {
             / _ "?" !(_ expr() _ ":") {
                 PostfixOp::ErrorProp
             }
-            // Generic method call with leading `$Type` args (ADR prototype):
-            // .method($T1, $T2, valargs) — at least one `$Type`, then optional
-            // value args. Tried BEFORE the plain method call so the `$` wins.
-            / _ "." _ method:member_name() _ "(" _ generics:dollar_type_args() _ args:(_ "," _ a:call_args() { a })? _ ")" {
+            // Instance generic method call (ADR-0034), Go-style square
+            // brackets: .method[G1, G2](args). The trailing `(` after `]`
+            // distinguishes it from `.member[index]`. Tried before the plain
+            // method call and before Index so the brackets win.
+            / _ "." _ method:member_name() _ "[" _ generics:type_list() _ "]" _ "(" _ args:call_args()? _ ")" {
                 PostfixOp::GenericMethodCall {
                     method,
                     generics,
@@ -11082,10 +11070,10 @@ mod call_access_expression_tests {
     // --- ADR-0031 extended: $type args in the type-scoped position ---
 
     #[test]
-    fn test_dollar_type_scoped_call_single_generic() {
-        // @mem.size_of($i32) -> same TurbofishCall as mem::size_of::<i32>().
+    fn test_scoped_generic_call_single_generic() {
+        // @mem.size_of[i32] -> same TurbofishCall as mem::size_of::<i32>().
         // `i32` is a pass-through identifier (Crusty's own keyword is `int32`).
-        let result = crusty_peg_parser::type_scoped_call("@mem.size_of($i32)");
+        let result = crusty_peg_parser::type_scoped_call("@mem.size_of[i32]()");
         assert_eq!(
             result,
             Ok(Expression::TurbofishCall {
@@ -11098,9 +11086,9 @@ mod call_access_expression_tests {
     }
 
     #[test]
-    fn test_dollar_type_scoped_call_generics_and_args() {
-        // @Map.of($int, $bool, k, v): two $type args, then value args.
-        let result = crusty_peg_parser::type_scoped_call("@Map.of($int, $bool, k, v)");
+    fn test_scoped_generic_call_generics_and_args() {
+        // @Map.of[int, bool](k, v): two type args in brackets, then value args.
+        let result = crusty_peg_parser::type_scoped_call("@Map.of[int, bool](k, v)");
         assert_eq!(
             result,
             Ok(Expression::TurbofishCall {
@@ -11119,8 +11107,8 @@ mod call_access_expression_tests {
     }
 
     #[test]
-    fn test_dollar_type_scoped_absent_stays_plain_call() {
-        // No `$` -> still a plain TypeScopedCall, not a TurbofishCall.
+    fn test_scoped_generic_absent_stays_plain_call() {
+        // No `[...]` -> still a plain TypeScopedCall, not a TurbofishCall.
         let result = crusty_peg_parser::type_scoped_call("@mem.size_of()");
         assert_eq!(
             result,
@@ -14445,18 +14433,18 @@ mod control_flow_tests {
     }
 
     #[test]
-    fn test_dollar_type_generic_method_call() {
-        // ADR-0031: a leading `$Type` argument parses as a GenericMethodCall,
-        // splitting the `$`-marked type arguments from the value arguments.
-        let result = crusty_peg_parser::statement("let n = s.get_one($String, \"x\");");
-        assert!(result.is_ok(), "$type call should parse: {result:?}");
+    fn test_instance_generic_method_call() {
+        // ADR-0034: Go-style `.method[T](args)` parses as a GenericMethodCall,
+        // splitting the bracketed type arguments from the value arguments.
+        let result = crusty_peg_parser::statement("let n = s.get_one[String](\"x\");");
+        assert!(result.is_ok(), "[T] call should parse: {result:?}");
         // The initializer is an Expression::GenericMethodCall with one generic
         // (String) and one value arg ("x").
         if let Statement::Let { init: Some(expr), .. } = result.unwrap() {
             match expr {
                 Expression::GenericMethodCall { generics, args, method, .. } => {
                     assert_eq!(method.name, "get_one");
-                    assert_eq!(generics.len(), 1, "one $type arg");
+                    assert_eq!(generics.len(), 1, "one type arg");
                     assert_eq!(args.len(), 1, "one value arg");
                 }
                 other => panic!("expected GenericMethodCall, got {other:?}"),
@@ -14468,13 +14456,13 @@ mod control_flow_tests {
 
     #[test]
     fn test_plain_method_call_is_not_generic() {
-        // A plain method call (no `$`) stays a MethodCall, not a GenericMethodCall.
+        // A plain method call (no `[...]`) stays a MethodCall, not a GenericMethodCall.
         let result = crusty_peg_parser::statement("let n = s.plain(1, 2);");
         assert!(result.is_ok());
         if let Statement::Let { init: Some(expr), .. } = result.unwrap() {
             assert!(
                 matches!(expr, Expression::MethodCall { .. }),
-                "a $-free call must remain a MethodCall"
+                "a bracket-free call must remain a MethodCall"
             );
         } else {
             panic!("expected a let statement with an initializer");

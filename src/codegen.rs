@@ -1795,8 +1795,8 @@ impl CodeGenerator {
                 generics,
                 args,
             } => {
-                // $Type leading args lower to a method turbofish:
-                // recv.method($T, valargs) -> recv.method::<T>(valargs).
+                // Bracketed type args lower to a method turbofish:
+                // recv.method[T](valargs) -> recv.method::<T>(valargs).
                 let mut result = self.generate_expression_string(receiver);
                 result.push('.');
                 result.push_str(&method.name);

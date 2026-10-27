@@ -2802,7 +2802,7 @@ impl SemanticAnalyzer {
             }
 
             Expression::GenericMethodCall { receiver, args, .. } => {
-                // $Type method-generic call (ADR prototype). The explicit
+                // Bracketed [T] method-generic call (ADR-0034). The explicit
                 // turbofish type args are passed through to the method and
                 // arbitrated by rustc, so the call types as Auto — the same
                 // treatment as TurbofishCall. Analyze receiver + value args so
