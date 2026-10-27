@@ -1704,14 +1704,17 @@ peg::parser! {
         rule raw_pattern() -> Pattern
             = s:$(raw_pattern_token()+) { Pattern::Raw(s.trim().to_string()) }
 
-        /// Helper: one token of a raw pattern. Stops at a top-level `=>` or the
-        /// ` if ` guard; balances parens / brackets / braces so delimited
-        /// sub-patterns pass through whole.
+        /// Helper: one token of a raw pattern. Stops at a top-level `=>`
+        /// (match arm), a top-level `:` (switch case, ADR-0032), or the ` if `
+        /// guard; balances parens / brackets / braces so delimited sub-patterns
+        /// (including a struct pattern's `{ x: 1 }`, whose `:` is inside braces)
+        /// pass through whole.
         rule raw_pattern_token() -> ()
             = "(" raw_pattern_inner()* ")" {}
             / "[" raw_pattern_inner()* "]" {}
             / "{" raw_pattern_inner()* "}" {}
-            / !"=>" !(__ kw_if() __) [^ '=' | '(' | ')' | '[' | ']' | '{' | '}'] {}
+            / "::" {}
+            / !"=>" !(__ kw_if() __) [^ '=' | ':' | '(' | ')' | '[' | ']' | '{' | '}'] {}
             / !"=>" "=" {}
 
         /// Helper: raw-pattern content inside a balanced delimiter (any char,
@@ -2818,14 +2821,15 @@ peg::parser! {
                 }
             }
 
-        /// Helper: switch case (ADR-0032). A case body is either a brace block
-        /// `{ … }` (value via the block's ADR-0029 tail) or a bare expression
-        /// terminated by `;` (`case n: expr;`), which is stored as a tail-only
-        /// block so both forms share one `SwitchCase { values, body: Block }`
-        /// shape and one codegen path.
+        /// Helper: switch case (ADR-0032 slice 3). A case carries a PATTERN
+        /// (the full surface the retired `match` had), an optional guard, and a
+        /// body. The body is either a brace block `{ … }` (value via the
+        /// block's ADR-0029 tail) or a bare expression terminated by `;`
+        /// (`case n: expr;`), stored as a tail-only block so both forms share
+        /// one codegen path.
         rule switch_case() -> SwitchCase
-            = _ values:case_values() _ body:case_body() _ {
-                SwitchCase { values, body }
+            = _ pattern:case_pattern() _ guard:case_guard()? _ ":" _ body:case_body() _ {
+                SwitchCase { pattern, guard, body }
             }
 
         /// Helper: a case/default body — a block, or a bare expression that is
@@ -2834,35 +2838,30 @@ peg::parser! {
             = b:block(false) { b }
             / e:expr() _ ";" { Block::with_tail(vec![], Some(e)) }
 
-        /// Helper: one or more case values.
-        /// Helper: case values (ADR-0030, carried by ADR-0032). ONE `case`
-        /// keyword introduces a comma-separated list of value elements; each
-        /// element is a single value or an inclusive `lo ... hi` range. There
-        /// is no `case:`-stacking (removed — it implied a fallthrough that does
-        /// not exist) and `|` is NOT a case-value surface: a value element is
-        /// parsed through `range_primary` (primary/postfix only), so a `|` after
-        /// a value is a parse error rather than a silent alternation or a
-        /// bitwise-OR. A `... ` range lowers to a Rust `lo..=hi` pattern; a
-        /// comma-list lowers to `a | b | c`.
-        rule case_values() -> Vec<Expression>
-            = kw_case() __ first:case_value_element() rest:(_ "," _ e:case_value_element() { e })* _ ":" _ {
-                let mut v = vec![first];
-                v.extend(rest);
-                v
-            }
-
-        /// Helper: one case-value element — an inclusive range `lo ... hi`
-        /// (GNU-C style, spaces required) or a single value. Both operands are
-        /// `range_primary` (no binary operators, no comma), so `|` cannot appear.
-        rule case_value_element() -> Expression
-            = lo:range_primary() _ "..." _ hi:range_primary() {
-                Expression::Range {
-                    start: Some(Box::new(lo)),
-                    end: Some(Box::new(hi)),
-                    inclusive: true,
+        /// Helper: the case pattern (ADR-0030/0032). ONE `case` keyword, then a
+        /// comma-separated list of pattern alternatives. A single element is
+        /// that pattern; several become `Pattern::Or` (the C/Go comma-list is
+        /// Crusty's alternation surface — `|` is NOT accepted here, so it can
+        /// never collide with bitwise-OR). Each element is a `pattern_no_or`,
+        /// which already covers literals, bindings, wildcard, `lo ... hi`
+        /// ranges, paths, and `Raw` verbatim destructuring (`Some(x)`,
+        /// `[first, .., last]`). There is no `case:`-stacking.
+        rule case_pattern() -> Pattern
+            = kw_case() __ first:pattern_no_or() rest:(_ "," _ p:pattern_no_or() { p })* {
+                if rest.is_empty() {
+                    first
+                } else {
+                    let mut alts = vec![first];
+                    alts.extend(rest);
+                    Pattern::Or(alts)
                 }
             }
-            / v:range_primary() { v }
+
+        /// Helper: an optional case guard `if <cond>` (ADR-0032). The condition
+        /// is parsed struct-literal-free so the body's `{` is not swallowed —
+        /// same as the retired `match`'s guard.
+        rule case_guard() -> Expression
+            = kw_if() __ cond:expr_inner(false, false) { cond }
 
         /// Helper: switch default case (ADR-0032): `default: { body }` or
         /// `default: expr;`.
@@ -14160,8 +14159,9 @@ mod control_flow_tests {
 
     #[test]
     fn test_switch_stmt_comma_list() {
-        // ADR-0030/0032: a case takes a comma-separated value list (the old
-        // `case 1: case 2:` stacking form is removed). One case, three values.
+        // ADR-0030/0032: a case takes a comma-separated pattern list (the old
+        // `case 1: case 2:` stacking form is removed); a comma-list of several
+        // alternatives becomes `Pattern::Or`.
         let result =
             crusty_peg_parser::switch_stmt("switch (x) { case 1, 2, 3: { return 1; } }");
         assert!(result.is_ok());
@@ -14169,7 +14169,10 @@ mod control_flow_tests {
         match stmt {
             Statement::Switch { cases, .. } => {
                 assert_eq!(cases.len(), 1);
-                assert_eq!(cases[0].values.len(), 3);
+                match &cases[0].pattern {
+                    Pattern::Or(alts) => assert_eq!(alts.len(), 3),
+                    other => panic!("expected Pattern::Or, got {other:?}"),
+                }
             }
             _ => panic!("Expected Switch statement"),
         }
@@ -14177,17 +14180,16 @@ mod control_flow_tests {
 
     #[test]
     fn test_switch_stmt_case_range() {
-        // ADR-0030/0032: a case value may be an inclusive `lo ... hi` range.
+        // ADR-0030/0032: a case may be an inclusive `lo ... hi` range pattern.
         let result =
             crusty_peg_parser::switch_stmt("switch (x) { case 1 ... 5: { return 1; } }");
         assert!(result.is_ok());
         match result.unwrap() {
             Statement::Switch { cases, .. } => {
                 assert_eq!(cases.len(), 1);
-                assert_eq!(cases[0].values.len(), 1);
                 assert!(
-                    matches!(cases[0].values[0], Expression::Range { inclusive: true, .. }),
-                    "a ... case value is an inclusive range"
+                    matches!(cases[0].pattern, Pattern::Range { inclusive: true, .. }),
+                    "a ... case is an inclusive range pattern"
                 );
             }
             _ => panic!("Expected Switch statement"),

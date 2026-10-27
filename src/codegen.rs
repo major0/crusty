@@ -1321,11 +1321,10 @@ impl CodeGenerator {
 
                         for case in cases {
                             self.write_indent();
-                            for (i, value) in case.values.iter().enumerate() {
-                                if i > 0 {
-                                    self.write(" | ");
-                                }
-                                self.write(&self.generate_expression_string(value));
+                            self.write(&self.generate_pattern_string(&case.pattern));
+                            if let Some(ref guard) = case.guard {
+                                self.write(" if ");
+                                self.write(&self.generate_expression_string(guard));
                             }
                             self.write(" => ");
                             self.generate_block(&case.body);
@@ -1352,11 +1351,23 @@ impl CodeGenerator {
                         for case in cases {
                             self.write_indent();
                             self.write("case ");
-                            for (i, value) in case.values.iter().enumerate() {
-                                if i > 0 {
-                                    self.write(", ");
+                            // Round-trip the comma-list surface: a `Pattern::Or`
+                            // prints as `a, b, c` (Crusty's alternation form),
+                            // any other pattern prints as itself.
+                            match &case.pattern {
+                                crate::ast::Pattern::Or(alts) => {
+                                    for (i, alt) in alts.iter().enumerate() {
+                                        if i > 0 {
+                                            self.write(", ");
+                                        }
+                                        self.write(&self.generate_pattern_string(alt));
+                                    }
                                 }
-                                self.write(&self.generate_expression_string(value));
+                                p => self.write(&self.generate_pattern_string(p)),
+                            }
+                            if let Some(ref guard) = case.guard {
+                                self.write(" if ");
+                                self.write(&self.generate_expression_string(guard));
                             }
                             self.write(": ");
                             self.generate_block(&case.body);
@@ -1913,18 +1924,17 @@ impl CodeGenerator {
             Expression::Switch { scrutinee, cases, default } => {
                 // ADR-0032: a value-yielding `switch` lowers to a Rust `match`,
                 // emitted inline so `let i = switch (e) { … }` works. Each case
-                // value list becomes a `|`-joined pattern; the arm body is the
-                // case block rendered via a sub-generator so its ADR-0029 tail
+                // emits its pattern and optional guard; the arm body is the case
+                // block rendered via a sub-generator so its ADR-0029 tail
                 // becomes the arm's value.
                 let mut result = String::from("match ");
                 result.push_str(&self.generate_expression_string(scrutinee));
                 result.push_str(" {\n");
                 for case in cases {
-                    for (i, value) in case.values.iter().enumerate() {
-                        if i > 0 {
-                            result.push_str(" | ");
-                        }
-                        result.push_str(&self.generate_expression_string(value));
+                    result.push_str(&self.generate_pattern_string(&case.pattern));
+                    if let Some(ref guard) = case.guard {
+                        result.push_str(" if ");
+                        result.push_str(&self.generate_expression_string(guard));
                     }
                     result.push_str(" => ");
                     let mut sub = CodeGenerator::new(self.target);

@@ -2764,11 +2764,11 @@ mod tests {
             expr: Expression::Ident(Ident::new("x")),
             cases: vec![
                 SwitchCase {
-                    values: vec![Expression::Literal(Literal::Int(1))],
+                    pattern: Pattern::Literal(Literal::Int(1)), guard: None,
                     body: Block::new(vec![Statement::Expr(Expression::Literal(Literal::Int(10)))]),
                 },
                 SwitchCase {
-                    values: vec![Expression::Literal(Literal::Int(2))],
+                    pattern: Pattern::Literal(Literal::Int(2)), guard: None,
                     body: Block::new(vec![Statement::Expr(Expression::Literal(Literal::Int(20)))]),
                 },
             ],
@@ -2804,7 +2804,7 @@ mod tests {
         let stmt = Statement::Switch {
             expr: Expression::Ident(Ident::new("x")),
             cases: vec![SwitchCase {
-                values: vec![Expression::Literal(Literal::Int(1))],
+                pattern: Pattern::Literal(Literal::Int(1)), guard: None,
                 body: Block::new(vec![Statement::Expr(Expression::Literal(Literal::Int(10)))]),
             }],
             default: Some(Block::new(vec![Statement::Expr(Expression::Literal(
@@ -2841,11 +2841,12 @@ mod tests {
         let stmt = Statement::Switch {
             expr: Expression::Ident(Ident::new("x")),
             cases: vec![SwitchCase {
-                values: vec![
-                    Expression::Literal(Literal::Int(1)),
-                    Expression::Literal(Literal::Int(2)),
-                    Expression::Literal(Literal::Int(3)),
-                ],
+                pattern: Pattern::Or(vec![
+                    Pattern::Literal(Literal::Int(1)),
+                    Pattern::Literal(Literal::Int(2)),
+                    Pattern::Literal(Literal::Int(3)),
+                ]),
+                guard: None,
                 body: Block::new(vec![Statement::Expr(Expression::Literal(Literal::Int(10)))]),
             }],
             default: None,
@@ -2879,7 +2880,7 @@ mod tests {
         let stmt = Statement::Switch {
             expr: Expression::Ident(Ident::new("x")),
             cases: vec![SwitchCase {
-                values: vec![Expression::Literal(Literal::Int(1))],
+                pattern: Pattern::Literal(Literal::Int(1)), guard: None,
                 body: Block::new(vec![
                     Statement::Expr(Expression::Literal(Literal::Int(10))),
                     Statement::Break { label: None, value: None },

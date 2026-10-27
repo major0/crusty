@@ -298,7 +298,7 @@ mod tests {
             body: Some(Block::new(vec![Statement::Switch {
                 expr: Expression::Literal(Literal::Int(1)),
                 cases: vec![SwitchCase {
-                    values: vec![Expression::Literal(Literal::Int(1))],
+                    pattern: Pattern::Literal(Literal::Int(1)), guard: None,
                     body: Block::empty(),
                 }],
                 default: Some(Block::empty()),
@@ -315,7 +315,12 @@ mod tests {
     }
 
     #[test]
-    fn test_switch_case_type_mismatch() {
+    fn test_switch_case_pattern_typing_deferred_to_rustc() {
+        // ADR-0032: a switch case is a PATTERN, not a value checked against the
+        // scrutinee type. Crusty no longer raises its own "case value type
+        // mismatch" — pattern/scrutinee agreement is rustc's (ADR-0001), exactly
+        // as for `match`. A bool pattern on an int scrutinee analyses cleanly
+        // here (rustc is the arbiter at compile time).
         let mut analyzer = SemanticAnalyzer::new();
 
         let func = Function {
@@ -328,7 +333,8 @@ mod tests {
             body: Some(Block::new(vec![Statement::Switch {
                 expr: Expression::Literal(Literal::Int(1)),
                 cases: vec![SwitchCase {
-                    values: vec![Expression::Literal(Literal::Bool(true))],
+                    pattern: Pattern::Literal(Literal::Bool(true)),
+                    guard: None,
                     body: Block::empty(),
                 }],
                 default: None,
@@ -341,9 +347,10 @@ mod tests {
 
         let file = create_file_with_items(vec![Item::Function(func)]);
         let result = analyzer.analyze(&file);
-        assert!(result.is_err());
-        let errors = result.unwrap_err();
-        assert_eq!(errors[0].kind, SemanticErrorKind::TypeMismatch);
+        assert!(
+            result.is_ok(),
+            "Crusty defers pattern/scrutinee typing to rustc; got {result:?}"
+        );
     }
 
     #[test]
@@ -667,15 +674,15 @@ mod tests {
                 expr: Expression::Literal(Literal::Int(1)),
                 cases: vec![
                     SwitchCase {
-                        values: vec![Expression::Literal(Literal::Int(1))],
+                        pattern: Pattern::Literal(Literal::Int(1)), guard: None,
                         body: Block::empty(),
                     },
                     SwitchCase {
-                        values: vec![Expression::Literal(Literal::Int(2))],
+                        pattern: Pattern::Literal(Literal::Int(2)), guard: None,
                         body: Block::empty(),
                     },
                     SwitchCase {
-                        values: vec![Expression::Literal(Literal::Int(3))],
+                        pattern: Pattern::Literal(Literal::Int(3)), guard: None,
                         body: Block::empty(),
                     },
                 ],
@@ -996,7 +1003,7 @@ mod tests {
             body: Some(Block::new(vec![Statement::Switch {
                 expr: Expression::Literal(Literal::Int(1)),
                 cases: vec![SwitchCase {
-                    values: vec![Expression::Literal(Literal::Int(1))],
+                    pattern: Pattern::Literal(Literal::Int(1)), guard: None,
                     body: Block::empty(),
                 }],
                 default: None,

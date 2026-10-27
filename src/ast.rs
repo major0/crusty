@@ -857,7 +857,13 @@ impl EnumVariant {
 /// Switch case
 #[derive(Debug, Clone, PartialEq)]
 pub struct SwitchCase {
-    pub values: Vec<Expression>,
+    /// The case pattern (ADR-0032). Carries the full pattern surface the
+    /// retired `match` had: literal, binding, wildcard, range, `|`-alternation
+    /// (a `case 1, 2, 3:` comma-list lowers to `Pattern::Or`), path, and `Raw`
+    /// verbatim destructuring (`Some(x)`, `[first, .., last]`).
+    pub pattern: Pattern,
+    /// Optional arm guard: `case n if n > 5:` → `n if n > 5 =>`.
+    pub guard: Option<Expression>,
     pub body: Block,
 }
 

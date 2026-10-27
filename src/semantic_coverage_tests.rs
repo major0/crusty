@@ -218,7 +218,7 @@ mod tests {
             body: Some(Block::new(vec![Statement::Switch {
                 expr: Expression::Literal(Literal::Int(1)),
                 cases: vec![SwitchCase {
-                    values: vec![Expression::Literal(Literal::Int(1))],
+                    pattern: Pattern::Literal(Literal::Int(1)), guard: None,
                     body: Block::new(vec![]),
                 }],
                 default: None,

@@ -1778,29 +1778,44 @@ impl SemanticAnalyzer {
                 default,
             } => {
                 // Analyze switch expression
-                let switch_type = self.analyze_expression(expr);
+                let _switch_type = self.analyze_expression(expr);
 
-                // Analyze each case
+                // ADR-0032: each case carries a pattern (not a value list) and
+                // an optional guard. Analyse each arm in its own scope — a
+                // pattern binding (or a `Raw` destructuring) introduces names
+                // rustc narrows; a guard must be bool-compatible; the body is
+                // analysed with those bindings in scope. Exhaustiveness and
+                // pattern/scrutinee type agreement are rustc's (ADR-0001).
                 for case in cases {
-                    for value in &case.values {
-                        let value_type = self.analyze_expression(value);
-                        if !self.type_env.is_compatible(&switch_type, &value_type) {
-                            self.errors.push(SemanticError::new(
-                                Span::new(
-                                    crate::error::Position::new(0, 0),
-                                    crate::error::Position::new(0, 0),
-                                ),
-                                SemanticErrorKind::TypeMismatch,
-                                format!(
-                                    "switch case value type mismatch: expected {:?}, found {:?}",
-                                    switch_type, value_type
-                                ),
-                            ));
-                        }
-                    }
-
                     self.symbol_table.enter_scope();
-                    self.analyze_block(&case.body);
+                    self.bind_pattern(&case.pattern);
+                    // A `Raw` pattern binds names Crusty cannot see (e.g.
+                    // `Some(v)`, `[first, .., last]`), so analysing its guard or
+                    // body strictly would raise false "undefined variable"
+                    // errors — defer the whole arm to rustc, exactly as `match`
+                    // does for raw-pattern arms.
+                    if !matches!(case.pattern, crate::ast::Pattern::Raw(_)) {
+                        if let Some(ref guard) = case.guard {
+                            let guard_type = self.analyze_expression(guard);
+                            if !self.type_env.is_compatible(
+                                &Type::Primitive(crate::ast::PrimitiveType::Bool),
+                                &guard_type,
+                            ) {
+                                self.errors.push(SemanticError::new(
+                                    Span::new(
+                                        crate::error::Position::new(0, 0),
+                                        crate::error::Position::new(0, 0),
+                                    ),
+                                    SemanticErrorKind::TypeMismatch,
+                                    format!(
+                                        "switch case guard must be boolean, found {:?}",
+                                        guard_type
+                                    ),
+                                ));
+                            }
+                        }
+                        self.analyze_block(&case.body);
+                    }
                     self.symbol_table.exit_scope();
                 }
 
@@ -3033,11 +3048,17 @@ impl SemanticAnalyzer {
                 // unifies the arm types (slice 1).
                 self.analyze_expression(scrutinee);
                 for case in cases {
-                    for value in &case.values {
-                        self.analyze_expression(value);
-                    }
                     self.symbol_table.enter_scope();
-                    self.analyze_block(&case.body);
+                    self.bind_pattern(&case.pattern);
+                    // A `Raw` pattern binds names Crusty cannot see; defer its
+                    // guard/body to rustc (as `match` does), else `first`/`v`
+                    // etc. raise false "undefined variable" errors.
+                    if !matches!(case.pattern, crate::ast::Pattern::Raw(_)) {
+                        if let Some(ref guard) = case.guard {
+                            self.analyze_expression(guard);
+                        }
+                        self.analyze_block(&case.body);
+                    }
                     self.symbol_table.exit_scope();
                 }
                 if let Some(default) = default {
@@ -3527,12 +3548,13 @@ impl SemanticAnalyzer {
                 }
             }
             Expression::Switch { scrutinee, cases, default } => {
-                // ADR-0032: variables used in the scrutinee, any case value, or
-                // any case/default body are used.
+                // ADR-0032: variables used in the scrutinee, a case guard, or a
+                // case/default body are used. A case PATTERN binds names (it
+                // does not USE them), so it is not walked here.
                 self.collect_used_variables(scrutinee, used);
                 for case in cases {
-                    for value in &case.values {
-                        self.collect_used_variables(value, used);
+                    if let Some(guard) = &case.guard {
+                        self.collect_used_variables(guard, used);
                     }
                     self.collect_used_variables_in_block(&case.body, used);
                 }
@@ -3640,8 +3662,8 @@ impl SemanticAnalyzer {
             } => {
                 self.collect_used_variables(expr, used);
                 for case in cases {
-                    for value in &case.values {
-                        self.collect_used_variables(value, used);
+                    if let Some(guard) = &case.guard {
+                        self.collect_used_variables(guard, used);
                     }
                     self.collect_used_variables_in_block(&case.body, used);
                 }
@@ -3814,9 +3836,6 @@ impl SemanticAnalyzer {
             } => {
                 self.collect_modified_variables(expr, modified);
                 for case in cases {
-                    for value in &case.values {
-                        self.collect_modified_variables(value, modified);
-                    }
                     self.collect_modified_variables_in_block(&case.body, modified);
                 }
                 if let Some(default_block) = default {

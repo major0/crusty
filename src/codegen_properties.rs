@@ -837,11 +837,11 @@ mod tests {
                 expr: Expression::Ident(var.clone()),
                 cases: vec![
                     SwitchCase {
-                        values: vec![Expression::Literal(Literal::Int(1))],
+                        pattern: Pattern::Literal(Literal::Int(1)), guard: None,
                         body: Block::empty(),
                     },
                     SwitchCase {
-                        values: vec![Expression::Literal(Literal::Int(2))],
+                        pattern: Pattern::Literal(Literal::Int(2)), guard: None,
                         body: Block::empty(),
                     },
                 ],
