@@ -1488,6 +1488,7 @@ peg::parser! {
             / thread_expr()
             / scope_expr()
             / match_expr()
+            / switch_expr()
             / block_value_expr()
             / if_expr()
             / sizeof_expr()
@@ -1512,6 +1513,21 @@ peg::parser! {
                     condition: Box::new(condition),
                     then_block: Box::new(then_block),
                     else_block: else_block.map(Box::new),
+                }
+            }
+
+        /// Value-yielding `switch` in expression position (ADR-0032):
+        /// `let i = switch (e) { case 1: a; default: b; };`. Mirrors
+        /// `switch_stmt` but builds `Expression::Switch`; each arm's value is
+        /// its case-body block's tail. The statement dispatch tries
+        /// `switch_stmt` first, so a bare `switch` in statement position stays a
+        /// `Statement::Switch`; this fires only where an expression is expected.
+        rule switch_expr() -> Expression
+            = _ kw_switch() _ "(" _ scrutinee:expr() _ ")" _ "{" _ cases:switch_case()* _ default_case:switch_default()? _ "}" _ {
+                Expression::Switch {
+                    scrutinee: Box::new(scrutinee),
+                    cases,
+                    default: default_case.map(Box::new),
                 }
             }
 
@@ -2801,21 +2817,30 @@ peg::parser! {
                 }
             }
 
-        /// Helper: switch case
-        /// Syntax: case value: { body } or case value1: case value2: { body }
+        /// Helper: switch case (ADR-0032). A case body is either a brace block
+        /// `{ … }` (value via the block's ADR-0029 tail) or a bare expression
+        /// terminated by `;` (`case n: expr;`), which is stored as a tail-only
+        /// block so both forms share one `SwitchCase { values, body: Block }`
+        /// shape and one codegen path.
         rule switch_case() -> SwitchCase
-            = _ values:case_values() _ body:block(false) _ {
+            = _ values:case_values() _ body:case_body() _ {
                 SwitchCase { values, body }
             }
 
-        /// Helper: one or more case values (for fall-through)
+        /// Helper: a case/default body — a block, or a bare expression that is
+        /// the arm's value (the trailing `;` terminates the arm, ADR-0032).
+        rule case_body() -> Block
+            = b:block(false) { b }
+            / e:expr() _ ";" { Block::with_tail(vec![], Some(e)) }
+
+        /// Helper: one or more case values.
         rule case_values() -> Vec<Expression>
             = values:(kw_case() __ v:expr() _ ":" _ { v })+ { values }
 
-        /// Helper: switch default case
-        /// Syntax: default: { body }
+        /// Helper: switch default case (ADR-0032): `default: { body }` or
+        /// `default: expr;`.
         rule switch_default() -> Block
-            = _ kw_default() _ ":" _ body:block(false) _ { body }
+            = _ kw_default() _ ":" _ body:case_body() { body }
 
         /// Block: a sequence of statements enclosed in braces
         /// Syntax: { statement* }
@@ -14311,6 +14336,36 @@ mod control_flow_tests {
         } else {
             panic!("expected a let statement with an initializer");
         }
+    }
+
+    #[test]
+    fn test_switch_as_value_expression() {
+        // ADR-0032 slice 1: a `switch` in value position parses as
+        // Expression::Switch with its cases and default.
+        let result = crusty_peg_parser::statement(
+            "let i = switch (x) { case 1: 100; default: 0; };",
+        );
+        assert!(result.is_ok(), "switch-expr should parse: {result:?}");
+        if let Statement::Let { init: Some(expr), .. } = result.unwrap() {
+            match expr {
+                Expression::Switch { cases, default, .. } => {
+                    assert_eq!(cases.len(), 1, "one case");
+                    assert!(default.is_some(), "has a default");
+                }
+                other => panic!("expected Expression::Switch, got {other:?}"),
+            }
+        } else {
+            panic!("expected a let statement with an initializer");
+        }
+    }
+
+    #[test]
+    fn test_switch_statement_still_parses() {
+        // The statement form is unchanged: a bare `switch` stays a statement.
+        let result =
+            crusty_peg_parser::statement("switch (x) { case 1: { foo(); } default: { bar(); } }");
+        assert!(result.is_ok());
+        assert!(matches!(result.unwrap(), Statement::Switch { .. }));
     }
 }
 

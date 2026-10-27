@@ -631,6 +631,18 @@ pub enum Expression {
         scrutinee: Box<Expression>,
         arms: Vec<MatchArm>,
     },
+    /// Value-yielding `switch` in expression position (ADR-0032):
+    /// `let i = switch (e) { case 1: a; default: b; };`. Reuses `SwitchCase`
+    /// (each case body is a `Block` whose tail is the arm's value — a bare arm
+    /// body `case n: expr;` is stored as a tail-only block). Lowers to the same
+    /// Rust `match` the statement form emits, in expression position so each
+    /// arm's tail becomes the arm value. A `switch` is not a function boundary,
+    /// so a `return` inside an arm exits the enclosing function (ADR-0029).
+    Switch {
+        scrutinee: Box<Expression>,
+        cases: Vec<SwitchCase>,
+        default: Option<Box<Block>>,
+    },
     /// Anonymous function (PS-07, ADR-0013/0014): `[ret] __func__(typed-params)
     /// { body }` in expression position. A callable value — lowered to a Rust
     /// closure `|params| -> ret { body }`, which captures enclosing locals.

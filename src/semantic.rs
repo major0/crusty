@@ -3022,6 +3022,31 @@ impl SemanticAnalyzer {
                     _ => Type::Auto,
                 }
             }
+            Expression::Switch { scrutinee, cases, default } => {
+                // ADR-0032: a value-yielding `switch`. Analyse the scrutinee,
+                // then each case's values and body, and the default. A `switch`
+                // is a value-block (not a function boundary), so the body is
+                // analysed in its own scope and a `return` inside it is checked
+                // against the enclosing function (expected_return_type is left
+                // intact — unlike __func__/__thread__, a switch arm does not
+                // lower to a closure). The switch types as `Auto`; rustc
+                // unifies the arm types (slice 1).
+                self.analyze_expression(scrutinee);
+                for case in cases {
+                    for value in &case.values {
+                        self.analyze_expression(value);
+                    }
+                    self.symbol_table.enter_scope();
+                    self.analyze_block(&case.body);
+                    self.symbol_table.exit_scope();
+                }
+                if let Some(default) = default {
+                    self.symbol_table.enter_scope();
+                    self.analyze_block(default);
+                    self.symbol_table.exit_scope();
+                }
+                Type::Auto
+            }
             Expression::AnonFunction { params, return_type, body } => {
                 // PS-07 (ADR-0013/0014): analyse the anonymous function's body
                 // in a fresh scope with its typed parameters in scope, so its
@@ -3499,6 +3524,20 @@ impl SemanticAnalyzer {
                         self.collect_used_variables(guard, used);
                     }
                     self.collect_used_variables(&arm.body, used);
+                }
+            }
+            Expression::Switch { scrutinee, cases, default } => {
+                // ADR-0032: variables used in the scrutinee, any case value, or
+                // any case/default body are used.
+                self.collect_used_variables(scrutinee, used);
+                for case in cases {
+                    for value in &case.values {
+                        self.collect_used_variables(value, used);
+                    }
+                    self.collect_used_variables_in_block(&case.body, used);
+                }
+                if let Some(default) = default {
+                    self.collect_used_variables_in_block(default, used);
                 }
             }
             Expression::AnonFunction { body, .. } => {

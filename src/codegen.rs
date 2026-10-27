@@ -1910,6 +1910,42 @@ impl CodeGenerator {
                 result.push('}');
                 result
             }
+            Expression::Switch { scrutinee, cases, default } => {
+                // ADR-0032: a value-yielding `switch` lowers to a Rust `match`,
+                // emitted inline so `let i = switch (e) { … }` works. Each case
+                // value list becomes a `|`-joined pattern; the arm body is the
+                // case block rendered via a sub-generator so its ADR-0029 tail
+                // becomes the arm's value.
+                let mut result = String::from("match ");
+                result.push_str(&self.generate_expression_string(scrutinee));
+                result.push_str(" {\n");
+                for case in cases {
+                    for (i, value) in case.values.iter().enumerate() {
+                        if i > 0 {
+                            result.push_str(" | ");
+                        }
+                        result.push_str(&self.generate_expression_string(value));
+                    }
+                    result.push_str(" => ");
+                    let mut sub = CodeGenerator::new(self.target);
+                    sub.indent_level = self.indent_level;
+                    sub.nested_function_captures = self.nested_function_captures.clone();
+                    sub.generate_block(&case.body);
+                    result.push_str(&sub.output);
+                    result.push_str(",\n");
+                }
+                if let Some(ref default) = default {
+                    result.push_str("_ => ");
+                    let mut sub = CodeGenerator::new(self.target);
+                    sub.indent_level = self.indent_level;
+                    sub.nested_function_captures = self.nested_function_captures.clone();
+                    sub.generate_block(default);
+                    result.push_str(&sub.output);
+                    result.push_str(",\n");
+                }
+                result.push('}');
+                result
+            }
             Expression::AnonFunction {
                 params,
                 return_type,
