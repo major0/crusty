@@ -1467,6 +1467,49 @@ void main() {
         }
     }
 
+    // Top-level const items: `const int MAX = 10;` -> `const MAX: i32 = 10;`.
+    // A `pub const` is public (the default). Values are used so a mis-lowering
+    // is a hard compile error.
+    #[test]
+    fn test_compile_top_level_const() {
+        let test_source = r#"
+const int MAX = 10;
+const float PI = 3.14;
+pub const int SHARED = 42;
+
+void main() {
+    println!("{} {} {}", MAX, PI, SHARED);
+}
+"#;
+        let input_path = PathBuf::from("test_compile_top_const.crst");
+        let output_path = PathBuf::from("test_compile_top_const");
+
+        fs::write(&input_path, test_source).unwrap();
+
+        let options = CompilerOptions {
+            input_file: input_path.clone(),
+            output_file: Some(output_path.clone()),
+            out_dir: None,
+            emit: EmitMode::Binary,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        let result = run_compiler(&options);
+
+        let _ = fs::remove_file(&input_path);
+        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(format!("{}.rs", output_path.display()));
+
+        if let Err(err) = result {
+            assert!(
+                matches!(err, crate::error::CompilerError::RustcInvocation(_)),
+                "top-level const should transpile and compile cleanly; got {err:?}"
+            );
+        }
+    }
+
     // ADR-0027: dyn / impl Trait type positions — impl Trait return,
     // &dyn Trait param, Box<dyn Trait> return — compile + run.
     #[test]
