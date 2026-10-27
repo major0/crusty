@@ -2807,7 +2807,8 @@ peg::parser! {
         ///
         /// Examples:
         /// - switch (x) { case 1: { return "one"; } case 2: { return "two"; } default: { return "other"; } }
-        /// - switch (x) { case 1: case 2: { return "one or two"; } }
+        /// - switch (x) { case 1, 2: { return "one or two"; } }   // comma-list
+        /// - switch (x) { case 1 ... 5: { return "small"; } }     // inclusive range
         pub rule switch_stmt() -> Statement
             = _ kw_switch() _ "(" _ expr:expr() _ ")" _ "{" _ cases:switch_case()* _ default_case:switch_default()? _ "}" _ {
                 Statement::Switch {
@@ -2834,8 +2835,34 @@ peg::parser! {
             / e:expr() _ ";" { Block::with_tail(vec![], Some(e)) }
 
         /// Helper: one or more case values.
+        /// Helper: case values (ADR-0030, carried by ADR-0032). ONE `case`
+        /// keyword introduces a comma-separated list of value elements; each
+        /// element is a single value or an inclusive `lo ... hi` range. There
+        /// is no `case:`-stacking (removed — it implied a fallthrough that does
+        /// not exist) and `|` is NOT a case-value surface: a value element is
+        /// parsed through `range_primary` (primary/postfix only), so a `|` after
+        /// a value is a parse error rather than a silent alternation or a
+        /// bitwise-OR. A `... ` range lowers to a Rust `lo..=hi` pattern; a
+        /// comma-list lowers to `a | b | c`.
         rule case_values() -> Vec<Expression>
-            = values:(kw_case() __ v:expr() _ ":" _ { v })+ { values }
+            = kw_case() __ first:case_value_element() rest:(_ "," _ e:case_value_element() { e })* _ ":" _ {
+                let mut v = vec![first];
+                v.extend(rest);
+                v
+            }
+
+        /// Helper: one case-value element — an inclusive range `lo ... hi`
+        /// (GNU-C style, spaces required) or a single value. Both operands are
+        /// `range_primary` (no binary operators, no comma), so `|` cannot appear.
+        rule case_value_element() -> Expression
+            = lo:range_primary() _ "..." _ hi:range_primary() {
+                Expression::Range {
+                    start: Some(Box::new(lo)),
+                    end: Some(Box::new(hi)),
+                    inclusive: true,
+                }
+            }
+            / v:range_primary() { v }
 
         /// Helper: switch default case (ADR-0032): `default: { body }` or
         /// `default: expr;`.
@@ -14132,10 +14159,11 @@ mod control_flow_tests {
     }
 
     #[test]
-    fn test_switch_stmt_fallthrough() {
-        // Test switch statement with fall-through cases
+    fn test_switch_stmt_comma_list() {
+        // ADR-0030/0032: a case takes a comma-separated value list (the old
+        // `case 1: case 2:` stacking form is removed). One case, three values.
         let result =
-            crusty_peg_parser::switch_stmt("switch (x) { case 1: case 2: case 3: { return 1; } }");
+            crusty_peg_parser::switch_stmt("switch (x) { case 1, 2, 3: { return 1; } }");
         assert!(result.is_ok());
         let stmt = result.unwrap();
         match stmt {
@@ -14145,6 +14173,42 @@ mod control_flow_tests {
             }
             _ => panic!("Expected Switch statement"),
         }
+    }
+
+    #[test]
+    fn test_switch_stmt_case_range() {
+        // ADR-0030/0032: a case value may be an inclusive `lo ... hi` range.
+        let result =
+            crusty_peg_parser::switch_stmt("switch (x) { case 1 ... 5: { return 1; } }");
+        assert!(result.is_ok());
+        match result.unwrap() {
+            Statement::Switch { cases, .. } => {
+                assert_eq!(cases.len(), 1);
+                assert_eq!(cases[0].values.len(), 1);
+                assert!(
+                    matches!(cases[0].values[0], Expression::Range { inclusive: true, .. }),
+                    "a ... case value is an inclusive range"
+                );
+            }
+            _ => panic!("Expected Switch statement"),
+        }
+    }
+
+    #[test]
+    fn test_switch_stmt_rejects_pipe() {
+        // ADR-0030/0032: `|` is not a case-value surface (no silent alternation
+        // or bitwise-OR overload).
+        let result =
+            crusty_peg_parser::switch_stmt("switch (x) { case 1 | 2: { return 1; } }");
+        assert!(result.is_err(), "`|` in a case value must be a parse error");
+    }
+
+    #[test]
+    fn test_switch_stmt_rejects_stacking() {
+        // ADR-0030/0032: the `case 1: case 2:` stacking form is removed.
+        let result =
+            crusty_peg_parser::switch_stmt("switch (x) { case 1: case 2: { return 1; } }");
+        assert!(result.is_err(), "case stacking must be a parse error");
     }
 
     // ========================================================================

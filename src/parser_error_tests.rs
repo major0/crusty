@@ -344,13 +344,12 @@ mod tests {
         let source = r#"
             void func() {
                 switch (x) {
-                    case 1:
-                        y = 1;
-                    case 2:
+                    case 1, 2: {
                         y = 2;
-                        break;
-                    default:
+                    }
+                    default: {
                         y = 0;
+                    }
                 }
             }
         "#;
@@ -358,7 +357,7 @@ mod tests {
         assert!(result.is_ok());
         if let Ok(mut parser) = result {
             let _file = parser.parse_file();
-            // Switch with fallthrough may not be fully supported
+            // ADR-0030/0032: cases use a comma-list, not stacking.
         }
     }
 
