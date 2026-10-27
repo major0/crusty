@@ -109,6 +109,33 @@ for these until they land:
 
 Instance methods use dot notation as usual: `v.len()`, `v.get(0)`.
 
+### Generic Method Arguments (`$type`)
+
+When a generic **instance method** needs an explicit type argument that
+inference cannot recover (the classic case is `parse`), supply it as a leading
+`$Type` argument in the ordinary argument list. The `$` marks the argument as a
+type; it is lifted out of the value arguments into the method's type position:
+```c
+let n = s.parse($i32).unwrap();           // s.parse::<i32>().unwrap()
+let name = matches.get_one($String, "n"); // matches.get_one::<String>("n")
+let x = m.convert($String, $i32, value);  // m.convert::<String, i32>(value)
+```
+Translates to:
+```rust
+let n = s.parse::<i32>().unwrap();
+let name = matches.get_one::<String>("n");
+let x = m.convert::<String, i32>(value);
+```
+
+One or more `$Type` arguments come first, comma-separated, followed by the
+ordinary value arguments. A method call with no `$` argument is an ordinary
+instance call, unchanged. This is Crusty's C-flavoured alternative to a
+turbofish — the type rides in the argument list (as in Zig), marked by a single
+`$`, with no `<>` or `::` at the call site.
+
+This form is **instance-method-scoped**. The *type-scoped* turbofish
+`@mem.size_of::<i32>()` is a separate, existing surface and is unchanged.
+
 ### Macro Invocations
 ```c
 println!("Hello, world!");
