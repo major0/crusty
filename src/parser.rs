@@ -949,6 +949,22 @@ peg::parser! {
             base:type_base() _ "<" _ args:type_list() _ ">" {
                 Type::Generic { base: Box::new(base), args }
             }
+            // Rust-style prefix slice/array types (reuse Rust's syntax where it
+            // fits — ADR rule): `[T]` is a slice, `[T; N]` a sized array. These
+            // are the forms the Rust std library uses (`&[u8]`, `[u8; 32]`), so
+            // `&[int]` composes as `&` + `[int]`. The C-style postfix `T[]` /
+            // `T[N]` (Level 2) remain for C familiarity — both spell the same
+            // `Type::Slice` / `Type::Array`.
+            "[" _ t:type_expr() _ ";" _ n:int_literal() _ "]" {
+                if let Literal::Int(size) = n {
+                    Type::Array { ty: Box::new(t), size: Some(size as usize) }
+                } else {
+                    unreachable!()
+                }
+            }
+            "[" _ t:type_expr() _ "]" {
+                Type::Slice { ty: Box::new(t) }
+            }
             // Empty tuple: ()
             "(" _ ")" {
                 Type::Tuple { types: vec![] }
@@ -5677,6 +5693,51 @@ mod typedef_tests {
         if let Ok(Item::Typedef(t)) = result {
             assert_eq!(t.name.name, "IntRef");
             assert!(matches!(t.target, Type::Reference { .. }));
+        } else {
+            panic!("Expected Item::Typedef");
+        }
+    }
+
+    #[test]
+    fn test_peg_prefix_slice_type() {
+        // ADR rule: Rust-style prefix slice `[T]` (reuse Rust's syntax).
+        let result = crusty_peg_parser::typedef_def("typedef [int] Ints;");
+        assert!(result.is_ok(), "[int] slice type should parse: {result:?}");
+        if let Ok(Item::Typedef(t)) = result {
+            assert!(matches!(t.target, Type::Slice { .. }), "got {:?}", t.target);
+        } else {
+            panic!("Expected Item::Typedef");
+        }
+    }
+
+    #[test]
+    fn test_peg_prefix_array_type() {
+        // Rust-style prefix sized array `[T; N]`.
+        let result = crusty_peg_parser::typedef_def("typedef [int; 4] Quad;");
+        assert!(result.is_ok(), "[int; 4] array type should parse: {result:?}");
+        if let Ok(Item::Typedef(t)) = result {
+            assert!(
+                matches!(t.target, Type::Array { size: Some(4), .. }),
+                "got {:?}",
+                t.target
+            );
+        } else {
+            panic!("Expected Item::Typedef");
+        }
+    }
+
+    #[test]
+    fn test_peg_reference_to_slice() {
+        // The `&[T]` std idiom composes as `&` + prefix `[T]`.
+        let result = crusty_peg_parser::typedef_def("typedef &[int] IntSlice;");
+        assert!(result.is_ok(), "&[int] should parse: {result:?}");
+        if let Ok(Item::Typedef(t)) = result {
+            if let Type::Reference { ty, mutable } = &t.target {
+                assert!(!mutable);
+                assert!(matches!(**ty, Type::Slice { .. }), "inner should be a slice");
+            } else {
+                panic!("Expected Type::Reference to a slice, got {:?}", t.target);
+            }
         } else {
             panic!("Expected Item::Typedef");
         }
