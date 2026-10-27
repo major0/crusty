@@ -133,8 +133,14 @@ instance call, unchanged. This is Crusty's C-flavoured alternative to a
 turbofish — the type rides in the argument list (as in Zig), marked by a single
 `$`, with no `<>` or `::` at the call site.
 
-This form is **instance-method-scoped**. The *type-scoped* turbofish
-`@mem.size_of::<i32>()` is a separate, existing surface and is unchanged.
+The same `$Type` surface works in the **type-scoped** (`@`-form) call, so one
+generic-argument spelling covers both positions:
+```c
+let a = @mem.size_of($i32);          // mem::size_of::<i32>()
+let v = @Map.of($int, $bool, k, w);  // Map::of::<i32, bool>(k, w)
+```
+The Rust turbofish `mem::size_of::<i32>()` also still parses; `$type` is the
+C-flavoured spelling of the same call.
 
 ### Macro Invocations
 ```c
