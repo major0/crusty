@@ -43,4 +43,40 @@ the variable form first and falls through to the function form on the `(`.
 
 ```ebnf
 static_item = "static" ["mut"] type IDENT "=" expr ";" ;
+const_item  = "const" type IDENT "=" expr ";" ;
 ```
+
+# Constants
+
+A top-level `const` declares a compile-time constant — inlined at each use, with
+no fixed storage. It maps to a Rust `const`.
+
+## Syntax
+
+```c
+const int MAX = 10;
+const float PI = 3.14;
+```
+
+Translates to:
+
+```rust
+const MAX: i32 = 10;
+const PI: f64 = 3.14;
+```
+
+- The C-style `const Type NAME = value;` ordering matches `static`.
+- A const item is public by default; `pub const` is accepted and equivalent.
+- An initializer is required.
+
+## `const` vs `static` vs `#define`
+
+| Form                      | Storage                     | Lowers to            |
+|---------------------------|-----------------------------|----------------------|
+| `const Type NAME = v;`    | inlined, no storage         | `const NAME: Type = v;` |
+| `static Type NAME = v;`   | one fixed memory location   | `pub static NAME: Type = v;` |
+| `#define __NAME__ v`      | inlined (type inferred)     | `const NAME: T = v;` |
+
+Use `const` for a typed compile-time constant, `static` when a single shared
+address matters, and `#define` for the C-preprocessor-style spelling (see
+[Macros](macros.md)).
