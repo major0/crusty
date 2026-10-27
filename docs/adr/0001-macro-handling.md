@@ -1,7 +1,6 @@
 # ADR-0001: Macro handling — pass through Rust's macro system, shim only common C patterns
 
 ## Status
-
 accepted — invocation-form row superseded by ADR-0002 (the `__name__(…)` call
 form is removed; invocation is the bang form `name!(…)` only). All other
 decisions below stand.

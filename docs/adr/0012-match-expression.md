@@ -1,7 +1,10 @@
 # ADR-0012: `match` expression and statement (PS-06)
 
 ## Status
-accepted
+accepted — scrutinee surface superseded by ADR-0028 (the scrutinee is now
+parenthesised: `match (expr) { … }`; the bare `match p { … }` grammar and the
+no-struct-literal context described below no longer apply). The AST shape,
+pattern/guard handling, and arm-body decisions still stand.
 
 ## Context
 ADR-0009's Tier 4 lists **PS-06** — a first-class `match` surface — as a

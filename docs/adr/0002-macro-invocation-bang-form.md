@@ -1,7 +1,6 @@
 # ADR-0002: Macro invocation uses the bang form `name!(…)` only
 
 ## Status
-
 accepted (supersedes the invocation-form row of ADR-0001)
 
 ## Context

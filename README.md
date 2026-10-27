@@ -36,10 +36,13 @@ Crusty does NOT support the following C features, as they are incompatible with 
 
 ### Supported Conditional Compilation
 
-Crusty supports basic conditional compilation that maps to Rust's `cfg` attributes:
+Crusty supports the C `#ifdef` directive family, lowering each arm to Rust's `cfg` attributes:
 
-- **#ifdef / #ifndef / #endif** - Translate to Rust's `#[cfg(...)]` attributes
-- Other C preprocessor conditionals (#if, #elif, #else outside ifdef/ifndef) are not supported
+- **#ifdef / #ifndef** - open a conditional block, testing whether a name is defined
+- **#elif / #elifdef / #elifndef** - else-if arms chained after the opener
+- **#else / #endif** - fallback arm and block terminator
+- Each arm lowers to a per-item `#[cfg(all(not(prior…), this))]` attribute
+- Bare `#if <expr>` is deliberately not supported — Crusty never evaluates conditions, only tests definedness
 
 ### Syntax Stability Warning
 
@@ -328,9 +331,15 @@ Current progress:
 ### Phase 2 — Landed
 - Generic definitions (functions, structs, enums) with bounds and `where`
 - Trait definitions and `impl`/trait-impl via the `typedef … @Type` surface
-- Pattern matching (`match` expressions)
+- Pattern matching (`match (scrutinee) { … }`)
 - `unsafe` blocks / `unsafe fn`
 - Concurrency primitives (`__thread__`, `__scope__`)
+- Enum data variants (tuple, struct, and discriminant payloads)
+- Tuple and unit structs (`struct P(int, int);`, `struct Marker;`)
+- Verbatim attribute pass-through (`#[...]`, `#![...]`)
+- Trait-object and `impl Trait` type positions (`dyn`, `impl`)
+- C99-style conditional binding (`if (decl; cond)`, `while (decl; cond)`)
+- Full `#ifdef` directive family (`#elif`/`#elifdef`/`#elifndef`/`#else`)
 
 ### Phase 3 (Planned)
 - Enhanced macro system

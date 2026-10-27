@@ -210,11 +210,12 @@ let v = match (opt) {
 
 ### Boundaries
 
-- **Enum-payload patterns need a Rust-defined enum.** A Crusty `enum` variant
-  is a name and an optional integer value (C-style) — it carries no payload — so
-  a destructuring pattern like `Some(x)` has nothing to bind against for a
-  Crusty-declared enum. Such a value must be defined in a `__rust__ { … }` block,
-  and the destructuring arm is a raw pass-through pattern.
+- **Native enum payloads destructure; foreign ones need `__rust__`.** A Crusty
+  `enum` variant may be a unit, a discriminant (`= n`), a tuple payload
+  (`Variant(T, …)`), or a struct payload (`Variant { T x; … }`), so a pattern
+  like `Shape.Circle(r)` destructures a Crusty-declared variant directly. A value
+  whose type is defined outside Crusty (in a `__rust__ { … }` block) still needs
+  a raw pass-through pattern, since Crusty cannot see its variant shapes.
 - **Arm bodies are expressions.** `pat => expr` is the arm shape; a
   block-bodied arm (`pat => { … }`) is not yet supported, because Crusty has no
   general block-expression form. Use an expression body, or a `__rust__ { … }`
