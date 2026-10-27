@@ -1315,6 +1315,19 @@ mod tests {
         );
     }
 
+    /// ADR-0029: a block-bodied match arm (`pat => { …; v }`) yields its value
+    /// via the block's trailing expression and type-checks cleanly.
+    #[test]
+    fn test_adr0029_block_bodied_match_arm_accepted() {
+        let (_a, result) = analyze_source(
+            "int classify(int n) { return match (n) { 0 => { let b = 1; b + n }, _ => 0 }; }",
+        );
+        assert!(
+            result.is_ok(),
+            "a block-bodied match arm should type cleanly: {result:?}"
+        );
+    }
+
     /// A struct `Box` with a static method `wrap<U>(U) -> U` (returns its own
     /// generic parameter) plus `first(&self) -> int` (concrete return).
     fn box_with_generic_method() -> Item {

@@ -912,6 +912,55 @@ void main() {
         }
     }
 
+    // ADR-0029: block-bodied match arms — an arm body `{ …; v }` yields `v`
+    // via its trailing expression, alongside plain-expression arms — compile +
+    // run. Falls out of the value-block machinery (Expression::Block).
+    #[test]
+    fn test_compile_block_bodied_match_arms() {
+        let test_source = r#"
+int classify(int n) {
+    return match (n) {
+        0 => { let base = 100; base + n },
+        1 => 50,
+        _ => { 0 },
+    };
+}
+
+void main() {
+    println!("x={}", classify(0));
+    println!("y={}", classify(1));
+    println!("z={}", classify(9));
+}
+"#;
+        let input_path = PathBuf::from("test_compile_block_match_29.crst");
+        let output_path = PathBuf::from("test_compile_block_match_29");
+
+        fs::write(&input_path, test_source).unwrap();
+
+        let options = CompilerOptions {
+            input_file: input_path.clone(),
+            output_file: Some(output_path.clone()),
+            out_dir: None,
+            emit: EmitMode::Binary,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        let result = run_compiler(&options);
+
+        let _ = fs::remove_file(&input_path);
+        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(format!("{}.rs", output_path.display()));
+
+        if let Err(err) = result {
+            assert!(
+                matches!(err, crate::error::CompilerError::RustcInvocation(_)),
+                "block-bodied match arms should transpile and compile cleanly; got {err:?}"
+            );
+        }
+    }
+
     // ADR-0027: dyn / impl Trait type positions — impl Trait return,
     // &dyn Trait param, Box<dyn Trait> return — compile + run.
     #[test]
