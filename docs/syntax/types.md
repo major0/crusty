@@ -144,15 +144,37 @@ is passed through unchanged; `dyn Fn(i32) -> i32` and `impl A + B` are supported
 
 ### Arrays and Tuples
 ```c
-int[10] arr;           // array of 10 ints
+int[10] arr;           // C-style: array of 10 ints
 (int, float) pair;     // tuple
 ```
+
+### Slice and array type forms
+
+Crusty accepts BOTH the C-style postfix form and Rust's prefix form for array
+and slice types (they spell the same type):
+
+```c
+int[10] arr;           // C postfix: sized array        -> [i32; 10]
+int[] view;            // C postfix: slice (unsized)     -> [i32]
+[int; 10] arr;         // Rust prefix: sized array       -> [i32; 10]
+[int] view;            // Rust prefix: slice             -> [i32]
+&[int] s;              // slice reference (the std idiom) -> &[i32]
+```
+
+The prefix form exists because the Rust standard library speaks in `&[T]`
+(string/byte views, `&[u8]`, most collection APIs), and `&[int]` composes
+cleanly as `&` + the prefix slice `[int]`. The C postfix form stays for
+familiarity. Use whichever reads better; both lower identically.
 
 ## Formal Grammar
 
 ```ebnf
 type_expr  = primitive_type | struct_type | enum_type | pointer_type
            | reference_type | array_type | tuple_type | generic_type ;
+array_type = type_expr "[" INT "]"      (* C postfix sized array *)
+           | type_expr "[" "]"          (* C postfix slice *)
+           | "[" type_expr ";" INT "]"  (* Rust prefix sized array *)
+           | "[" type_expr "]" ;        (* Rust prefix slice *)
 primitive  = "int" | "int8" | "int16" | "int32" | "int64" | "int128"
            | "uint8" | "uint16" | "uint32" | "uint64" | "uint128"
            | "float" | "f32" | "f64" | "bool" | "char" | "void" ;
