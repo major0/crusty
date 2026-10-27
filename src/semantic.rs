@@ -2977,66 +2977,6 @@ impl SemanticAnalyzer {
                 self.expected_return_type = old_return_type;
                 Type::Auto
             }
-            Expression::Match { scrutinee, arms } => {
-                // PS-06 Phase 3 (ADR-0012). Analyse the scrutinee, then each
-                // arm in its own scope: a `Pattern::Binding` introduces its
-                // name typed `Auto` (rustc narrows), a guard must be
-                // bool-compatible, and the match's type is the arms' common
-                // body type — or `Auto` when they disagree or an arm body
-                // cannot be typed. Exhaustiveness/reachability are rustc's.
-                self.analyze_expression(scrutinee);
-
-                let mut arm_types: Vec<Type> = Vec::new();
-                for arm in arms {
-                    self.symbol_table.enter_scope();
-                    self.bind_pattern(&arm.pattern);
-
-                    if let Some(ref guard) = arm.guard {
-                        let guard_type = self.analyze_expression(guard);
-                        if !self.type_env.is_compatible(
-                            &Type::Primitive(PrimitiveType::Bool),
-                            &guard_type,
-                        ) {
-                            self.errors.push(SemanticError::new(
-                                Span::new(
-                                    crate::error::Position::new(0, 0),
-                                    crate::error::Position::new(0, 0),
-                                ),
-                                SemanticErrorKind::TypeMismatch,
-                                format!(
-                                    "match guard must be boolean, found {:?}",
-                                    guard_type
-                                ),
-                            ));
-                        }
-                    }
-
-                    // A `Raw` pattern may bind names Crusty cannot see
-                    // (e.g. `Some(x)`), so analysing its body strictly would
-                    // raise false "undefined variable" errors. For a structural
-                    // pattern we analyse the body and record its type; for a
-                    // raw pattern we defer entirely to rustc (`Auto`).
-                    if matches!(arm.pattern, crate::ast::Pattern::Raw(_)) {
-                        arm_types.push(Type::Auto);
-                    } else {
-                        arm_types.push(self.analyze_expression(&arm.body));
-                    }
-
-                    self.symbol_table.exit_scope();
-                }
-
-                // The match yields the arms' common concrete type, or `Auto`
-                // when they disagree, an arm is `Auto`, or there are no arms.
-                match arm_types.split_first() {
-                    Some((first, rest))
-                        if *first != Type::Auto
-                            && rest.iter().all(|t| t == first) =>
-                    {
-                        first.clone()
-                    }
-                    _ => Type::Auto,
-                }
-            }
             Expression::Switch { scrutinee, cases, default } => {
                 // ADR-0032: a value-yielding `switch`. Analyse the scrutinee,
                 // then each case's values and body, and the default. A `switch`
@@ -3178,9 +3118,9 @@ impl SemanticAnalyzer {
             // A trailing `__rust__ { … }` statement is opaque — assume it may
             // diverge/return so we do not reject it (rustc arbitrates).
             Statement::Expr(Expression::RustBlock { .. }) => true,
-            // A trailing value-block or match expression in statement position
-            // is opaque to this conservative check — accept it.
-            Statement::Expr(Expression::Block(_)) | Statement::Expr(Expression::Match { .. }) => {
+            // A trailing value-block or value-yielding `switch` in statement
+            // position is opaque to this conservative check — accept it.
+            Statement::Expr(Expression::Block(_)) | Statement::Expr(Expression::Switch { .. }) => {
                 true
             }
             Statement::Attributed { stmt, .. } => Self::stmt_guarantees_return(stmt),
@@ -3534,18 +3474,6 @@ impl SemanticAnalyzer {
             }
             Expression::Scope { body } => {
                 self.collect_used_variables_in_block(body, used);
-            }
-            Expression::Match { scrutinee, arms } => {
-                // A variable referenced in the scrutinee, a guard, or any arm
-                // body is used — walk all three so Phase-1 match expressions do
-                // not trip false "unused variable" diagnostics (ADR-0012).
-                self.collect_used_variables(scrutinee, used);
-                for arm in arms {
-                    if let Some(guard) = &arm.guard {
-                        self.collect_used_variables(guard, used);
-                    }
-                    self.collect_used_variables(&arm.body, used);
-                }
             }
             Expression::Switch { scrutinee, cases, default } => {
                 // ADR-0032: variables used in the scrutinee, a case guard, or a

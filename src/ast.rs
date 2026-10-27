@@ -622,15 +622,6 @@ pub enum Expression {
         left: Box<Expression>,
         right: Box<Expression>,
     },
-    /// `match` expression (PS-06, ADR-0012). Yields the value of the matched
-    /// arm's body, so it is legal in expression position
-    /// (`let x = match e { … };`); in statement position it is a
-    /// `Statement::Expr` wrapping this. Distinct from the C-style
-    /// `Statement::Switch`, which matches value expressions, not patterns.
-    Match {
-        scrutinee: Box<Expression>,
-        arms: Vec<MatchArm>,
-    },
     /// Value-yielding `switch` in expression position (ADR-0032):
     /// `let i = switch (e) { case 1: a; default: b; };`. Reuses `SwitchCase`
     /// (each case body is a `Block` whose tail is the arm's value — a bare arm
@@ -674,20 +665,11 @@ pub enum Expression {
     },
 }
 
-/// One arm of a `match` expression (PS-06). The body is an expression; a
-/// `{ … }` block is itself an expression, so both `p => expr` and `p => { … }`
-/// use this one shape. `guard` is the optional `if <cond>` after the pattern.
-#[derive(Debug, Clone, PartialEq)]
-pub struct MatchArm {
-    pub pattern: Pattern,
-    pub guard: Option<Expression>,
-    pub body: Box<Expression>,
-}
-
-/// A `match`-arm pattern (PS-06, ADR-0012). Covers the decidable, portable
-/// subset structurally; anything Crusty does not model (payload/tuple/struct
-/// destructuring) rides `Pattern::Raw` verbatim and is left to rustc, the same
-/// escape-hatch move PS-08 uses for generic bounds and `where` clauses.
+/// A `switch`-case pattern (ADR-0032, carrying ADR-0012's pattern model).
+/// Covers the decidable, portable subset structurally; anything Crusty does not
+/// model (payload/tuple/struct/slice destructuring) rides `Pattern::Raw`
+/// verbatim and is left to rustc, the same escape-hatch move PS-08 uses for
+/// generic bounds and `where` clauses.
 #[derive(Debug, Clone, PartialEq)]
 #[allow(dead_code)]
 pub enum Pattern {

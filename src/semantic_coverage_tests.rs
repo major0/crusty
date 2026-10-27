@@ -1318,13 +1318,13 @@ mod tests {
     /// ADR-0029: a block-bodied match arm (`pat => { …; v }`) yields its value
     /// via the block's trailing expression and type-checks cleanly.
     #[test]
-    fn test_adr0029_block_bodied_match_arm_accepted() {
+    fn test_adr0032_block_bodied_switch_case_accepted() {
         let (_a, result) = analyze_source(
-            "int classify(int n) { return match (n) { 0 => { let b = 1; b + n }, _ => 0 }; }",
+            "int classify(int n) { return switch (n) { case 0: { let b = 1; b + n } default: 0; }; }",
         );
         assert!(
             result.is_ok(),
-            "a block-bodied match arm should type cleanly: {result:?}"
+            "a block-bodied switch case should type cleanly: {result:?}"
         );
     }
 
@@ -1528,41 +1528,41 @@ mod tests {
     // ------------------------------------------------------------------
 
     #[test]
-    fn test_match_binding_in_scope_in_arm_body() {
-        // A `Pattern::Binding` is visible in its arm body and guard.
+    fn test_switch_binding_in_scope_in_case_body() {
+        // A `Pattern::Binding` is visible in its case body and guard.
         let (_, result) = analyze_source(
-            "void main() { let n = 7; let d = match (n) { 0 => 0, x if x > 1 => x + x, y => y }; }",
+            "void main() { let n = 7; let d = switch (n) { case 0: 0; case x if x > 1: x + x; case y: y; }; }",
         );
         assert!(result.is_ok(), "binding should be in scope: {:?}", result);
     }
 
     #[test]
-    fn test_match_arm_body_undefined_variable_errors() {
-        // A non-raw arm body referencing an unbound name still errors — the
+    fn test_switch_case_body_undefined_variable_errors() {
+        // A non-raw case body referencing an unbound name still errors — the
         // binding scope does not suppress real diagnostics.
         let (_, result) = analyze_source(
-            "void main() { let n = 7; let d = match (n) { _ => bogus }; }",
+            "void main() { let n = 7; let d = switch (n) { default: bogus; }; }",
         );
-        assert!(result.is_err(), "undefined var in arm body should error");
+        assert!(result.is_err(), "undefined var in case body should error");
     }
 
     #[test]
-    fn test_match_binding_does_not_leak_out_of_arm() {
-        // A name bound in one arm is not visible after the match.
+    fn test_switch_binding_does_not_leak_out_of_case() {
+        // A name bound in one case is not visible after the switch.
         let (_, result) = analyze_source(
-            "void main() { let n = 7; let d = match (n) { z => z }; let e = z; }",
+            "void main() { let n = 7; let d = switch (n) { case z: z; }; let e = z; }",
         );
-        assert!(result.is_err(), "arm binding must not leak to outer scope");
+        assert!(result.is_err(), "case binding must not leak to outer scope");
     }
 
     #[test]
-    fn test_match_raw_pattern_body_not_strictly_analysed() {
+    fn test_switch_raw_pattern_body_not_strictly_analysed() {
         // A `Raw` pattern may bind names Crusty cannot parse (`Some(v)`), so
-        // its arm body is deferred to rustc rather than false-flagged.
+        // its case body is deferred to rustc rather than false-flagged.
         let (_, result) = analyze_source(
-            "void main() { let n = 7; let d = match (n) { Some(v) => v, _ => 0 }; }",
+            "void main() { let n = 7; let d = switch (n) { case Some(v): v; default: 0; }; }",
         );
-        assert!(result.is_ok(), "raw-pattern arm body must not error: {:?}", result);
+        assert!(result.is_ok(), "raw-pattern case body must not error: {:?}", result);
     }
 
     // ------------------------------------------------------------------

@@ -186,19 +186,19 @@ int square(int n) {
         assert!(result.is_ok());
     }
 
-    // PS-06 Phase 2 (ADR-0012): a `let = match …` expression-position program
-    // with a range arm, a guard, a binding, and a wildcard must transpile and
-    // compile under rustc.
+    // ADR-0032: a `let = switch …` expression-position program with a range
+    // case, a guard, a binding, and a default must transpile and compile under
+    // rustc (migrated from the retired match).
     #[test]
-    fn test_compile_match_expression_to_binary() {
+    fn test_compile_switch_expression_to_binary() {
         let test_source = r#"
 void main() {
     int n = 7;
-    int grade = match (n) {
-        0 => 100,
-        1..=5 => 50,
-        x if x > 6 => 10,
-        _ => 0,
+    int grade = switch (n) {
+        case 0: 100;
+        case 1 ... 5: 50;
+        case x if x > 6: 10;
+        default: 0;
     };
     println!("grade={}", grade);
 }
@@ -808,10 +808,10 @@ enum Code {
 }
 
 int area(Shape s) {
-    return match (s) {
-        Shape::Square(side) => side * side,
-        Shape::Rect { w, h } => w * h,
-        _ => 0,
+    return switch (s) {
+        case Shape::Square(side): side * side;
+        case Shape::Rect { w, h }: w * h;
+        default: 0;
     };
 }
 
@@ -916,13 +916,13 @@ void main() {
     // via its trailing expression, alongside plain-expression arms — compile +
     // run. Falls out of the value-block machinery (Expression::Block).
     #[test]
-    fn test_compile_block_bodied_match_arms() {
+    fn test_compile_block_bodied_switch_cases() {
         let test_source = r#"
 int classify(int n) {
-    return match (n) {
-        0 => { let base = 100; base + n },
-        1 => 50,
-        _ => { 0 },
+    return switch (n) {
+        case 0: { let base = 100; base + n }
+        case 1: 50;
+        default: { 0 }
     };
 }
 
@@ -932,8 +932,8 @@ void main() {
     println!("z={}", classify(9));
 }
 "#;
-        let input_path = PathBuf::from("test_compile_block_match_29.crst");
-        let output_path = PathBuf::from("test_compile_block_match_29");
+        let input_path = PathBuf::from("test_compile_block_switch_32.crst");
+        let output_path = PathBuf::from("test_compile_block_switch_32");
 
         fs::write(&input_path, test_source).unwrap();
 

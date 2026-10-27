@@ -1901,26 +1901,6 @@ impl CodeGenerator {
                 result.push_str(" }");
                 result
             }
-            Expression::Match { scrutinee, arms } => {
-                // PS-06 (ADR-0012): lower to a Rust `match`, emitted inline as
-                // an expression so `let x = match … { … };` works. Each arm is
-                // `<pattern> [if <guard>] => <body>,`.
-                let mut result = String::from("match ");
-                result.push_str(&self.generate_expression_string(scrutinee));
-                result.push_str(" {\n");
-                for arm in arms {
-                    result.push_str(&self.generate_pattern_string(&arm.pattern));
-                    if let Some(ref guard) = arm.guard {
-                        result.push_str(" if ");
-                        result.push_str(&self.generate_expression_string(guard));
-                    }
-                    result.push_str(" => ");
-                    result.push_str(&self.generate_expression_string(&arm.body));
-                    result.push_str(",\n");
-                }
-                result.push('}');
-                result
-            }
             Expression::Switch { scrutinee, cases, default } => {
                 // ADR-0032: a value-yielding `switch` lowers to a Rust `match`,
                 // emitted inline so `let i = switch (e) { … }` works. Each case

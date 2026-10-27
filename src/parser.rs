@@ -1487,7 +1487,6 @@ peg::parser! {
             / loop_expr()
             / thread_expr()
             / scope_expr()
-            / match_expr()
             / switch_expr()
             / block_value_expr()
             / if_expr()
@@ -1607,56 +1606,14 @@ peg::parser! {
                 }
             }
 
-        /// Match expression (PS-06, ADR-0012): `match <scrutinee> { arm,* }`.
-        /// The scrutinee is parsed through the struct-literal-free atom tier
-        /// (`expr_inner(false)`, as for the for-in iterable), so `match p { … }`
-        /// reads `p` as the scrutinee and `{` as the arm block rather than
-        /// `p {}` as an empty struct literal. A struct-literal scrutinee must be
-        /// parenthesised. Lowered verbatim to a Rust `match`.
-        rule match_expr() -> Expression
-            = _ kw_match() _ "(" _ scrutinee:expr() _ ")" _ "{" _ arms:match_arms() _ "}" _ {
-                Expression::Match {
-                    scrutinee: Box::new(scrutinee),
-                    arms,
-                }
-            }
-
-        /// Helper: comma-separated match arms, trailing comma optional.
-        rule match_arms() -> Vec<MatchArm>
-            = arms:(match_arm() ** (_ "," _)) _ ","? { arms }
-
-        /// Helper: one match arm `pattern [if guard] => body`. The body is an
-        /// expression (a `{ … }` block is an expression), so both
-        /// `p => expr` and `p => { … }` parse through one rule.
-        rule match_arm() -> MatchArm
-            = _ pattern:pattern() _ guard:match_guard()? _ "=>" _ body:expr_inner(true, false) {
-                MatchArm {
-                    pattern,
-                    guard,
-                    body: Box::new(body),
-                }
-            }
-
-        /// Helper: an arm guard `if <cond>`. The condition is parsed
-        /// struct-literal-free so the arm body's `{` is not swallowed.
-        rule match_guard() -> Expression
-            = kw_if() __ cond:expr_inner(false, false) { cond }
-
-        /// A match-arm pattern. Structural forms are parsed into typed
-        /// `Pattern` variants; anything else (payload/tuple/struct
-        /// destructuring) falls through to `raw_pattern()` and is carried
-        /// verbatim to rustc (ADR-0001). Order matters: alternation wraps the
-        /// others; range before literal (a range starts with a literal
-        /// endpoint); wildcard before binding (`_` is not a binding).
-        rule pattern() -> Pattern
-            = first:pattern_no_or() rest:(_ "|" _ p:pattern_no_or() { p })+ {
-                let mut alts = vec![first];
-                alts.extend(rest);
-                Pattern::Or(alts)
-            }
-            / pattern_no_or()
-
-        /// Helper: a single pattern with no top-level `|` alternation.
+        /// A single pattern with no top-level `|` alternation. The top-level
+        /// `|` alternation used only by the retired `match` is gone (ADR-0032);
+        /// `switch`'s alternation is the C/Go comma-list (`case a, b, c:` →
+        /// `Pattern::Or`), assembled in `case_pattern`. Structural forms parse
+        /// into typed `Pattern` variants; anything else (payload/tuple/struct/
+        /// slice destructuring) falls through to `raw_pattern()` and is carried
+        /// verbatim to rustc (ADR-0001). Order matters: range before literal (a
+        /// range starts with a literal endpoint); wildcard before binding.
         rule pattern_no_or() -> Pattern
             = lo:pattern_range_endpoint() _ inclusive:range_op() _ hi:pattern_range_endpoint() {
                 Pattern::Range { lo: Box::new(lo), hi: Box::new(hi), inclusive }
@@ -2915,7 +2872,7 @@ peg::parser! {
         /// parse is backtracked — this is a lookahead, not a real consume.
         rule block_tail_cf() -> ()
             = if_expr() ()
-            / match_expr() ()
+            / switch_expr() ()
             / loop_expr() ()
             / block_value_expr() ()
 
@@ -6286,122 +6243,114 @@ mod item_tests {
         }
     }
 
-    // --- PS-06 Phase 1: match expression + patterns (ADR-0012) ---
+    // --- ADR-0032: switch pattern parsing (migrated from the retired match) ---
 
     #[test]
-    fn test_match_literal_arms_and_wildcard() {
-        let result = crusty_peg_parser::expr("match (n) { 1 => 10, 2 => 20, _ => 0 }");
-        assert!(result.is_ok(), "match should parse: {:?}", result);
-        if let Ok(Expression::Match { scrutinee, arms }) = result {
+    fn test_switch_literal_cases_and_default() {
+        let result = crusty_peg_parser::expr("switch (n) { case 1: 10; case 2: 20; default: 0; }");
+        assert!(result.is_ok(), "switch should parse: {:?}", result);
+        if let Ok(Expression::Switch { scrutinee, cases, default }) = result {
             assert!(matches!(&*scrutinee, Expression::Ident(i) if i.name == "n"));
-            assert_eq!(arms.len(), 3);
-            assert!(matches!(&arms[0].pattern, Pattern::Literal(_)));
-            assert!(arms[0].guard.is_none());
-            assert!(matches!(&arms[2].pattern, Pattern::Wildcard));
+            assert_eq!(cases.len(), 2);
+            assert!(matches!(&cases[0].pattern, Pattern::Literal(_)));
+            assert!(cases[0].guard.is_none());
+            assert!(default.is_some());
         } else {
-            panic!("expected Expression::Match, got {:?}", result);
+            panic!("expected Expression::Switch, got {:?}", result);
         }
     }
 
     #[test]
-    fn test_match_requires_parenthesised_scrutinee() {
-        // ADR-0028: the scrutinee is parenthesised `match (p) { … }`, like
-        // `switch (expr)`. The bare `match p { … }` form is no longer accepted.
-        let result = crusty_peg_parser::expr("match (p) { _ => 1 }");
+    fn test_switch_requires_parenthesised_scrutinee() {
+        let result = crusty_peg_parser::expr("switch (p) { default: 1; }");
         assert!(result.is_ok(), "parenthesised scrutinee should parse: {:?}", result);
-        if let Ok(Expression::Match { scrutinee, arms }) = result {
+        if let Ok(Expression::Switch { scrutinee, .. }) = result {
             assert!(matches!(&*scrutinee, Expression::Ident(i) if i.name == "p"));
-            assert_eq!(arms.len(), 1);
         } else {
-            panic!("expected Expression::Match, got {:?}", result);
+            panic!("expected Expression::Switch, got {:?}", result);
         }
-        // Bare form rejected.
-        assert!(
-            crusty_peg_parser::expr("match p { _ => 1 }").is_err(),
-            "bare match scrutinee must no longer parse"
-        );
     }
 
     #[test]
-    fn test_match_struct_literal_scrutinee() {
-        // With the scrutinee parenthesised, the full expression grammar is
-        // available — a struct-literal scrutinee now parses (ADR-0028).
-        let result = crusty_peg_parser::expr("match (Point { x: 1 }) { _ => 0 }");
+    fn test_switch_struct_literal_scrutinee() {
+        // The scrutinee is parenthesised, so the full expression grammar is
+        // available — a struct-literal scrutinee parses.
+        let result = crusty_peg_parser::expr("switch (Point { x: 1 }) { default: 0; }");
         assert!(result.is_ok(), "struct-literal scrutinee should parse: {:?}", result);
-        if let Ok(Expression::Match { scrutinee, .. }) = result {
+        if let Ok(Expression::Switch { scrutinee, .. }) = result {
             assert!(matches!(&*scrutinee, Expression::StructInit { .. }));
         } else {
-            panic!("expected Expression::Match, got {:?}", result);
+            panic!("expected Expression::Switch, got {:?}", result);
         }
     }
 
     #[test]
-    fn test_match_guard_and_inclusive_range() {
+    fn test_switch_guard_and_inclusive_range() {
         let result =
-            crusty_peg_parser::expr("match (c) { 'a'..='z' => 1, n if n > 0 => 2, _ => 3 }");
+            crusty_peg_parser::expr("switch (c) { case 'a' ... 'z': 1; case n if n > 0: 2; default: 3; }");
         assert!(result.is_ok(), "guard + range should parse: {:?}", result);
-        if let Ok(Expression::Match { arms, .. }) = result {
-            assert_eq!(arms.len(), 3);
+        if let Ok(Expression::Switch { cases, .. }) = result {
+            assert_eq!(cases.len(), 2);
             assert!(matches!(
-                &arms[0].pattern,
+                &cases[0].pattern,
                 Pattern::Range { inclusive: true, .. }
             ));
-            // Second arm: a binding with a guard.
-            assert!(matches!(&arms[1].pattern, Pattern::Binding(b) if b.name == "n"));
-            assert!(arms[1].guard.is_some());
+            assert!(matches!(&cases[1].pattern, Pattern::Binding(b) if b.name == "n"));
+            assert!(cases[1].guard.is_some());
         } else {
-            panic!("expected Expression::Match, got {:?}", result);
+            panic!("expected Expression::Switch, got {:?}", result);
         }
     }
 
     #[test]
-    fn test_match_or_and_path_patterns() {
-        let result = crusty_peg_parser::expr("match (x) { 1 | 2 | 3 => 10, Color::Red => 20, _ => 0 }");
-        assert!(result.is_ok(), "or + path patterns should parse: {:?}", result);
-        if let Ok(Expression::Match { arms, .. }) = result {
-            assert_eq!(arms.len(), 3);
-            if let Pattern::Or(alts) = &arms[0].pattern {
+    fn test_switch_comma_list_and_path_patterns() {
+        let result =
+            crusty_peg_parser::expr("switch (x) { case 1, 2, 3: 10; case Color::Red: 20; default: 0; }");
+        assert!(result.is_ok(), "comma-list + path patterns should parse: {:?}", result);
+        if let Ok(Expression::Switch { cases, .. }) = result {
+            assert_eq!(cases.len(), 2);
+            if let Pattern::Or(alts) = &cases[0].pattern {
                 assert_eq!(alts.len(), 3);
             } else {
-                panic!("expected Pattern::Or, got {:?}", arms[0].pattern);
+                panic!("expected Pattern::Or, got {:?}", cases[0].pattern);
             }
-            if let Pattern::Path(segs) = &arms[1].pattern {
+            if let Pattern::Path(segs) = &cases[1].pattern {
                 assert_eq!(segs.len(), 2);
                 assert_eq!(segs[0].name, "Color");
                 assert_eq!(segs[1].name, "Red");
             } else {
-                panic!("expected Pattern::Path, got {:?}", arms[1].pattern);
+                panic!("expected Pattern::Path, got {:?}", cases[1].pattern);
             }
         } else {
-            panic!("expected Expression::Match, got {:?}", result);
+            panic!("expected Expression::Switch, got {:?}", result);
         }
     }
 
     #[test]
-    fn test_match_destructuring_pattern_is_raw_passthrough() {
+    fn test_switch_destructuring_pattern_is_raw_passthrough() {
         // A payload-destructuring pattern Crusty does not model is captured
-        // verbatim as Pattern::Raw, not a parse error (ADR-0012 escape hatch).
-        let result = crusty_peg_parser::expr("match (o) { Some(v) => v, None => 0 }");
-        assert!(result.is_ok(), "destructuring arm should parse as raw: {:?}", result);
-        if let Ok(Expression::Match { arms, .. }) = result {
-            assert_eq!(arms.len(), 2);
-            assert!(matches!(&arms[0].pattern, Pattern::Raw(s) if s == "Some(v)"));
-            // `None` is a bare path segment → a single-ident binding, not raw.
-            assert!(matches!(&arms[1].pattern, Pattern::Binding(b) if b.name == "None"));
+        // verbatim as Pattern::Raw, not a parse error (ADR-0012 escape hatch,
+        // carried onto switch by ADR-0032).
+        let result = crusty_peg_parser::expr("switch (o) { case Some(v): v; case None: 0; }");
+        assert!(result.is_ok(), "destructuring case should parse as raw: {:?}", result);
+        if let Ok(Expression::Switch { cases, .. }) = result {
+            assert_eq!(cases.len(), 2);
+            assert!(matches!(&cases[0].pattern, Pattern::Raw(s) if s == "Some(v)"));
+            assert!(matches!(&cases[1].pattern, Pattern::Binding(b) if b.name == "None"));
         } else {
-            panic!("expected Expression::Match, got {:?}", result);
+            panic!("expected Expression::Switch, got {:?}", result);
         }
     }
 
     #[test]
-    fn test_match_in_let_initializer_expression_position() {
-        // The whole point of PS-06 over `switch`: match yields a value.
-        let result = crusty_peg_parser::statement("let r = match (n) { 0 => 1, _ => 2 };");
-        assert!(result.is_ok(), "match in let initializer should parse: {:?}", result);
-        if let Ok(Statement::Let { init: Some(Expression::Match { arms, .. }), .. }) = result {
-            assert_eq!(arms.len(), 2);
+    fn test_switch_in_let_initializer_expression_position() {
+        // A value-yielding switch in a let initializer (ADR-0032).
+        let result = crusty_peg_parser::statement("let r = switch (n) { case 0: 1; default: 2; };");
+        assert!(result.is_ok(), "switch in let initializer should parse: {:?}", result);
+        if let Ok(Statement::Let { init: Some(Expression::Switch { cases, .. }), .. }) = result {
+            assert_eq!(cases.len(), 1);
         } else {
-            panic!("expected a let with a Match initializer, got {:?}", result);
+            panic!("expected a let with a Switch initializer, got {:?}", result);
         }
     }
 
