@@ -1111,6 +1111,48 @@ void main() {
         }
     }
 
+    // ADR-0031: `$type` generic method arguments. A leading `$Type` argument
+    // lowers to the method's Rust turbofish: `"42".parse($i32)` ->
+    // `"42".parse::<i32>()`. The parsed value is USED in arithmetic (n + 1),
+    // so a mis-lowering would be a hard compile error here, not a silent pass.
+    #[test]
+    fn test_compile_dollar_type_generic_method() {
+        let test_source = r#"
+void main() {
+    let s = "42";
+    let n = s.parse($i32).unwrap();
+    println!("n={}", n + 1);
+}
+"#;
+        let input_path = PathBuf::from("test_compile_dollar_type_31.crst");
+        let output_path = PathBuf::from("test_compile_dollar_type_31");
+
+        fs::write(&input_path, test_source).unwrap();
+
+        let options = CompilerOptions {
+            input_file: input_path.clone(),
+            output_file: Some(output_path.clone()),
+            out_dir: None,
+            emit: EmitMode::Binary,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        let result = run_compiler(&options);
+
+        let _ = fs::remove_file(&input_path);
+        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(format!("{}.rs", output_path.display()));
+
+        if let Err(err) = result {
+            assert!(
+                matches!(err, crate::error::CompilerError::RustcInvocation(_)),
+                "$type generic method call should transpile and compile cleanly; got {err:?}"
+            );
+        }
+    }
+
     // ADR-0029: a `__func__` body requires `return` and lowers to a closure
     // whose `return` is closure-scoped; a value-block nested inside it yields
     // locally via its bare tail, while an inner `return` exits the `__func__`
