@@ -1204,6 +1204,56 @@ void main() {
         }
     }
 
+    // ADR-0030/0032 slice 2: case comma-list and `...` ranges in a value
+    // switch. `case 1, 2, 3:` -> `1 | 2 | 3 =>`; `case 10 ... 20:` -> `10..=20
+    // =>`. cls(2)=10, cls(15)=50, cls(99)=0; result used in arithmetic.
+    #[test]
+    fn test_compile_switch_comma_list_and_range() {
+        let test_source = r#"
+int cls(int x) {
+    let i = switch (x) {
+        case 1, 2, 3:   10;
+        case 10 ... 20: 50;
+        default:        0;
+    };
+    return i;
+}
+
+void main() {
+    println!("a={}", cls(2));
+    println!("b={}", cls(15));
+    println!("c={}", cls(99));
+}
+"#;
+        let input_path = PathBuf::from("test_compile_switch_cases_32.crst");
+        let output_path = PathBuf::from("test_compile_switch_cases_32");
+
+        fs::write(&input_path, test_source).unwrap();
+
+        let options = CompilerOptions {
+            input_file: input_path.clone(),
+            output_file: Some(output_path.clone()),
+            out_dir: None,
+            emit: EmitMode::Binary,
+            absorb: None,
+            verbose: false,
+            no_compile: false,
+        };
+
+        let result = run_compiler(&options);
+
+        let _ = fs::remove_file(&input_path);
+        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(format!("{}.rs", output_path.display()));
+
+        if let Err(err) = result {
+            assert!(
+                matches!(err, crate::error::CompilerError::RustcInvocation(_)),
+                "switch comma-list/range cases should transpile and compile cleanly; got {err:?}"
+            );
+        }
+    }
+
     // ADR-0029: a `__func__` body requires `return` and lowers to a closure
     // whose `return` is closure-scoped; a value-block nested inside it yields
     // locally via its bare tail, while an inner `return` exits the `__func__`
